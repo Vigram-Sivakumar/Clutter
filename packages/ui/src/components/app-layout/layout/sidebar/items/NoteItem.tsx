@@ -1,0 +1,87 @@
+import { ReactNode } from 'react';
+import { SidebarItem } from './SidebarItem';
+
+interface SidebarItemNoteProps {
+  id: string;
+  title: string;
+  icon?: string;
+  hasContent?: boolean;
+  isSelected: boolean;
+  level: number;
+  onClick: (event?: React.MouseEvent) => void;
+  actions?: ReactNode[];
+  // Drag and drop
+  onDragStart?: (id: string, context: string) => void;
+  onDragEnd?: () => void;
+  isDragging?: boolean;
+  context: string; // Context for ordering (e.g., 'cluttered', 'favourites', 'folder-notes-123')
+  // Drop zone detection for reordering
+  onDragOverForReorder?: (id: string, position: 'before' | 'after') => void;
+  onDragLeaveForReorder?: () => void;
+  onDropForReorder?: (id: string, position: 'before' | 'after') => void;
+  dropPosition?: 'before' | 'after' | null;
+  onClearAllReorderIndicators?: () => void; // Clear all reorder indicators
+  // Inline editing
+  isEditing?: boolean;
+  onRenameComplete?: (id: string, newTitle: string) => void;
+  onRenameCancel?: () => void;
+  // Emoji picker
+  onEmojiClick?: (noteId: string, buttonElement: HTMLButtonElement) => void;
+}
+
+/**
+ * SidebarItemNote - Wrapper around unified SidebarItem component
+ * Maintains backwards compatibility while using the unified component
+ */
+export const SidebarItemNote = ({
+  id,
+  title,
+  icon,
+  hasContent,
+  isSelected,
+  level,
+  onClick,
+  actions,
+  onDragStart,
+  onDragEnd,
+  isDragging = false,
+  context,
+  onDragOverForReorder,
+  onDragLeaveForReorder,
+  onDropForReorder,
+  dropPosition = null,
+  onClearAllReorderIndicators,
+  isEditing = false,
+  onRenameComplete,
+  onRenameCancel,
+  onEmojiClick,
+}: SidebarItemNoteProps) => {
+  return (
+    <SidebarItem
+      variant="note"
+      id={id}
+      label={title}
+      icon={icon}
+      hasContent={hasContent}
+      level={level}
+      isSelected={isSelected}
+      isDragging={isDragging}
+      onClick={onClick}
+      actions={actions}
+      draggable={!!onDragStart}
+      context={context}
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
+      reorderable={!!onDragOverForReorder}
+      onDragOverForReorder={onDragOverForReorder}
+      onDragLeaveForReorder={onDragLeaveForReorder}
+      onDropForReorder={onDropForReorder}
+      dropPosition={dropPosition}
+      onClearAllReorderIndicators={onClearAllReorderIndicators}
+      isEditing={isEditing}
+      onRenameComplete={onRenameComplete}
+      onRenameCancel={onRenameCancel}
+      onEmojiClick={onEmojiClick}
+    />
+  );
+};

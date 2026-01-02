@@ -1,0 +1,39 @@
+{
+  "name": "clutter-notes",
+  "version": "2.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "turbo run build",
+    "build:web": "turbo run build --filter=@clutter/web",
+    "build:desktop": "turbo run build --filter=@clutter/desktop && turbo run tauri:build --filter=@clutter/desktop",
+    "build:packages": "turbo run build --filter=@clutter/shared --filter=@clutter/ui",
+    "dev": "turbo run dev",
+    "dev:web": "turbo run dev --filter=@clutter/web",
+    "dev:desktop": "turbo run tauri:dev --filter=@clutter/desktop",
+    "lint": "turbo run lint",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "type-check": "turbo run type-check",
+    "clean": "turbo run clean && rm -rf node_modules",
+    "prepare": "husky install"
+  },
+  "devDependencies": {
+    "@turbo/gen": "^1.11.2",
+    "eslint": "^8.57.0",
+    "husky": "^8.0.3",
+    "lint-staged": "^15.2.0",
+    "prettier": "^3.2.5",
+    "turbo": "^1.11.2",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "packageManager": "npm@9.9.0"
+}
+

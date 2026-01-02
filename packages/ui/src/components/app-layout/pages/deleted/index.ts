@@ -1,0 +1,1 @@
+export { DeletedItemsListView } from './DeletedItemsListView';

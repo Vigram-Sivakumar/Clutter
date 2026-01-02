@@ -1,0 +1,1 @@
+export { FavouritesListView } from './FavouritesListView';

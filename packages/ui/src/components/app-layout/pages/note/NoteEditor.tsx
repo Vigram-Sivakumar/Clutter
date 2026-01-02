@@ -1,0 +1,1291 @@
+import { ReactNode, useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import { Star, StarFilled, Copy, Trash2 } from '../../../../icons';
+import { NoteTopBar } from './NoteTopBar';
+import { AppShell } from '../../layout/AppLayout';
+import { PageTitleSection } from '../../shared/content-header';
+import { PageContent } from '../../shared/page-content';
+import { TitleInputHandle } from '../../shared/content-header/title';
+import { TipTapWrapper, TipTapWrapperHandle } from './TipTapWrapper';
+import { EmojiTray } from '../../shared/emoji';
+import { MarkdownShortcuts } from '../../../ui-modals';
+import { TagFilteredNotesView, AllTagsListView, FavouriteTagsListView } from '../tag';
+import { FolderListView, AllFoldersListView } from '../folder';
+import { FavouritesListView } from '../favourites';
+import { DeletedItemsListView } from '../deleted';
+import { AllTasksListView } from '../tasks';
+import { useBreadcrumbs, useBreadcrumbFolderIds } from './useBreadcrumbs';
+import { useNotesStore, useFoldersStore, useTagsStore, type Note } from '@clutter/shared';
+import { useTheme } from '../../../../hooks/useTheme';
+import { useUIPreferences } from '../../../../hooks/useUIPreferences';
+import { sizing } from '../../../../tokens/sizing';
+import { getTagColor } from '../../../../utils/tagColors';
+
+// Main view type
+type MainView = 
+  | { type: 'editor'; source?: 'deletedItems' | 'default' }
+  | { type: 'tagFilter'; tag: string; source: 'all' | 'favorites' }
+  | { type: 'folderView'; folderId: string; source?: 'deletedItems' | 'default' }
+  | { type: 'allFoldersView' } // View showing all folders
+  | { type: 'favouritesView' } // View showing all favourite notes and folders
+  | { type: 'allTagsView' } // View showing all tags
+  | { type: 'favouriteTagsView' } // View showing all favourite tags
+  | { type: 'allTasksView' } // View showing all tasks
+  | { type: 'deletedItemsView' }; // View showing deleted items (trash)
+
+// Helper to check if TipTap JSON content is empty
+const isContentEmpty = (content: string): boolean => {
+  try {
+    if (!content || content.trim() === '') return true;
+    
+    const json = JSON.parse(content);
+    // Empty TipTap document: {"type":"doc","content":[{"type":"paragraph"}]} or similar
+    if (!json.content || json.content.length === 0) return true;
+    
+    // Check if all nodes are empty paragraphs
+    return json.content.every((node: any) => {
+      if (node.type === 'paragraph' && (!node.content || node.content.length === 0)) {
+        return true;
+      }
+      return false;
+    });
+  } catch {
+    return true; // If parsing fails, consider it empty
+  }
+};
+
+// Debounce helper with cancel function
+const useDebounce = <T extends (...args: any[]) => void>(fn: T, delay: number) => {
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  
+  const debouncedFn = useCallback((...args: Parameters<T>) => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    timeoutRef.current = setTimeout(() => fn(...args), delay);
+  }, [fn, delay]);
+  
+  const cancel = useCallback(() => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+  }, []);
+  
+  return [debouncedFn, cancel] as const;
+};
+
+interface NotesContainerProps {
+  children?: ReactNode;
+  isInitialized?: boolean;
+  onHydrationChange?: (isHydrated: boolean) => void;
+}
+
+export const NoteEditor = ({ 
+  children,
+  isInitialized = true,
+  onHydrationChange,
+}: NotesContainerProps) => {
+  // Notes store
+  const { 
+    notes, 
+    currentNoteId, 
+    setCurrentNoteId, 
+    createNote, 
+    updateNote,
+    updateNoteContent,
+    updateNoteMeta,
+    duplicateNote,
+    deleteNote,
+    findDailyNoteByDate,
+    createDailyNote,
+  } = useNotesStore();
+  
+  // Folders store
+  const { folders, createFolder, updateFolder, deleteFolder } = useFoldersStore();
+  
+  // Tags store
+  const { getTagMetadata, updateTagMetadata, upsertTagMetadata, renameTag } = useTagsStore();
+  
+  // Get current note or create one
+  const currentNote = useMemo(() => {
+    const note = notes.find(n => n.id === currentNoteId && !n.deletedAt) || null;
+    console.log('🔍 CurrentNote computed:', {
+      currentNoteId,
+      found: !!note,
+      title: note?.title,
+      hasContent: !!note?.content,
+      contentLength: note?.content?.length || 0
+    });
+    return note;
+  }, [notes, currentNoteId]);
+
+  // Local state for UI (derived from currentNote)
+  const [selectedEmoji, setSelectedEmoji] = useState<string | null>(currentNote?.emoji || null);
+  const [title, setTitle] = useState<string>(currentNote?.title || '');
+  const [description, setDescription] = useState<string>(currentNote?.description || '');
+  const [showDescriptionInput, setShowDescriptionInput] = useState(false);
+  const [tags, setTags] = useState<string[]>(currentNote?.tags || []);
+  const [showTagInput, setShowTagInput] = useState(false);
+  const [isFavorite, setIsFavorite] = useState(currentNote?.isFavorite || false);
+  const [descriptionVisible, setDescriptionVisible] = useState(currentNote?.descriptionVisible ?? true);
+  const [tagsVisible, setTagsVisible] = useState(currentNote?.tagsVisible ?? true);
+  const [showMarkdownShortcuts, setShowMarkdownShortcuts] = useState(false);
+  // 🛡️ CRITICAL: noteContent must NOT initialize from currentNote to prevent startup races
+  // It is ONLY set by the hydration effect (single source of truth)
+  const [noteContent, setNoteContent] = useState<string>('');
+  const [isEmojiTrayOpen, setIsEmojiTrayOpen] = useState(false);
+  const [emojiTrayPosition, setEmojiTrayPosition] = useState<{ top: number; left: number }>({ top: 100, left: 100 });
+  const [isEmojiHovered, setIsEmojiHovered] = useState(false);
+  
+  // Content width toggle state
+  const [isFullWidth, setIsFullWidth] = useState(false);
+  
+  // 🛡️ Hydration lifecycle (production-grade fix for empty content bug)
+  const [isHydrated, setIsHydrated] = useState(false);
+  const isHydratingRef = useRef(true); // ✅ Starts locked to block onChange during hydration
+  const lastHydratedNoteIdRef = useRef<string | null>(null); // Track which note was last hydrated
+  
+  // Debug: Log component mount
+  useEffect(() => {
+    console.log('🏁 NoteEditor mounted:', {
+      isInitialized,
+      currentNoteId,
+      notesCount: notes.length,
+      hasCurrentNote: !!currentNote
+    });
+  }, []);
+
+  // Report hydration state to parent (for auto-save gating)
+  useEffect(() => {
+    if (onHydrationChange) {
+      onHydrationChange(isHydrated);
+    }
+  }, [isHydrated, onHydrationChange]);
+  
+  // Main view state
+  const [mainView, setMainView] = useState<MainView>({ type: 'editor' });
+  
+  // Target block ID for scrolling (e.g., when clicking on a task from sidebar)
+  const [targetBlockId, setTargetBlockId] = useState<string | null>(null);
+  
+  // Centralized breadcrumb generation
+  const breadcrumbs = useBreadcrumbs(mainView, currentNote);
+  const folderPathIds = useBreadcrumbFolderIds(mainView, currentNote);
+  
+  // Restore last viewed note or open today's daily note on first load (only in editor mode)
+  useEffect(() => {
+    // Wait for database to be initialized before opening notes
+    if (!isInitialized) return;
+    
+    // Only auto-open notes when in editor view, not when viewing folders/tags
+    if (mainView.type !== 'editor') return;
+    
+    // Skip if we already have a note selected
+    if (currentNoteId) return;
+    
+    // Prevent duplicate creation
+    if (hasCreatedInitialNoteRef.current) return;
+    hasCreatedInitialNoteRef.current = true;
+    
+    // 1. Try to restore last viewed note from localStorage
+    const lastNoteId = localStorage.getItem('clutter-last-note-id');
+    if (lastNoteId) {
+      const lastNote = notes.find(n => n.id === lastNoteId && !n.deletedAt);
+      if (lastNote) {
+        setCurrentNoteId(lastNoteId);
+        return; // Successfully restored last note
+      }
+    }
+    
+    // 2. Fallback: Find or create today's daily note
+    const today = new Date();
+    const existingDailyNote = findDailyNoteByDate(today);
+    
+    if (existingDailyNote) {
+      // Open existing today's note
+      setCurrentNoteId(existingDailyNote.id);
+    } else {
+      // Create today's daily note
+      const newDailyNote = createDailyNote(today);
+      setCurrentNoteId(newDailyNote.id);
+    }
+  }, [isInitialized, currentNoteId, notes, findDailyNoteByDate, createDailyNote, setCurrentNoteId, mainView.type]);
+  
+  // Global navigation history - tracks ALL views (notes, tags, and any future views)
+  // Store complete navigation state including view type and current note
+  type HistoryEntry = {
+    mainView: MainView;
+    currentNoteId: string | null;
+  };
+  
+  const historyRef = useRef<HistoryEntry[]>([]);
+  const historyIndexRef = useRef(-1);
+  const [historyUpdateCounter, setHistoryUpdateCounter] = useState(0);
+  const isNavigatingRef = useRef(false);
+  
+  // Track ALL view changes in history (global navigation)
+  useEffect(() => {
+    // Skip if we're navigating via back/forward buttons
+    if (isNavigatingRef.current) {
+      isNavigatingRef.current = false;
+      return;
+    }
+    
+    // Create history entry with complete state
+    const newEntry: HistoryEntry = {
+      mainView: mainView,
+      currentNoteId: currentNoteId,
+    };
+    
+    // If we're not at the end of history, truncate forward history
+    const newHistory = historyIndexRef.current >= 0 
+      ? historyRef.current.slice(0, historyIndexRef.current + 1) 
+      : historyRef.current;
+    
+    // Don't add if it's the same as current (deep comparison)
+    const lastEntry = newHistory[newHistory.length - 1];
+    if (lastEntry && 
+        JSON.stringify(lastEntry.mainView) === JSON.stringify(newEntry.mainView) &&
+        lastEntry.currentNoteId === newEntry.currentNoteId) {
+      return;
+    }
+    
+    // Add new entry
+    historyRef.current = [...newHistory, newEntry];
+    historyIndexRef.current = historyRef.current.length - 1;
+    setHistoryUpdateCounter(c => c + 1); // Trigger re-render to update button states
+  }, [currentNoteId, mainView]);
+  
+  // Global navigation handlers - restore complete state
+  const handleGoBack = useCallback(() => {
+    if (historyIndexRef.current > 0) {
+      const newIndex = historyIndexRef.current - 1;
+      const entry = historyRef.current[newIndex];
+      isNavigatingRef.current = true;
+      historyIndexRef.current = newIndex;
+      
+      // Restore complete navigation state
+      setMainView(entry.mainView);
+      if (entry.currentNoteId) {
+        setCurrentNoteId(entry.currentNoteId);
+      }
+      
+      setHistoryUpdateCounter(c => c + 1); // Trigger re-render to update button states
+    }
+  }, [setCurrentNoteId]);
+  
+  const handleGoForward = useCallback(() => {
+    if (historyIndexRef.current < historyRef.current.length - 1) {
+      const newIndex = historyIndexRef.current + 1;
+      const entry = historyRef.current[newIndex];
+      isNavigatingRef.current = true;
+      historyIndexRef.current = newIndex;
+      
+      // Restore complete navigation state
+      setMainView(entry.mainView);
+      if (entry.currentNoteId) {
+        setCurrentNoteId(entry.currentNoteId);
+      }
+      
+      setHistoryUpdateCounter(c => c + 1); // Trigger re-render to update button states
+    }
+  }, [setCurrentNoteId]);
+  
+  const canGoBack = historyIndexRef.current > 0;
+  const canGoForward = historyIndexRef.current < historyRef.current.length - 1;
+  
+  // Track if we've created the initial note (to prevent duplicates in StrictMode)
+  const hasCreatedInitialNoteRef = useRef(false);
+  
+  // Track which notes we've already auto-focused to prevent focus stealing
+  const autoFocusedNotesRef = useRef<Set<string>>(new Set());
+  
+  // Focus title when a new note is created (empty title) - only once per note
+  useEffect(() => {
+    if (currentNote && 
+        !currentNote.title && 
+        mainView.type === 'editor' &&
+        !autoFocusedNotesRef.current.has(currentNote.id)) {
+      // Mark this note as auto-focused
+      autoFocusedNotesRef.current.add(currentNote.id);
+      
+      // Small delay to ensure the DOM has rendered
+      setTimeout(() => {
+        titleInputRef.current?.focus();
+      }, 0);
+    }
+  }, [currentNote?.id, mainView.type]); // Only depend on note ID, not entire currentNote object
+  
+  // Persistent UI preferences (sidebar collapse state, etc.)
+  const { preferences, toggleSidebarCollapsed} = useUIPreferences();
+  const isSidebarCollapsed = preferences.sidebarCollapsed;
+  
+  const { colors, toggleMode } = useTheme();
+  const noteBackgroundColor = colors.background.default; // Change this one line to update everywhere
+  const keyboardButtonRef = useRef<HTMLDivElement>(null);
+  const editorRef = useRef<TipTapWrapperHandle>(null);
+  const titleInputRef = useRef<TitleInputHandle>(null);
+  const emojiButtonRef = useRef<HTMLButtonElement>(null);
+  const addEmojiButtonRef = useRef<HTMLButtonElement>(null);
+
+
+  // Auto-save with debounce (defined early so it can be used in effects)
+  const [debouncedSave, cancelDebouncedSave] = useDebounce((updates: Partial<Note>) => {
+    // 🛡️ CRITICAL: Block all Zustand writes during hydration
+    if (isHydratingRef.current) {
+      // 🚨 DEV-ONLY: Crash if content write attempted during hydration
+      if (process.env.NODE_ENV === 'development' && 'content' in updates) {
+        throw new Error('❌ INVARIANT VIOLATION: Content write during hydration! This indicates a multi-writer race condition.');
+      }
+      return;
+    }
+    
+    if (currentNoteId) {
+      // ✅ Use updateNoteMeta - debouncedSave is only for metadata, never content
+      updateNoteMeta(currentNoteId, updates);
+    }
+  }, 500);
+
+  // 🛡️ Hydrate editor content when note changes (CRITICAL FIX)
+  // This effect runs on initial mount AND when switching notes
+  useEffect(() => {
+    if (!currentNote) {
+      console.log('🔍 Hydration skipped: no currentNote');
+      return;
+    }
+
+    // Skip hydration if we already hydrated this exact note
+    if (lastHydratedNoteIdRef.current === currentNote.id) {
+      console.log('🔍 Hydration skipped: note already hydrated', currentNote.id);
+      return;
+    }
+
+    // Track which note we're hydrating
+    lastHydratedNoteIdRef.current = currentNote.id;
+
+    console.log('🔄 Hydrating note:', {
+      id: currentNote.id,
+      title: currentNote.title,
+      hasContent: !!currentNote.content,
+      contentLength: currentNote.content?.length || 0,
+      contentPreview: currentNote.content?.substring(0, 100)
+    });
+
+    // 🔒 Lock editor during hydration
+    isHydratingRef.current = true;
+    setIsHydrated(false);
+    
+    // 🛡️ CRITICAL: Cancel any pending debounced saves from previous note
+    cancelDebouncedSave();
+
+    // ⬇️ DB → Editor: Load content into state
+    setNoteContent(currentNote.content ?? '');
+    console.log('📝 Set noteContent state:', currentNote.content?.substring(0, 100));
+
+    // Wait for React + ProseMirror to fully settle before mounting editor
+    requestAnimationFrame(() => {
+      // Sync UI state
+      setSelectedEmoji(currentNote.emoji);
+      setTitle(currentNote.title);
+      setDescription(currentNote.description);
+      setDescriptionVisible(currentNote.descriptionVisible ?? true);
+      setTags(currentNote.tags);
+      setTagsVisible(currentNote.tagsVisible ?? true);
+      setIsFavorite(currentNote.isFavorite);
+      setShowDescriptionInput(!!currentNote.description);
+      
+      // 🔓 Second rAF: Let ProseMirror internal state flush
+      requestAnimationFrame(() => {
+        isHydratingRef.current = false;
+        setIsHydrated(true);
+        console.log('🔓 Hydration complete');
+      });
+    });
+  }, [currentNote, currentNoteId, cancelDebouncedSave]); // ✅ Runs on mount + note changes
+
+  // Update view context when current note is deleted
+  useEffect(() => {
+    if (currentNote?.deletedAt && mainView.type === 'editor' && mainView.source !== 'deletedItems') {
+      // Note was just deleted -> update context to show it's now in "Recently deleted"
+      setMainView({ type: 'editor', source: 'deletedItems' });
+    }
+  }, [currentNote?.deletedAt, mainView.type, mainView.source]);
+
+  // Update view context when current folder is deleted
+  useEffect(() => {
+    if (mainView.type === 'folderView' && mainView.folderId !== 'cluttered' && mainView.source !== 'deletedItems') {
+      const folder = folders.find(f => f.id === mainView.folderId);
+      if (folder?.deletedAt) {
+        // Folder was just deleted -> update context to show it's now in "Recently deleted"
+        setMainView({ type: 'folderView', folderId: mainView.folderId, source: 'deletedItems' });
+      }
+    }
+  }, [mainView.type, mainView.folderId, mainView.source, folders]);
+
+  // Scroll to target block when note is loaded
+  useEffect(() => {
+    if (targetBlockId && currentNoteId && noteContent && mainView.type === 'editor') {
+      // Small delay to ensure the editor content is fully rendered
+      const timer = setTimeout(() => {
+        editorRef.current?.scrollToBlock(targetBlockId, true);
+        // Clear targetBlockId after scrolling
+        setTargetBlockId(null);
+      }, 100);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [targetBlockId, currentNoteId, noteContent, mainView.type]);
+
+  const handleToggleFavorite = useCallback(() => {
+    setIsFavorite((prev) => {
+      const newValue = !prev;
+      debouncedSave({ isFavorite: newValue });
+      return newValue;
+    });
+  }, [debouncedSave]);
+
+  // Removed: handleAddTag and hashtag-created event listener
+  // Tags are now block-level and automatically extracted from editor content
+
+  const handleRemoveTag = useCallback((tagToRemove: string) => {
+    const trimmedTag = tagToRemove.trim();
+    setTags((prevTags) => {
+      // Remove case-insensitively
+      const newTags = prevTags.filter((tag) => tag.toLowerCase() !== trimmedTag.toLowerCase());
+      debouncedSave({ tags: newTags });
+      return newTags;
+    });
+  }, [debouncedSave]);
+
+  const handleEditTag = useCallback((oldTag: string, newTag: string) => {
+    const trimmedOldTag = oldTag.trim();
+    const trimmedNewTag = newTag.trim();
+    
+    if (!trimmedNewTag) return;
+    
+    // If tag name didn't change (case-insensitive), do nothing
+    if (trimmedNewTag.toLowerCase() === trimmedOldTag.toLowerCase()) return;
+    
+    // Use global rename to update all notes with this tag
+    renameTag(trimmedOldTag, trimmedNewTag);
+    
+    // Update local state for immediate UI update
+    setTags((prevTags) => {
+      // Find old tag case-insensitively
+      const oldIndex = prevTags.findIndex(t => t.toLowerCase() === trimmedOldTag.toLowerCase());
+      let newTags: string[];
+      
+      if (oldIndex === -1) {
+        // Old tag not found, just add new one if it doesn't exist
+        const exists = prevTags.some(t => t.toLowerCase() === trimmedNewTag.toLowerCase());
+        if (!exists) {
+          newTags = [...prevTags, trimmedNewTag];  // Store with original case
+        } else {
+          return prevTags;
+        }
+      } else {
+        // Remove old tag
+        const withoutOld = prevTags.filter((_, i) => i !== oldIndex);
+        
+        // Check if new tag already exists elsewhere (case-insensitive)
+        const exists = withoutOld.some(t => t.toLowerCase() === trimmedNewTag.toLowerCase());
+        if (exists) {
+          newTags = withoutOld;
+        } else {
+          // Insert new tag at the same position as old tag with original case
+          newTags = [...withoutOld.slice(0, oldIndex), trimmedNewTag, ...withoutOld.slice(oldIndex)];
+        }
+      }
+      
+      debouncedSave({ tags: newTags });
+      return newTags;
+    });
+  }, [debouncedSave, renameTag]);
+
+  const handleColorChange = useCallback((tag: string, color: string) => {
+    // Update tag metadata with the new color (upsert to handle tags without existing metadata)
+    const existing = getTagMetadata(tag);
+    if (existing) {
+      updateTagMetadata(tag, { color });
+    } else {
+      // Create metadata with the color for tags that don't have metadata yet
+      upsertTagMetadata(tag, '', true, false, color);
+    }
+  }, [getTagMetadata, updateTagMetadata, upsertTagMetadata]);
+
+  const handleDescriptionChange = useCallback((value: string) => {
+    setDescription(value);
+    debouncedSave({ description: value });
+  }, [debouncedSave]);
+
+  const handleDescriptionBlur = useCallback(() => {
+    setDescription((prev) => {
+      if (!prev.trim()) {
+        setShowDescriptionInput(false);
+        return '';
+      }
+      return prev;
+    });
+  }, []);
+
+  const handleShowDescriptionInput = useCallback(() => {
+    setShowTagInput(false);
+    setShowDescriptionInput(true);
+  }, []);
+
+  const handleMoodClick = useCallback(() => {
+    // Placeholder for mood selector
+    // TODO: Implement mood selector UI
+    console.log('Mood button clicked');
+  }, []);
+
+  const handleShowTagInput = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setShowDescriptionInput((prevShowInput) => {
+      if (prevShowInput) {
+        setDescription((prevDesc) => {
+          if (!prevDesc.trim()) {
+            return '';
+          }
+          return prevDesc;
+        });
+        return false;
+      }
+      return prevShowInput;
+    });
+    setShowTagInput(true);
+  }, []);
+
+  const handleAddTag = useCallback((tag: string) => {
+    const trimmedTag = tag.trim();
+    if (trimmedTag) {
+      setTags((prevTags) => {
+        // Check for duplicates case-insensitively
+        const exists = prevTags.some(t => t.toLowerCase() === trimmedTag.toLowerCase());
+        if (!exists) {
+          const newTags = [...prevTags, trimmedTag];
+          // Update immediately so sidebar updates
+          if (currentNoteId) {
+            updateNoteMeta(currentNoteId, { tags: newTags });
+          }
+          return newTags;
+        }
+        return prevTags;
+      });
+    }
+    setShowTagInput(false);
+  }, [currentNoteId, updateNoteMeta]);
+
+  const handleCancelTagInput = useCallback(() => {
+    setShowTagInput(false);
+  }, []);
+
+  const handleToggleSidebar = useCallback(() => {
+    toggleSidebarCollapsed();
+  }, [toggleSidebarCollapsed]);
+
+  const handleToggleDescriptionVisibility = useCallback(() => {
+    setDescriptionVisible((prev) => {
+      const newValue = !prev;
+      debouncedSave({ descriptionVisible: newValue });
+      return newValue;
+    });
+  }, [debouncedSave]);
+
+  const handleToggleTagsVisibility = useCallback(() => {
+    setTagsVisible((prev) => {
+      const newValue = !prev;
+      debouncedSave({ tagsVisible: newValue });
+      return newValue;
+    });
+  }, [debouncedSave]);
+
+  const handleEmojiSelect = useCallback((emoji: string) => {
+    setSelectedEmoji(emoji);
+    debouncedSave({ emoji });
+    setIsEmojiHovered(false); // Reset hover state when emoji is selected
+    setIsEmojiTrayOpen(false);
+  }, [debouncedSave]);
+
+  const openEmojiTray = useCallback((buttonRef: React.RefObject<HTMLButtonElement | HTMLElement>) => {
+    if (buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      setEmojiTrayPosition({ top: rect.bottom + 8, left: rect.left });
+    }
+    setIsEmojiTrayOpen(true);
+  }, []);
+
+  const handleRemoveEmoji = useCallback(() => {
+    setSelectedEmoji(null);
+    debouncedSave({ emoji: null });
+    setIsEmojiHovered(false);
+    setIsEmojiTrayOpen(false);
+  }, [debouncedSave]);
+
+
+
+
+  const handleDuplicate = useCallback(() => {
+    if (currentNoteId) {
+      duplicateNote(currentNoteId);
+    }
+  }, [currentNoteId, duplicateNote]);
+
+  const handleDelete = useCallback(() => {
+    if (currentNoteId) {
+      // Soft delete the note (move to trash)
+      deleteNote(currentNoteId);
+      
+      // Keep the user on the same note, but update the context to "Recently deleted"
+      // This will automatically update the breadcrumb to "Recently deleted > Note title"
+      setMainView({ type: 'editor', source: 'deletedItems' });
+    }
+  }, [currentNoteId, deleteNote]);
+
+  // Tag view handlers
+  const handleShowTagFilter = useCallback((tag: string, source: 'all' | 'favorites' = 'all') => {
+    // Save metadata (NOT content - content is owned by editor autosave)
+    if (currentNoteId && !isHydratingRef.current) {
+      // Read fresh tags from store to avoid overwriting tag renames
+      const freshNotes = useNotesStore.getState().notes;
+      const currentNote = freshNotes.find(n => n.id === currentNoteId);
+      const freshTags = currentNote?.tags || tags;
+      
+      // ✅ Save metadata only - never write content from navigation
+      updateNoteMeta(currentNoteId, {
+        title,
+        description,
+        tags: freshTags,
+        emoji: selectedEmoji,
+        isFavorite,
+        descriptionVisible,
+        tagsVisible,
+      });
+    }
+    setMainView({ type: 'tagFilter', tag, source });
+  }, [currentNoteId, updateNoteMeta, title, description, tags, selectedEmoji, isFavorite, descriptionVisible, tagsVisible]);
+
+  const handleBackToEditor = useCallback(() => {
+    setMainView({ type: 'editor' });
+  }, []);
+
+  // Tag favorite state and handler
+  const [tagFavorite, setTagFavorite] = useState(false);
+  
+  const handleToggleTagFavorite = useCallback(() => {
+    if (mainView.type === 'tagFilter') {
+      const newFavoriteState = !tagFavorite;
+      setTagFavorite(newFavoriteState);
+      
+      // Ensure tag metadata exists with the new favorite status
+      const metadata = getTagMetadata(mainView.tag);
+      if (!metadata) {
+        // Create metadata with the favorite state and initial hash-based color
+        upsertTagMetadata(mainView.tag, '', true, newFavoriteState, getTagColor(mainView.tag));
+      } else {
+        // Update existing metadata
+        updateTagMetadata(mainView.tag, { isFavorite: newFavoriteState });
+      }
+    }
+  }, [mainView, tagFavorite, getTagMetadata, updateTagMetadata, upsertTagMetadata]);
+
+  // Delete tag handler - removes tag from all notes
+  const handleDeleteTag = useCallback(() => {
+    if (mainView.type === 'tagFilter') {
+      const tagToDelete = mainView.tag;
+      
+      // Remove tag from all notes
+      notes.forEach((note) => {
+        if (!note.deletedAt && note.tags.some(t => t.toLowerCase() === tagToDelete.toLowerCase())) {
+          const updatedTags = note.tags.filter(t => t.toLowerCase() !== tagToDelete.toLowerCase());
+          updateNoteMeta(note.id, { tags: updatedTags });
+        }
+      });
+      
+      // Navigate back to editor
+      handleBackToEditor();
+    }
+  }, [mainView, notes, updateNoteMeta, handleBackToEditor]);
+
+  // Update tag favorite state when tag changes
+  useEffect(() => {
+    if (mainView.type === 'tagFilter') {
+      const metadata = getTagMetadata(mainView.tag);
+      setTagFavorite(metadata?.isFavorite || false);
+    }
+  }, [mainView, getTagMetadata]);
+
+  // Listen for tag filter requests from block-level tags
+  useEffect(() => {
+    const handleTagFilterRequested = (event: Event) => {
+      const customEvent = event as CustomEvent<{ tag: string }>;
+      if (customEvent.detail?.tag) {
+        handleShowTagFilter(customEvent.detail.tag);
+      }
+    };
+
+    window.addEventListener('tag-filter-requested', handleTagFilterRequested);
+    return () => {
+      window.removeEventListener('tag-filter-requested', handleTagFilterRequested);
+    };
+  }, [handleShowTagFilter]);
+
+  const handleNoteClickFromTagView = useCallback((noteId: string) => {
+    setCurrentNoteId(noteId);
+    
+    // Check if the note is deleted to set proper source
+    const note = notes.find(n => n.id === noteId);
+    if (note?.deletedAt) {
+      // Note is deleted -> open in "Recently deleted" context
+      setMainView({ type: 'editor', source: 'deletedItems' });
+    } else {
+      // Note is active -> open in normal context
+      setMainView({ type: 'editor' });
+    }
+  }, [setCurrentNoteId, notes]);
+  
+  // Handler for navigating to a note with a specific block (e.g., from task click)
+  const handleNoteClickWithBlock = useCallback((noteId: string, blockId: string) => {
+    setCurrentNoteId(noteId);
+    setTargetBlockId(blockId);
+    
+    // Check if the note is deleted to set proper source
+    const note = notes.find(n => n.id === noteId);
+    if (note?.deletedAt) {
+      // Note is deleted -> open in "Recently deleted" context
+      setMainView({ type: 'editor', source: 'deletedItems' });
+    } else {
+      // Note is active -> open in normal context
+      setMainView({ type: 'editor' });
+    }
+  }, [setCurrentNoteId, notes]);
+  
+  // Check if current note is a daily note
+  const isDailyNote = useMemo(() => {
+    return currentNote?.dailyNoteDate !== null && currentNote?.dailyNoteDate !== undefined;
+  }, [currentNote]);
+  
+  // Handler for calendar date selection (for daily notes)
+  const handleDateSelect = useCallback((date: Date) => {
+    // Try to find existing daily note for this date
+    const existingNote = findDailyNoteByDate(date);
+    
+    if (existingNote) {
+      // Open existing daily note
+      setCurrentNoteId(existingNote.id);
+      setMainView({ type: 'editor' });
+    } else {
+      // Create new daily note
+      const newDailyNote = createDailyNote(date);
+      setCurrentNoteId(newDailyNote.id);
+      setMainView({ type: 'editor' });
+    }
+  }, [findDailyNoteByDate, createDailyNote, setCurrentNoteId]);
+
+  const handleCreateNoteWithTag = useCallback((tag: string) => {
+    const newNote = createNote({ tags: [tag] });
+    setCurrentNoteId(newNote.id);
+    setMainView({ type: 'editor' }); // Switch to full-page editor
+  }, [createNote, setCurrentNoteId, setMainView]);
+
+  const handleCreateFolderWithTag = useCallback((tag: string) => {
+    const folderId = createFolder('', null, null, [tag]); // Empty name shows "Untitled Folder" placeholder
+    if (folderId) {
+      // Navigate to the newly created folder (history is auto-managed by useEffect)
+      setMainView({ type: 'folderView', folderId });
+    }
+  }, [createFolder, setMainView]);
+
+  const handleFolderClick = useCallback((folderId: string) => {
+    // Save metadata (NOT content - content is owned by editor autosave)
+    if (currentNoteId && !isHydratingRef.current) {
+      // ✅ Save metadata only - never write content from navigation
+      updateNoteMeta(currentNoteId, {
+        title,
+        description,
+        tags,
+        emoji: selectedEmoji,
+        isFavorite,
+        descriptionVisible,
+        tagsVisible,
+      });
+    }
+    
+    // Handle special "All Folders" view
+    if (folderId === 'all-folders') {
+      setMainView({ type: 'allFoldersView' });
+      return;
+    }
+    
+    // Handle special "Favourites" view
+    if (folderId === 'all-favourites' || folderId === 'favourites') {
+      setMainView({ type: 'favouritesView' });
+      return;
+    }
+    
+    // Handle special "All Tags" view
+    if (folderId === 'all-tags') {
+      setMainView({ type: 'allTagsView' });
+      return;
+    }
+    
+    // Handle special "Favourite Tags" view
+    if (folderId === 'favourite-tags') {
+      setMainView({ type: 'favouriteTagsView' });
+      return;
+    }
+    
+    // Handle special "All Tasks" view
+    if (folderId === 'all-tasks') {
+      setMainView({ type: 'allTasksView' });
+      return;
+    }
+    
+    // Handle special "Deleted Items" view
+    if (folderId === 'deleted-items') {
+      setMainView({ type: 'deletedItemsView' });
+      return;
+    }
+    
+    // Regular folder view - check if folder is deleted
+    const folder = folders.find(f => f.id === folderId);
+    if (folder?.deletedAt) {
+      // Deleted folder -> open in "Recently deleted" context
+      setMainView({ type: 'folderView', folderId, source: 'deletedItems' });
+    } else {
+      // Active folder -> open in normal context
+      setMainView({ type: 'folderView', folderId });
+    }
+  }, [currentNoteId, updateNote, title, description, tags, noteContent, selectedEmoji, isFavorite, descriptionVisible, tagsVisible, setMainView, folders]);
+
+  const handleCreateNoteInFolder = useCallback((folderId: string) => {
+    // Handle special "cluttered" folder (no folder assigned)
+    const actualFolderId = folderId === 'cluttered' ? null : folderId;
+    const newNote = createNote({ folderId: actualFolderId });
+    setCurrentNoteId(newNote.id);
+    setMainView({ type: 'editor' });
+  }, [createNote, setCurrentNoteId]);
+
+  // Note context menu items
+  const noteContextMenuItems = useMemo<Array<
+    | {
+        icon: ReactNode;
+        label: string;
+        onClick: () => void;
+        danger?: boolean;
+        shortcut?: string;
+      }
+    | {
+        separator: true;
+      }
+  >>(() => [
+    { 
+      icon: isFavorite ? <StarFilled size={sizing.icon.sm} color={colors.accent.gold} /> : <Star size={sizing.icon.sm} />, 
+      label: isFavorite ? 'Remove from favorites' : 'Add to favorites',
+      onClick: handleToggleFavorite 
+    },
+    { 
+      icon: <Copy size={sizing.icon.sm} />, 
+      label: 'Duplicate',
+      onClick: handleDuplicate 
+    },
+    { separator: true as const },
+    { 
+      icon: <Trash2 size={sizing.icon.sm} />, 
+      label: 'Delete',
+      onClick: handleDelete, 
+      danger: true 
+    },
+  ], [isFavorite, handleToggleFavorite, handleDuplicate, handleDelete, colors.accent.gold]);
+
+  // Tag context menu items (for tag filtered view)
+  const tagContextMenuItems = useMemo<Array<
+    | {
+        icon: ReactNode;
+        label: string;
+        onClick: () => void;
+        danger?: boolean;
+      }
+    | {
+        separator: true;
+      }
+  >>(() => {
+    if (mainView.type !== 'tagFilter') return [];
+    
+    return [
+      { 
+        icon: tagFavorite ? <StarFilled size={sizing.icon.sm} color={colors.accent.gold} /> : <Star size={sizing.icon.sm} />, 
+        label: tagFavorite ? 'Remove from favorites' : 'Add to favorites',
+        onClick: handleToggleTagFavorite
+      },
+      { separator: true as const },
+      { 
+        icon: <Trash2 size={sizing.icon.sm} />, 
+        label: 'Delete tag',
+        onClick: handleDeleteTag, 
+        danger: true 
+      },
+    ];
+  }, [mainView, tagFavorite, colors.accent.gold, handleToggleTagFavorite, handleDeleteTag]);
+
+  // Get current folder for folder views
+  const currentFolder = useMemo(() => {
+    if (mainView.type === 'folderView' && mainView.folderId && mainView.folderId !== 'cluttered') {
+      return folders.find(f => f.id === mainView.folderId);
+    }
+    return null;
+  }, [mainView, folders]);
+
+  // Folder context menu items (for folder view)
+  const folderContextMenuItems = useMemo<Array<
+    | {
+        icon: ReactNode;
+        label: string;
+        onClick: () => void;
+        danger?: boolean;
+      }
+    | {
+        separator: true;
+      }
+  >>(() => {
+    if (!currentFolder) return [];
+    
+    return [
+      { 
+        icon: currentFolder.isFavorite ? <StarFilled size={sizing.icon.sm} color={colors.accent.gold} /> : <Star size={sizing.icon.sm} />, 
+        label: currentFolder.isFavorite ? 'Remove from favorites' : 'Add to favorites',
+        onClick: () => updateFolder(currentFolder.id, { isFavorite: !currentFolder.isFavorite })
+      },
+      { separator: true as const },
+      { 
+        icon: <Trash2 size={sizing.icon.sm} />, 
+        label: 'Delete folder',
+        onClick: () => {
+          if (window.confirm(`Move "${currentFolder.name || 'this folder'}" to trash?`)) {
+            // Soft delete the folder
+            deleteFolder(currentFolder.id);
+            // Navigate to parent folder or all folders view
+            if (currentFolder.parentId) {
+              setMainView({ type: 'folderView', folderId: currentFolder.parentId });
+            } else {
+              setMainView({ type: 'allFoldersView' });
+            }
+          }
+        }, 
+        danger: true 
+      },
+    ];
+  }, [currentFolder, colors.accent.gold, updateFolder, deleteFolder, setMainView]);
+
+  return (
+    <>
+      <AppShell
+        sidebarProps={{
+          onToggleTheme: toggleMode,
+          onShowKeyboardShortcuts: () => setShowMarkdownShortcuts(true),
+          keyboardButtonRef: keyboardButtonRef,
+          isCollapsed: isSidebarCollapsed,
+          onTagClick: handleShowTagFilter,
+          onFolderClick: handleFolderClick,
+          onBackToEditor: handleBackToEditor,
+          onNoteClickFromSidebar: handleBackToEditor,
+          onNoteClickWithBlock: handleNoteClickWithBlock,
+          onDateSelect: handleDateSelect,
+          onToggleSidebar: handleToggleSidebar,
+          currentView: mainView, // Pass current view for automatic state sync
+        }}
+        isFullWidth={isFullWidth}
+        backgroundColor={noteBackgroundColor}
+        header={
+            <NoteTopBar
+            folderPath={breadcrumbs.path}
+            noteTitle={breadcrumbs.currentPageTitle}
+            isSidebarCollapsed={isSidebarCollapsed}
+            onToggleSidebar={handleToggleSidebar}
+              onNavigateToRoot={() => {
+                // Navigate to root - only used when no folders in path
+                if (currentNoteId) {
+                  setMainView({ type: 'editor' });
+                }
+              }}
+              onNavigateToFolder={(folderIndex) => {
+                /**
+                 * Centralized breadcrumb navigation logic
+                 * Breadcrumb structure: [root sections...] > [folder hierarchy...] > [current page]
+                 * 
+                 * Index mapping:
+                 * - Index 0 = "Folders" or "All tags" or "Favourites" (root section)
+                 * - Index 1+ = Actual folders in hierarchy OR final section name
+                 */
+                
+                const pathItem = breadcrumbs.path[folderIndex];
+                if (!pathItem) return;
+                
+                // Handle root sections (index 0)
+                if (folderIndex === 0) {
+                  if (pathItem === 'Folders') {
+                    // Click "Folders" -> show all folders view
+                    setMainView({ type: 'allFoldersView' });
+                  } else if (pathItem === 'All tags') {
+                    // Click "All tags" -> show all tags view
+                    setMainView({ type: 'allTagsView' });
+                  } else if (pathItem === 'Favourites') {
+                    // Click "Favourites" -> determine which view to show
+                    if (mainView.type === 'tagFilter' && mainView.source === 'favorites') {
+                      // We're in a tag filter from favourites -> go back to favourite tags view
+                      setMainView({ type: 'favouriteTagsView' });
+                    } else {
+                      // We're in favourites notes/folders view -> go back to favourites view
+                      setMainView({ type: 'favouritesView' });
+                    }
+                  } else if (pathItem === 'Recently deleted') {
+                    // Click "Recently deleted" -> show deleted items view
+                    setMainView({ type: 'deletedItemsView' });
+                  }
+                  return;
+                }
+                
+                // Handle folder navigation (index 1+)
+                // Index 1 onwards corresponds to actual folder hierarchy
+                // folderPathIds[0] = first folder, folderPathIds[1] = second folder, etc.
+                const actualFolderIndex = folderIndex - 1; // Subtract 1 for "Folders" prefix
+                
+                if (pathItem === 'Cluttered') {
+                  // Navigate to Cluttered folder view
+                  handleFolderClick('cluttered');
+                } else if (folderPathIds[actualFolderIndex]) {
+                  // Navigate to specific folder by ID
+                  handleFolderClick(folderPathIds[actualFolderIndex]);
+                }
+              }}
+            onBack={canGoBack ? handleGoBack : undefined}
+            onForward={canGoForward ? handleGoForward : undefined}
+            canGoBack={canGoBack}
+            canGoForward={canGoForward}
+            isFavorite={
+              mainView.type === 'editor' ? isFavorite 
+              : mainView.type === 'tagFilter' ? tagFavorite 
+              : mainView.type === 'folderView' && currentFolder ? currentFolder.isFavorite
+              : undefined
+            }
+            onToggleFavorite={
+              mainView.type === 'editor' ? handleToggleFavorite 
+              : mainView.type === 'tagFilter' ? handleToggleTagFavorite 
+              : mainView.type === 'folderView' && currentFolder ? () => updateFolder(currentFolder.id, { isFavorite: !currentFolder.isFavorite })
+              : undefined
+            }
+            isFullWidth={isFullWidth}
+            onToggleWidth={() => setIsFullWidth(prev => !prev)}
+            contextMenuItems={
+              mainView.type === 'editor' ? noteContextMenuItems 
+              : mainView.type === 'tagFilter' ? tagContextMenuItems 
+              : mainView.type === 'folderView' && currentFolder ? folderContextMenuItems
+              : undefined
+            }
+            />
+        }
+      >
+        {mainView.type === 'tagFilter' ? (
+          <TagFilteredNotesView
+            tag={mainView.tag}
+            onNoteClick={handleNoteClickFromTagView}
+            onCreateNote={() => handleCreateNoteWithTag(mainView.tag)}
+            onCreateFolder={() => handleCreateFolderWithTag(mainView.tag)}
+            onFolderClick={handleFolderClick}
+            onTagClick={handleShowTagFilter}
+          />
+        ) : mainView.type === 'allFoldersView' ? (
+          <AllFoldersListView
+            onFolderClick={handleFolderClick}
+            onNoteClick={handleNoteClickFromTagView}
+            onCreateNote={handleCreateNoteInFolder}
+            onCreateFolder={() => {
+              const folderId = createFolder('', null, null); // Empty name shows placeholder
+              if (folderId) {
+                // Navigate to the newly created folder (history is auto-managed by useEffect)
+                setMainView({ type: 'folderView', folderId });
+              }
+            }}
+          />
+        ) : mainView.type === 'favouritesView' ? (
+          <FavouritesListView
+            onNoteClick={handleNoteClickFromTagView}
+            onCreateNote={() => {
+              const newNote = createNote({ isFavorite: true }); // Create note and mark as favourite
+              setCurrentNoteId(newNote.id);
+              setMainView({ type: 'editor' });
+            }}
+            onCreateFolder={() => {
+              const folderId = createFolder('', null, null); // Empty name shows placeholder
+              if (folderId) {
+                // Mark folder as favorite
+                updateFolder(folderId, { isFavorite: true });
+                // Navigate to the newly created folder
+                setMainView({ type: 'folderView', folderId });
+              }
+            }}
+            onFolderClick={handleFolderClick}
+            onTagClick={handleShowTagFilter}
+          />
+        ) : mainView.type === 'allTagsView' ? (
+          <AllTagsListView
+            onTagClick={handleShowTagFilter}
+          />
+        ) : mainView.type === 'favouriteTagsView' ? (
+          <FavouriteTagsListView
+            onTagClick={handleShowTagFilter}
+          />
+        ) : mainView.type === 'allTasksView' ? (
+          <AllTasksListView
+            onTaskClick={handleNoteClickWithBlock}
+          />
+        ) : mainView.type === 'deletedItemsView' ? (
+          <DeletedItemsListView
+            onNoteClick={handleNoteClickFromTagView}
+            onFolderClick={handleFolderClick}
+            onTagClick={handleShowTagFilter}
+          />
+        ) : mainView.type === 'folderView' ? (
+          <FolderListView
+            folderId={mainView.folderId}
+            onNoteClick={handleNoteClickFromTagView}
+            onCreateNote={() => handleCreateNoteInFolder(mainView.folderId)}
+            onCreateFolder={() => {
+              const parentId = mainView.folderId === 'cluttered' ? null : mainView.folderId;
+              const folderId = createFolder('', parentId, null); // Empty name shows placeholder
+              if (folderId) {
+                // Navigate to the newly created folder (history is auto-managed by useEffect)
+                setMainView({ type: 'folderView', folderId });
+              }
+            }}
+            onFolderClick={handleFolderClick}
+            onTagClick={handleShowTagFilter}
+          />
+        ) : (
+          <>
+          {/* Page Title Section */}
+          <PageTitleSection
+            ref={titleInputRef}
+            variant="note"
+            title={title}
+            onTitleChange={(value) => {
+              if (isDailyNote) return; // Prevent title changes for daily notes
+              setTitle(value);
+              debouncedSave({ title: value });
+            }}
+            onTitleEnter={() => editorRef.current?.focus()}
+            dailyNoteDate={currentNote?.dailyNoteDate}
+            readOnlyTitle={isDailyNote}
+            selectedEmoji={selectedEmoji}
+            isEmojiTrayOpen={isEmojiTrayOpen}
+            onEmojiClick={() => openEmojiTray(emojiButtonRef)}
+            onRemoveEmoji={handleRemoveEmoji}
+            emojiButtonRef={emojiButtonRef}
+            hasContent={!isContentEmpty(noteContent)}
+            isFavorite={isFavorite}
+            contextMenuItems={noteContextMenuItems}
+            description={description}
+            showDescriptionInput={showDescriptionInput}
+            descriptionVisible={descriptionVisible}
+            onDescriptionChange={handleDescriptionChange}
+            onDescriptionBlur={handleDescriptionBlur}
+            onShowDescriptionInput={handleShowDescriptionInput}
+            onToggleDescriptionVisibility={handleToggleDescriptionVisibility}
+            tags={tags}
+            showTagInput={showTagInput}
+            tagsVisible={tagsVisible}
+            onAddTag={handleAddTag}
+            onRemoveTag={handleRemoveTag}
+            onEditTag={handleEditTag}
+            onColorChange={handleColorChange}
+            onShowTagInput={handleShowTagInput}
+            onCancelTagInput={handleCancelTagInput}
+            onToggleTagsVisibility={handleToggleTagsVisibility}
+            onTagClick={handleShowTagFilter}
+            onAddEmoji={() => openEmojiTray(addEmojiButtonRef as React.RefObject<HTMLElement>)}
+            addEmojiButtonRef={addEmojiButtonRef as React.RefObject<HTMLDivElement>}
+            onMoodClick={handleMoodClick}
+            backgroundColor={noteBackgroundColor}
+          />
+
+          {/* Editor */}
+          <PageContent>
+            <TipTapWrapper
+              ref={editorRef}
+              value={noteContent}
+              onChange={(value) => {
+                // Single guard: block during hydration
+                if (isHydratingRef.current) return;
+                
+                // 🛡️ Validate BEFORE setting state
+                // Block TipTap boot transactions (≤200 chars, no text nodes)
+                if (value.length <= 200 && !value.includes('"text"')) {
+                  console.warn('🚫 Blocked TipTap boot transaction in onChange');
+                  return;
+                }
+                
+                // User typed - update immediately
+                setNoteContent(value);
+                if (currentNoteId) {
+                  updateNoteContent(currentNoteId, value);
+                }
+              }}
+              onTagClick={handleShowTagFilter}
+              onTagsChange={(extractedTags) => {
+                // Merge extracted tags from editor with existing metadata tags
+                setTags((prevTags) => {
+                  // Create a map of extracted tags (from editor) - case insensitive
+                  const extractedLowerMap = new Map(
+                    extractedTags.map(tag => [tag.toLowerCase(), tag])
+                  );
+                  
+                  // Find tags that were added via "+ Add tag" button (not in editor)
+                  const metadataOnlyTags = prevTags.filter(
+                    tag => !extractedLowerMap.has(tag.toLowerCase())
+                  );
+                  
+                  // Merge: extracted tags from editor + metadata-only tags
+                  const mergedTags = [...extractedTags, ...metadataOnlyTags];
+                  
+                  // Deduplicate (case-insensitive) - keep first occurrence
+                  const deduped: string[] = [];
+                  const seenLower = new Set<string>();
+                  for (const tag of mergedTags) {
+                    const lowerTag = tag.toLowerCase();
+                    if (!seenLower.has(lowerTag)) {
+                      seenLower.add(lowerTag);
+                      deduped.push(tag);
+                    }
+                  }
+                  
+                  // Update store immediately so sidebar updates instantly
+                  if (currentNoteId) {
+                    updateNoteMeta(currentNoteId, { tags: deduped });
+                  }
+                  
+                  return deduped;
+                });
+              }}
+            />
+          </PageContent>
+          </>
+        )}
+      </AppShell>
+      
+      {children}
+      <MarkdownShortcuts
+        isOpen={showMarkdownShortcuts}
+        onClose={() => setShowMarkdownShortcuts(false)}
+        buttonRef={keyboardButtonRef}
+      />
+      {/* Emoji Tray - shared by all emoji buttons */}
+      <EmojiTray
+        isOpen={isEmojiTrayOpen}
+        onClose={() => setIsEmojiTrayOpen(false)}
+        onSelect={handleEmojiSelect}
+        position={emojiTrayPosition}
+      />
+    </>
+  );
+};
+
