@@ -4,6 +4,7 @@ import { ChevronRight, ChevronDown, Plus, MoreVertical } from '../../../../../ic
 import { TertiaryButton } from '../../../../ui-buttons';
 import { DropIndicator } from '../internal/DropIndicator';
 import { sidebarLayout } from '../../../../../tokens/sidebar';
+import { sizing as globalSizing } from '../../../../../tokens/sizing';
 import { Tag } from '../../../shared/content-header/tags/Tag';
 import { getNoteIcon, getFolderIcon, ALL_TASKS_FOLDER_ID } from '../../../../../utils/itemIcons';
 import { CLUTTERED_FOLDER_ID, DAILY_NOTES_FOLDER_ID } from '@clutter/shared';
@@ -40,7 +41,7 @@ const DESIGN = {
   },
 } as const;
 
-type SidebarItemVariant = 'note' | 'folder' | 'tag' | 'header';
+type SidebarItemVariant = 'note' | 'folder' | 'tag' | 'header' | 'task';
 
 interface SidebarItemProps {
   // Core
@@ -92,6 +93,12 @@ interface SidebarItemProps {
   onEmojiClick?: (id: string, buttonElement: HTMLButtonElement) => void; // For notes/folders
   tagCount?: number; // For tags - total usage count (notes + folders)
   enableAutoExpandHeader?: boolean; // For headers - auto-expand on drag
+  
+  // Task-specific props
+  isTaskChecked?: boolean; // For tasks - completion state
+  onTaskToggle?: (id: string) => void; // For tasks - checkbox toggle handler
+  taskNoteId?: string; // For tasks - parent note ID (for navigation)
+  onTaskNavigate?: (noteId: string, blockId: string) => void; // For tasks - navigate to note
 }
 
 export const SidebarItem = ({
@@ -131,6 +138,10 @@ export const SidebarItem = ({
   onEmojiClick,
   tagCount,
   enableAutoExpandHeader = false,
+  isTaskChecked = false,
+  onTaskToggle,
+  taskNoteId,
+  onTaskNavigate,
 }: SidebarItemProps) => {
   const { colors } = useTheme();
   const [editValue, setEditValue] = useState(label);
@@ -579,6 +590,57 @@ export const SidebarItem = ({
       return null;
     }
     
+    // Tasks: Render checkbox in 20px container (matches icon button size)
+    if (variant === 'task') {
+      return (
+        <div
+          style={{
+            width: DESIGN.sizing.iconButtonSize,
+            height: DESIGN.sizing.iconButtonSize,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={isTaskChecked}
+            onChange={(e) => {
+              e.stopPropagation();
+              if (onTaskToggle) {
+                onTaskToggle(id);
+              }
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
+            }}
+            style={{
+              width: 16,
+              height: 16,
+              margin: 0,
+              flexShrink: 0,
+              cursor: 'pointer',
+              appearance: 'none',
+              WebkitAppearance: 'none',
+              MozAppearance: 'none',
+              border: `1.5px solid ${colors.border.default}`,
+              borderRadius: globalSizing.radius.sm,
+              backgroundColor: 'transparent',
+              transition: 'border-color 0.15s ease',
+              outline: 'none',
+              backgroundImage: isTaskChecked
+                ? `url("data:image/svg+xml,%3Csvg viewBox='0 0 16 16' fill='${colors.text.default.replace('#', '%23')}' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z'/%3E%3C/svg%3E")`
+                : 'none',
+              backgroundSize: '14px 14px',
+              backgroundPosition: 'center',
+              backgroundRepeat: 'no-repeat',
+            }}
+          />
+        </div>
+      );
+    }
+    
     return null;
   };
 
@@ -723,6 +785,31 @@ export const SidebarItem = ({
             // No onClick - user clicks the sidebar item itself
           />
         </div>
+      );
+    }
+    
+    // Task variant - text with conditional strikethrough
+    if (variant === 'task') {
+      return (
+        <span
+          style={{
+            fontSize: DESIGN.typography.fontSize,
+            fontWeight: DESIGN.typography.fontWeight,
+            color: isTaskChecked 
+              ? colors.text.tertiary 
+              : (isSelected ? colors.text.default : colors.text.secondary),
+            textDecoration: isTaskChecked ? 'line-through' : 'none',
+            flex: '1 1 0',
+            minWidth: 0,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            userSelect: 'none',
+            WebkitUserSelect: 'none',
+          }}
+        >
+          {label}
+        </span>
       );
     }
     

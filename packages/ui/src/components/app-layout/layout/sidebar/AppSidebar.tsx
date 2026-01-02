@@ -163,6 +163,57 @@ export const AppSidebar = ({
     return startOfWeek;
   });
   
+  // Calendar selected date state
+  const [selectedDate, setSelectedDate] = useState<Date>(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Normalize to start of day
+    return today;
+  });
+  
+  // Handle date selection - update local state and call parent handler
+  const handleDateSelect = useCallback((date: Date) => {
+    setSelectedDate(date);
+    onDateSelect?.(date);
+  }, [onDateSelect]);
+  
+  // 🕐 AUTO-UPDATE: Detect day change at exactly 00:00:00 and update calendar
+  useEffect(() => {
+    const scheduleNextDayCheck = () => {
+      const now = new Date();
+      const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0); // 00:00:00 tomorrow
+      const msUntilMidnight = tomorrow.getTime() - now.getTime();
+      
+      // Set timeout to trigger at exactly 00:00:00
+      const timeoutId = setTimeout(() => {
+        const newToday = new Date();
+        newToday.setHours(0, 0, 0, 0); // Normalize to start of day
+        
+        console.log('📅 Day changed! Updating calendar to', newToday.toLocaleDateString());
+        
+        // Update selected date to today
+        setSelectedDate(newToday);
+        
+        // Update week to current week
+        const dayOfWeek = newToday.getDay();
+        const startOfWeek = new Date(newToday);
+        startOfWeek.setDate(newToday.getDate() - dayOfWeek); // Go back to Sunday
+        setCurrentWeekStart(startOfWeek);
+        
+        // Notify parent if handler exists
+        onDateSelect?.(newToday);
+        
+        // Schedule next day check
+        scheduleNextDayCheck();
+      }, msUntilMidnight);
+      
+      return timeoutId;
+    };
+    
+    const timeoutId = scheduleNextDayCheck();
+    
+    return () => clearTimeout(timeoutId);
+  }, [onDateSelect]);
+  
   // Sidebar resize
   const { 
     sidebarWidth, 
@@ -585,17 +636,157 @@ export const AppSidebar = ({
     }
   }, [selectedFolderIds, lastClickedFolderId]);
 
+  // Build flat list of all visible tasks for multi-select
+  const visibleTasks = useMemo(() => {
+    const activeNotes = notes.filter((n: Note) => !n.deletedAt);
+    const tasks: Array<{ id: string; text: string; checked: boolean; noteId: string; noteTitle: string; noteEmoji: string | null }> = [];
+    
+    activeNotes.forEach(note => {
+      try {
+        const parsed = JSON.parse(note.content);
+        const traverseNodes = (node: any) => {
+          if (node.type === 'listBlock' && node.attrs?.listType === 'task') {
+            let text = '';
+            if (node.content && Array.isArray(node.content)) {
+              text = node.content
+                .map((child: any) => {
+                  if (child.type === 'text') {
+                    return child.text || '';
+                  }
+                  return '';
+                })
+                .join('');
+            }
+            
+            if (text.trim()) {
+              tasks.push({
+                id: node.attrs.blockId || crypto.randomUUID(),
+                text: text.trim(),
+                checked: node.attrs.checked || false,
+                noteId: note.id,
+                noteTitle: note.title || 'Untitled',
+                noteEmoji: note.emoji,
+              });
+            }
+          }
+          
+          if (node.content && Array.isArray(node.content)) {
+            node.content.forEach(traverseNodes);
+          }
+        };
+        
+        if (parsed.type === 'doc' && parsed.content) {
+          parsed.content.forEach(traverseNodes);
+        }
+      } catch {
+        // Ignore parsing errors
+      }
+    });
+    
+    return tasks;
+  }, [notes]);
+
+  // Use multi-select hook for tasks
+  const {
+    selectedIds: selectedTaskIds,
+    lastClickedId: lastClickedTaskId,
+    handleClick: handleTaskMultiSelectBase,
+    clearSelection: clearTaskSelection,
+  } = useMultiSelect({
+    items: visibleTasks,
+    getItemId: (task) => task.id,
+    onSingleSelect: (taskId) => {
+      // Optional: single click behavior for tasks
+    },
+  });
+
+  // Track the last task click context for selection state
+  const lastTaskContextRef = useRef<string | null>(null);
+  
+  const handleTaskMultiSelect = useCallback((taskId: string, event?: React.MouseEvent, context?: string) => {
+    // Clear note/folder selection when selecting tasks
+    clearNoteSelection();
+    clearFolderSelection();
+    // Store context for the effect to use
+    lastTaskContextRef.current = context || null;
+    handleTaskMultiSelectBase(taskId, event);
+  }, [handleTaskMultiSelectBase, clearNoteSelection, clearFolderSelection]);
+
+  // Sync selection state when selectedTaskIds changes (after multi-select hook updates)
+  useEffect(() => {
+    if (selectedTaskIds.size > 0 && lastClickedTaskId) {
+      setSelection({
+        type: 'task',
+        itemId: lastClickedTaskId,
+        context: lastTaskContextRef.current,
+        multiSelectIds: selectedTaskIds,
+      });
+    }
+  }, [selectedTaskIds, lastClickedTaskId]);
+
+  // Build flat list of all visible tags for multi-select
+  const visibleTags = useMemo(() => {
+    return allTags.map(tag => ({ id: tag }));
+  }, [allTags]);
+
+  // Use multi-select hook for tags
+  const {
+    selectedIds: selectedTagIds,
+    lastClickedId: lastClickedTagId,
+    handleClick: handleTagMultiSelectBase,
+    clearSelection: clearTagSelection,
+  } = useMultiSelect({
+    items: visibleTags,
+    getItemId: (tag) => tag.id,
+    onSingleSelect: (tagId) => {
+      // Normal click: Navigate to tag filtered view (preserve existing behavior)
+      // The context will be set by the wrapper handler
+    },
+  });
+
+  // Track the last tag click context for selection state
+  const lastTagContextRef = useRef<string | null>(null);
+  
+  const handleTagMultiSelect = useCallback((tagId: string, event?: React.MouseEvent, context?: string) => {
+    // Clear note/folder/task selection when selecting tags
+    clearNoteSelection();
+    clearFolderSelection();
+    clearTaskSelection();
+    // Store context for the effect to use
+    lastTagContextRef.current = context || null;
+    handleTagMultiSelectBase(tagId, event);
+    
+    // If this is a normal click (no modifiers), navigate to tag
+    if (!event?.metaKey && !event?.ctrlKey && !event?.shiftKey) {
+      onTagClick?.(tagId, context as 'all' | 'favorites');
+    }
+  }, [handleTagMultiSelectBase, clearNoteSelection, clearFolderSelection, clearTaskSelection, onTagClick]);
+
+  // Sync selection state when selectedTagIds changes (after multi-select hook updates)
+  useEffect(() => {
+    if (selectedTagIds.size > 0 && lastClickedTagId) {
+      setSelection({
+        type: 'tag',
+        itemId: lastClickedTagId,
+        context: lastTagContextRef.current,
+        multiSelectIds: selectedTagIds,
+      });
+    }
+  }, [selectedTagIds, lastClickedTagId]);
+
   // Clear all selections (called when clicking empty space)
   const handleClearSelection = useCallback(() => {
     clearNoteSelection();
     clearFolderSelection();
+    clearTaskSelection();
+    clearTagSelection();
     setSelection({
       type: null,
       itemId: null,
       context: null,
       multiSelectIds: new Set(),
     });
-  }, [clearNoteSelection, clearFolderSelection]);
+  }, [clearNoteSelection, clearFolderSelection, clearTaskSelection, clearTagSelection]);
 
   // Handlers
   const handleCreateNote = useCallback(() => {
@@ -1382,6 +1573,13 @@ export const AppSidebar = ({
     return tagActionsCache.get(tag) || [];
   }, [tagActionsCache]);
 
+  // Task actions (placeholder for now - can be expanded later)
+  const getTaskActions = useCallback((taskId: string): ReactNode[] => {
+    // For now, tasks don't have context menu actions
+    // Future: Add actions like "Delete task", "Move to another note", etc.
+    return [];
+  }, []);
+
 
   // Keyboard shortcut for creating new note (Cmd+N)
   useEffect(() => {
@@ -1504,7 +1702,8 @@ export const AppSidebar = ({
             createButtonShortcut="⌘ N"
             currentWeekStart={currentWeekStart}
             onWeekChange={setCurrentWeekStart}
-            onDateSelect={onDateSelect}
+            selectedDate={selectedDate}
+            onDateSelect={handleDateSelect}
             width="100%"
             height="100%"
             showWindowControls={true}
@@ -1603,6 +1802,7 @@ export const AppSidebar = ({
                 openContextMenuId={openContextMenuId}
                 getNoteActions={getNoteActions}
                 getFolderActions={getFolderActions}
+                getTaskActions={getTaskActions}
                 onNoteDragStart={(id, context) => handleDragStart('note', id, context)}
                 onDragEnd={handleDragEnd}
                 onDailyNotesDragOver={() => handleDragOver('dailyNotes', null)}
@@ -1619,6 +1819,8 @@ export const AppSidebar = ({
                 onNoteRenameComplete={handleNoteRenameComplete}
                 onNoteRenameCancel={handleNoteRenameCancel}
                 onNoteEmojiClick={handleNoteEmojiClick}
+                selectedTaskIds={selectedTaskIds}
+                onTaskMultiSelect={handleTaskMultiSelect}
               />
             )}
 
@@ -1626,18 +1828,8 @@ export const AppSidebar = ({
             {contentType === 'tags' && (
                 <TagsView
                 selection={selection}
-                onTagClick={(tag, source) => {
-                  // Clear note/folder selection when selecting tags
-                  clearNoteSelection();
-                  clearFolderSelection();
-                  // Update global selection state
-                  setSelection({
-                    type: 'tag',
-                    itemId: tag,
-                    context: source,
-                  });
-                  onTagClick?.(tag, source);
-                }}
+                selectedTagIds={selectedTagIds}
+                onTagMultiSelect={handleTagMultiSelect}
                 onClearSelection={handleClearSelection}
                 openContextMenuId={openContextMenuId}
                 isAllTagsCollapsed={isAllTagsCollapsed}

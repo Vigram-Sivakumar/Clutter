@@ -26,17 +26,17 @@ export interface SectionState {
 
 /**
  * Global Selection State
- * Unified selection tracking for all sidebar items (notes, folders, tags)
+ * Unified selection tracking for all sidebar items (notes, folders, tags, tasks)
  * Replaces fragmented selection states (selectionContext, selectedTagContext, etc.)
  */
 export interface GlobalSelection {
   /** Type of item selected */
-  type: 'note' | 'folder' | 'tag' | null;
+  type: 'note' | 'folder' | 'tag' | 'task' | null;
   /** Primary selected item ID */
   itemId: string | null;
   /** Context where the item was selected (for context-aware highlighting) */
   context: string | null;
-  /** Multi-select IDs (for notes and folders) */
+  /** Multi-select IDs (for notes, folders, and tasks) */
   multiSelectIds?: Set<string>;
 }
 

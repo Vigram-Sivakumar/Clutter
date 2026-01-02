@@ -9,7 +9,6 @@ import { GlobalSelection } from '../types';
 
 interface SidebarTagsViewProps {
   selection: GlobalSelection;
-  onTagClick: (tag: string, source: 'all' | 'favorites') => void;
   openContextMenuId?: string | null; // ID of item with open context menu (for highlighting)
   onClearSelection?: () => void; // Clear selection when clicking empty space
   isAllTagsCollapsed: boolean;
@@ -24,11 +23,13 @@ interface SidebarTagsViewProps {
   editingTag?: string | null;
   onTagRenameComplete?: (oldTag: string, newTag: string) => void;
   onTagRenameCancel?: () => void;
+  // Multi-select
+  selectedTagIds?: Set<string>;
+  onTagMultiSelect?: (tagId: string, event?: React.MouseEvent, context?: string) => void;
 }
 
 export const TagsView = ({
   selection,
-  onTagClick,
   openContextMenuId,
   onClearSelection,
   isAllTagsCollapsed,
@@ -42,6 +43,8 @@ export const TagsView = ({
   editingTag,
   onTagRenameComplete,
   onTagRenameCancel,
+  selectedTagIds,
+  onTagMultiSelect,
 }: SidebarTagsViewProps) => {
   // Get all unique tags
   const allTags = useAllTags();
@@ -117,9 +120,13 @@ export const TagsView = ({
                 key={tag}
                 tag={tag}
                 count={count}
-                isSelected={selection.type === 'tag' && selection.itemId === tag && selection.context === 'favorites'}
+                isSelected={
+                  selection.type === 'tag' && 
+                  (selectedTagIds?.has(tag) || selection.itemId === tag) &&
+                  selection.context === 'favorites'
+                }
                 hasOpenContextMenu={openContextMenuId === tag}
-                onClick={() => onTagClick(tag, 'favorites')}
+                onClick={(e) => onTagMultiSelect?.(tag, e, 'favorites')}
                 actions={getTagActions ? getTagActions(tag) : undefined}
                 isEditing={editingTag === tag}
                 onRenameComplete={onTagRenameComplete}
@@ -156,9 +163,13 @@ export const TagsView = ({
                 key={tag}
                 tag={tag}
                 count={count}
-                isSelected={selection.type === 'tag' && selection.itemId === tag && selection.context === 'all'}
+                isSelected={
+                  selection.type === 'tag' && 
+                  (selectedTagIds?.has(tag) || selection.itemId === tag) &&
+                  selection.context === 'all'
+                }
                 hasOpenContextMenu={openContextMenuId === tag}
-                onClick={() => onTagClick(tag, 'all')}
+                onClick={(e) => onTagMultiSelect?.(tag, e, 'all')}
                 actions={getTagActions ? getTagActions(tag) : undefined}
                 isEditing={editingTag === tag}
                 onRenameComplete={onTagRenameComplete}

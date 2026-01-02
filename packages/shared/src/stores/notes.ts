@@ -537,14 +537,8 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
       currentNoteId: setAsCurrent ? note.id : state.currentNoteId,
     }));
     
-    // Save daily note immediately to file (has title, so not empty)
-    // This ensures it survives app refresh even before content is added
-    if (storageHandlers && !isNoteEmpty(note)) {
-      console.log('💾 Saving daily note immediately:', note.id, note.title);
-      storageHandlers.save(note).catch((err) => {
-        console.error('Failed to save daily note:', err);
-      });
-    }
+    // Daily note will be saved automatically when user adds content
+    // (via auto-save mechanism or when switching notes)
     
     return note;
   },

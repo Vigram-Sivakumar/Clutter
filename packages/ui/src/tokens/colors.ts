@@ -95,7 +95,7 @@ export const colors = {
       error: '#dc2626',       // red-600
       info: stone[700],       // use dark shade instead of blue
       orange: '#f97316',      // orange-500
-      calendarAccent: '#e95824', // Calendar today/selected highlight
+      calendarAccent: '#FD4E00', // Calendar today/selected highlight
     },
 
     // Button colors
@@ -187,7 +187,7 @@ export const colors = {
       error: '#e67c73',       // Notion error red
       info: '#3b8ef6',        // Notion info blue
       orange: '#FF8C00',      // Notion orange
-      calendarAccent: '#e95824', // Calendar today/selected highlight
+      calendarAccent: '#FD4E00', // Calendar today/selected highlight
     },
 
     // Button colors

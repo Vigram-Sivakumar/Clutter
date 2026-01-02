@@ -4,6 +4,7 @@ import { useTheme } from '../../../../../hooks/useTheme';
 import { SidebarEmptyState } from '../sections/EmptyState';
 import { SidebarSection } from '../sections/Section';
 import { SidebarItemNote } from '../items/NoteItem';
+import { SidebarItemTask } from '../items/TaskItem';
 import { sizing as globalSizing } from '../../../../../tokens/sizing';
 import { sidebarLayout } from '../../../../../tokens/sidebar';
 import { transitions } from '../../../../../tokens/transitions';
@@ -11,7 +12,7 @@ import type { Note } from '@clutter/shared';
 import { SidebarNote, GlobalSelection } from '../types';
 import { ALL_TASKS_FOLDER_ID } from '../../../../../utils/itemIcons';
 
-interface Task {
+export interface Task {
   id: string;
   text: string;
   checked: boolean;
@@ -40,6 +41,7 @@ interface SidebarTasksViewProps {
   // Action builders
   getNoteActions?: (noteId: string) => ReactNode[];
   getFolderActions?: (folderId: string) => ReactNode[];
+  getTaskActions?: (taskId: string) => ReactNode[]; // NEW: Task actions
   
   // Drag and drop
   onNoteDragStart?: (noteId: string, context: string) => void;
@@ -64,6 +66,10 @@ interface SidebarTasksViewProps {
   
   // Emoji picker
   onNoteEmojiClick?: (noteId: string, buttonElement: HTMLButtonElement) => void;
+  
+  // Multi-select for tasks (NEW!)
+  selectedTaskIds?: Set<string>;
+  onTaskMultiSelect?: (taskId: string, event?: React.MouseEvent, context?: string) => void;
 }
 
 // Helper to extract tasks from note content
@@ -151,92 +157,6 @@ const toggleTaskInNote = (note: Note, taskId: string): string => {
   }
 };
 
-// Task Item Component with checkbox
-interface TaskItemProps {
-  task: Task;
-  onToggle: (taskId: string) => void;
-  onClick: () => void;
-}
-
-const TaskItem = ({ task, onToggle, onClick }: TaskItemProps) => {
-  const { colors } = useTheme();
-  
-  return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        height: sidebarLayout.itemHeight,
-        paddingLeft: sidebarLayout.itemPaddingX,
-        paddingRight: sidebarLayout.itemPaddingX,
-        cursor: 'pointer',
-        backgroundColor: 'transparent',
-        borderRadius: sidebarLayout.itemBorderRadius,
-        gap: sidebarLayout.itemContentGap,
-        transition: 'background-color 150ms',
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.backgroundColor = colors.background.subtleHover;
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.backgroundColor = 'transparent';
-      }}
-    >
-      {/* Checkbox */}
-      <input
-        type="checkbox"
-        checked={task.checked}
-        onChange={(e) => {
-          e.stopPropagation();
-          onToggle(task.id);
-        }}
-        onClick={(e) => {
-          e.stopPropagation();
-        }}
-        style={{
-          width: 16,
-          height: 16,
-          margin: 0,
-          flexShrink: 0,
-          cursor: 'pointer',
-          appearance: 'none',
-          WebkitAppearance: 'none',
-          MozAppearance: 'none',
-          border: `1.5px solid ${colors.border.default}`,
-          borderRadius: globalSizing.radius.md,
-          backgroundColor: 'transparent',
-          transition: 'border-color 0.15s ease',
-          outline: 'none',
-          backgroundImage: task.checked
-            ? `url("data:image/svg+xml,%3Csvg viewBox='0 0 16 16' fill='${colors.text.default.replace('#', '%23')}' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z'/%3E%3C/svg%3E")`
-            : 'none',
-          backgroundSize: '14px 14px',
-          backgroundPosition: 'center',
-          backgroundRepeat: 'no-repeat',
-        }}
-      />
-      
-      {/* Task text */}
-      <span
-        onClick={onClick}
-        style={{
-          fontSize: 14,
-          fontWeight: 500,
-          color: task.checked ? colors.text.tertiary : colors.text.secondary,
-          textDecoration: task.checked ? 'line-through' : 'none',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
-          flex: '1 1 0',
-          minWidth: 0,
-        }}
-      >
-        {task.text}
-      </span>
-    </div>
-  );
-};
-
 export const TasksView = ({ 
   onTaskClick, 
   onAllTasksHeaderClick,
@@ -251,6 +171,7 @@ export const TasksView = ({
   onClearSelection,
   getNoteActions,
   getFolderActions,
+  getTaskActions,
   onNoteDragStart,
   onDragEnd,
   onDailyNotesDragOver,
@@ -267,6 +188,8 @@ export const TasksView = ({
   onNoteRenameComplete,
   onNoteRenameCancel,
   onNoteEmojiClick,
+  selectedTaskIds,
+  onTaskMultiSelect,
 }: SidebarTasksViewProps) => {
   const { notes, updateNoteContent } = useNotesStore();
   const isAllTasksCollapsed = useUIStateStore(state => state.allTasksCollapsed);
@@ -372,7 +295,7 @@ export const TasksView = ({
                 id={note.id}
                 title={note.title}
                 emoji={note.emoji}
-                level={1}
+                level={0}
                 isSelected={selection.type === 'note' && selection.itemId === note.id && selection.context === 'dailyNotes'}
                 hasOpenContextMenu={openContextMenuId === note.id}
                 hasContent={note.hasContent}
@@ -428,21 +351,45 @@ export const TasksView = ({
           >
             {/* Incomplete Tasks */}
             {incompleteTasks.map(task => (
-              <TaskItem
+              <SidebarItemTask
                 key={task.id}
-                task={task}
+                id={task.id}
+                noteId={task.noteId}
+                noteTitle={task.noteTitle}
+                text={task.text}
+                checked={task.checked}
+                isSelected={
+                  selection.type === 'task' && 
+                  selectedTaskIds?.has(task.id) &&
+                  selection.context === 'allTasks'
+                }
+                hasOpenContextMenu={openContextMenuId === task.id}
+                onClick={(e) => onTaskMultiSelect?.(task.id, e, 'allTasks')}
                 onToggle={handleToggleTask}
-                onClick={() => onTaskClick?.(task.noteId, task.id)}
+                onNavigate={(noteId, blockId) => onTaskClick?.(noteId, blockId)}
+                actions={getTaskActions ? getTaskActions(task.id) : []}
               />
             ))}
             
             {/* Completed Tasks */}
             {completedTasks.map(task => (
-              <TaskItem
+              <SidebarItemTask
                 key={task.id}
-                task={task}
+                id={task.id}
+                noteId={task.noteId}
+                noteTitle={task.noteTitle}
+                text={task.text}
+                checked={task.checked}
+                isSelected={
+                  selection.type === 'task' && 
+                  selectedTaskIds?.has(task.id) &&
+                  selection.context === 'allTasks'
+                }
+                hasOpenContextMenu={openContextMenuId === task.id}
+                onClick={(e) => onTaskMultiSelect?.(task.id, e, 'allTasks')}
                 onToggle={handleToggleTask}
-                onClick={() => onTaskClick?.(task.noteId, task.id)}
+                onNavigate={(noteId, blockId) => onTaskClick?.(noteId, blockId)}
+                actions={getTaskActions ? getTaskActions(task.id) : []}
               />
             ))}
           </div>

@@ -8,6 +8,7 @@ export { Plus } from './Plus';
 export { Search } from './Search';
 export { Filter } from './Filter';
 export { ArrowUpDown } from './ArrowUpDown';
+export { ArrowBendDownRight } from './ArrowBendDownRight';
 export { At } from './At';
 export { Folder } from './Folder';
 export { FolderOpen } from './FolderOpen';
