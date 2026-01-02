@@ -1,10 +1,14 @@
 import { useState, useEffect, useRef, ReactNode } from 'react';
 import { useTheme } from '../../../../../hooks/useTheme';
-import { Folder, FolderOpen, ChevronRight, ChevronDown, Note, NoteBlank } from '../../../../../icons';
+import { ChevronRight, ChevronDown, Plus, MoreVertical } from '../../../../../icons';
 import { TertiaryButton } from '../../../../ui-buttons';
 import { DropIndicator } from '../internal/DropIndicator';
 import { sidebarLayout } from '../../../../../tokens/sidebar';
 import { Tag } from '../../../shared/content-header/tags/Tag';
+import { getNoteIcon, getFolderIcon, ALL_TASKS_FOLDER_ID } from '../../../../../utils/itemIcons';
+import { CLUTTERED_FOLDER_ID, DAILY_NOTES_FOLDER_ID } from '@clutter/shared';
+import { sidebarStyles } from '../config/sidebarConfig';
+import { animations } from '../../../../../tokens/animations';
 
 /**
  * SidebarItem Design Specification
@@ -50,9 +54,12 @@ interface SidebarItemProps {
   badge?: string;
   isOpen?: boolean; // For folders - whether children are expanded
   isSelected?: boolean;
+  hasOpenContextMenu?: boolean; // Whether this item's context menu is currently open
   isDragging?: boolean;
   isDropTarget?: boolean;
   hasContent?: boolean; // For notes - whether note has editor content (switches between Note/NoteBlank)
+  dailyNoteDate?: string | null; // For notes - if it's a daily note (YYYY-MM-DD format)
+  folderId?: string; // For folders - the folder ID (used to identify system folders)
   
   // Interactions
   onClick: (event?: React.MouseEvent) => void;
@@ -96,9 +103,12 @@ export const SidebarItem = ({
   badge,
   isOpen = false,
   isSelected = false,
+  hasOpenContextMenu = false,
   isDragging = false,
   isDropTarget = false,
   hasContent = true,
+  dailyNoteDate,
+  folderId,
   onClick,
   onToggle,
   actions,
@@ -123,7 +133,6 @@ export const SidebarItem = ({
   enableAutoExpandHeader = false,
 }: SidebarItemProps) => {
   const { colors } = useTheme();
-  const [isHovered, setIsHovered] = useState(false);
   const [editValue, setEditValue] = useState(label);
   const inputRef = useRef<HTMLInputElement>(null);
   const itemRef = useRef<HTMLDivElement>(null);
@@ -131,6 +140,13 @@ export const SidebarItem = ({
   // For header auto-expand on drag
   const [isHeaderDragOver, setIsHeaderDragOver] = useState(false);
   const expandTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // CSS Variables for theming (hover effects)
+  const cssVars = {
+    '--sidebar-hover-bg': colors.background.subtleHover,
+    '--sidebar-selected-bg': colors.background.tertiary,
+    '--sidebar-transition': sidebarStyles.transitions.hover,
+  } as React.CSSProperties;
 
   const paddingLeft = variant === 'tag' || variant === 'header' 
     ? 0 
@@ -412,20 +428,23 @@ export const SidebarItem = ({
 
   // Render icon based on variant
   const renderIcon = () => {
-    // Headers don't have icons
+    // Headers can have optional icons (e.g., All Tasks with CheckSquare)
     if (variant === 'header') {
+      if (icon) {
+        return icon;
+      }
       return null;
     }
     
     if (variant === 'note') {
-      // Use TertiaryButton for notes (clickable to change emoji)
-      const noteIcon = (icon && typeof icon === 'string') ? (
-        <span style={{ fontSize: '16px', lineHeight: 1 }}>{icon}</span>
-      ) : hasContent ? (
-        <Note size={16} style={{ color: isSelected ? colors.text.default : colors.text.secondary }} />
-      ) : (
-        <NoteBlank size={16} style={{ color: isSelected ? colors.text.default : colors.text.secondary }} />
-      );
+      const iconColor = isSelected ? colors.text.default : colors.text.secondary;
+      const noteIcon = getNoteIcon({
+        emoji: typeof icon === 'string' ? icon : undefined,
+        dailyNoteDate,
+        hasContent,
+        size: 16,
+        color: iconColor,
+      });
       
       return (
         <TertiaryButton
@@ -442,12 +461,96 @@ export const SidebarItem = ({
     }
     
     if (variant === 'folder') {
-      const hasEmoji = icon && typeof icon === 'string';
+      // For folders with toggle: Show chevron on hover (replaces icon), otherwise show icon
+      if (onToggle) {
+        return (
+          <div
+            className={sidebarStyles.classes.iconWrapper}
+            style={{
+              position: 'relative',
+              width: '20px',
+              height: '20px',
+              flexShrink: 0,
+            }}
+          >
+            {/* Icon - always rendered, CSS controls visibility */}
+            <div
+              className={sidebarStyles.classes.icon}
+              style={{
+                position: 'absolute',
+                inset: 0,
+                display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              opacity: 1,
+              transition: animations.transition.opacity,
+              }}
+            >
+              <TertiaryButton
+                icon={getFolderIcon({
+                  folderId: folderId || id,
+                  emoji: typeof icon === 'string' ? icon : undefined,
+                  isOpen,
+                  size: 16,
+                  color: isSelected ? colors.text.default : colors.text.secondary,
+                })}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (onEmojiClick) {
+                    onEmojiClick(id, e.currentTarget as HTMLButtonElement);
+                  }
+                }}
+                disabled={!onEmojiClick}
+                disabledNoFade={!onEmojiClick}
+                size="xs"
+              />
+            </div>
+            
+            {/* Chevron - always rendered, CSS controls visibility (shown on hover) */}
+            <div
+              className={sidebarStyles.classes.chevronLeft}
+              style={{
+                position: 'absolute',
+                inset: 0,
+                display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              opacity: 0,
+              transition: animations.transition.opacity,
+              }}
+            >
+              <TertiaryButton
+                icon={
+                  <ChevronRight
+                    size={16}
+                    style={{
+                      transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)',
+                      transition: animations.transition.transform,
+                    }}
+                  />
+                }
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggle();
+                }}
+                size="xs"
+              />
+            </div>
+          </div>
+        );
+      }
       
-      // If has emoji AND onEmojiClick, use TertiaryButton
-      if (hasEmoji && onEmojiClick) {
-        const folderIcon = <span style={{ fontSize: '16px', lineHeight: 1 }}>{icon}</span>;
-        
+      // Folder without toggle: Just show icon
+      const iconColor = isSelected ? colors.text.default : colors.text.secondary;
+      const folderIcon = getFolderIcon({
+        folderId: folderId || id,
+        emoji: typeof icon === 'string' ? icon : undefined,
+        isOpen,
+        size: 16,
+        color: iconColor,
+      });
+      
+      if (onEmojiClick) {
         return (
           <TertiaryButton
             icon={folderIcon}
@@ -460,63 +563,14 @@ export const SidebarItem = ({
         );
       }
       
-      // Has emoji but NO onEmojiClick - show static emoji (for system folders like Cluttered)
-      if (hasEmoji && !onEmojiClick) {
-        return (
-          <div
-            style={{
-              width: '16px',
-              height: '16px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0,
-              fontSize: '16px',
-            }}
-          >
-            {icon}
-          </div>
-        );
-      }
-      
-      // No emoji - show folder icon (clickable to add emoji if onEmojiClick provided)
-      if (onEmojiClick) {
-        const iconColor = isSelected ? colors.text.default : colors.text.secondary;
-        const folderIcon = isOpen ? (
-          <FolderOpen size={16} style={{ color: iconColor }} />
-        ) : (
-          <Folder size={16} style={{ color: iconColor }} />
-        );
-        
-        return (
-          <TertiaryButton
-            icon={folderIcon}
-            onClick={(e) => {
-              e.stopPropagation();
-              const target = e.currentTarget as HTMLButtonElement;
-              onEmojiClick(id, target);
-            }}
-            size="xs"
-          />
-        );
-      }
-      
-      // No emoji and no click handler - just show static folder icon
       return (
-        <div
-          style={{
-            width: '16px',
-            height: '16px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0,
-            color: isSelected ? colors.text.default : colors.text.secondary,
-            position: 'relative',
-          }}
-        >
-          {isOpen ? <FolderOpen size={16} /> : <Folder size={16} />}
-        </div>
+        <TertiaryButton
+          icon={folderIcon}
+          onClick={(e) => e.stopPropagation()}
+          disabled={true}
+          disabledNoFade={true}
+          size="xs"
+        />
       );
     }
     
@@ -528,10 +582,11 @@ export const SidebarItem = ({
     return null;
   };
 
-  // Render toggle button (for folders and headers)
+  // Render toggle button (for headers only - chevron on right)
+  // For folders, chevron is handled in renderIcon() on the left
   // Badge and chevron swap in the same 20px container
   const renderToggle = () => {
-    if ((variant !== 'folder' && variant !== 'header') || !onToggle) return null;
+    if (variant !== 'header' || !onToggle) return null;
     
     return (
       <div
@@ -542,19 +597,22 @@ export const SidebarItem = ({
           flexShrink: 0,
         }}
       >
-        {/* Badge - show only when NOT hovered OR when something is being dragged over (isDropTarget) */}
-        {badge && (isDropTarget || !isHovered) && (
+        {/* Badge - always rendered, CSS controls visibility (hidden on hover unless isDropTarget) */}
+        {badge && (
           <div
+            className={sidebarStyles.classes.badge}
             style={{
               position: 'absolute',
               inset: 0,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: '12px',
+              fontSize: sidebarLayout.badgeFontSize,
               color: colors.text.tertiary,
               userSelect: 'none',
               WebkitUserSelect: 'none',
+              opacity: isDropTarget ? 1 : undefined, // Keep visible when drop target
+              transition: animations.transition.opacity,
             } as any}
           >
             {badge}
@@ -562,38 +620,29 @@ export const SidebarItem = ({
         )}
         
         {/* Chevron - clickable to toggle expand/collapse */}
-        {/* Headers: always swap with badge (show on hover) | Folders: If no badge: always visible | If badge: show on hover */}
+        {/* Headers: always swap with badge (show on hover) */}
         <div
+          className={sidebarStyles.classes.chevronRight}
           style={{
             position: 'absolute',
             inset: 0,
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center',
-            opacity: variant === 'header' ? ((isHovered && !isDropTarget) ? 1 : 0) : (!badge ? 1 : ((isHovered && !isDropTarget) ? 1 : 0)),
-            transition: 'opacity 150ms ease',
-            pointerEvents: variant === 'header' ? ((isHovered && !isDropTarget) ? 'auto' : 'none') : (!badge ? 'auto' : ((isHovered && !isDropTarget) ? 'auto' : 'none')),
+          justifyContent: 'center',
+          opacity: isDropTarget ? 0 : 0, // Hidden by default, CSS shows on hover
+          transition: animations.transition.opacity,
+          pointerEvents: isDropTarget ? 'none' : 'auto',
           }}
         >
           <TertiaryButton
             icon={
-              variant === 'header' ? (
                 <ChevronDown
                   size={16}
                   style={{
                     transform: isOpen ? 'rotate(0deg)' : 'rotate(-90deg)',
-                    transition: 'transform 150ms ease',
+                    transition: animations.transition.transform,
                   }}
                 />
-              ) : (
-                <ChevronRight
-                  size={16}
-                  style={{
-                    transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)',
-                    transition: 'transform 150ms ease',
-                  }}
-                />
-              )
             }
             onClick={(e) => {
               e.stopPropagation();
@@ -633,14 +682,13 @@ export const SidebarItem = ({
       );
     }
     
-    // Header variant - uppercase, smaller font
+    // Header variant - smaller font, same case as items
     if (variant === 'header') {
       return (
         <span
           style={{
             fontSize: sidebarLayout.headerFontSize,
             fontWeight: sidebarLayout.headerFontWeight,
-            textTransform: 'uppercase',
             letterSpacing: sidebarLayout.headerLetterSpacing,
             color: colors.text.default,
             flex: '1 1 0',
@@ -661,11 +709,20 @@ export const SidebarItem = ({
     // Tag variant - use global NoteTag component
     if (variant === 'tag') {
       return (
-        <Tag
-          label={label}
-          // No onRemove - user can't dismiss from sidebar
-          // No onClick - user clicks the sidebar item itself
-        />
+        <div
+          style={{
+            flex: '1 1 0',
+            minWidth: 0,
+            display: 'flex',
+            alignItems: 'center',
+          }}
+        >
+          <Tag
+            label={label}
+            // No onRemove - user can't dismiss from sidebar
+            // No onClick - user clicks the sidebar item itself
+          />
+        </div>
       );
     }
     
@@ -693,21 +750,24 @@ export const SidebarItem = ({
 
   // Render badge/count
   const renderBadge = () => {
+    // Badge is always rendered but hidden on hover via CSS (when actions exist)
+    // This is controlled by CSS class in the main container
+
     if (variant === 'tag') {
-      // Tags: just show count (no actions, no swapping)
+      // Tags: show count
       if (tagCount !== undefined && tagCount !== null) {
         return (
           <div
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              minHeight: '20px',
-              minWidth: '20px',
-              fontSize: '12px',
-              color: colors.text.tertiary,
-              userSelect: 'none',
-              WebkitUserSelect: 'none',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: '20px',
+          minWidth: '20px',
+          fontSize: sidebarLayout.badgeFontSize,
+          color: colors.text.tertiary,
+          userSelect: 'none',
+          WebkitUserSelect: 'none',
             } as any}
           >
             {tagCount}
@@ -716,12 +776,13 @@ export const SidebarItem = ({
       }
       return null;
     } else if (badge) {
-      // For folders/headers with toggle, badge is rendered in renderToggle() (swaps with chevron)
-      if ((variant === 'folder' || variant === 'header') && onToggle) {
+      // For headers with toggle, badge is rendered in renderToggle() (swaps with chevron on right)
+      // For folders, badge is rendered normally here (chevron is on left, swaps with icon)
+      if (variant === 'header' && onToggle) {
         return null;
       }
       
-      // For notes or folders without toggle, render badge normally
+      // For folders, notes, or any item without toggle in renderToggle()
       return (
         <div
           style={{
@@ -730,7 +791,7 @@ export const SidebarItem = ({
             justifyContent: 'center',
             minHeight: '20px',
             minWidth: '20px',
-            fontSize: '12px',
+            fontSize: sidebarLayout.badgeFontSize,
             color: colors.text.tertiary,
             pointerEvents: 'none',
             userSelect: 'none',
@@ -744,85 +805,186 @@ export const SidebarItem = ({
     return null;
   };
 
-  // Render actions
-  const renderActions = () => {
+  // Render quick add button (+ icon) for folders and containers
+  const renderQuickAdd = () => {
+    // Show + icon for:
+    // 1. All folders
+    // 2. System folders (Cluttered, Daily Notes, All Tasks)
+    // 3. Section headers that can expand
+    const shouldShowPlusIcon =
+      variant === 'folder' ||
+      folderId === CLUTTERED_FOLDER_ID ||
+      folderId === DAILY_NOTES_FOLDER_ID ||
+      folderId === ALL_TASKS_FOLDER_ID ||
+      (variant === 'header' && onToggle);
+
+    if (!shouldShowPlusIcon) return null;
+
+    // For now, use the first action if provided (which should be the + button from getFolderActions)
+    // In the future, we might want to handle the onClick directly here
+    if (actions && actions.length > 0) {
+      // Always render, CSS controls visibility (show on hover OR when context menu is open)
+      // Keep visible when context menu is open
+      const shouldShowForContextMenu = hasOpenContextMenu && !isEditing;
+      
+      return (
+        <div 
+          className="sidebar-item__quick-add"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            opacity: shouldShowForContextMenu ? 1 : 0,
+            pointerEvents: shouldShowForContextMenu ? 'auto' : 'none',
+            width: shouldShowForContextMenu ? 'auto' : '0px',
+            overflow: 'hidden',
+            transition: `${animations.transition.opacity}, width 150ms cubic-bezier(0.2, 0, 0, 1)`,
+          }}
+        >
+          {actions[0]}
+        </div>
+      );
+    }
+
+    return null;
+  };
+
+  // Render context menu (replaces badge on hover)
+  const renderContextMenu = () => {
     if (!actions || actions.length === 0) return null;
-    if (!isHovered || isEditing) return null;
+
+    // Determine if this item has a quick add button (+ icon)
+    const hasQuickAddButton =
+      variant === 'folder' ||
+      folderId === CLUTTERED_FOLDER_ID ||
+      folderId === DAILY_NOTES_FOLDER_ID ||
+      folderId === ALL_TASKS_FOLDER_ID ||
+      (variant === 'header' && onToggle);
+
+    // For items with + icon, the context menu is the second action (if it exists)
+    // For items without + icon (notes/tags), it's the first action
+    const contextMenuAction = hasQuickAddButton 
+      ? (actions.length > 1 ? actions[1] : null)
+      : actions[0];
+
+    if (!contextMenuAction) return null;
+
+    // Always render, CSS controls visibility (show on hover OR when context menu is open)
+    // Keep visible when context menu is open
+    const shouldShowForContextMenu = hasOpenContextMenu && !isEditing;
     
     return (
       <div
-        onClick={(e) => e.stopPropagation()}
+        className="sidebar-item__context-menu"
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: DESIGN.spacing.actionsGap,
+          opacity: shouldShowForContextMenu ? 1 : 0,
+          pointerEvents: shouldShowForContextMenu ? 'auto' : 'none',
+          width: shouldShowForContextMenu ? 'auto' : '0px',
+          overflow: 'hidden',
+          transition: `${animations.transition.opacity}, width 150ms cubic-bezier(0.2, 0, 0, 1)`,
         }}
       >
-        {actions.map((action, index) => (
-          <div key={index}>{action}</div>
-        ))}
+        {contextMenuAction}
       </div>
     );
   };
 
   return (
-    <div
-      style={{
-        width: '100%',
-        paddingLeft: `${paddingLeft}px`,
-        position: 'relative',
-        overflow: 'visible',
-        boxSizing: 'border-box',
-      }}
-    >
-      {/* Drop indicators for reordering */}
-      {reorderable && (
-        <>
-          <DropIndicator position="before" visible={dropPosition === 'before'} level={level} />
-          <DropIndicator position="after" visible={dropPosition === 'after'} level={level} />
-        </>
-      )}
+    <>
+      {/* CSS for hover effects - no JS state needed */}
+      <style>{`
+        /* Hide icon, show chevron on hover for folders */
+        .${sidebarStyles.classes.item}:hover .${sidebarStyles.classes.icon} {
+          opacity: 0 !important;
+        }
+        
+        .${sidebarStyles.classes.item}:hover .${sidebarStyles.classes.chevronLeft} {
+          opacity: 1 !important;
+        }
+        
+        /* Show action buttons on hover */
+        .${sidebarStyles.classes.item}:hover .sidebar-item__quick-add,
+        .${sidebarStyles.classes.item}:hover .sidebar-item__context-menu {
+          opacity: 1 !important;
+          pointer-events: auto !important;
+          width: auto !important;
+        }
+        
+        /* Hide badge on hover for headers (when not drop target) */
+        .${sidebarStyles.classes.item}:not([data-drop-target="true"]):hover .${sidebarStyles.classes.badge} {
+          opacity: 0 !important;
+        }
+        
+        /* Show chevron on hover for headers (when not drop target) */
+        .${sidebarStyles.classes.item}:not([data-drop-target="true"]):hover .${sidebarStyles.classes.chevronRight} {
+          opacity: 1 !important;
+          pointer-events: auto !important;
+        }
+        
+        /* Background hover - only when not selected */
+        .${sidebarStyles.classes.item}:not([data-selected="true"]):hover {
+          background-color: var(--sidebar-hover-bg) !important;
+        }
+      `}</style>
       
       <div
-        ref={itemRef}
-        draggable={draggable && !isEditing}
-        onDragStart={handleDragStart}
-        onDragEnd={handleDragEnd}
-        onDragEnter={handleDragEnter}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-        onMouseUp={handleMouseUp}
-        onClick={isEditing ? undefined : (e) => onClick(e)}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
         style={{
-          display: 'flex',
-          alignItems: 'center',
           width: '100%',
-          height: DESIGN.sizing.height,
-          paddingLeft: DESIGN.spacing.paddingX,
-          paddingRight: DESIGN.spacing.paddingX,
+          paddingLeft: `${paddingLeft}px`,
+          position: 'relative',
+          overflow: 'visible',
           boxSizing: 'border-box',
-          cursor: isDragging ? 'grabbing' : 'pointer',
-          backgroundColor: isSelected
-            ? colors.background.tertiary
-            : (variant === 'header' && isHeaderDragOver && !isOpen)
+        }}
+      >
+        {/* Drop indicators for reordering */}
+        {reorderable && (
+          <>
+            <DropIndicator position="before" visible={dropPosition === 'before'} level={level} />
+            <DropIndicator position="after" visible={dropPosition === 'after'} level={level} />
+          </>
+        )}
+        
+        <div
+          ref={itemRef}
+          className={sidebarStyles.classes.item}
+          data-selected={isSelected || hasOpenContextMenu}
+          data-drop-target={isDropTarget}
+          draggable={draggable && !isEditing}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+          onDragEnter={handleDragEnter}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          onMouseUp={handleMouseUp}
+          onClick={isEditing ? undefined : (e) => onClick(e)}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            width: '100%',
+            height: DESIGN.sizing.height,
+            paddingLeft: DESIGN.spacing.paddingX,
+            paddingRight: DESIGN.spacing.paddingX,
+            boxSizing: 'border-box',
+            cursor: isDragging ? 'grabbing' : 'pointer',
+            backgroundColor: isSelected || hasOpenContextMenu
               ? colors.background.tertiary
-              : isDropTarget 
-                ? colors.background.subtleHover 
-                : isHovered 
+              : (variant === 'header' && isHeaderDragOver && !isOpen)
+                ? colors.background.tertiary
+                : isDropTarget 
                   ? colors.background.subtleHover 
                   : 'transparent',
-          borderRadius: DESIGN.sizing.borderRadius,
-          gap: DESIGN.spacing.contentGap,
+            borderRadius: DESIGN.sizing.borderRadius,
+            gap: DESIGN.spacing.contentGap,
           userSelect: 'none',
           WebkitUserSelect: 'none',
-          transition: 'background-color 150ms ease, border-color 150ms ease',
+          transition: `${animations.transition.backgroundColor}, ${animations.transition.borderColor}`,
           opacity: isDragging ? 0.5 : 1,
-          border: variant === 'folder' && isDropTarget ? `1px solid ${colors.semantic.info}` : '0.5px solid transparent',
-        } as any}
-      >
+            border: variant === 'folder' && isDropTarget ? `1px solid ${colors.semantic.info}` : '0.5px solid transparent',
+            ...cssVars,
+          } as any}
+        >
         {/* Icon */}
         {renderIcon()}
         
@@ -831,17 +993,19 @@ export const SidebarItem = ({
         
         {/* Right side elements - all together with tight spacing */}
         <div style={{ display: 'flex', alignItems: 'center', gap: DESIGN.spacing.rightSideGap }}>
-          {/* Actions (for notes/folders only, not tags) */}
-          {variant !== 'tag' && renderActions()}
+          {/* Quick add button (+ icon for folders/containers) */}
+          {renderQuickAdd()}
           
-          {/* Badge/Count (for notes/tags) */}
+          {/* Badge or Context Menu (swaps on hover) */}
           {renderBadge()}
+          {renderContextMenu()}
           
           {/* Badge/Chevron Toggle (for folders/headers, on right like section header) */}
           {renderToggle()}
         </div>
       </div>
     </div>
+    </>
   );
 };
 

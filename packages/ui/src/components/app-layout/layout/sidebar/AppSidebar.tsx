@@ -1,20 +1,21 @@
-import { RefObject, useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { RefObject, ReactNode, useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { Keyboard, Sun, Moon, Settings, Plus, MoreVertical, Trash2, Pencil, PanelRight } from '../../../../icons';
-import { TertiaryButton } from '../../../ui-buttons';
+import { TertiaryButton, SecondaryButton, Button, DismissButton } from '../../../ui-buttons';
 import { ContextMenu } from '../../../ui-primitives';
 import { SidebarContainer } from './SidebarContainer';
 import { NotesView } from './views/NotesView';
 import { TagsView } from './views/TagsView';
 import { TasksView } from './views/TasksView';
-import { SidebarCalendar } from './internal/SidebarCalendar';
 import { EmojiTray } from '../../shared/emoji';
 import { sizing } from '../../../../tokens/sizing';
+import { spacing } from '../../../../tokens/spacing';
 import { useTheme } from '../../../../hooks/useTheme';
 import { useMultiSelect } from '../../../../hooks/useMultiSelect';
-import { useCarouselAnimation } from '../../../../hooks/useCarouselAnimation';
 import { useSidebarResize } from '../../../../hooks/useSidebarResize';
-import { useNotesStore, useFoldersStore, useOrderingStore, sortByOrder, DAILY_NOTES_FOLDER_ID, type Note, type Folder } from '@clutter/shared';
-import type { SidebarNote, SidebarFolder } from './types';
+import { useNotesStore, useFoldersStore, useOrderingStore, useTagsStore, useAllTags, sortByOrder, CLUTTERED_FOLDER_ID, DAILY_NOTES_FOLDER_ID, useUIStateStore, type Note, type Folder } from '@clutter/shared';
+import { getTagColor } from '../../../../utils/tagColors';
+import { getFolderIcon, getNoteIcon, ALL_TASKS_FOLDER_ID } from '../../../../utils/itemIcons';
+import type { SidebarNote, SidebarFolder, GlobalSelection } from './types';
 
 /**
  * AppSidebar Design Specification
@@ -36,6 +37,43 @@ const DESIGN = {
 
 // Check if running in Tauri (native app)
 const isTauri = typeof window !== 'undefined' && '__TAURI__' in window;
+
+// Helper component for emoji picker button with hover state
+const EmojiPickerButton = ({ 
+  icon, 
+  hasCustomEmoji, 
+  onClick, 
+  onDismiss 
+}: { 
+  icon: React.ReactNode; 
+  hasCustomEmoji: boolean; 
+  onClick: (e: React.MouseEvent<HTMLButtonElement>) => void;
+  onDismiss: (e: React.MouseEvent<HTMLButtonElement>) => void;
+}) => {
+  const [isHovered, setIsHovered] = useState(false);
+  
+  return (
+    <div
+      style={{ position: 'relative', display: 'inline-flex' }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      <Button
+        variant="filled"
+        icon={icon}
+        onClick={onClick}
+        size="medium"
+      />
+      {hasCustomEmoji && isHovered && (
+        <DismissButton
+          onClick={onDismiss}
+          size={16}
+          iconSize={12}
+        />
+      )}
+    </div>
+  );
+};
 
 interface AppSidebarProps {
   onToggleTheme: () => void;
@@ -96,14 +134,34 @@ export const AppSidebar = ({
     setOrder,
   } = useOrderingStore();
   
-  // Carousel animation state
-  const { 
-    contentType, 
-    currentVisualTab, 
-    prevVisualTab, 
-    isTransitioning, 
-    setContentType 
-  } = useCarouselAnimation('tasks');
+  // Get all tags (needed for unique tag name generation)
+  const allTags = useAllTags();
+  
+  // Tab state - simple conditional rendering
+  const [contentType, setContentType] = useState<'notes' | 'tasks' | 'tags'>('tasks');
+  
+  // Global selection state - unified selection tracking for all sidebar items
+  const [selection, setSelection] = useState<GlobalSelection>({
+    type: null,
+    itemId: null,
+    context: null,
+    multiSelectIds: new Set(),
+  });
+  
+  // Track which item has an open context menu for highlighting
+  const [openContextMenuId, setOpenContextMenuId] = useState<string | null>(null);
+  
+  // Debug: Log when context menu ID changes
+  
+  // Calendar week state
+  const [currentWeekStart, setCurrentWeekStart] = useState(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Normalize to start of day
+    const dayOfWeek = today.getDay();
+    const startOfWeek = new Date(today);
+    startOfWeek.setDate(today.getDate() - dayOfWeek); // Go back to Sunday
+    return startOfWeek;
+  });
   
   // Sidebar resize
   const { 
@@ -117,69 +175,29 @@ export const AppSidebar = ({
     isCollapsed,
     onToggleSidebar,
   });
-
-  // Get slide direction based on tab order
-  const tabs = ['notes', 'tasks', 'tags'];
   
-  const getSlideDirection = () => {
-    const targetIndex = tabs.indexOf(currentVisualTab);
-    const prevIndex = tabs.indexOf(prevVisualTab);
-    // When moving to a higher index (right in tab bar), content slides from right to left
-    // When moving to a lower index (left in tab bar), content slides from left to right
-    return targetIndex > prevIndex ? 'left' : 'right';
-  };
-
-  const slideDirection = getSlideDirection();
+  // Section collapse states - Use persistent UI state store
+  const isClutteredCollapsed = useUIStateStore(state => state.clutteredCollapsed);
+  const setClutteredCollapsed = useUIStateStore(state => state.setClutteredCollapsed);
   
-  // Get initial position for tabs based on their position relative to current visual tab
-  const getTabPosition = (tabType: 'notes' | 'tasks' | 'tags') => {
-    const tabIndex = tabs.indexOf(tabType);
-    const targetIndex = tabs.indexOf(currentVisualTab);
-    if (tabIndex < targetIndex) return 'translateX(-100%)'; // Tab is to the left
-    if (tabIndex > targetIndex) return 'translateX(100%)';  // Tab is to the right
-    return 'translateX(0)'; // Current tab
-  };
+  const isDailyNotesCollapsed = useUIStateStore(state => state.dailyNotesCollapsed);
+  const setDailyNotesCollapsed = useUIStateStore(state => state.setDailyNotesCollapsed);
   
-  // Section collapse states - Initialize based on whether sections have data to prevent flash
-  const [isClutteredCollapsed, setIsClutteredCollapsed] = useState(() => {
-    const activeNotes = notes.filter((n: Note) => !n.deletedAt && n.folderId !== DAILY_NOTES_FOLDER_ID);
-    const activeFolderIds = new Set(storeFolders.filter((f: Folder) => !f.deletedAt).map((f: Folder) => f.id));
-    const cluttered = activeNotes.filter((n: Note) => (!n.folderId || !activeFolderIds.has(n.folderId)));
-    return cluttered.length === 0;
-  });
-  const [isFavouritesCollapsed, setIsFavouritesCollapsed] = useState(() => {
-    const activeNotes = notes.filter((n: Note) => !n.deletedAt && n.folderId !== DAILY_NOTES_FOLDER_ID);
-    const favourites = activeNotes.filter((n: Note) => n.isFavorite);
-    return favourites.length === 0;
-  });
-  const [isFoldersCollapsed, setIsFoldersCollapsed] = useState(() => {
-    const activeFolders = storeFolders.filter((f: Folder) => !f.deletedAt);
-    return activeFolders.length === 0;
-  });
+  const isFavouritesCollapsed = useUIStateStore(state => state.favouritesCollapsed);
+  const setFavouritesCollapsed = useUIStateStore(state => state.setFavouritesCollapsed);
   
-  // Track if user has manually interacted with collapse states
-  const [hasManuallyToggledCluttered, setHasManuallyToggledCluttered] = useState(false);
-  const [hasManuallyToggledFavourites, setHasManuallyToggledFavourites] = useState(false);
-  const [hasManuallyToggledFolders, setHasManuallyToggledFolders] = useState(false);
-
-  // Track which folders are open/collapsed - Initialize with current note's folder
-  const [openFolderIds, setOpenFolderIds] = useState<Set<string>>(() => {
-    const currentNote = notes.find((n: Note) => n.id === currentNoteId);
-    if (currentNote?.folderId) {
-      // Find all parent folders to expand the entire chain
-      const foldersToOpen = new Set<string>();
-      const addParentChain = (folderId: string) => {
-        foldersToOpen.add(folderId);
-        const folder = storeFolders.find((f: Folder) => f.id === folderId);
-        if (folder?.parentId) {
-          addParentChain(folder.parentId);
-        }
-      };
-      addParentChain(currentNote.folderId);
-      return foldersToOpen;
-    }
-    return new Set();
-  });
+  const isFoldersCollapsed = useUIStateStore(state => state.foldersCollapsed);
+  const setFoldersCollapsed = useUIStateStore(state => state.setFoldersCollapsed);
+  
+  const openFolderIds = useUIStateStore(state => state.openFolderIds);
+  const setOpenFolderIds = useUIStateStore(state => state.setOpenFolderIds);
+  const toggleFolderOpen = useUIStateStore(state => state.toggleFolderOpen);
+  
+  const isAllTagsCollapsed = useUIStateStore(state => state.allTagsCollapsed);
+  const setAllTagsCollapsed = useUIStateStore(state => state.setAllTagsCollapsed);
+  
+  const isFavouriteTagsCollapsed = useUIStateStore(state => state.favouriteTagsCollapsed);
+  const setFavouriteTagsCollapsed = useUIStateStore(state => state.setFavouriteTagsCollapsed);
 
   // Drag and drop state
   const [draggedItem, setDraggedItem] = useState<{ 
@@ -188,7 +206,7 @@ export const AppSidebar = ({
     ids: string[];
     context?: string; // Track where drag originated
   } | null>(null);
-  const [dropTarget, setDropTarget] = useState<{ type: 'folder' | 'cluttered'; id: string | null } | null>(null);
+  const [dropTarget, setDropTarget] = useState<{ type: 'folder' | 'cluttered' | 'dailyNotes'; id: string | null } | null>(null);
   
   // Ref to track drag leave timeout (prevents flicker when moving between items)
   const dragLeaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -197,18 +215,6 @@ export const AppSidebar = ({
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [editingFolderId, setEditingFolderId] = useState<string | null>(null);
   const [editingTag, setEditingTag] = useState<string | null>(null);
-
-  // Tags state
-  const [selectedTag, setSelectedTag] = useState<string | null>(null);
-  const [isAllTagsCollapsed, setIsAllTagsCollapsed] = useState(() => {
-    // Check if there are any tags in notes
-    const activeNotes = notes.filter((n: Note) => !n.deletedAt);
-    const allTags = new Set<string>();
-    activeNotes.forEach((n: Note) => {
-      n.tags.forEach(tag => allTags.add(tag.toLowerCase()));
-    });
-    return allTags.size === 0;
-  });
 
   // Emoji picker state
   const [isEmojiTrayOpen, setIsEmojiTrayOpen] = useState(false);
@@ -220,16 +226,8 @@ export const AppSidebar = ({
   const [reorderDropTarget, setReorderDropTarget] = useState<{ id: string; position: 'before' | 'after'; type: 'note' | 'folder' } | null>(null);
 
   const handleFolderToggle = useCallback((folderId: string) => {
-    setOpenFolderIds(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(folderId)) {
-        newSet.delete(folderId);
-      } else {
-        newSet.add(folderId);
-      }
-      return newSet;
-    });
-  }, []);
+    toggleFolderOpen(folderId);
+  }, [toggleFolderOpen]);
 
   // Helper to check if TipTap JSON content is empty
   const isContentEmpty = useCallback((content: string): boolean => {
@@ -282,12 +280,31 @@ export const AppSidebar = ({
         icon: n.emoji,
         isFavorite: n.isFavorite,
         hasContent: !isContentEmpty(n.content),
+        dailyNoteDate: n.dailyNoteDate, // Include dailyNoteDate for icon logic
       }));
     
     // Apply custom ordering
-    const orderedIds = getOrder('cluttered');
+    const orderedIds = getOrder(CLUTTERED_FOLDER_ID);
     return sortByOrder(notes, orderedIds);
   }, [activeNotes, storeFolders, getOrder, orders, isContentEmpty]);
+
+  // Daily notes (notes with dailyNoteDate field)
+  const dailyNotes: SidebarNote[] = useMemo(() => {
+    const notes = activeNotes
+      .filter((n: Note) => n.folderId === DAILY_NOTES_FOLDER_ID)
+      .map((n: Note) => ({
+        id: n.id,
+        title: n.title || 'Untitled',
+        icon: n.emoji,
+        isFavorite: n.isFavorite,
+        hasContent: !isContentEmpty(n.content),
+        dailyNoteDate: n.dailyNoteDate, // Include dailyNoteDate for icon logic
+      }));
+    
+    // Apply custom ordering
+    const orderedIds = getOrder('daily-notes');
+    return sortByOrder(notes, orderedIds);
+  }, [activeNotes, getOrder, orders, isContentEmpty]);
 
   // Favorite notes
   // Excludes daily notes - they're saved under DAILY_NOTES_FOLDER_ID
@@ -300,6 +317,7 @@ export const AppSidebar = ({
         icon: n.emoji,
         isFavorite: n.isFavorite,
         hasContent: !isContentEmpty(n.content),
+        dailyNoteDate: n.dailyNoteDate, // Include dailyNoteDate for icon logic
       }));
     
     // Apply custom ordering
@@ -307,6 +325,91 @@ export const AppSidebar = ({
     return sortByOrder(notes, orderedIds);
   }, [activeNotes, getOrder, orders, isContentEmpty]);
 
+  // Favorite folders
+  // Excludes system folders (Cluttered, Daily Notes)
+  const favouriteFolders: SidebarFolder[] = useMemo(() => {
+    const activeFolders = storeFolders.filter((f: Folder) => !f.deletedAt);
+    
+    // Recursive function to build full folder tree (same as sidebarFolders)
+    const buildFolderTree = (parentId: string | null): SidebarFolder[] => {
+      const folders = activeFolders
+        .filter((f: Folder) => f.parentId === parentId)
+        .map((f: Folder) => {
+          // Get notes in this folder and apply ordering
+          const folderNotes = activeNotes
+            .filter((n: Note) => n.folderId === f.id)
+            .map((n: Note) => ({
+              id: n.id,
+              title: n.title || 'Untitled',
+              icon: n.emoji,
+              isFavorite: n.isFavorite,
+              hasContent: !isContentEmpty(n.content),
+              dailyNoteDate: n.dailyNoteDate,
+            }));
+          
+          const noteOrderIds = getOrder(`folder-notes-${f.id}`);
+          const sortedNotes = sortByOrder(folderNotes, noteOrderIds);
+          
+          // Recursively get subfolders
+          const subfolders = buildFolderTree(f.id);
+          
+          return {
+            id: f.id || '',
+            name: f.name || 'Untitled Folder',
+            emoji: f.emoji || null,
+            isOpen: openFolderIds.has(f.id),
+            notes: sortedNotes,
+            subfolders: subfolders,
+          };
+        });
+      
+      // Apply ordering based on parent context
+      const context = parentId ? `folder-children-${parentId}` : 'root-folders';
+      const orderedIds = getOrder(context);
+      return sortByOrder(folders, orderedIds);
+    };
+    
+    // Get favorite folders and build their full trees
+    const favoriteRootFolders = storeFolders
+      .filter((f: Folder) => 
+        !f.deletedAt && 
+        f.isFavorite && 
+        f.id !== CLUTTERED_FOLDER_ID && 
+        f.id !== DAILY_NOTES_FOLDER_ID
+      )
+      .map((f: Folder) => {
+        // Get notes in this folder
+        const folderNotes = activeNotes
+          .filter((n: Note) => n.folderId === f.id)
+          .map((n: Note) => ({
+            id: n.id,
+            title: n.title || 'Untitled',
+            icon: n.emoji,
+            isFavorite: n.isFavorite,
+            hasContent: !isContentEmpty(n.content),
+            dailyNoteDate: n.dailyNoteDate,
+          }));
+        
+        const noteOrderIds = getOrder(`folder-notes-${f.id}`);
+        const sortedNotes = sortByOrder(folderNotes, noteOrderIds);
+        
+        // Get subfolders
+        const subfolders = buildFolderTree(f.id);
+        
+        return {
+          id: f.id || '',
+          name: f.name || 'Untitled Folder',
+          emoji: f.emoji || null,
+          isOpen: openFolderIds.has(f.id),
+          notes: sortedNotes,
+          subfolders: subfolders,
+        };
+      });
+    
+    // Apply custom ordering for favorites
+    const orderedIds = getOrder('favourites');
+    return sortByOrder(favoriteRootFolders, orderedIds);
+  }, [storeFolders, activeNotes, openFolderIds, getOrder, orders, isContentEmpty]);
 
   // Transform folders with hierarchy
   const sidebarFolders: SidebarFolder[] = useMemo(() => {
@@ -327,6 +430,7 @@ export const AppSidebar = ({
               icon: n.emoji,
               isFavorite: n.isFavorite,
               hasContent: !isContentEmpty(n.content),
+              dailyNoteDate: n.dailyNoteDate, // Include dailyNoteDate for icon logic
             }));
           
           const noteOrderIds = getOrder(`folder-notes-${f.id}`);
@@ -386,6 +490,7 @@ export const AppSidebar = ({
   // Use multi-select hook for notes
   const {
     selectedIds: selectedNoteIds,
+    lastClickedId: lastClickedNoteId,
     handleClick: handleNoteMultiSelectBase,
     clearSelection: clearNoteSelection,
   } = useMultiSelect({
@@ -421,6 +526,7 @@ export const AppSidebar = ({
   // Use multi-select hook for folders
   const {
     selectedIds: selectedFolderIds,
+    lastClickedId: lastClickedFolderId,
     handleClick: handleFolderMultiSelectBase,
     clearSelection: clearFolderSelection,
   } = useMultiSelect({
@@ -432,89 +538,64 @@ export const AppSidebar = ({
   });
 
   // Wrap handlers to implement exclusive selection (only notes OR folders, not both)
-  const handleNoteMultiSelect = useCallback((noteId: string, event?: React.MouseEvent) => {
+  // and track selection context for context-aware highlighting
+  // Track the last note click context for selection state
+  const lastNoteContextRef = useRef<string | null>(null);
+  
+  const handleNoteMultiSelect = useCallback((noteId: string, event?: React.MouseEvent, context?: string) => {
     // Clear folder selection when selecting notes
     clearFolderSelection();
+    // Store context for the effect to use
+    lastNoteContextRef.current = context || null;
     handleNoteMultiSelectBase(noteId, event);
   }, [handleNoteMultiSelectBase, clearFolderSelection]);
 
-  const handleFolderMultiSelect = useCallback((folderId: string, event?: React.MouseEvent) => {
+  // Sync selection state when selectedNoteIds changes (after multi-select hook updates)
+  useEffect(() => {
+    if (selectedNoteIds.size > 0 && lastClickedNoteId) {
+      setSelection({
+        type: 'note',
+        itemId: lastClickedNoteId,
+        context: lastNoteContextRef.current,
+        multiSelectIds: selectedNoteIds,
+      });
+    }
+  }, [selectedNoteIds, lastClickedNoteId]);
+
+  // Track the last folder click context for selection state
+  const lastFolderContextRef = useRef<string | null>(null);
+  
+  const handleFolderMultiSelect = useCallback((folderId: string, event?: React.MouseEvent, context?: string) => {
     // Clear note selection when selecting folders
     clearNoteSelection();
+    // Store context for the effect to use
+    lastFolderContextRef.current = context || null;
     handleFolderMultiSelectBase(folderId, event);
   }, [handleFolderMultiSelectBase, clearNoteSelection]);
 
-  // Auto-collapse empty sections (only if user hasn't manually toggled)
-  // Only collapse when going FROM having items TO empty, not expand when going from empty to having items
+  // Sync selection state when selectedFolderIds changes (after multi-select hook updates)
   useEffect(() => {
-    if (!hasManuallyToggledCluttered && clutteredNotes.length === 0) {
-      setIsClutteredCollapsed(true);
-    }
-  }, [clutteredNotes.length, hasManuallyToggledCluttered]);
-
-  useEffect(() => {
-    if (!hasManuallyToggledFavourites && favouriteNotes.length === 0) {
-      setIsFavouritesCollapsed(true);
-    }
-  }, [favouriteNotes.length, hasManuallyToggledFavourites]);
-
-  useEffect(() => {
-    if (!hasManuallyToggledFolders && sidebarFolders.length === 0) {
-      setIsFoldersCollapsed(true);
-    }
-  }, [sidebarFolders.length, hasManuallyToggledFolders]);
-
-  // Auto-expand folder containing current note - but only expand folder/cluttered, never Favourites
-  // This runs on initial load and when switching notes
-  useEffect(() => {
-    if (!currentNoteId) return;
-    
-    const currentNote = notes.find((n: Note) => n.id === currentNoteId && !n.deletedAt);
-    if (!currentNote) return;
-    
-    // Skip auto-expand logic for daily notes - they're saved under special folder ID
-    if (currentNote.folderId === DAILY_NOTES_FOLDER_ID) return;
-
-    const activeFolderIds = new Set(
-      storeFolders.filter((f: Folder) => !f.deletedAt).map((f: Folder) => f.id)
-    );
-
-    // Check if note is cluttered (regular notes without a folder)
-    const isCluttered = !currentNote.folderId || !activeFolderIds.has(currentNote.folderId);
-    
-    if (isCluttered) {
-      // Note is cluttered - expand cluttered section (only on initial load, not on data changes)
-      // Don't expand if user has manually toggled
-      if (!hasManuallyToggledCluttered) {
-        setIsClutteredCollapsed(false);
-      }
-    } else if (currentNote.folderId) {
-      // Note is in a folder - expand that folder and all parent folders
-      const foldersToOpen = new Set<string>();
-      const addParentChain = (folderId: string) => {
-        foldersToOpen.add(folderId);
-        const folder = storeFolders.find((f: Folder) => f.id === folderId);
-        if (folder?.parentId) {
-          addParentChain(folder.parentId);
-        }
-      };
-      addParentChain(currentNote.folderId);
-      
-      setOpenFolderIds(prev => {
-        const newSet = new Set(prev);
-        foldersToOpen.forEach(id => newSet.add(id));
-        return newSet;
+    if (selectedFolderIds.size > 0 && lastClickedFolderId) {
+      setSelection({
+        type: 'folder',
+        itemId: lastClickedFolderId,
+        context: lastFolderContextRef.current,
+        multiSelectIds: selectedFolderIds,
       });
-      
-      // Expand the folders section (only on initial load, not on data changes)
-      if (!hasManuallyToggledFolders) {
-        setIsFoldersCollapsed(false);
-      }
     }
-    
-    // NEVER auto-expand Favourites - it's a secondary view
-    // Users should manually expand it if they want to see that list
-  }, [currentNoteId, notes, storeFolders, hasManuallyToggledCluttered, hasManuallyToggledFolders]);
+  }, [selectedFolderIds, lastClickedFolderId]);
+
+  // Clear all selections (called when clicking empty space)
+  const handleClearSelection = useCallback(() => {
+    clearNoteSelection();
+    clearFolderSelection();
+    setSelection({
+      type: null,
+      itemId: null,
+      context: null,
+      multiSelectIds: new Set(),
+    });
+  }, [clearNoteSelection, clearFolderSelection]);
 
   // Handlers
   const handleCreateNote = useCallback(() => {
@@ -635,14 +716,21 @@ export const AppSidebar = ({
     return false;
   }, [storeFolders]);
 
-  const handleDrop = useCallback((targetType: 'folder' | 'cluttered', targetId: string | null) => {
+  const handleDrop = useCallback((targetType: 'folder' | 'cluttered' | 'dailyNotes', targetId: string | null) => {
     if (!draggedItem) return;
 
-    const { type: dragType, ids: draggedIds } = draggedItem;
+    const { type: dragType, ids: draggedIds} = draggedItem;
 
     if (dragType === 'note') {
+      // Daily notes folder is system-managed - users can't manually move notes into it
+      if (targetType === 'dailyNotes') {
+        setDraggedItem(null);
+        setDropTarget(null);
+        return;
+      }
+      
       // Move all selected notes to folder or cluttered
-      const newFolderId = targetType === 'cluttered' ? null : targetId;
+      const newFolderId = targetType === 'cluttered' ? null : (targetType === 'dailyNotes' ? DAILY_NOTES_FOLDER_ID : targetId);
       
       // Move all dragged notes to new folder
       draggedIds.forEach(noteId => {
@@ -727,7 +815,7 @@ export const AppSidebar = ({
           return openFolderIds.has(folderId); // Allow if folder is expanded
         }
         // Allow moving to cluttered
-        if (context === 'cluttered') return true;
+        if (context === CLUTTERED_FOLDER_ID) return true;
       }
       
       // For folders: allow moving between root and subfolders, or between different subfolder levels
@@ -790,7 +878,7 @@ export const AppSidebar = ({
       let newFolderId: string | null = null;
       if (context.startsWith('folder-notes-')) {
         newFolderId = context.replace('folder-notes-', '');
-      } else if (context === 'cluttered') {
+      } else if (context === CLUTTERED_FOLDER_ID) {
         newFolderId = null;
       }
       
@@ -849,7 +937,7 @@ export const AppSidebar = ({
       if (type === 'note') {
         if (context === 'favourites') {
           allItemIds = favouriteNotes.map(n => n.id);
-        } else if (context === 'cluttered') {
+        } else if (context === CLUTTERED_FOLDER_ID) {
           allItemIds = clutteredNotes.map(n => n.id);
         } else if (context.startsWith('folder-notes-')) {
           const folderId = context.replace('folder-notes-', '');
@@ -943,25 +1031,77 @@ export const AppSidebar = ({
     setEditingEmojiFolderId(null);
   }, [editingEmojiNoteId, editingEmojiFolderId, updateNote, updateFolder]);
 
-  const handleDeleteNote = useCallback((noteId: string) => {
-    if (window.confirm('Move this note to trash?')) {
-      // Soft delete the note (move to trash)
-      deleteNote(noteId);
+  const handleDeleteNote = useCallback(async (noteId: string) => {
+    try {
+      // Use Tauri dialog.confirm for proper UX
+      const { confirm } = await import('@tauri-apps/api/dialog');
+      const confirmed = await confirm(
+        'Move this note to trash?',
+        { title: 'Delete Note', type: 'warning', okLabel: 'Move to Trash', cancelLabel: 'Cancel' }
+      );
       
-      // If deleting the currently open note, keep it open but update context
-      // The parent component (NoteEditor) will handle updating the view context
-      // No navigation needed - user stays on the same note
+      if (confirmed) {
+        // Soft delete the note (move to trash)
+        deleteNote(noteId);
+        
+        // If deleting the currently open note, keep it open but update context
+        // The parent component (NoteEditor) will handle updating the view context
+        // No navigation needed - user stays on the same note
+      }
+    } catch (error) {
+      console.error('❌ Error showing confirmation dialog:', error);
     }
   }, [deleteNote]);
 
-  const getNoteActions = (noteId: string) => [
+  // Cache note actions to prevent re-creating JSX elements on every render
+  const noteActionsCache = useMemo(() => {
+    const cache = new Map<string, ReactNode[]>();
+    
+    notes.forEach(note => {
+      const noteId = note.id;
+      const hasCustomEmoji = !!note.emoji;
+      const currentIcon = getNoteIcon({
+        emoji: note.emoji,
+        dailyNoteDate: note.dailyNoteDate,
+        hasContent: !!note.content && note.content.trim().length > 0,
+        size: 16,
+        color: colors.text.secondary,
+      });
+
+      cache.set(noteId, [
     <ContextMenu
       key="more"
       items={[
         {
-          icon: <Pencil size={16} />,
-          label: 'Rename',
-          onClick: () => handleRenameNote(noteId),
+              buttonGroup: [
+                <Button
+                  key="rename"
+                  variant="tertiary"
+                  icon={<Pencil size={16} />}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleRenameNote(noteId);
+                  }}
+                  size="medium"
+                  fullWidth
+                >
+                  Rename
+                </Button>,
+                <EmojiPickerButton
+                  key="emoji"
+                  icon={currentIcon}
+                  hasCustomEmoji={hasCustomEmoji}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const buttonElement = e.currentTarget as HTMLButtonElement;
+                    handleNoteEmojiClick(noteId, buttonElement);
+                  }}
+                  onDismiss={(e) => {
+                    e.stopPropagation();
+                    updateNote(noteId, { emoji: undefined });
+                  }}
+                />,
+              ],
         },
         { separator: true },
         {
@@ -971,13 +1111,22 @@ export const AppSidebar = ({
           danger: true,
         },
       ]}
+          onOpenChange={(isOpen) => setOpenContextMenuId(isOpen ? noteId : null)}
     >
       <TertiaryButton
         icon={<MoreVertical size={16} />}
         size="xs"
       />
     </ContextMenu>
-  ];
+      ]);
+    });
+    
+    return cache;
+  }, [notes, colors.text.secondary, handleRenameNote, handleNoteEmojiClick, handleDeleteNote, updateNote]);
+
+  const getNoteActions = useCallback((noteId: string): ReactNode[] => {
+    return noteActionsCache.get(noteId) || [];
+  }, [noteActionsCache]);
 
   // Folder actions with context menu
   const handleRenameFolder = useCallback((folderId: string) => {
@@ -995,20 +1144,69 @@ export const AppSidebar = ({
     setEditingFolderId(null);
   }, []);
 
-  const handleDeleteFolder = useCallback((folderId: string) => {
-    if (window.confirm('Are you sure you want to delete this folder? Notes inside will be moved to Cluttered Note.')) {
-      // Move all notes in folder to cluttered
-      const notesInFolder = notes.filter(n => n.folderId === folderId);
-      notesInFolder.forEach(note => {
-        updateNote(note.id, { folderId: null });
-      });
+  const handleDeleteFolder = useCallback(async (folderId: string) => {
+    // Count notes in folder (including subfolders)
+    const countNotesInFolder = (id: string): number => {
+      const directNotes = notes.filter(n => n.folderId === id && !n.deletedAt).length;
+      const childFolders = storeFolders.filter(f => f.parentId === id && !f.deletedAt);
+      const childNotes = childFolders.reduce((sum, child) => sum + countNotesInFolder(child.id), 0);
+      return directNotes + childNotes;
+    };
+    
+    const noteCount = countNotesInFolder(folderId);
+    const folder = storeFolders.find(f => f.id === folderId);
+    const folderName = folder?.name || 'this folder';
+    
+    try {
+      // Use Tauri dialog.confirm for better UX
+      const { confirm } = await import('@tauri-apps/api/dialog');
       
-      // Delete the folder
-      deleteFolder(folderId);
+      if (noteCount === 0) {
+        // No notes - simple confirmation
+        const confirmed = await confirm(
+          `Delete "${folderName}"?`,
+          { title: 'Delete Folder', type: 'warning' }
+        );
+        
+        if (confirmed) {
+          deleteFolder(folderId);
+        }
+      } else {
+        // Has notes - show options
+        const message = `"${folderName}" contains ${noteCount} ${noteCount === 1 ? 'note' : 'notes'}.\n\nDelete folder only (notes move to Cluttered) or delete everything?`;
+        
+        const deleteAll = await confirm(
+          message,
+          { 
+            title: 'Delete Folder', 
+            type: 'warning',
+            okLabel: 'Delete All',
+            cancelLabel: 'Delete Folder Only'
+          }
+        );
+        
+        if (deleteAll) {
+          // Delete folder and notes together
+          deleteFolder(folderId, { keepNotes: false });
+        } else {
+          // User clicked "Delete Folder Only" (cancel button)
+          // Delete folder but keep notes (move to Cluttered)
+          deleteFolder(folderId, { keepNotes: true });
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error showing folder deletion dialog:', error);
     }
-  }, [notes, updateNote, deleteFolder]);
+  }, [notes, storeFolders, deleteFolder]);
 
-  const getFolderActions = (folderId: string) => [
+  // Cache folder actions to prevent re-creating JSX elements on every render
+  const folderActionsCache = useMemo(() => {
+    const cache = new Map<string, ReactNode[]>();
+    
+    // Add system folder actions
+    const systemFolderIds = [CLUTTERED_FOLDER_ID, DAILY_NOTES_FOLDER_ID, ALL_TASKS_FOLDER_ID];
+    systemFolderIds.forEach(folderId => {
+      cache.set(folderId, [
     <TertiaryButton
       key="add"
       icon={<Plus size={16} />}
@@ -1018,8 +1216,93 @@ export const AppSidebar = ({
       }}
       size="xs"
     />,
-    // TODO: Add right-click context menu for rename/delete
-  ];
+      ]);
+    });
+    
+    // Add regular folder actions
+    storeFolders.forEach(folder => {
+      const folderId = folder.id;
+      const isSystemFolder = systemFolderIds.includes(folderId);
+
+      if (!isSystemFolder) {
+        const hasCustomEmoji = !!folder.emoji;
+        const currentIcon = getFolderIcon({
+          folderId,
+          emoji: folder.emoji,
+          isOpen: false,
+          size: 16,
+          color: colors.text.secondary,
+        });
+
+        cache.set(folderId, [
+          <TertiaryButton
+            key="add"
+            icon={<Plus size={16} />}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleCreateNoteInFolder(folderId);
+            }}
+            size="xs"
+          />,
+          <ContextMenu
+            key="more"
+            items={[
+              {
+                buttonGroup: [
+                  <Button
+                    key="rename"
+                    variant="tertiary"
+                    icon={<Pencil size={16} />}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleRenameFolder(folderId);
+                    }}
+                    size="medium"
+                    fullWidth
+                  >
+                    Rename
+                  </Button>,
+                  <EmojiPickerButton
+                    key="emoji"
+                    icon={currentIcon}
+                    hasCustomEmoji={hasCustomEmoji}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const buttonElement = e.currentTarget as HTMLButtonElement;
+                      handleFolderEmojiClick(folderId, buttonElement);
+                    }}
+                    onDismiss={(e) => {
+                      e.stopPropagation();
+                      updateFolder(folderId, { emoji: undefined });
+                    }}
+                  />,
+                ],
+              },
+              { separator: true },
+              {
+                icon: <Trash2 size={16} />,
+                label: 'Delete',
+                onClick: () => handleDeleteFolder(folderId),
+                danger: true,
+              },
+            ]}
+            onOpenChange={(isOpen) => setOpenContextMenuId(isOpen ? folderId : null)}
+          >
+            <TertiaryButton
+              icon={<MoreVertical size={16} />}
+              size="xs"
+            />
+          </ContextMenu>
+        ]);
+      }
+    });
+    
+    return cache;
+  }, [storeFolders, colors.text.secondary, handleCreateNoteInFolder, handleRenameFolder, handleFolderEmojiClick, handleDeleteFolder, updateFolder]);
+
+  const getFolderActions = useCallback((folderId: string): ReactNode[] => {
+    return folderActionsCache.get(folderId) || [];
+  }, [folderActionsCache]);
 
   // Tag actions with context menu
   const handleRenameTag = useCallback((tag: string) => {
@@ -1046,24 +1329,26 @@ export const AppSidebar = ({
   }, []);
 
   const handleDeleteTag = useCallback((tag: string) => {
-    if (window.confirm(`Are you sure you want to delete the tag "${tag}"? It will be removed from all notes.`)) {
-      // Find all notes with this tag and remove it
-      notes.forEach((note) => {
-        if (note.tags.some((t) => t.toLowerCase() === tag.toLowerCase())) {
-          const updatedTags = note.tags.filter((t) => t.toLowerCase() !== tag.toLowerCase());
-          updateNote(note.id, { tags: updatedTags });
-        }
-      });
-      
-      // If the deleted tag was selected, clear the selection and go back to editor
-      if (selectedTag?.toLowerCase() === tag.toLowerCase()) {
-        setSelectedTag(null);
-        onBackToEditor?.();
-      }
+    console.log('🗑️ [DEBUG] handleDeleteTag called from sidebar:', tag);
+    
+    // Soft delete the tag using the store's deleteTag function
+    const { deleteTag } = useTagsStore.getState();
+    deleteTag(tag);
+    
+    // If the deleted tag was selected, clear the selection and go back to editor
+    if (selection.type === 'tag' && selection.itemId?.toLowerCase() === tag.toLowerCase()) {
+      setSelection({ type: null, itemId: null, context: null });
+      onBackToEditor?.();
     }
-  }, [notes, updateNote, selectedTag, onBackToEditor]);
+  }, [selection, onBackToEditor]);
 
-  const getTagActions = (tag: string) => [
+  // Cache tag actions to prevent re-creating JSX elements on every render
+  const tagActionsCache = useMemo(() => {
+    const cache = new Map<string, ReactNode[]>();
+    
+    // Add actions for each tag (using allTags from useAllTags hook)
+    allTags.forEach(tag => {
+      cache.set(tag, [
     <ContextMenu
       key="more"
       items={[
@@ -1080,13 +1365,22 @@ export const AppSidebar = ({
           danger: true,
         },
       ]}
+          onOpenChange={(isOpen) => setOpenContextMenuId(isOpen ? tag : null)}
     >
       <TertiaryButton
         icon={<MoreVertical size={16} />}
         size="xs"
       />
     </ContextMenu>
-  ];
+      ]);
+    });
+    
+    return cache;
+  }, [allTags, handleRenameTag, handleDeleteTag, setOpenContextMenuId]);
+
+  const getTagActions = useCallback((tag: string): ReactNode[] => {
+    return tagActionsCache.get(tag) || [];
+  }, [tagActionsCache]);
 
 
   // Keyboard shortcut for creating new note (Cmd+N)
@@ -1135,7 +1429,6 @@ export const AppSidebar = ({
   // Keyboard shortcuts for switching sidebar tabs (Cmd+1, Cmd+2, Cmd+3)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Only trigger if Cmd/Ctrl is pressed (no Shift)
       if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey) {
         if (e.key === '1') {
           e.preventDefault();
@@ -1154,16 +1447,25 @@ export const AppSidebar = ({
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Global logic: Sync selectedTag with currentView (single source of truth)
+  // Global logic: Sync tag selection with currentView (single source of truth)
   useEffect(() => {
     if (currentView?.type === 'tagFilter') {
       // In tag view: select the tag being viewed
-      setSelectedTag(currentView.tag);
-    } else {
-      // In editor view: clear tag selection
-      setSelectedTag(null);
+      setSelection(prev => ({
+        ...prev,
+        type: 'tag',
+        itemId: currentView.tag,
+      }));
+    } else if (selection.type === 'tag') {
+      // In editor view: clear tag selection (but keep note/folder selection)
+      setSelection(prev => ({
+        ...prev,
+        type: null,
+        itemId: null,
+        context: null,
+      }));
     }
-  }, [currentView]);
+  }, [currentView, selection.type]);
 
   // Cleanup drag leave timeout on unmount
   useEffect(() => {
@@ -1187,7 +1489,7 @@ export const AppSidebar = ({
         borderRight: `.5px solid ${colors.border.default}`,
         position: 'relative',
         marginLeft: isCollapsed ? `-${sidebarWidth}px` : '0',
-        transition: 'margin-left 0.25s cubic-bezier(0.4, 0.0, 0.2, 1)',
+        transition: 'margin-left 0.3s ease-out',
         overflow: 'hidden',
         backgroundColor: colors.background.secondary,
       }}
@@ -1200,64 +1502,38 @@ export const AppSidebar = ({
             onCreateNote={handleCreateNote}
             onSearch={() => {}}
             createButtonShortcut="⌘ N"
+            currentWeekStart={currentWeekStart}
+            onWeekChange={setCurrentWeekStart}
+            onDateSelect={onDateSelect}
             width="100%"
             height="100%"
             showWindowControls={true}
             onToggleSidebar={onToggleSidebar}
             isCollapsed={isCollapsed}
           >
-            {/* Carousel wrapper for slide animation */}
-            <div style={{
-              position: 'relative',
-              width: '100%',
-              height: '100%',
-              overflow: 'hidden',
-            }}>
-              {/* Notes Tab */}
-              <div style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                width: '100%',
-                height: '100%',
-                display: 'flex',
-                flexDirection: 'column',
-                transform: currentVisualTab === 'notes' 
-                  ? 'translateX(0)' 
-                  : prevVisualTab === 'notes' && isTransitioning
-                    ? slideDirection === 'left' ? 'translateX(-100%)' : 'translateX(100%)'
-                    : getTabPosition('notes'),
-                opacity: currentVisualTab === 'notes' || (prevVisualTab === 'notes' && isTransitioning) ? 1 : 0,
-                transition: 'transform 0.25s cubic-bezier(0.4, 0.0, 0.2, 1), opacity 0.25s ease',
-                pointerEvents: currentVisualTab === 'notes' ? 'auto' : 'none',
-              }}>
-                {(currentVisualTab === 'notes' || (prevVisualTab === 'notes' && isTransitioning)) && (
-                  <NotesView
+            {/* Conditional tab rendering - simple and clean */}
+            {contentType === 'notes' && (
+                <NotesView
                 clutteredNotes={clutteredNotes}
-                onClutteredNoteClick={handleNoteMultiSelect}
+                onClutteredNoteClick={(id, e) => handleNoteMultiSelect(id, e, CLUTTERED_FOLDER_ID)}
                 isClutteredCollapsed={isClutteredCollapsed}
-                onClutteredToggle={() => {
-                  setHasManuallyToggledCluttered(true);
-                  setIsClutteredCollapsed(!isClutteredCollapsed);
-                }}
-                onClutteredFolderClick={() => onFolderClick?.('cluttered')}
+                onClutteredToggle={() => setClutteredCollapsed(!isClutteredCollapsed)}
+                onClutteredFolderClick={() => onFolderClick?.(CLUTTERED_FOLDER_ID)}
                 favouriteNotes={favouriteNotes}
-                onFavouriteClick={handleNoteMultiSelect}
+                favouriteFolders={favouriteFolders}
+                onFavouriteClick={(id, e) => handleNoteMultiSelect(id, e, 'favourites')}
+                onFavouriteFolderClick={(id, e) => handleFolderMultiSelect(id, e, 'favourites')}
+                onFavouriteFolderToggle={handleFolderToggle}
                 isFavouritesCollapsed={isFavouritesCollapsed}
-                onFavouritesToggle={() => {
-                  setHasManuallyToggledFavourites(true);
-                  setIsFavouritesCollapsed(!isFavouritesCollapsed);
-                }}
+                onFavouritesToggle={() => setFavouritesCollapsed(!isFavouritesCollapsed)}
                 onFavouritesHeaderClick={handleFavouritesHeaderClick}
                 folders={sidebarFolders}
-                onFolderClick={handleFolderMultiSelect}
+                onFolderClick={(id, context, e) => handleFolderMultiSelect(id, e, context)}
                 onFolderToggle={handleFolderToggle}
+                onFolderNoteClick={(noteId, context, e) => handleNoteMultiSelect(noteId, e, context)}
                 onFolderAdd={handleCreateFolder}
                 isFoldersCollapsed={isFoldersCollapsed}
-                onFoldersToggle={() => {
-                  setHasManuallyToggledFolders(true);
-                  setIsFoldersCollapsed(!isFoldersCollapsed);
-                }}
+                onFoldersToggle={() => setFoldersCollapsed(!isFoldersCollapsed)}
                 onFoldersHeaderClick={handleFoldersHeaderClick}
                 foldersHeaderActions={[
                   <TertiaryButton
@@ -1267,9 +1543,10 @@ export const AppSidebar = ({
                     size="xs"
                   />
                 ]}
-                selectedNoteId={currentView?.type === 'editor' ? currentNoteId : null}
-                selectedNoteIds={selectedNoteIds}
-                selectedFolderIds={selectedFolderIds}
+                selection={selection}
+                currentNoteId={currentView?.type === 'editor' ? currentNoteId : null}
+                onClearSelection={handleClearSelection}
+                openContextMenuId={openContextMenuId}
                 getNoteActions={getNoteActions}
                 getFolderActions={getFolderActions}
                 onNoteDragStart={(id, context) => handleDragStart('note', id, context)}
@@ -1299,58 +1576,10 @@ export const AppSidebar = ({
                 onNoteEmojiClick={handleNoteEmojiClick}
                 onFolderEmojiClick={handleFolderEmojiClick}
               />
-                )}
-              </div>
+            )}
 
               {/* Tasks Tab */}
-              <div style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                width: '100%',
-                height: '100%',
-                display: 'flex',
-                flexDirection: 'column',
-                transform: currentVisualTab === 'tasks'
-                  ? 'translateX(0)'
-                  : prevVisualTab === 'tasks' && isTransitioning
-                    ? slideDirection === 'left' ? 'translateX(-100%)' : 'translateX(100%)'
-                    : getTabPosition('tasks'),
-                opacity: currentVisualTab === 'tasks' || (prevVisualTab === 'tasks' && isTransitioning) ? 1 : 0,
-                transition: 'transform 0.25s cubic-bezier(0.4, 0.0, 0.2, 1), opacity 0.25s ease',
-                pointerEvents: currentVisualTab === 'tasks' ? 'auto' : 'none',
-              }}>
-                {(currentVisualTab === 'tasks' || (prevVisualTab === 'tasks' && isTransitioning)) && (
-                  <>
-                    {/* Calendar for tasks */}
-                    <div style={{ marginBottom: '16px' }}>
-                  <SidebarCalendar 
-                    noPadding={true}
-                    onDateSelect={onDateSelect}
-                    selectedDate={(() => {
-                      // Get the current note's daily date if it exists
-                      const currentNote = notes.find(n => n.id === currentNoteId);
-                      if (currentNote?.dailyNoteDate) {
-                        // Parse YYYY-MM-DD as local date
-                        const [year, month, day] = currentNote.dailyNoteDate.split('-').map(Number);
-                        return new Date(year, month - 1, day);
-                      }
-                      return undefined;
-                    })()}
-                    datesWithNotes={(() => {
-                      // Get all dates that have daily notes
-                      const dates = new Set<string>();
-                      notes.forEach(note => {
-                        if (note.dailyNoteDate && !note.deletedAt) {
-                          dates.add(note.dailyNoteDate);
-                        }
-                      });
-                      return dates;
-                    })()}
-                  />
-                </div>
-                
-                {/* Tasks list */}
+            {contentType === 'tasks' && (
                 <TasksView
                   onTaskClick={(noteId, taskId) => {
                     // Navigate to the note containing the task and scroll to the task block
@@ -1363,50 +1592,113 @@ export const AppSidebar = ({
                     }
                   }}
                   onAllTasksHeaderClick={handleAllTasksHeaderClick}
-                />
-                  </>
-                )}
-              </div>
+                dailyNotes={dailyNotes}
+                onDailyNoteClick={(id, e) => handleNoteMultiSelect(id, e, 'dailyNotes')}
+                isDailyNotesCollapsed={isDailyNotesCollapsed}
+                onDailyNotesToggle={() => setDailyNotesCollapsed(!isDailyNotesCollapsed)}
+                onDailyNotesFolderClick={() => onFolderClick?.(DAILY_NOTES_FOLDER_ID)}
+                selection={selection}
+                currentNoteId={currentNoteId}
+                onClearSelection={handleClearSelection}
+                openContextMenuId={openContextMenuId}
+                getNoteActions={getNoteActions}
+                getFolderActions={getFolderActions}
+                onNoteDragStart={(id, context) => handleDragStart('note', id, context)}
+                onDragEnd={handleDragEnd}
+                onDailyNotesDragOver={() => handleDragOver('dailyNotes', null)}
+                onDragLeave={handleDragLeave}
+                onDailyNotesDrop={() => handleDrop('dailyNotes', null)}
+                draggedItemId={draggedItem?.ids || null}
+                dropTargetId={dropTarget?.id || null}
+                dropTargetType={dropTarget?.type || null}
+                onNoteDragOverForReorder={(id, pos, ctx) => handleDragOverForReorder('note', id, pos, ctx)}
+                onNoteDragLeaveForReorder={handleDragLeaveForReorder}
+                onNoteDropForReorder={(id, pos, ctx) => handleDropForReorder('note', id, pos, ctx)}
+                reorderDropTarget={reorderDropTarget}
+                editingNoteId={editingNoteId}
+                onNoteRenameComplete={handleNoteRenameComplete}
+                onNoteRenameCancel={handleNoteRenameCancel}
+                onNoteEmojiClick={handleNoteEmojiClick}
+              />
+            )}
 
               {/* Tags Tab */}
-              <div style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                width: '100%',
-                height: '100%',
-                display: 'flex',
-                flexDirection: 'column',
-                transform: currentVisualTab === 'tags'
-                  ? 'translateX(0)'
-                  : prevVisualTab === 'tags' && isTransitioning
-                    ? slideDirection === 'left' ? 'translateX(-100%)' : 'translateX(100%)'
-                    : getTabPosition('tags'),
-                opacity: currentVisualTab === 'tags' || (prevVisualTab === 'tags' && isTransitioning) ? 1 : 0,
-                transition: 'transform 0.25s cubic-bezier(0.4, 0.0, 0.2, 1), opacity 0.25s ease',
-                pointerEvents: currentVisualTab === 'tags' ? 'auto' : 'none',
-              }}>
-                {(currentVisualTab === 'tags' || (prevVisualTab === 'tags' && isTransitioning)) && (
-                  <TagsView
-                selectedTag={selectedTag}
+            {contentType === 'tags' && (
+                <TagsView
+                selection={selection}
                 onTagClick={(tag, source) => {
-                  setSelectedTag(tag);
+                  // Clear note/folder selection when selecting tags
+                  clearNoteSelection();
+                  clearFolderSelection();
+                  // Update global selection state
+                  setSelection({
+                    type: 'tag',
+                    itemId: tag,
+                    context: source,
+                  });
                   onTagClick?.(tag, source);
                 }}
+                onClearSelection={handleClearSelection}
+                openContextMenuId={openContextMenuId}
                 isAllTagsCollapsed={isAllTagsCollapsed}
-                onAllTagsToggle={() => setIsAllTagsCollapsed(!isAllTagsCollapsed)}
+                onAllTagsToggle={() => setAllTagsCollapsed(!isAllTagsCollapsed)}
                 onAllTagsHeaderClick={handleAllTagsHeaderClick}
-                isFavouritesCollapsed={isFavouritesCollapsed}
-                onFavouritesToggle={() => setIsFavouritesCollapsed(!isFavouritesCollapsed)}
+                isFavouritesCollapsed={isFavouriteTagsCollapsed}
+                onFavouritesToggle={() => setFavouriteTagsCollapsed(!isFavouriteTagsCollapsed)}
                 onFavouritesHeaderClick={handleFavouriteTagsHeaderClick}
+                allTagsHeaderActions={[
+                  <TertiaryButton
+                    key="add"
+                    icon={<Plus size={sizing.icon.sm} />}
+                    onClick={() => {
+                      // Generate unique tag name
+                      let tagName = 'Untitled Tag';
+                      let counter = 1;
+                      
+                      // Find a unique name (case-insensitive)
+                      while (allTags.some(t => t.toLowerCase() === tagName.toLowerCase())) {
+                        counter++;
+                        tagName = `Untitled Tag ${counter}`;
+                      }
+                      
+                      // Create the tag metadata immediately
+                      const { upsertTagMetadata } = useTagsStore.getState();
+                      upsertTagMetadata(
+                        tagName,
+                        '', // empty description
+                        true, // description visible
+                        false, // not favorite
+                        getTagColor(tagName) // hash-based color
+                      );
+                      
+                      // Navigate to the tag filtered view
+                      if (onTagClick) {
+                        onTagClick(tagName, 'all');
+                        
+                        // Auto-focus and select the title after navigation
+                        requestAnimationFrame(() => {
+                          const titleElement = document.querySelector('[contenteditable="true"]') as HTMLElement;
+                          if (titleElement && titleElement.textContent?.includes('Untitled Tag')) {
+                            titleElement.focus();
+                            // Select all text for easy replacement
+                            const range = document.createRange();
+                            range.selectNodeContents(titleElement);
+                            const selection = window.getSelection();
+                            selection?.removeAllRanges();
+                            selection?.addRange(range);
+                          }
+                        });
+                      }
+                    }}
+                    size="xs"
+                  />
+                ]}
                 getTagActions={getTagActions}
                 editingTag={editingTag}
                 onTagRenameComplete={handleTagRenameComplete}
                 onTagRenameCancel={handleTagRenameCancel}
               />
-                )}
-              </div>
-            </div>
+            )}
           </SidebarContainer>
         </div>
 

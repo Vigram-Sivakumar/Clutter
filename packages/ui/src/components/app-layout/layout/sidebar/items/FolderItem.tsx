@@ -7,7 +7,8 @@ interface SidebarItemFolderProps {
   isOpen: boolean;
   badge?: string;
   level: number;
-  emoji?: string | null; // Optional emoji for folder
+  emoji?: string | ReactNode | null; // Optional emoji string or icon component for folder
+  folderId?: string; // Folder ID for system folder identification (cluttered, __daily_notes__)
   onClick: (event?: React.MouseEvent) => void; // Click folder to open folder view
   onToggle?: () => void; // Click chevron to expand/collapse
   actions?: ReactNode[];
@@ -20,6 +21,7 @@ interface SidebarItemFolderProps {
   isDragging?: boolean;
   isDropTarget?: boolean;
   isSelected?: boolean; // For multi-select visual feedback
+  hasOpenContextMenu?: boolean; // Whether this folder's context menu is currently open
   context: string; // Context for ordering (e.g., 'root-folders', 'folder-children-123')
   // Drop zone detection for reordering
   onDragOverForReorder?: (id: string, position: 'before' | 'after') => void;
@@ -46,6 +48,7 @@ export const SidebarItemFolder = ({
   badge,
   level,
   emoji,
+  folderId,
   onClick,
   onToggle,
   actions,
@@ -57,6 +60,7 @@ export const SidebarItemFolder = ({
   isDragging = false,
   isDropTarget = false,
   isSelected = false,
+  hasOpenContextMenu = false,
   context,
   onDragOverForReorder,
   onDragLeaveForReorder,
@@ -74,10 +78,12 @@ export const SidebarItemFolder = ({
       id={id}
       label={label}
       icon={emoji || undefined}
+      folderId={folderId}
       level={level}
       badge={badge}
       isOpen={isOpen}
       isSelected={isSelected}
+      hasOpenContextMenu={hasOpenContextMenu}
       isDragging={isDragging}
       isDropTarget={isDropTarget}
       onClick={onClick}

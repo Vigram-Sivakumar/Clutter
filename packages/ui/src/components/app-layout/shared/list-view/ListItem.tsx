@@ -3,11 +3,13 @@ import { useTheme } from '../../../../hooks/useTheme';
 import { useTagsStore } from '@clutter/shared';
 import { spacing } from '../../../../tokens/spacing';
 import { sizing } from '../../../../tokens/sizing';
+import { radius } from '../../../../tokens/radius';
 import { getTagColor } from '../../../../utils/tagColors';
 import { CountBadge } from '../../../ui-primitives';
 import { Tag } from '../content-header/tags';
 import { TertiaryButton } from '../../../ui-buttons';
-import { HashStraight as TagIcon, Folder as FolderIcon, Note, NoteBlank, CalendarBlank } from '../../../../icons';
+import { HashStraight as TagIcon, Folder as FolderIcon } from '../../../../icons';
+import { getNoteIcon, getFolderIcon } from '../../../../utils/itemIcons';
 
 /**
  * ListItem Design Specification
@@ -17,7 +19,7 @@ const DESIGN = {
   spacing: {
     iconToLabel: spacing['6'],        // Gap between icon/emoji and label text
     labelToMetadata: spacing['6'],             // Gap between label and metadata group (right side)
-    metadataGap: spacing['12'],                 // Gap between metadata items (badges, tags)
+    metadataGap: spacing['8'],                 // Gap between metadata items (badges, tags)
     tagsGap: spacing['4'],                     // Gap between individual tag pills
     actionsGap: spacing['4'],                  // Gap between action buttons
     containerPadding: `${spacing['4']} ${spacing['2']}`,   // Padding inside the list item container (vertical horizontal)
@@ -25,7 +27,7 @@ const DESIGN = {
   sizing: {
     noteHeight: '28px',                      // Height of note variant items
     defaultHeight: '32px',                   // Height of tag/task/folder variant items
-    borderRadius: '6px',                     // Corner radius of the item container
+    borderRadius: radius['6'],               // Corner radius of the item container
     checkboxSize: 16,                        // Size of task checkbox
   },
   typography: {
@@ -74,7 +76,8 @@ interface NoteListItemProps extends BaseListItemProps {
 export interface TagListItemData {
   id: string;
   tag: string;
-  count: number;
+  noteCount: number;
+  folderCount: number;
 }
 
 interface TagListItemProps extends BaseListItemProps {
@@ -157,16 +160,14 @@ export const ListItem = (props: ListItemProps) => {
 const NoteContent = ({ data, onTagClick, onRemoveTag, onEmojiClick, isHovered }: NoteListItemProps & { isHovered: boolean }) => {
   const { colors } = useTheme();
 
-  // Render emoji, CalendarBlank icon for daily notes, or Note/NoteBlank icon based on content
-  const noteIcon = data.emoji ? (
-    <span style={{ fontSize: DESIGN.typography.emojiSize, lineHeight: 1 }}>{data.emoji}</span>
-  ) : data.dailyNoteDate ? (
-    <CalendarBlank size={16} style={{ color: colors.text.secondary }} />
-  ) : data.hasContent ? (
-    <Note size={16} style={{ color: colors.text.secondary }} />
-  ) : (
-    <NoteBlank size={16} style={{ color: colors.text.secondary }} />
-  );
+  // Use centralized icon system
+  const noteIcon = getNoteIcon({
+    emoji: data.emoji || undefined,
+    dailyNoteDate: data.dailyNoteDate,
+    hasContent: data.hasContent,
+    size: 16,
+    color: colors.text.secondary,
+  });
 
   return (
     <>
@@ -286,7 +287,7 @@ const TagContent = ({ data, actions, onColorClick, isHovered }: TagListItemProps
             padding: '2px 6px',
             minHeight: '22px',
             maxWidth: '100%',
-            borderRadius: '4px',
+            borderRadius: radius['3'],
             fontSize: DESIGN.typography.tagPillSize,
             lineHeight: '18px',
             fontWeight: 400,
@@ -316,8 +317,13 @@ const TagContent = ({ data, actions, onColorClick, isHovered }: TagListItemProps
           flexShrink: 0,
         }}
       >
+        {/* Folder Count */}
+        {(data.folderCount ?? 0) > 0 && (
+          <CountBadge count={data.folderCount ?? 0} type="folders" size="md" />
+        )}
+        
         {/* Note Count */}
-        <CountBadge count={data.count} type="notes" size="md" />
+        <CountBadge count={data.noteCount} type="notes" size="md" />
 
         {/* Actions */}
         {actions && actions.length > 0 && (

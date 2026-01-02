@@ -61,24 +61,44 @@ export const DropdownContainer = ({
   useEffect(() => {
     if (!isOpen) return;
 
-    // Store original overflow value
-    const originalOverflow = document.body.style.overflow;
-    const originalPaddingRight = document.body.style.paddingRight;
+    // Find the actual scrolling container (.scroll-wrapper in AppLayout)
+    const scrollContainer = document.querySelector('.scroll-wrapper') as HTMLElement;
+    
+    if (scrollContainer) {
+      // Save scroll position and original overflow
+      const scrollY = scrollContainer.scrollTop;
+      const originalOverflow = scrollContainer.style.overflow;
+      
+      // Block scrolling on the container
+      scrollContainer.style.overflow = 'hidden';
+      
+      return () => {
+        // Restore scrolling
+        scrollContainer.style.overflow = originalOverflow;
+        // Restore scroll position
+        scrollContainer.scrollTop = scrollY;
+      };
+    } else {
+      // Fallback: Block body scrolling (for non-desktop apps or other contexts)
+      const scrollY = window.scrollY;
+      const originalOverflow = document.body.style.overflow;
+      const originalPosition = document.body.style.position;
+      const originalTop = document.body.style.top;
+      const originalWidth = document.body.style.width;
 
-    // Calculate scrollbar width to prevent layout shift
-    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+      document.body.style.overflow = 'hidden';
+      document.body.style.position = 'fixed';
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.width = '100%';
 
-    // Block scrolling and add padding to prevent content shift
-    document.body.style.overflow = 'hidden';
-    if (scrollbarWidth > 0) {
-      document.body.style.paddingRight = `${scrollbarWidth}px`;
+      return () => {
+        document.body.style.overflow = originalOverflow;
+        document.body.style.position = originalPosition;
+        document.body.style.top = originalTop;
+        document.body.style.width = originalWidth;
+        window.scrollTo(0, scrollY);
+      };
     }
-
-    return () => {
-      // Restore original values
-      document.body.style.overflow = originalOverflow;
-      document.body.style.paddingRight = originalPaddingRight;
-    };
   }, [isOpen]);
 
   if (!isOpen) return null;

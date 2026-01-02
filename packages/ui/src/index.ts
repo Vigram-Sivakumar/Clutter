@@ -2,6 +2,7 @@
 export * from './tokens/colors';
 export * from './tokens/theme';
 export * from './tokens/spacing';
+export * from './tokens/radius';
 export * from './tokens/typography';
 export * from './tokens/sizing';
 export * from './tokens/interactions';

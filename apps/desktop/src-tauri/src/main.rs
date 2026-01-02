@@ -20,7 +20,12 @@ fn main() {
             database::save_tag,
             database::load_all_tags,
             database::delete_tag,
+            database::delete_note_permanently,
+            database::delete_folder_permanently,
             database::cleanup_database,
+            database::save_ui_state,
+            database::load_ui_state,
+            database::load_all_ui_state,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

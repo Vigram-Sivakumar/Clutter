@@ -1,6 +1,7 @@
 import { ReactNode } from 'react';
 import { useTheme } from '../../hooks/useTheme';
 import { spacing } from '../../tokens/spacing';
+import { radius } from '../../tokens/radius';
 
 interface SegmentedControlOption {
   value: string;
@@ -24,11 +25,11 @@ export const SegmentedControl = ({
   const { colors } = useTheme();
 
   const height = size === 'small' ? '24px' : '28px';
-  const iconSize = size === 'small' ? 14 : 16;
 
   const selectedIndex = options.findIndex((opt) => opt.value === value);
-  const segmentWidth = `${100 / options.length}%`;
-  const translateX = `${selectedIndex * 100}%`;
+  const segmentWidthPercent = 100 / options.length;
+  const segmentWidth = `${segmentWidthPercent}%`;
+  const leftPosition = `calc(2px + ${segmentWidthPercent * selectedIndex}%)`;
 
   return (
     <div
@@ -36,7 +37,7 @@ export const SegmentedControl = ({
         display: 'flex',
         width: '100%',
         backgroundColor: colors.background.tertiary,
-        borderRadius: '6px',
+        borderRadius: radius['6'],
         padding: spacing['2'],
         position: 'relative',
         userSelect: 'none',
@@ -48,13 +49,12 @@ export const SegmentedControl = ({
         style={{
           position: 'absolute',
           top: '2px',
-          left: '2px',
-          width: `calc(${segmentWidth} - 2px)`,
+          left: leftPosition,
+          width: `calc(${segmentWidth} - 4px)`,
           height: `calc(${height})`,
           backgroundColor: colors.background.secondary,
-          borderRadius: '4px',
-          transform: `translateX(${translateX})`,
-          transition: 'transform 200ms cubic-bezier(0.4, 0, 0.2, 1)',
+          borderRadius: radius['6'],
+          transition: 'left 200ms cubic-bezier(0.4, 0, 0.2, 1)',
           pointerEvents: 'none',
         }}
       />
@@ -76,7 +76,7 @@ export const SegmentedControl = ({
               padding: option.label ? '0 12px' : '0 10px',
               backgroundColor: 'transparent',
               border: 'none',
-              borderRadius: '4px',
+              borderRadius: radius['3'],
               cursor: 'pointer',
               transition: 'color 200ms ease',
               color: isSelected ? colors.text.default : colors.text.secondary,

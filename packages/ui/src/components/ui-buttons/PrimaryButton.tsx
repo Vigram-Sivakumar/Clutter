@@ -12,6 +12,7 @@ interface PrimaryButtonProps {
   danger?: boolean;
   size?: 'xs' | 'small' | 'medium';
   fullWidth?: boolean;
+  disabled?: boolean;
 }
 
 export const PrimaryButton = ({
@@ -25,6 +26,7 @@ export const PrimaryButton = ({
   danger,
   size = 'medium',
   fullWidth = false,
+  disabled = false,
 }: PrimaryButtonProps) => {
   return (
     <Button
@@ -38,6 +40,7 @@ export const PrimaryButton = ({
       onMouseDown={onMouseDown}
       danger={danger}
       fullWidth={fullWidth}
+      disabled={disabled}
     >
       {children}
     </Button>

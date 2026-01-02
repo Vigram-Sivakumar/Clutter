@@ -14,6 +14,7 @@ interface TertiaryButtonProps {
   active?: boolean;
   fullWidth?: boolean;
   disabled?: boolean;
+  disabledNoFade?: boolean;
   fontSize?: string;
   gap?: string;
   noHoverBackground?: boolean;
@@ -32,6 +33,7 @@ export const TertiaryButton = ({
   active,
   fullWidth = false,
   disabled = false,
+  disabledNoFade = false,
   fontSize,
   gap,
   noHoverBackground = false,
@@ -44,12 +46,13 @@ export const TertiaryButton = ({
       iconSize={iconSize}
       iconPosition={iconPosition}
       shortcut={shortcut}
-      onClick={disabled ? undefined : onClick}
-      onMouseDown={disabled ? undefined : onMouseDown}
+      onClick={onClick}
+      onMouseDown={onMouseDown}
       subtle={subtle}
       active={active}
       fullWidth={fullWidth}
       disabled={disabled}
+      disabledNoFade={disabledNoFade}
       fontSize={fontSize}
       gap={gap}
       noHoverBackground={noHoverBackground}

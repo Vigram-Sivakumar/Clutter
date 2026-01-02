@@ -247,71 +247,86 @@ export async function deleteTagFromDatabase(tagName: string): Promise<void> {
 }
 
 /**
- * Migration: Create recovery folders for notes with missing folder references
- * This ensures FK constraints can be satisfied for existing users
+ * Permanently delete a note from SQLite database
+ * This removes the note record and all associated junction table entries
  */
-export async function migrateOrphanedFolders(notes: Note[], existingFolders: Folder[]): Promise<Folder[]> {
-  const recoveredFolders: Folder[] = [];
-  
+export async function deleteNotePermanently(noteId: string): Promise<void> {
+  try {
+    await invoke<string>('delete_note_permanently', { noteId });
+    console.log(`✅ Permanently deleted note "${noteId}" from database`);
+  } catch (error) {
+    console.error('❌ SQLite delete note error:', error);
+    throw error;
+  }
+}
+
+/**
+ * Permanently delete a folder from SQLite database
+ * This removes the folder record and all associated junction table entries
+ */
+export async function deleteFolderPermanently(folderId: string): Promise<void> {
+  try {
+    await invoke<string>('delete_folder_permanently', { folderId });
+    console.log(`✅ Permanently deleted folder "${folderId}" from database`);
+  } catch (error) {
+    console.error('❌ SQLite delete folder error:', error);
+    throw error;
+  }
+}
+
+/**
+ * Migration: Move orphaned notes to Cluttered
+ * Notes referencing non-existent folders are moved to root (Cluttered)
+ */
+export async function migrateOrphanedNotes(notes: Note[], existingFolders: Folder[]): Promise<number> {
   // Build map of existing folder IDs
   const existingFolderIds = new Set(existingFolders.map(f => f.id));
   
-  // Find all unique folder_ids referenced by notes
-  const referencedFolderIds = new Set<string>();
-  notes.forEach(note => {
-    if (note.folderId && !note.deletedAt) {
-      referencedFolderIds.add(note.folderId);
-    }
+  // Find orphaned notes (notes pointing to non-existent folders)
+  const orphanedNotes = notes.filter(note => {
+    // Skip deleted notes
+    if (note.deletedAt) return false;
+    // Skip notes without a folder (already in Cluttered)
+    if (!note.folderId) return false;
+    // Check if folder exists
+    return !existingFolderIds.has(note.folderId);
   });
   
-  // Import DAILY_NOTES_FOLDER_ID constant
-  const DAILY_NOTES_FOLDER_ID = '__daily_notes__';
-  
-  // Find orphaned references (notes pointing to non-existent folders)
-  // EXCLUDE __daily_notes__ - it's a virtual folder ID, not a real folder
-  const orphanedFolderIds = Array.from(referencedFolderIds).filter(
-    id => !existingFolderIds.has(id) && id !== DAILY_NOTES_FOLDER_ID
-  );
-  
-  if (orphanedFolderIds.length === 0) {
-    console.log('✅ No orphaned folder references found');
-    return recoveredFolders;
+  if (orphanedNotes.length === 0) {
+    console.log('✅ No orphaned notes found');
+    return 0;
   }
   
-  console.warn(`🔧 Migration: Found ${orphanedFolderIds.length} orphaned folder references`);
+  console.warn(`🔧 Migration: Found ${orphanedNotes.length} orphaned notes, moving to Cluttered`);
   
-  // Create recovery folders for each orphaned ID
-  for (const folderId of orphanedFolderIds) {
-    const notesInFolder = notes.filter(n => n.folderId === folderId && !n.deletedAt);
-    const now = new Date().toISOString();
-    
-    const recoveryFolder: Folder = {
-      id: folderId,
-      name: `📁 Recovered Folder (${notesInFolder.length} notes)`,
-      parentId: null,
-      description: 'This folder was automatically recovered during migration.',
-      descriptionVisible: false,
-      color: null,
-      emoji: '📁',
-      tags: [],
-      tagsVisible: true,
-      isFavorite: false,
-      isExpanded: true,
-      createdAt: now,
-      updatedAt: now,
-      deletedAt: null,
-    };
+  // Move each orphaned note to Cluttered
+  let fixedCount = 0;
+  for (const note of orphanedNotes) {
+    const oldFolderId = note.folderId;
     
     try {
-      await saveFolderToDatabase(recoveryFolder);
-      recoveredFolders.push(recoveryFolder);
-      console.log(`✅ Created recovery folder: ${folderId} (${notesInFolder.length} notes)`);
+      // Update note to have no folder (moves to Cluttered)
+      const updatedNote: Note = {
+        ...note,
+        folderId: null,
+        updatedAt: new Date().toISOString()
+      };
+      
+      await saveNoteToDatabase(updatedNote);
+      
+      // Update in-memory reference
+      note.folderId = null;
+      note.updatedAt = updatedNote.updatedAt;
+      
+      fixedCount++;
+      console.log(`✅ Moved note "${note.title || 'Untitled'}" to Cluttered (was in missing folder: ${oldFolderId})`);
     } catch (error) {
-      console.error(`❌ Failed to create recovery folder ${folderId}:`, error);
+      console.error(`❌ Failed to move note ${note.id} to Cluttered:`, error);
     }
   }
   
-  return recoveredFolders;
+  console.log(`✅ Migration complete: Moved ${fixedCount} notes to Cluttered`);
+  return fixedCount;
 }
 
 /**
@@ -332,15 +347,9 @@ export async function verifyDatabaseIntegrity(): Promise<{
     
     const folderIds = new Set(folders.map(f => f.id));
     
-    // Virtual folder IDs that don't exist as real folders
-    const DAILY_NOTES_FOLDER_ID = '__daily_notes__';
-    const virtualFolderIds = new Set([DAILY_NOTES_FOLDER_ID]);
-    
-    // Check for orphaned note references (skip virtual folder IDs)
+    // Check for orphaned note references
     notes.forEach(note => {
-      if (note.folderId && 
-          !folderIds.has(note.folderId) && 
-          !virtualFolderIds.has(note.folderId)) {
+      if (note.folderId && !folderIds.has(note.folderId)) {
         issues.push(`Note "${note.title}" (${note.id}) references non-existent folder: ${note.folderId}`);
       }
     });

@@ -2,6 +2,7 @@ import { ReactNode, useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useTheme } from '../../hooks/useTheme';
 import { spacing } from '../../tokens/spacing';
+import { radius } from '../../tokens/radius';
 
 // Menu Item Component - Notion style
 interface MenuItemProps {
@@ -9,7 +10,7 @@ interface MenuItemProps {
   label: string;
   shortcut?: string;
   danger?: boolean;
-  onClick: () => void;
+  onClick: (e: React.MouseEvent) => void;
   colors: any;
 }
 
@@ -20,7 +21,7 @@ const MenuItem = ({ icon, label, shortcut, danger, onClick, colors }: MenuItemPr
     <div
       onClick={(e) => {
         e.stopPropagation();
-        onClick();
+        onClick(e);
       }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -29,7 +30,7 @@ const MenuItem = ({ icon, label, shortcut, danger, onClick, colors }: MenuItemPr
         alignItems: 'center',
         gap: spacing['8'],
         padding: '6px 8px',
-        borderRadius: '4px',
+        borderRadius: radius['3'],
         cursor: 'pointer',
         backgroundColor: isHovered ? colors.background.tertiary : 'transparent',
         transition: 'background-color 100ms ease',
@@ -89,12 +90,18 @@ interface ContextMenuProps {
     | {
         icon: ReactNode;
         label: string;
-        onClick: () => void;
+        onClick: (e?: React.MouseEvent) => void;
         danger?: boolean;
         shortcut?: string;
       }
     | {
         separator: true;
+      }
+    | {
+        content: ReactNode;
+      }
+    | {
+        buttonGroup: ReactNode[]; // Array of Button components to stack horizontally
       }
   >;
   onOpenChange?: (isOpen: boolean) => void;
@@ -114,6 +121,18 @@ export const ContextMenu = ({ children, items, onOpenChange }: ContextMenuProps)
     }
   }, [isOpen, onOpenChange]);
 
+  // Disable body scroll when menu is open
+  useEffect(() => {
+    if (isOpen) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [isOpen]);
+
   // Smart positioning with collision detection (using portal + fixed positioning)
   useEffect(() => {
     if (isOpen && containerRef.current && menuRef.current) {
@@ -123,35 +142,28 @@ export const ContextMenu = ({ children, items, onOpenChange }: ContextMenuProps)
       const viewportWidth = window.innerWidth;
       const viewportHeight = window.innerHeight;
       const padding = 8;
-      const gap = 2;
+      const gap = 8;
 
       let top: number;
       let left: number;
 
-      // Check vertical overflow
-      const spaceBelow = viewportHeight - buttonRect.bottom - gap;
-      const spaceAbove = buttonRect.top - gap;
+      // Position to the right of the button (horizontally)
+      const spaceRight = viewportWidth - buttonRect.right - gap;
+      const spaceLeft = buttonRect.left - gap;
       
-      if (spaceBelow >= menuHeight || spaceBelow > spaceAbove) {
-        // Position below
-        top = buttonRect.bottom + gap;
+      if (spaceRight >= menuWidth) {
+        // Position to the right
+        left = buttonRect.right + gap;
+      } else if (spaceLeft >= menuWidth) {
+        // Position to the left if no space on right
+        left = buttonRect.left - menuWidth - gap;
       } else {
-        // Position above
-        top = buttonRect.top - menuHeight - gap;
+        // Not enough space on either side, align to right edge of viewport
+        left = viewportWidth - menuWidth - padding;
       }
 
-      // Check horizontal overflow (right-aligned by default)
-      const wouldOverflowLeft = buttonRect.right - menuWidth < padding;
-      const spaceFromLeft = buttonRect.left;
-      const spaceFromRight = viewportWidth - buttonRect.right;
-      
-      if (wouldOverflowLeft && spaceFromLeft > spaceFromRight) {
-        // Left-aligned (menu extends to the right of button)
-        left = buttonRect.left;
-      } else {
-        // Right-aligned (menu extends to the left of button's right edge)
-        left = buttonRect.right - menuWidth;
-      }
+      // Vertically center the menu with the button
+      top = buttonRect.top + (buttonRect.height / 2) - (menuHeight / 2);
 
       // Ensure menu stays within viewport bounds
       if (left < padding) {
@@ -202,8 +214,8 @@ export const ContextMenu = ({ children, items, onOpenChange }: ContextMenuProps)
     }
   }, [isOpen]);
 
-  const handleItemClick = (onClick: () => void) => {
-    onClick();
+  const handleItemClick = (onClick: (e?: React.MouseEvent) => void, e: React.MouseEvent) => {
+    onClick(e);
     setIsOpen(false); // Close menu after clicking an item
   };
 
@@ -216,7 +228,7 @@ export const ContextMenu = ({ children, items, onOpenChange }: ContextMenuProps)
         left: menuPosition.left,
         backgroundColor: colors.background.default,
         border: `1px solid ${colors.border.default}`,
-        borderRadius: '6px',
+        borderRadius: radius['6'],
         boxShadow: `0 4px 16px ${colors.shadow.md}`,
         zIndex: 9999,
         padding: spacing['4'],
@@ -240,6 +252,24 @@ export const ContextMenu = ({ children, items, onOpenChange }: ContextMenuProps)
                 />
               );
             }
+            if ('buttonGroup' in item) {
+              return (
+                <div
+                  key={index}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: spacing['4'],
+                    width: '100%',
+                  }}
+                >
+                  {item.buttonGroup}
+                </div>
+              );
+            }
+            if ('content' in item) {
+              return <div key={index}>{item.content}</div>;
+            }
             if ('icon' in item && 'onClick' in item) {
               return (
                 <MenuItem
@@ -248,7 +278,7 @@ export const ContextMenu = ({ children, items, onOpenChange }: ContextMenuProps)
                   label={item.label}
                   shortcut={item.shortcut}
                   danger={item.danger}
-                  onClick={() => handleItemClick(item.onClick)}
+                  onClick={(e) => handleItemClick(item.onClick, e)}
                   colors={colors}
                 />
               );
@@ -262,8 +292,7 @@ export const ContextMenu = ({ children, items, onOpenChange }: ContextMenuProps)
     <>
       <div ref={containerRef} style={{ display: 'inline-block' }}>
         <div
-          onClick={(e) => {
-            e.stopPropagation();
+          onClick={() => {
             setIsOpen(!isOpen);
           }}
           style={{ display: 'inline-block' }}

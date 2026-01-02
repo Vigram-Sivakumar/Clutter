@@ -12,6 +12,7 @@ interface FilledButtonProps {
   size?: 'xs' | 'small' | 'medium';
   onBackground?: 'default' | 'secondary' | 'tertiary';
   fullWidth?: boolean;
+  disabled?: boolean;
 }
 
 export const FilledButton = ({
@@ -25,6 +26,7 @@ export const FilledButton = ({
   size = 'medium',
   onBackground = 'secondary',
   fullWidth = false,
+  disabled = false,
 }: FilledButtonProps) => {
   return (
     <Button
@@ -38,6 +40,7 @@ export const FilledButton = ({
       onMouseDown={onMouseDown}
       onBackground={onBackground}
       fullWidth={fullWidth}
+      disabled={disabled}
     >
       {children}
     </Button>

@@ -1,6 +1,7 @@
 // Shared types across all platforms
 
-// Special folder ID for daily notes (not shown in sidebar UI)
+// Special folder IDs for system folders
+export const CLUTTERED_FOLDER_ID = '__cluttered__';
 export const DAILY_NOTES_FOLDER_ID = '__daily_notes__';
 
 export interface Note {
@@ -45,6 +46,7 @@ export interface Tag {
   color?: string; // Tag color for visual customization
   createdAt: string;
   updatedAt: string;
+  deletedAt: string | null; // Soft delete for sync
 }
 
 // Note metadata for index file (lightweight)

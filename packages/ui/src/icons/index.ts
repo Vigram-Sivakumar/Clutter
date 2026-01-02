@@ -45,10 +45,12 @@ export { Pencil } from './Pencil';
 export { Tent } from './Tent';
 export { Calendar } from './Calendar';
 export { CalendarDots } from './CalendarDots';
+export { CalendarDot } from './CalendarDot';
 export { CalendarBlank } from './CalendarBlank';
 export { Clock } from './Clock';
 export { Download } from './Download';
 export { Settings } from './Settings';
+export { Tray } from './Tray';
 
 // Slash command icons
 export { Heading1 } from './Heading1';

@@ -5,6 +5,7 @@ interface SidebarItemTagProps {
   tag: string;
   count: number;
   isSelected: boolean;
+  hasOpenContextMenu?: boolean; // Whether this tag's context menu is currently open
   onClick: () => void;
   actions?: ReactNode[];
   // Inline editing
@@ -21,6 +22,7 @@ export const SidebarItemTag = ({
   tag,
   count,
   isSelected,
+  hasOpenContextMenu = false,
   onClick,
   actions,
   isEditing = false,
@@ -33,6 +35,7 @@ export const SidebarItemTag = ({
       id={tag}
       label={tag}
       isSelected={isSelected}
+      hasOpenContextMenu={hasOpenContextMenu}
       onClick={onClick}
       actions={actions}
       isEditing={isEditing}

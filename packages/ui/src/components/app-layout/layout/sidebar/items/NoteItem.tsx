@@ -6,7 +6,9 @@ interface SidebarItemNoteProps {
   title: string;
   icon?: string;
   hasContent?: boolean;
+  dailyNoteDate?: string | null; // For daily notes - date in YYYY-MM-DD format
   isSelected: boolean;
+  hasOpenContextMenu?: boolean; // Whether this note's context menu is currently open
   level: number;
   onClick: (event?: React.MouseEvent) => void;
   actions?: ReactNode[];
@@ -38,7 +40,9 @@ export const SidebarItemNote = ({
   title,
   icon,
   hasContent,
+  dailyNoteDate,
   isSelected,
+  hasOpenContextMenu = false,
   level,
   onClick,
   actions,
@@ -63,8 +67,10 @@ export const SidebarItemNote = ({
       label={title}
       icon={icon}
       hasContent={hasContent}
+      dailyNoteDate={dailyNoteDate}
       level={level}
       isSelected={isSelected}
+      hasOpenContextMenu={hasOpenContextMenu}
       isDragging={isDragging}
       onClick={onClick}
       actions={actions}

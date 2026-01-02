@@ -2,6 +2,7 @@ import { ReactNode, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useTheme } from '../../../../../hooks/useTheme';
 import { spacing } from '../../../../../tokens/spacing';
+import { radius } from '../../../../../tokens/radius';
 
 interface FloatingContextMenuProps {
   isOpen: boolean;
@@ -53,7 +54,7 @@ export const FloatingContextMenu = ({
         left: position.left,
         backgroundColor: colors.background.default,
         border: `1px solid ${colors.border.default}`,
-        borderRadius: '6px',
+        borderRadius: radius['6'],
         boxShadow: `0 4px 16px ${colors.shadow.md}`,
         zIndex: 9999,
         padding: spacing['8'],

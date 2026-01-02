@@ -18,8 +18,8 @@ import { typography } from '../../../tokens/typography';
 import { KeyboardShortcut } from '../KeyboardShortcut';
 
 interface DropdownItemProps {
-  /** Main label text */
-  label: string;
+  /** Main label text (optional if children is provided) */
+  label?: string;
   /** Optional description (shows below label) */
   description?: string;
   /** Leading icon */
@@ -28,6 +28,8 @@ interface DropdownItemProps {
   iconPosition?: 'left' | 'right';
   /** Trailing icon or element (shows on right side) */
   trailing?: ReactNode;
+  /** Count badge (shows on right side with sidebar styling) */
+  count?: number;
   /** Keyboard shortcut (shows on right side with styling) */
   shortcut?: string;
   /** Visual variant */
@@ -38,6 +40,10 @@ interface DropdownItemProps {
   disabled?: boolean;
   /** Click handler */
   onClick?: () => void;
+  /** Custom content to replace label/description section (allows any component) */
+  children?: ReactNode;
+  /** Treat children as compact content (4px padding like icons) instead of text (8px) */
+  compact?: boolean;
 }
 
 export const DropdownItem = ({
@@ -46,11 +52,14 @@ export const DropdownItem = ({
   icon,
   iconPosition = 'left',
   trailing,
+  count,
   shortcut,
   variant = 'tertiary',
   isSelected = false,
   disabled = false,
   onClick,
+  children,
+  compact = false,
 }: DropdownItemProps) => {
   const { colors } = useTheme();
 
@@ -60,19 +69,24 @@ export const DropdownItem = ({
   // Check content types
   const hasLeadingIcon = icon && iconPosition === 'left';
   const hasTrailingIcon = icon && iconPosition === 'right';
-  const hasTrailingElement = trailing || shortcut;
+  const hasTrailingElement = trailing || count !== undefined || shortcut;
   const hasDescription = !!description;
 
   // Padding based on content (following Button component pattern)
+  // Icons and badges (trailing elements) get 4px, text/content gets 8px
   const getPadding = () => {
     if (hasLeadingIcon && hasTrailingElement) {
-      return '0 8px 0 4px'; // Icon left, element right
+      return '0 4px 0 4px'; // Icon left, badge/element right (both compact)
     }
     if (hasLeadingIcon) {
-      return '0 8px 0 4px'; // Icon left
+      return '0 8px 0 4px'; // Icon left, text right
     }
     if (hasTrailingIcon || hasTrailingElement) {
-      return '0 4px 0 8px'; // Icon/element right
+      // If compact mode and using children, treat content as compact (4px)
+      if (compact && children) {
+        return '0 4px 0 4px'; // Compact content left, badge right (both compact)
+      }
+      return '0 4px 0 8px'; // Text left, icon/badge right
     }
     return `0 ${spacing['6']}`; // Text only
   };
@@ -158,35 +172,43 @@ export const DropdownItem = ({
         </div>
       )}
 
-      {/* Label and description container */}
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div
-          style={{
-            fontSize: typography.fontSize.sm,
-            fontWeight: typography.fontWeight.medium,
-            lineHeight: hasDescription ? typography.lineHeight.tight : 'normal',
-            color: variantStyles.color,
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-          }}
-        >
-          {label}
-        </div>
-        {hasDescription && (
-          <div
-            style={{
-              fontSize: typography.fontSize.xs,
-              color: variant === 'primary' ? colors.text.inverse : colors.text.secondary,
-              opacity: variant === 'primary' ? 0.8 : 1,
-              marginTop: '2px',
-              lineHeight: typography.lineHeight.tight,
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-            }}
-          >
-            {description}
+      {/* Label and description container (or custom children) */}
+      <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center' }}>
+        {children ? (
+          // Custom content provided
+          children
+        ) : (
+          // Default label/description layout
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div
+              style={{
+                fontSize: typography.fontSize['14'],
+                fontWeight: typography.fontWeight.medium,
+                lineHeight: hasDescription ? typography.lineHeight.tight : 'normal',
+                color: variantStyles.color,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              {label}
+            </div>
+            {hasDescription && (
+              <div
+                style={{
+                  fontSize: typography.fontSize['12'],
+                  color: variant === 'primary' ? colors.text.inverse : colors.text.secondary,
+                  opacity: variant === 'primary' ? 0.8 : 1,
+                  marginTop: '2px',
+                  lineHeight: typography.lineHeight.tight,
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}
+              >
+                {description}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -219,6 +241,26 @@ export const DropdownItem = ({
           }}
         >
           {trailing}
+        </div>
+      )}
+
+      {/* Count badge (sidebar-style) */}
+      {count !== undefined && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            minHeight: '20px',
+            minWidth: '20px',
+            fontSize: '12px',
+            color: colors.text.tertiary,
+            userSelect: 'none',
+            WebkitUserSelect: 'none',
+            flexShrink: 0,
+          } as any}
+        >
+          {count}
         </div>
       )}
 

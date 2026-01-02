@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useNotesStore, useFoldersStore, useTagsStore, useAllTags } from '@clutter/shared';
 import { PageTitleSection } from '../../shared/content-header';
-import { PageContent } from '../../shared/page-content/PageContent';
+import { ListViewLayout } from '../../shared/list-view-layout';
 import { TagsListView } from '../../shared/tags-list';
 import { Tag } from '../../../../icons';
 import { sizing } from '../../../../tokens/sizing';
@@ -38,8 +38,7 @@ export const FavouriteTagsListView = ({
           folder.tags.some((t) => t.toLowerCase() === tag.toLowerCase())
       ).length;
       
-      const count = noteCount + folderCount;
-      return { id: tag, tag, count };
+      return { id: tag, tag, noteCount, folderCount };
     });
   }, [allTags, notes, folders]);
 
@@ -51,9 +50,11 @@ export const FavouriteTagsListView = ({
     });
   }, [tagsWithCounts, getTagMetadata]);
 
-  // Sort tags by count (descending)
+  // Sort tags by total count (descending)
   const sortedTags = useMemo(() => {
-    return [...favouriteTags].sort((a, b) => b.count - a.count);
+    return [...favouriteTags].sort((a, b) => 
+      (b.noteCount + b.folderCount) - (a.noteCount + a.folderCount)
+    );
   }, [favouriteTags]);
 
   return (
@@ -74,14 +75,24 @@ export const FavouriteTagsListView = ({
         />
 
         {/* Content Section */}
-        <PageContent>
-          <TagsListView
-            tags={sortedTags}
-            selectedTag={null}
-            onTagClick={(tag) => onTagClick(tag, 'favorites')}
-            emptyState="No favourite tags yet."
+        <ListViewLayout
+          sections={[
+            {
+              id: 'tags',
+              title: '', // No title for single-section view
+              show: sortedTags.length > 0,
+              content: (
+                <TagsListView
+                  tags={sortedTags}
+                  selectedTag={null}
+                  onTagClick={(tag) => onTagClick(tag, 'favorites')}
+                  emptyState="No favourite tags yet."
                 />
-        </PageContent>
+              ),
+            },
+          ]}
+          emptyState="No favourite tags yet."
+        />
     </>
   );
 };

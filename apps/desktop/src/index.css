@@ -128,3 +128,8 @@ input::placeholder {
   background-color: rgba(59, 130, 246, 0.3);
   color: inherit;
 }
+
+/* Hide scrollbar for carousel/tab switching */
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}

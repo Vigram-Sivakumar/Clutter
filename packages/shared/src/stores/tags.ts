@@ -33,6 +33,9 @@ interface TagsState {
   // Get tag metadata by name (case-insensitive)
   getTagMetadata: (tagName: string) => Tag | undefined;
   
+  // Get all deleted tags
+  getDeletedTags: () => Tag[];
+  
   // Update tag metadata
   updateTagMetadata: (tagName: string, updates: Partial<Omit<Tag, 'name' | 'createdAt'>>) => void;
   
@@ -42,8 +45,14 @@ interface TagsState {
   // Rename a tag globally across all notes
   renameTag: (oldTag: string, newTag: string) => void;
   
-  // Delete a tag globally (removes from all notes/folders and deletes metadata)
+  // Delete a tag (soft delete - sets deletedAt)
   deleteTag: (tagName: string) => void;
+  
+  // Restore a deleted tag
+  restoreTag: (tagName: string) => void;
+  
+  // Permanently delete a tag (hard delete - removes completely)
+  permanentlyDeleteTag: (tagName: string) => void;
   
   // Update the cached tag list (called automatically when notes change)
   updateTagsCache: () => void;
@@ -61,9 +70,28 @@ export const useTagsStore = create<TagsState>()((set, get) => ({
         return get().tagMetadata[key];
       },
       
+      getDeletedTags: () => {
+        const allTags = Object.values(get().tagMetadata);
+        const deleted = allTags.filter(tag => tag.deletedAt !== null);
+        console.log('🏷️ [DEBUG] getDeletedTags:', {
+          totalTags: allTags.length,
+          deletedTags: deleted.length,
+          deletedTagNames: deleted.map(t => t.name),
+        });
+        return deleted;
+      },
+      
   updateTagMetadata: (tagName: string, updates) => {
     const key = tagName.toLowerCase();
     const existing = get().tagMetadata[key];
+    
+    console.log('🎨 UPDATE TAG METADATA:', {
+      tagName,
+      key,
+      updates,
+      existing,
+      hasExisting: !!existing,
+    });
     
     if (existing) {
       const updatedTag = {
@@ -71,6 +99,8 @@ export const useTagsStore = create<TagsState>()((set, get) => ({
         ...updates,
         updatedAt: new Date().toISOString(),
       };
+      
+      console.log('🎨 UPDATE TAG METADATA - Updated tag:', updatedTag);
       
       set((state) => ({
         tagMetadata: {
@@ -84,10 +114,13 @@ export const useTagsStore = create<TagsState>()((set, get) => ({
         // 🛡️ Guard: Don't save during hydration
         if (!shouldAllowSave('updateTagMetadata')) return;
         
+        console.log('💾 UPDATE TAG METADATA - Saving to database:', updatedTag);
         saveTagHandler(updatedTag).catch((err) => {
           console.error('❌ Failed to save tag metadata:', err);
         });
       }
+    } else {
+      console.warn('⚠️ UPDATE TAG METADATA - No existing metadata found for:', tagName, '- Consider using upsertTagMetadata instead');
     }
   },
       
@@ -95,6 +128,16 @@ export const useTagsStore = create<TagsState>()((set, get) => ({
     const key = tagName.toLowerCase();
     const existing = get().tagMetadata[key];
     const now = new Date().toISOString();
+    
+    console.log('🎨 UPSERT TAG METADATA:', {
+      tagName,
+      key,
+      description,
+      descriptionVisible,
+      isFavorite,
+      color,
+      existing,
+    });
     
     const tag: Tag = {
       name: tagName, // Preserve original capitalization
@@ -104,7 +147,10 @@ export const useTagsStore = create<TagsState>()((set, get) => ({
       color: color !== undefined ? color : existing?.color, // Use provided value or preserve existing
       createdAt: existing?.createdAt || now,
       updatedAt: now,
+      deletedAt: null, // Always null when upserting (creating/updating)
     };
+    
+    console.log('🎨 UPSERT TAG METADATA - Created tag:', tag);
     
     set((state) => ({
       tagMetadata: {
@@ -118,6 +164,7 @@ export const useTagsStore = create<TagsState>()((set, get) => ({
       // 🛡️ Guard: Don't save during hydration
       if (!shouldAllowSave('upsertTagMetadata')) return;
       
+      console.log('💾 UPSERT TAG METADATA - Saving to database:', tag);
       saveTagHandler(tag).catch((err) => {
         console.error('❌ Failed to save tag metadata:', err);
       });
@@ -212,6 +259,16 @@ export const useTagsStore = create<TagsState>()((set, get) => ({
         
         // 2. Update tag metadata (move from old key to new key)
         const existing = get().tagMetadata[oldKey];
+        console.log('🔍 RENAME TAG - Before:', {
+          oldTag,
+          newTag,
+          oldKey,
+          newKey,
+          existingMetadata: existing,
+          hasColor: !!existing?.color,
+          color: existing?.color,
+        });
+        
         if (existing) {
           const updatedMetadata = {
             ...existing,
@@ -219,12 +276,43 @@ export const useTagsStore = create<TagsState>()((set, get) => ({
             updatedAt: new Date().toISOString(),
           };
           
+          console.log('🔍 RENAME TAG - Updated metadata to save:', {
+            updatedMetadata,
+            colorPreserved: updatedMetadata.color === existing.color,
+          });
+          
           set((state) => {
             const newTagMetadata = { ...state.tagMetadata };
             delete newTagMetadata[oldKey];
             newTagMetadata[newKey] = updatedMetadata;
             return { tagMetadata: newTagMetadata };
           });
+          
+          // Verify the update
+          const afterUpdate = get().tagMetadata[newKey];
+          console.log('🔍 RENAME TAG - After state update:', {
+            newKey,
+            retrievedMetadata: afterUpdate,
+            colorStillPreserved: afterUpdate?.color === existing.color,
+          });
+          
+          // Save the renamed metadata to database
+          if (saveTagHandler && shouldAllowSave('renameTag-metadata')) {
+            console.log('💾 RENAME TAG - Saving to database:', updatedMetadata);
+            saveTagHandler(updatedMetadata).catch((err) => {
+              console.error('❌ Failed to save renamed tag metadata:', err);
+            });
+          }
+          
+          // Delete the old metadata from database
+          if (deleteTagHandler && shouldAllowSave('renameTag-delete-old')) {
+            console.log('🗑️ RENAME TAG - Deleting old metadata:', oldTag);
+            deleteTagHandler(oldTag).catch((err) => {
+              console.error('❌ Failed to delete old tag metadata:', err);
+            });
+          }
+        } else {
+          console.log('⚠️ RENAME TAG - No existing metadata found for:', oldTag);
         }
         
         // 3. Update the cache
@@ -234,6 +322,15 @@ export const useTagsStore = create<TagsState>()((set, get) => ({
   deleteTag: (tagName: string) => {
     const key = tagName.toLowerCase();
     const now = new Date().toISOString();
+    const existing = get().tagMetadata[key];
+    
+    console.log('🗑️ [DEBUG] deleteTag called:', { tagName, key, existing });
+    
+    if (!existing) {
+      console.warn(`⚠️ Tag "${tagName}" not found in metadata - creating it for soft delete`);
+      // Create metadata entry if it doesn't exist
+      get().upsertTagMetadata(tagName, '', true, false, undefined);
+    }
     
     // 1. Remove tag from all notes
     const { notes, setNotes } = useNotesStore.getState();
@@ -257,7 +354,7 @@ export const useTagsStore = create<TagsState>()((set, get) => ({
       
       setNotes(updatedNotes);
       
-      // 🆕 SAVE all updated notes to database
+      // Save all updated notes to database
       const noteStorageHandlers = getStorageHandlers();
       
       if (noteStorageHandlers?.save && shouldAllowSave('deleteTag-notes')) {
@@ -299,7 +396,7 @@ export const useTagsStore = create<TagsState>()((set, get) => ({
       
       useFoldersStore.setState({ folders: updatedFolders });
       
-      // 🆕 SAVE all updated folders to database
+      // Save all updated folders to database
       const saveFolderHandler = getFolderHandler;
       
       if (saveFolderHandler && shouldAllowSave('deleteTag-folders')) {
@@ -319,32 +416,116 @@ export const useTagsStore = create<TagsState>()((set, get) => ({
       }
     }
     
-    // 3. Delete tag metadata from store
+    // 3. Soft delete tag metadata (set deletedAt)
+    const updatedTag: Tag = {
+      ...(get().tagMetadata[key] || {
+        name: tagName,
+        description: '',
+        descriptionVisible: true,
+        isFavorite: false,
+        createdAt: now,
+        updatedAt: now,
+        deletedAt: null,
+      }),
+      deletedAt: now,
+      updatedAt: now,
+    };
+    
+    console.log('🗑️ [DEBUG] Setting deletedAt on tag metadata:', { tagName, deletedAt: now });
+    
+    set((state) => ({
+      tagMetadata: {
+        ...state.tagMetadata,
+        [key]: updatedTag,
+      },
+    }));
+    
+    console.log(`🗑️ Soft deleted tag: "${tagName}"`);
+    
+    // 4. Save tag metadata to database
+    if (saveTagHandler && shouldAllowSave('deleteTag-metadata')) {
+      console.log('💾 [DEBUG] Saving deleted tag metadata to database:', tagName);
+      saveTagHandler(updatedTag).catch((err) => {
+        console.error('❌ Failed to save deleted tag metadata:', err);
+      });
+    }
+    
+    // 5. Update cache to exclude deleted tag
+    get().updateTagsCache();
+  },
+  
+  restoreTag: (tagName: string) => {
+    const key = tagName.toLowerCase();
+    const now = new Date().toISOString();
+    const existing = get().tagMetadata[key];
+    
+    if (!existing) {
+      console.warn(`⚠️ Tag "${tagName}" not found in metadata`);
+      return;
+    }
+    
+    if (!existing.deletedAt) {
+      console.warn(`⚠️ Tag "${tagName}" is not deleted`);
+      return;
+    }
+    
+    // Restore: Clear deletedAt timestamp
+    const restoredTag: Tag = {
+      ...existing,
+      deletedAt: null,
+      updatedAt: now,
+    };
+    
+    set((state) => ({
+      tagMetadata: {
+        ...state.tagMetadata,
+        [key]: restoredTag,
+      },
+    }));
+    
+    console.log(`♻️ Restored tag: "${tagName}"`);
+    
+    // Save updated metadata to database
+    if (saveTagHandler && shouldAllowSave('restoreTag-metadata')) {
+      saveTagHandler(restoredTag).catch((err) => {
+        console.error('❌ Failed to save restored tag metadata:', err);
+      });
+    }
+    
+    // Update cache to include restored tag
+    get().updateTagsCache();
+  },
+  
+  permanentlyDeleteTag: (tagName: string) => {
+    const key = tagName.toLowerCase();
+    
+    // 1. Delete tag metadata from store
     set((state) => {
       const newTagMetadata = { ...state.tagMetadata };
       delete newTagMetadata[key];
       return { tagMetadata: newTagMetadata };
     });
     
-    // 4. Delete tag metadata from database
-    if (deleteTagHandler) {
-      // 🛡️ Guard: Don't delete during hydration
-      if (!shouldAllowSave('deleteTag-metadata')) return;
-      
+    console.log(`🔥 Permanently deleted tag: "${tagName}"`);
+    
+    // 2. Delete tag metadata from database
+    if (deleteTagHandler && shouldAllowSave('permanentlyDeleteTag-metadata')) {
       deleteTagHandler(tagName).catch((err) => {
-        console.error('❌ Failed to delete tag metadata:', err);
+        console.error('❌ Failed to permanently delete tag metadata:', err);
       });
     }
     
-    // 5. Update cache
+    // 3. Update cache
     get().updateTagsCache();
   },
       
   updateTagsCache: () => {
     const notes = useNotesStore.getState().notes;
+    const folders = useFoldersStore.getState().folders;
+    const metadata = get().tagMetadata;
     const tagsMap = new Map<string, string>();
     
-    // Derive unique tags from all non-deleted notes
+    // 1. Derive unique tags from all non-deleted notes
     notes.forEach((note) => {
       if (!note.deletedAt) {
         note.tags.forEach((tag) => {
@@ -353,6 +534,27 @@ export const useTagsStore = create<TagsState>()((set, get) => ({
             tagsMap.set(lowerTag, tag); // Store original capitalization
           }
         });
+      }
+    });
+    
+    // 2. Add tags from folders
+    folders.forEach((folder) => {
+      if (!folder.deletedAt && folder.tags) {
+        folder.tags.forEach((tag) => {
+          const lowerTag = tag.toLowerCase();
+          if (!tagsMap.has(lowerTag)) {
+            tagsMap.set(lowerTag, tag); // Store original capitalization
+          }
+        });
+      }
+    });
+    
+    // 3. Add standalone tags from metadata
+    Object.values(metadata).forEach((tag) => {
+      if (tag.deletedAt) return; // Skip deleted tags
+      const lowerTag = tag.name.toLowerCase();
+      if (!tagsMap.has(lowerTag)) {
+        tagsMap.set(lowerTag, tag.name); // Store original capitalization
       }
     });
     
@@ -369,15 +571,19 @@ export const useTagsStore = create<TagsState>()((set, get) => ({
 }));
 
 /**
- * Hook that derives all unique tags from notes
- * Automatically updates when notes change
+ * Hook that derives all unique tags from notes, folders, and standalone tag metadata
+ * Automatically updates when notes, folders, or tag metadata changes
  */
 export const useAllTags = (): string[] => {
   const notes = useNotesStore((state) => state.notes);
+  const folders = useFoldersStore((state) => state.folders);
+  const tagMetadata = useTagsStore((state) => state.tagMetadata);
 
   return useMemo(() => {
     // Use Map to deduplicate case-insensitively while preserving first occurrence's capitalization
     const tagsMap = new Map<string, string>();
+    
+    // 1. Add tags from notes
     notes.forEach((note) => {
       if (!note.deletedAt) {
         note.tags.forEach((tag) => {
@@ -388,8 +594,30 @@ export const useAllTags = (): string[] => {
         });
       }
     });
+    
+    // 2. Add tags from folders
+    folders.forEach((folder) => {
+      if (!folder.deletedAt && folder.tags) {
+        folder.tags.forEach((tag) => {
+          const lowerTag = tag.toLowerCase();
+          if (!tagsMap.has(lowerTag)) {
+            tagsMap.set(lowerTag, tag); // Store original capitalization
+          }
+        });
+      }
+    });
+    
+    // 3. Add standalone tags from metadata (tags that exist but aren't assigned anywhere yet)
+    Object.values(tagMetadata).forEach((tag) => {
+      if (tag.deletedAt) return; // Skip deleted tags
+      const lowerTag = tag.name.toLowerCase();
+      if (!tagsMap.has(lowerTag)) {
+        tagsMap.set(lowerTag, tag.name); // Store original capitalization from metadata
+      }
+    });
+    
     return Array.from(tagsMap.values()).sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
-  }, [notes]);
+  }, [notes, folders, tagMetadata]);
 };
 
 /**

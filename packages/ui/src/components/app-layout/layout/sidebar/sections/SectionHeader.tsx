@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, ReactNode } from 'react';
 import { useTheme } from '../../../../../hooks/useTheme';
+import { radius } from '../../../../../tokens/radius';
 import { ChevronDown } from '../../../../../icons';
 import { TertiaryButton } from '../../../../ui-buttons';
 
@@ -112,7 +113,7 @@ export const SidebarSectionHeader = ({
         cursor: onHeaderClick ? 'pointer' : 'default',
         userSelect: 'none',
         WebkitUserSelect: 'none',
-        borderRadius: '6px',
+        borderRadius: radius['6'],
         gap: '0px',
         backgroundColor: (isDragOver && isCollapsed) ? colors.background.tertiary : (isHovered ? colors.background.subtleHover : 'transparent'),
         transition: 'background-color 150ms ease',

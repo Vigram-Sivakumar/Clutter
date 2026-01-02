@@ -2,9 +2,8 @@ import { useMemo, useState, useCallback } from 'react';
 import { useTheme } from '../../../../hooks/useTheme';
 import { useNotesStore, useFoldersStore } from '@clutter/shared';
 import { PageTitleSection } from '../../shared/content-header';
-import { PageContent } from '../../shared/page-content/PageContent';
+import { ListViewLayout } from '../../shared/list-view-layout';
 import { FolderGrid } from '../folder';
-import { spacing } from '../../../../tokens/spacing';
 
 interface AllFoldersListViewProps {
   onFolderClick: (folderId: string) => void;
@@ -130,32 +129,24 @@ export const AllFoldersListView = ({
         />
 
         {/* Page Content */}
-        <PageContent>
-          {/* All Folders Grid */}
-          {allFolders.length > 0 ? (
-            <FolderGrid
-              folders={allFolders}
-              onClick={onFolderClick}
-              onNoteClick={onNoteClick}
-              onCreateNote={onCreateNote}
-            />
-          ) : (
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flex: 1,
-                padding: spacing['20'],
-                color: colors.text.tertiary,
-                fontSize: '14px',
-                textAlign: 'center',
-              }}
-            >
-              No folders yet
-            </div>
-          )}
-        </PageContent>
+        <ListViewLayout
+          sections={[
+            {
+              id: 'folders',
+              title: '', // No title for single-section view
+              show: allFolders.length > 0,
+              content: (
+                <FolderGrid
+                  folders={allFolders}
+                  onClick={onFolderClick}
+                  onNoteClick={onNoteClick}
+                  onCreateNote={onCreateNote}
+                />
+              ),
+            },
+          ]}
+          emptyState="No folders yet"
+        />
     </>
   );
 };

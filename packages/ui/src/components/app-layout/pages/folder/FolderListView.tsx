@@ -1,15 +1,15 @@
 import { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import { useTheme } from '../../../../hooks/useTheme';
-import { useNotesStore, useFoldersStore } from '@clutter/shared';
+import { useNotesStore, useFoldersStore, CLUTTERED_FOLDER_ID, DAILY_NOTES_FOLDER_ID } from '@clutter/shared';
 import { NotesListView } from '../../shared/notes-list';
 import { PageTitleSection } from '../../shared/content-header';
-import { PageContent } from '../../shared/page-content/PageContent';
+import { ListViewLayout } from '../../shared/list-view-layout';
 import { FolderGrid } from '../folder';
 import { EmojiTray } from '../../shared/emoji';
-import { SectionTitle } from '../../shared/section-title';
-import { WavyDivider } from '../../shared/wavy-divider';
-import { spacing } from '../../../../tokens/spacing';
 import { isContentEmpty } from '../../../../utils/noteHelpers';
+import { spacing } from '../../../../tokens/spacing';
+import { sizing } from '../../../../tokens/sizing';
+import { getFolderIcon } from '../../../../utils/itemIcons';
 
 // Helper function to count tasks (checkboxes) in note content
 const countTasksInNote = (content: string): number => {
@@ -83,8 +83,9 @@ export const FolderListView = ({
     return true;
   }, []);
   
-  // Check if this is the special "Cluttered" view
-  const isClutteredFolder = folderId === 'cluttered';
+  // Check if this is a system folder (Cluttered or Daily Notes)
+  const isClutteredFolder = folderId === CLUTTERED_FOLDER_ID;
+  const isDailyNotesFolder = folderId === DAILY_NOTES_FOLDER_ID;
   
   // Get folder (cluttered is virtual, so returns undefined)
   const folder = useMemo(() => {
@@ -293,30 +294,30 @@ export const FolderListView = ({
           variant="folder"
           folderName={isClutteredFolder ? 'Cluttered' : (folder?.name || '')}
           onFolderNameChange={isClutteredFolder ? undefined : handleFolderNameChange}
-          staticIcon={isClutteredFolder ? <span style={{ fontSize: '24px' }}>📮</span> : undefined}
+          staticIcon={isClutteredFolder ? getFolderIcon({ folderId: CLUTTERED_FOLDER_ID, size: sizing.icon.pageTitleIcon }) : isDailyNotesFolder ? getFolderIcon({ folderId: DAILY_NOTES_FOLDER_ID, size: sizing.icon.pageTitleIcon }) : undefined}
           staticDescription={isClutteredFolder ? 'Notes that aren\'t in any folder' : undefined}
-          selectedEmoji={isClutteredFolder ? undefined : folder?.emoji}
-          onAddEmoji={isClutteredFolder ? undefined : handleAddFolderEmoji}
-          onRemoveEmoji={isClutteredFolder ? undefined : handleRemoveFolderEmoji}
-          emojiButtonRef={isClutteredFolder ? undefined : emojiButtonRef}
-          isEmojiTrayOpen={isClutteredFolder ? false : isEmojiTrayOpen}
-          addEmojiButtonRef={isClutteredFolder ? undefined : addEmojiButtonRef}
-          description={isClutteredFolder ? undefined : description}
-          showDescriptionInput={isClutteredFolder ? false : showDescriptionInput}
-          descriptionVisible={isClutteredFolder ? false : descriptionVisible}
-          onDescriptionChange={isClutteredFolder ? undefined : handleDescriptionChange}
-          onDescriptionBlur={isClutteredFolder ? undefined : handleDescriptionBlur}
-          onShowDescriptionInput={isClutteredFolder ? undefined : handleShowDescriptionInput}
-          onToggleDescriptionVisibility={isClutteredFolder ? undefined : handleToggleDescriptionVisibility}
-          tags={isClutteredFolder ? undefined : tags}
-          showTagInput={isClutteredFolder ? false : showTagInput}
-          tagsVisible={isClutteredFolder ? false : tagsVisible}
-          onAddTag={isClutteredFolder ? undefined : handleAddTag}
-          onRemoveTag={isClutteredFolder ? undefined : handleRemoveTag}
-          onEditTag={isClutteredFolder ? undefined : handleEditTag}
-          onShowTagInput={isClutteredFolder ? undefined : handleShowTagInput}
-          onCancelTagInput={isClutteredFolder ? undefined : handleCancelTagInput}
-          onToggleTagsVisibility={isClutteredFolder ? undefined : handleToggleTagsVisibility}
+          selectedEmoji={isClutteredFolder || isDailyNotesFolder ? undefined : folder?.emoji}
+          onAddEmoji={isClutteredFolder || isDailyNotesFolder ? undefined : handleAddFolderEmoji}
+          onRemoveEmoji={isClutteredFolder || isDailyNotesFolder ? undefined : handleRemoveFolderEmoji}
+          emojiButtonRef={isClutteredFolder || isDailyNotesFolder ? undefined : emojiButtonRef}
+          isEmojiTrayOpen={isClutteredFolder || isDailyNotesFolder ? false : isEmojiTrayOpen}
+          addEmojiButtonRef={isClutteredFolder || isDailyNotesFolder ? undefined : addEmojiButtonRef}
+          description={isClutteredFolder || isDailyNotesFolder ? undefined : description}
+          showDescriptionInput={isClutteredFolder || isDailyNotesFolder ? false : showDescriptionInput}
+          descriptionVisible={isClutteredFolder || isDailyNotesFolder ? false : descriptionVisible}
+          onDescriptionChange={isClutteredFolder || isDailyNotesFolder ? undefined : handleDescriptionChange}
+          onDescriptionBlur={isClutteredFolder || isDailyNotesFolder ? undefined : handleDescriptionBlur}
+          onShowDescriptionInput={isClutteredFolder || isDailyNotesFolder ? undefined : handleShowDescriptionInput}
+          onToggleDescriptionVisibility={isClutteredFolder || isDailyNotesFolder ? undefined : handleToggleDescriptionVisibility}
+          tags={isClutteredFolder || isDailyNotesFolder ? undefined : tags}
+          showTagInput={isClutteredFolder || isDailyNotesFolder ? false : showTagInput}
+          tagsVisible={isClutteredFolder || isDailyNotesFolder ? false : tagsVisible}
+          onAddTag={isClutteredFolder || isDailyNotesFolder ? undefined : handleAddTag}
+          onRemoveTag={isClutteredFolder || isDailyNotesFolder ? undefined : handleRemoveTag}
+          onEditTag={isClutteredFolder || isDailyNotesFolder ? undefined : handleEditTag}
+          onShowTagInput={isClutteredFolder || isDailyNotesFolder ? undefined : handleShowTagInput}
+          onCancelTagInput={isClutteredFolder || isDailyNotesFolder ? undefined : handleCancelTagInput}
+          onToggleTagsVisibility={isClutteredFolder || isDailyNotesFolder ? undefined : handleToggleTagsVisibility}
           onTagClick={onTagClick}
           backgroundColor={colors.background.default}
           // Action controls
@@ -328,91 +329,76 @@ export const FolderListView = ({
           onFilter={() => setFilterActive(!filterActive)}
           filterActive={filterActive}
           onNewNote={onCreateNote}
-          onNewFolder={isClutteredFolder ? undefined : onCreateFolder}
+          onNewFolder={isClutteredFolder || isDailyNotesFolder ? undefined : onCreateFolder}
         />
 
         {/* Page Content */}
-        <PageContent>
-          <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: spacing['3xl'], // 32px between sections
-          }}>
-          {/* Subfolders Grid */}
-          {subfolders.length > 0 && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: spacing['12'] }}>
-                <SectionTitle 
-                  collapsible 
-                  isCollapsed={foldersCollapsed} 
-                  onToggle={() => setFoldersCollapsed(!foldersCollapsed)}
-                >
-                  Folders
-                </SectionTitle>
-                {!foldersCollapsed && (
-            <FolderGrid
-              folders={subfolders.map(subfolder => {
-                const allSubfolderNotes = notes.filter(note => note.folderId === subfolder.id && !note.deletedAt);
-                // Filter out empty notes for preview display only (except current note)
-                const previewNotes = allSubfolderNotes.filter(note => 
-                  note.id === currentNoteId || !isNoteEmpty(note)
-                );
-                const nestedFolderCount = folders.filter(f => 
-                  !f.deletedAt && f.parentId === subfolder.id
-                ).length;
-                
-                return {
-                  id: subfolder.id,
-                  name: subfolder.name || 'Untitled Folder',
-                  emoji: subfolder.emoji,
-                  noteCount: allSubfolderNotes.length, // Count ALL notes (including empty)
-                  folderCount: nestedFolderCount,
-                  previewNotes: previewNotes.slice(0, 3).map(note => ({
+        <ListViewLayout
+          sections={[
+            {
+              id: 'subfolders',
+              title: 'Folders',
+              show: subfolders.length > 0,
+              collapsible: true,
+              isCollapsed: foldersCollapsed,
+              onToggle: () => setFoldersCollapsed(!foldersCollapsed),
+              content: (
+                <FolderGrid
+                  folders={subfolders.map(subfolder => {
+                    const allSubfolderNotes = notes.filter(note => note.folderId === subfolder.id && !note.deletedAt);
+                    // Filter out empty notes for preview display only (except current note)
+                    const previewNotes = allSubfolderNotes.filter(note => 
+                      note.id === currentNoteId || !isNoteEmpty(note)
+                    );
+                    const nestedFolderCount = folders.filter(f => 
+                      !f.deletedAt && f.parentId === subfolder.id
+                    ).length;
+                    
+                    return {
+                      id: subfolder.id,
+                      name: subfolder.name || 'Untitled Folder',
+                      emoji: subfolder.emoji,
+                      noteCount: allSubfolderNotes.length, // Count ALL notes (including empty)
+                      folderCount: nestedFolderCount,
+                      previewNotes: previewNotes.slice(0, 3).map(note => ({
+                        id: note.id,
+                        title: note.title || 'Untitled',
+                        emoji: note.emoji,
+                        contentSnippet: note.description || '',
+                      })),
+                    };
+                  })}
+                  onClick={onFolderClick || (() => {})}
+                  onNoteClick={onNoteClick}
+                  onCreateNote={(subfolderId) => {
+                    // Create a note in the subfolder
+                    const newNote = createNote({ folderId: subfolderId });
+                    onNoteClick(newNote.id);
+                  }}
+                />
+              ),
+            },
+            {
+              id: 'notes',
+              title: 'Notes',
+              show: folderNotes.length > 0,
+              collapsible: true,
+              isCollapsed: notesCollapsed,
+              onToggle: () => setNotesCollapsed(!notesCollapsed),
+              content: (
+                <NotesListView
+                  notes={folderNotes.map(note => ({
                     id: note.id,
-                    title: note.title || 'Untitled',
+                    title: note.title,
                     emoji: note.emoji,
-                    contentSnippet: note.description || '',
-                  })),
-                };
-              })}
-              onClick={onFolderClick || (() => {})}
-              onNoteClick={onNoteClick}
-              onCreateNote={(subfolderId) => {
-                // Create a note in the subfolder
-                const newNote = createNote({ folderId: subfolderId });
-                onNoteClick(newNote.id);
-              }}
-            />
-          )}
-              </div>
-            )}
-
-            {/* Wavy Divider */}
-            {subfolders.length > 0 && <WavyDivider />}
-
-          {/* Notes List */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: spacing['12'] }}>
-              <SectionTitle 
-                collapsible 
-                isCollapsed={notesCollapsed} 
-                onToggle={() => setNotesCollapsed(!notesCollapsed)}
-              >
-                Notes
-              </SectionTitle>
-              {!notesCollapsed && (
-          <NotesListView
-            
-            notes={folderNotes.map(note => ({
-              id: note.id,
-              title: note.title,
-              emoji: note.emoji,
-              tags: note.tags,
-              taskCount: countTasksInNote(note.content),
-              dailyNoteDate: note.dailyNoteDate,
-              hasContent: !isContentEmpty(note.content),
-            }))}
-            selectedNoteId={null}
-            onNoteClick={onNoteClick}
-            onTagClick={onTagClick}
+                    tags: note.tags,
+                    taskCount: countTasksInNote(note.content),
+                    dailyNoteDate: note.dailyNoteDate,
+                    hasContent: !isContentEmpty(note.content),
+                  }))}
+                  selectedNoteId={null}
+                  onNoteClick={onNoteClick}
+                  onTagClick={onTagClick}
                   onRemoveTag={(noteId, tagToRemove) => {
                     const note = notes.find(n => n.id === noteId);
                     if (note) {
@@ -420,19 +406,14 @@ export const FolderListView = ({
                       updateNote(noteId, { tags: newTags });
                     }
                   }}
-            onUpdateEmoji={handleUpdateEmoji}
-            emptyState={
-              isClutteredFolder 
-                ? 'No notes in Cluttered' 
-                : subfolders.length > 0 
-                  ? 'No notes in this folder' 
-                  : 'No subfolders or notes in this folder'
-            }
-          />
-              )}
-            </div>
-          </div>
-        </PageContent>
+                  onUpdateEmoji={handleUpdateEmoji}
+                  emptyState="No notes in this folder"
+                />
+              ),
+            },
+          ]}
+          emptyState="No subfolders or notes in this folder"
+        />
 
       {/* Emoji Tray for folder emoji selection */}
       <EmojiTray

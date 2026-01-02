@@ -35,12 +35,31 @@ const createEmptyNote = (initialValues?: Partial<Note>): Note => {
   };
 };
 
-// Helper to format daily note title: "Tuesday, Dec 30 2025"
+// Helper to get relative date prefix ("Today", "Yesterday", "Tomorrow", or empty)
+const getRelativeDatePrefix = (date: Date): string => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  const targetDate = new Date(date);
+  targetDate.setHours(0, 0, 0, 0);
+  
+  const diffDays = Math.floor((targetDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  
+  if (diffDays === 0) return 'Today, ';
+  if (diffDays === -1) return 'Yesterday, ';
+  if (diffDays === 1) return 'Tomorrow, ';
+  return '';
+};
+
+// Helper to format daily note title: "Today, Thu, 1 Jan 2026" or "Thu, 1 Jan 2026"
 const formatDailyNoteTitle = (date: Date): string => {
-  const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   
-  return `${days[date.getDay()]}, ${months[date.getMonth()]} ${date.getDate()} ${date.getFullYear()}`;
+  const prefix = getRelativeDatePrefix(date);
+  const dateStr = `${days[date.getDay()]}, ${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
+  
+  return `${prefix}${dateStr}`;
 };
 
 // Check if a note has any content worth saving
@@ -116,6 +135,7 @@ interface NotesStore {
   // Daily notes
   findDailyNoteByDate: (date: Date) => Note | null;
   createDailyNote: (date: Date, setAsCurrent?: boolean) => Note;
+  updateDailyNoteTitles: () => void;
   
   // Storage integration (to be implemented by platform)
   saveNote: (note: Note) => Promise<void>;
@@ -141,6 +161,9 @@ export const setStorageHandlers = (handlers: typeof storageHandlers) => {
 
 // Export for use by other stores (e.g., folders need to save notes during cascade delete)
 export const getStorageHandlers = () => storageHandlers;
+
+// Export helper for external use (e.g., TitleInput component)
+export { formatDailyNoteTitle, getRelativeDatePrefix };
 
 // Create initial notes (empty by default)
 const createInitialNotes = (): Note[] => {
@@ -301,25 +324,7 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
     const note = get().notes.find(n => n.id === id);
     const hadTags = note?.tags && note.tags.length > 0;
     
-    // If note is empty, permanently delete it (it was never saved to disk)
-    if (note && isNoteEmpty(note)) {
-      set((state) => ({
-        notes: state.notes.filter((n) => n.id !== id),
-        currentNoteId: state.currentNoteId === id ? null : state.currentNoteId,
-      }));
-      
-      // Update tags cache if note had tags (deferred)
-      if (hadTags) {
-        setTimeout(() => {
-          import('./tags').then(({ useTagsStore }) => {
-            useTagsStore.getState().updateTagsCache();
-          });
-        }, 0);
-      }
-      return;
-    }
-    
-    // Otherwise, soft delete
+    // Always soft delete (notes go to "Recently deleted" for 30 days)
     const now = new Date().toISOString();
     set((state) => ({
       notes: state.notes.map((note) =>
@@ -343,7 +348,11 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
       // 🛡️ Guard: Don't save during hydration
       if (!shouldAllowSave('deleteNote')) return;
       
-      storageHandlers.save(note).catch(() => {});
+      // ✅ Get the UPDATED note with deletedAt
+      const updatedNote = get().notes.find(n => n.id === id);
+      if (updatedNote) {
+        storageHandlers.save(updatedNote).catch(() => {});
+      }
     }
   },
   
@@ -383,7 +392,25 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
     // 🗓️ SMART RESTORE: Check if this is a daily note being restored
     let updates: Partial<Note> = { deletedAt: null, updatedAt: now };
     
-    if (note?.dailyNoteDate) {
+    // ✅ NEW: Check if parent folder is deleted (lazy import to avoid circular dependency)
+    if (note?.folderId) {
+      try {
+        const { useFoldersStore } = require('./folders');
+        const folder = useFoldersStore.getState().folders.find((f: any) => f.id === note.folderId);
+        
+        if (folder?.deletedAt) {
+          console.log(`⚠️ Parent folder is deleted, moving note to Cluttered`);
+          updates = {
+            ...updates,
+            folderId: null,  // Move to Cluttered (root)
+          };
+        }
+      } catch (e) {
+        // Folders store not available, skip check
+      }
+    }
+    
+    if (note?.dailyNoteDate && !updates.folderId) {
       // Check if there's already an active daily note for this date
       const existingDailyNote = get().notes.find(n => 
         n.dailyNoteDate === note.dailyNoteDate && 
@@ -442,9 +469,11 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
       currentNoteId: state.currentNoteId === id ? null : state.currentNoteId,
     }));
     
-    // Delete from storage
+    // Delete from storage (database)
     if (storageHandlers) {
-      storageHandlers.delete(id).catch(() => {});
+      storageHandlers.delete(id).catch((err) => {
+        console.error(`❌ Failed to permanently delete note ${id} from database:`, err);
+      });
     }
   },
   
@@ -475,6 +504,27 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
     const dateStr = `${year}-${month}-${day}`; // YYYY-MM-DD in local time
     const title = formatDailyNoteTitle(date);
     
+    // 🔧 Convert any deleted daily note for this date to a regular note
+    const deletedDailyNote = get().notes.find(n => 
+      n.dailyNoteDate === dateStr && 
+      n.deletedAt !== null
+    );
+    
+    if (deletedDailyNote) {
+      console.log(`♻️ Converting deleted daily note ${deletedDailyNote.id} to regular note (new daily note created for ${dateStr})`);
+      
+      // Create a fixed title without "Today/Yesterday" prefix
+      const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const fixedTitle = `${days[date.getDay()]}, ${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
+      
+      get().updateNote(deletedDailyNote.id, {
+        dailyNoteDate: null,  // Convert to regular note
+        title: fixedTitle,     // Fixed title: "Thu, 1 Jan 2026"
+        updatedAt: new Date().toISOString(),
+      });
+    }
+    
     const note = createEmptyNote({
       dailyNoteDate: dateStr,
       title,
@@ -497,6 +547,33 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
     }
     
     return note;
+  },
+  
+  updateDailyNoteTitles: () => {
+    const notes = get().notes;
+    const dailyNotes = notes.filter(n => n.dailyNoteDate && !n.deletedAt);
+    
+    if (dailyNotes.length === 0) return;
+    
+    console.log(`🗓️ Updating ${dailyNotes.length} daily note titles...`);
+    
+    dailyNotes.forEach(note => {
+      // Parse the date from dailyNoteDate (YYYY-MM-DD format)
+      const [year, month, day] = note.dailyNoteDate!.split('-').map(Number);
+      if (year === undefined || month === undefined || day === undefined) return;
+      const noteDate = new Date(year, month - 1, day);
+      
+      // Generate new title with current relative prefix
+      const newTitle = formatDailyNoteTitle(noteDate);
+      
+      // Update if changed
+      if (newTitle !== note.title) {
+        console.log(`📝 Updating daily note title: "${note.title}" → "${newTitle}"`);
+        get().updateNoteMeta(note.id, { title: newTitle });
+      }
+    });
+    
+    console.log('✅ Daily note titles updated');
   },
   
   // Storage integration

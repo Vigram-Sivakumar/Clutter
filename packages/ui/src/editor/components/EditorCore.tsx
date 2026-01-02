@@ -480,31 +480,6 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(({
           caret-color: ${colors.text.default}; /* Keep cursor default color */
         }
 
-        /* Task priority symbol styling - "!" marks in tasks */
-        .ProseMirror .task-priority-symbol {
-          color: ${colors.semantic.orange};
-          font-weight: 600;
-          background-color: ${colors.semantic.orange}10;
-          border-radius: 3px;
-          padding: 1px 2px; /* Minimal horizontal padding */
-          margin-right: -2px; /* Pull next one closer */
-          caret-color: ${colors.text.default}; /* Keep cursor default color */
-          display: inline-block; /* Required for transform */
-          transform-origin: center center;
-        }
-
-        /* Add variation to create hand-drawn feel */
-        .ProseMirror .task-priority-symbol:nth-of-type(1) {
-          transform: rotate(-3deg) translateY(-1px);
-        }
-
-        .ProseMirror .task-priority-symbol:nth-of-type(2) {
-          transform: rotate(4deg) translateY(1px);
-        }
-
-        .ProseMirror .task-priority-symbol:nth-of-type(3) {
-          transform: rotate(-2deg) translateY(0px);
-        }
 
         /* Focus Fade - Smooth gradient opacity (10 chars before cursor) */
         /* Only in standalone paragraphs (4+ chars, skips markdown/slash commands) */

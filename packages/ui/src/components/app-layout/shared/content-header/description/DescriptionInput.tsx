@@ -34,7 +34,7 @@ export const DescriptionInput = ({ placeholder = 'Add description...', value, on
       suppressContentEditableWarning
       data-placeholder={placeholder}
       style={{
-        fontSize: typography.fontSize.sm,
+        fontSize: typography.fontSize['14'],
         fontWeight: typography.fontWeight.normal,
         color: colors.text.tertiary,
         caretColor: readOnly ? 'transparent' : colors.text.default,

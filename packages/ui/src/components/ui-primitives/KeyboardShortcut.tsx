@@ -1,5 +1,6 @@
 import { useTheme } from '../../hooks/useTheme';
 import { typography } from '../../tokens/typography';
+import { radius } from '../../tokens/radius';
 
 interface KeyboardShortcutProps {
   keys: string | string[];
@@ -30,9 +31,9 @@ export const KeyboardShortcut = ({ keys, size = 'small' }: KeyboardShortcutProps
             fontFamily: typography.fontFamily.sans,
             fontWeight: 500,
             color: colors.text.tertiary,
-            backgroundColor: colors.background.tertiary,
+            backgroundColor: colors.background.secondary, // Provides contrast on all button types
             border: 'none',
-            borderRadius: '3px',
+            borderRadius: radius['3'],
             padding: keyPadding,
             lineHeight: 1,
             minWidth: keySize === '12px' ? '16px' : '18px',

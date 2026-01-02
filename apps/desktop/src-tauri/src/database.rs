@@ -1,8 +1,9 @@
-use rusqlite::{Connection, Result};
+use rusqlite::{Connection, Result, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Mutex;
 use tauri::State;
+use chrono;
 
 // Thread-safe database connection wrapper
 pub struct DbConnection(pub Mutex<Option<Connection>>);
@@ -55,6 +56,7 @@ pub struct Tag {
     pub color: Option<String>,
     pub created_at: String,
     pub updated_at: String,
+    pub deleted_at: Option<String>,
 }
 
 /// Initialize database at the specified path
@@ -126,11 +128,19 @@ pub fn init_database(db_path: String, state: State<DbConnection>) -> Result<Stri
             is_favorite INTEGER NOT NULL,
             color TEXT,
             created_at TEXT NOT NULL,
-            updated_at TEXT NOT NULL
+            updated_at TEXT NOT NULL,
+            deleted_at TEXT
         )",
         [],
     )
     .map_err(|e| e.to_string())?;
+    
+    // Add deleted_at column to existing tags table (migration)
+    // This will fail silently if the column already exists
+    let _ = conn.execute(
+        "ALTER TABLE tags ADD COLUMN deleted_at TEXT",
+        [],
+    );
     
     // Create note_tags junction table (many-to-many)
     conn.execute(
@@ -406,13 +416,12 @@ pub fn load_all_notes(state: State<DbConnection>) -> Result<Vec<Note>, String> {
     let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
     
     // No checkpoint needed! Same connection automatically sees WAL writes
-    // Load all notes (excluding deleted ones)
+    // Load all notes (including deleted ones - filtering happens in frontend)
     let mut stmt = conn
         .prepare(
             "SELECT id, title, description, description_visible, emoji, content, tags_visible, 
              is_favorite, folder_id, daily_note_date, created_at, updated_at, deleted_at 
              FROM notes 
-             WHERE deleted_at IS NULL 
              ORDER BY updated_at DESC"
         )
         .map_err(|e| e.to_string())?;
@@ -622,13 +631,12 @@ pub fn load_all_folders(state: State<DbConnection>) -> Result<Vec<Folder>, Strin
     let conn_guard = state.0.lock().unwrap();
     let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
     
-    // Load all folders
+    // Load all folders (including deleted ones - filtering happens in frontend)
     let mut stmt = conn
         .prepare(
             "SELECT id, name, parent_id, description, description_visible, color, emoji, 
              tags_visible, is_favorite, is_expanded, created_at, updated_at, deleted_at 
-             FROM folders
-             WHERE deleted_at IS NULL"
+             FROM folders"
         )
         .map_err(|e| e.to_string())?;
     
@@ -688,14 +696,15 @@ pub fn save_tag(tag: Tag, state: State<DbConnection>) -> Result<String, String> 
     println!("💾 Saving tag metadata: {}", tag.name);
     
     conn.execute(
-        "INSERT INTO tags (name, description, description_visible, is_favorite, color, created_at, updated_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+        "INSERT INTO tags (name, description, description_visible, is_favorite, color, created_at, updated_at, deleted_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
          ON CONFLICT(name) DO UPDATE SET
             description = excluded.description,
             description_visible = excluded.description_visible,
             is_favorite = excluded.is_favorite,
             color = excluded.color,
-            updated_at = excluded.updated_at",
+            updated_at = excluded.updated_at,
+            deleted_at = excluded.deleted_at",
         (
             &tag.name,
             &tag.description,
@@ -704,6 +713,7 @@ pub fn save_tag(tag: Tag, state: State<DbConnection>) -> Result<String, String> 
             &tag.color,
             &tag.created_at,
             &tag.updated_at,
+            &tag.deleted_at,
         ),
     )
     .map_err(|e| e.to_string())?;
@@ -719,7 +729,7 @@ pub fn load_all_tags(state: State<DbConnection>) -> Result<Vec<Tag>, String> {
     
     let mut stmt = conn
         .prepare(
-            "SELECT name, description, description_visible, is_favorite, color, created_at, updated_at 
+            "SELECT name, description, description_visible, is_favorite, color, created_at, updated_at, deleted_at 
              FROM tags"
         )
         .map_err(|e| e.to_string())?;
@@ -734,6 +744,7 @@ pub fn load_all_tags(state: State<DbConnection>) -> Result<Vec<Tag>, String> {
                 color: row.get(4)?,
                 created_at: row.get(5)?,
                 updated_at: row.get(6)?,
+                deleted_at: row.get(7)?,
             })
         })
         .map_err(|e| e.to_string())?
@@ -760,6 +771,42 @@ pub fn delete_tag(tag_name: String, state: State<DbConnection>) -> Result<String
     Ok(format!("Tag '{}' deleted", tag_name))
 }
 
+/// Permanently delete a note from the database
+/// This removes the note record and all associated junction table entries
+#[tauri::command]
+pub fn delete_note_permanently(note_id: String, state: State<DbConnection>) -> Result<String, String> {
+    let conn_guard = state.0.lock().unwrap();
+    let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
+    
+    // Delete from notes table (junction table note_tags will cascade delete automatically)
+    conn.execute(
+        "DELETE FROM notes WHERE id = ?1",
+        [&note_id],
+    )
+    .map_err(|e| e.to_string())?;
+    
+    println!("🗑️ Permanently deleted note: {}", note_id);
+    Ok(format!("Note '{}' permanently deleted", note_id))
+}
+
+/// Permanently delete a folder from the database
+/// This removes the folder record and all associated junction table entries
+#[tauri::command]
+pub fn delete_folder_permanently(folder_id: String, state: State<DbConnection>) -> Result<String, String> {
+    let conn_guard = state.0.lock().unwrap();
+    let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
+    
+    // Delete from folders table (junction table folder_tags will cascade delete automatically)
+    conn.execute(
+        "DELETE FROM folders WHERE id = ?1",
+        [&folder_id],
+    )
+    .map_err(|e| e.to_string())?;
+    
+    println!("🗑️ Permanently deleted folder: {}", folder_id);
+    Ok(format!("Folder '{}' permanently deleted", folder_id))
+}
+
 /// Cleanup database on app shutdown (optional but recommended)
 /// Checkpoints WAL to main database to keep files tidy
 #[tauri::command]
@@ -772,5 +819,69 @@ pub fn cleanup_database(state: State<DbConnection>) -> Result<String, String> {
     conn.query_row("PRAGMA wal_checkpoint(PASSIVE)", [], |_| Ok(())).ok();
     
     Ok("Database cleanup complete".to_string())
+}
+
+/// Save a single UI state key-value pair
+#[tauri::command]
+pub fn save_ui_state(key: String, value: String, state: State<DbConnection>) -> Result<String, String> {
+    let conn_guard = state.0.lock().unwrap();
+    let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
+    
+    let now = chrono::Utc::now().to_rfc3339();
+    
+    conn.execute(
+        "INSERT INTO settings (key, value, updated_at)
+         VALUES (?1, ?2, ?3)
+         ON CONFLICT(key) DO UPDATE SET
+            value = excluded.value,
+            updated_at = excluded.updated_at",
+        (&key, &value, &now),
+    )
+    .map_err(|e| e.to_string())?;
+    
+    Ok(format!("UI state saved: {}", key))
+}
+
+/// Load a single UI state value by key
+#[tauri::command]
+pub fn load_ui_state(key: String, state: State<DbConnection>) -> Result<Option<String>, String> {
+    let conn_guard = state.0.lock().unwrap();
+    let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
+    
+    let value = conn
+        .query_row(
+            "SELECT value FROM settings WHERE key = ?1",
+            [&key],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|e| e.to_string())?;
+    
+    Ok(value)
+}
+
+/// Load all UI state settings (keys starting with 'ui.')
+#[tauri::command]
+pub fn load_all_ui_state(state: State<DbConnection>) -> Result<HashMap<String, String>, String> {
+    let conn_guard = state.0.lock().unwrap();
+    let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
+    
+    let mut stmt = conn
+        .prepare("SELECT key, value FROM settings WHERE key LIKE 'ui.%'")
+        .map_err(|e| e.to_string())?;
+    
+    let rows = stmt
+        .query_map([], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        })
+        .map_err(|e| e.to_string())?;
+    
+    let mut settings = HashMap::new();
+    for result in rows {
+        let (key, value) = result.map_err(|e| e.to_string())?;
+        settings.insert(key, value);
+    }
+    
+    Ok(settings)
 }
 

@@ -7,7 +7,8 @@ import { getTagColor } from '../../../../utils/tagColors';
 export interface TagListItem {
   id: string;
   tag: string;
-  count: number;
+  noteCount: number;
+  folderCount: number;
 }
 
 export interface TagsListViewProps {
@@ -35,6 +36,7 @@ export const TagsListView = ({
   
   const getTagMetadata = useTagsStore((state) => state.getTagMetadata);
   const updateTagMetadata = useTagsStore((state) => state.updateTagMetadata);
+  const upsertTagMetadata = useTagsStore((state) => state.upsertTagMetadata);
 
   const handleOpenColorTray = (tag: string, buttonElement: HTMLButtonElement) => {
     const rect = buttonElement.getBoundingClientRect();
@@ -45,7 +47,13 @@ export const TagsListView = ({
 
   const handleColorSelect = (color: string) => {
     if (editingColorTag) {
-      updateTagMetadata(editingColorTag, { color });
+      const existing = getTagMetadata(editingColorTag);
+      if (existing) {
+        updateTagMetadata(editingColorTag, { color });
+      } else {
+        // Create metadata with the color for tags that don't have metadata yet
+        upsertTagMetadata(editingColorTag, '', true, false, color);
+      }
     }
     setIsColorTrayOpen(false);
     setEditingColorTag(null);

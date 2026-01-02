@@ -1,6 +1,7 @@
 import { ReactNode } from 'react';
 import { FolderCard, FolderCardData } from './FolderCard';
 import { spacing } from '../../../../tokens/spacing';
+import { emptyStateStyles } from '../../../../tokens/emptyState';
 import { useTheme } from '../../../../hooks/useTheme';
 
 
@@ -30,18 +31,7 @@ export const FolderGrid = ({
   // Show empty state if no folders and emptyState is provided
   if (folders.length === 0 && emptyState) {
     return (
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          flex: 1,
-          padding: spacing['20'],
-          color: colors.text.tertiary,
-          fontSize: '14px',
-          textAlign: 'center',
-        }}
-      >
+      <div style={emptyStateStyles(colors)}>
         {emptyState}
       </div>
     );

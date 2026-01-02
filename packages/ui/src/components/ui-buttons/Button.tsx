@@ -1,6 +1,7 @@
 import { ReactNode, MouseEvent, cloneElement, isValidElement, CSSProperties, useEffect, useRef } from 'react';
 import { useTheme } from '../../hooks/useTheme';
 import { sizing } from '../../tokens/sizing';
+import { radius } from '../../tokens/radius';
 import { KeyboardShortcut } from '../ui-primitives/KeyboardShortcut';
 
 interface ButtonProps {
@@ -21,6 +22,7 @@ interface ButtonProps {
   withBackground?: boolean; // Add background color to secondary variant
   noBorder?: boolean; // Remove border from button
   disabled?: boolean; // Disabled state
+  disabledNoFade?: boolean; // Keep full opacity when disabled (no fade effect)
   fontSize?: string; // Custom font size
   gap?: string; // Custom gap between icon and label
   noHoverBackground?: boolean; // Disable hover background color
@@ -44,6 +46,7 @@ export const Button = ({
   withBackground = false,
   noBorder = false,
   disabled = false,
+  disabledNoFade = false,
   fontSize = '14px',
   gap,
   noHoverBackground = false,
@@ -67,12 +70,12 @@ export const Button = ({
   // Padding based on content type and size
   const getPadding = () => {
     if (isIconOnly) return '0'; // Icon-only buttons are square with no padding
-    if (isTextOnly) return '0 8px'; // Same left and right for text-only
+    if (isTextOnly) return '0 8px'; // Symmetric padding for text-only
     // Icon + text - adjust based on icon position
     if (iconPosition === 'right') {
-      return '0 4px 0 8px'; // Less padding on right (icon side), more on left
+      return '0 6px 0 8px'; // Less padding on right (icon side), more on left
     }
-    return '0 8px 0 4px'; // Less padding on left (icon side), more on right
+    return '0 8px 0 6px'; // Less padding on left (icon side), more on right
   };
 
   // Base styles
@@ -84,12 +87,13 @@ export const Button = ({
     fontSize: fontSize,
     fontWeight: variant === 'primary' ? 500 : 400,
     border: 'none',
-    borderRadius: '3px',
+    borderRadius: radius['6'],
     cursor: disabled ? 'not-allowed' : 'pointer',
-    opacity: disabled ? 0.4 : 1,
+    // Don't reduce opacity for disabled primary buttons (they use secondary background instead)
+    opacity: (disabled && !disabledNoFade && variant !== 'primary') ? 0.4 : 1,
     display: 'flex',
     alignItems: 'center',
-    justifyContent: isIconOnly ? 'center' : 'flex-start',
+    justifyContent: isIconOnly ? 'center' : (isTextOnly && fullWidth ? 'center' : 'flex-start'),
     gap: gap || '4px',
     transition: 'background-color 150ms cubic-bezier(0.2, 0, 0, 1), color 150ms cubic-bezier(0.2, 0, 0, 1), opacity 150ms cubic-bezier(0.2, 0, 0, 1), border-color 150ms cubic-bezier(0.2, 0, 0, 1)',
     boxSizing: 'border-box',
@@ -102,8 +106,8 @@ export const Button = ({
     switch (variant) {
       case 'primary':
         return {
-          color: danger ? colors.text.inverse : colors.text.secondary,
-          background: danger ? colors.semantic.error : colors.background.tertiary,
+          color: disabled ? colors.text.tertiary : (danger ? colors.button.danger.text : colors.button.primary.text),
+          background: disabled ? colors.background.secondary : (danger ? colors.button.danger.background : colors.button.primary.background),
           border: 'none',
         };
       case 'secondary':
@@ -114,19 +118,20 @@ export const Button = ({
           return colors.background.tertiary;
         };
         return {
-          color: danger ? colors.semantic.error : colors.text.secondary,
+          color: danger ? colors.button.danger.background : colors.text.secondary,
           background: getSecondaryBackground(),
-          border: noBorder ? 'none' : `1px solid ${danger ? colors.semantic.error : colors.border.default}`,
+          border: noBorder ? 'none' : `1px solid ${danger ? colors.button.danger.background : colors.border.default}`,
         };
       case 'filled':
         // Adapts background based on container context
         const getFilledBackground = () => {
+          if (danger) return colors.button.danger.background;
           if (onBackground === 'default') return colors.background.secondary;
           if (onBackground === 'secondary') return colors.background.tertiary;
           return colors.background.tertiary;
         };
         return {
-          color: colors.text.secondary,
+          color: danger ? colors.button.danger.text : colors.text.secondary,
           background: getFilledBackground(),
           border: 'none',
         };
@@ -149,10 +154,10 @@ export const Button = ({
       buttonRef.current.style.backgroundColor = variantStyles.background as string;
       buttonRef.current.style.color = variantStyles.color as string;
       if (variant === 'secondary' && !noBorder) {
-        buttonRef.current.style.borderColor = (danger ? colors.semantic.error : colors.border.default);
+        buttonRef.current.style.borderColor = (danger ? colors.button.danger.background : colors.border.default);
       }
     }
-  }, [disabled, variantStyles.background, variantStyles.color, variant, noBorder, danger, colors.semantic.error, colors.border.default]);
+  }, [disabled, variantStyles.background, variantStyles.color, variant, noBorder, danger, colors.button.danger.background, colors.border.default]);
 
   // Hover styles
   const handleMouseEnter = (e: MouseEvent<HTMLButtonElement>) => {
@@ -168,17 +173,17 @@ export const Button = ({
     
     switch (variant) {
       case 'primary':
-        target.style.backgroundColor = danger ? colors.semantic.error : colors.background.active;
+        target.style.backgroundColor = danger ? colors.button.danger.hover : colors.button.primary.hover;
         break;
       case 'secondary':
         target.style.backgroundColor = colors.background.hover;
         if (!noBorder) {
-        target.style.borderColor = danger ? colors.semantic.error : colors.border.hover;
+        target.style.borderColor = danger ? colors.button.danger.background : colors.border.hover;
         }
-        target.style.color = danger ? colors.semantic.error : colors.text.default;
+        target.style.color = danger ? colors.button.danger.background : colors.text.default;
         break;
       case 'filled':
-        target.style.backgroundColor = colors.background.hover;
+        target.style.backgroundColor = danger ? colors.button.danger.hover : colors.background.hover;
         break;
       case 'tertiary':
       default:
@@ -194,7 +199,7 @@ export const Button = ({
     const target = e.currentTarget;
     switch (variant) {
       case 'primary':
-        target.style.backgroundColor = danger ? colors.semantic.error : colors.background.tertiary;
+        target.style.backgroundColor = danger ? colors.button.danger.background : colors.button.primary.background;
         break;
       case 'secondary':
         const getSecondaryBg = () => {
@@ -205,12 +210,13 @@ export const Button = ({
         };
         target.style.backgroundColor = getSecondaryBg();
         if (!noBorder) {
-        target.style.borderColor = danger ? colors.semantic.error : colors.border.default;
+        target.style.borderColor = danger ? colors.button.danger.background : colors.border.default;
         }
-        target.style.color = danger ? colors.semantic.error : colors.text.secondary;
+        target.style.color = danger ? colors.button.danger.background : colors.text.secondary;
         break;
       case 'filled':
         const getFilledBackground = () => {
+          if (danger) return colors.button.danger.background;
           if (onBackground === 'default') return colors.background.secondary;
           if (onBackground === 'secondary') return colors.background.tertiary;
           return colors.background.tertiary;
@@ -238,13 +244,13 @@ export const Button = ({
       onMouseDown(e);
     }
     if (variant === 'primary') {
-      e.currentTarget.style.backgroundColor = danger ? colors.semantic.error : colors.background.active;
+      e.currentTarget.style.backgroundColor = danger ? colors.button.danger.hover : colors.button.primary.hover;
     }
   };
 
   const handleMouseUp = (e: MouseEvent<HTMLButtonElement>) => {
     if (variant === 'primary') {
-      e.currentTarget.style.backgroundColor = danger ? colors.semantic.error : colors.background.active;
+      e.currentTarget.style.backgroundColor = danger ? colors.button.danger.hover : colors.button.primary.hover;
     }
   };
 
@@ -266,12 +272,12 @@ export const Button = ({
       style={{
         ...baseStyles,
         ...variantStyles,
-        justifyContent: isIconOnly ? 'center' : 'flex-start',
+        justifyContent: isIconOnly ? 'center' : (isTextOnly && fullWidth ? 'center' : 'flex-start'),
         paddingRight: shortcut ? '6px' : baseStyles.padding,
       }}
     >
       {iconPosition === 'left' && iconElement}
-      {children && <span style={{ flex: shortcut ? 1 : 'none', textAlign: 'left' }}>{children}</span>}
+      {children && <span style={{ flex: shortcut ? 1 : 'none', textAlign: (isTextOnly && fullWidth) ? 'center' : 'left' }}>{children}</span>}
       {iconPosition === 'right' && iconElement}
       {shortcut && <KeyboardShortcut keys={shortcut} />}
     </button>

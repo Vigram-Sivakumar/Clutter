@@ -5,6 +5,7 @@ export interface SidebarNote {
   icon?: string | null;
   isFavorite?: boolean;
   hasContent?: boolean; // Whether the note has editor content (for Note/NoteBlank icon switching)
+  dailyNoteDate?: string | null; // For daily notes - date in YYYY-MM-DD format
 }
 
 export interface SidebarFolder {
@@ -21,5 +22,21 @@ export interface SectionState {
   favourites: boolean;
   folders: boolean;
   recentlyCreated: boolean;
+}
+
+/**
+ * Global Selection State
+ * Unified selection tracking for all sidebar items (notes, folders, tags)
+ * Replaces fragmented selection states (selectionContext, selectedTagContext, etc.)
+ */
+export interface GlobalSelection {
+  /** Type of item selected */
+  type: 'note' | 'folder' | 'tag' | null;
+  /** Primary selected item ID */
+  itemId: string | null;
+  /** Context where the item was selected (for context-aware highlighting) */
+  context: string | null;
+  /** Multi-select IDs (for notes and folders) */
+  multiSelectIds?: Set<string>;
 }
 

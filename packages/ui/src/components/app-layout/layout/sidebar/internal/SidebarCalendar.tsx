@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { useTheme } from '../../../../../hooks/useTheme';
 import { ChevronLeft, ChevronRight } from '../../../../../icons';
 import { spacing } from '../../../../../tokens/spacing';
+import { radius } from '../../../../../tokens/radius';
 
 interface SidebarCalendarProps {
   onDateSelect?: (date: Date) => void;
@@ -133,7 +134,7 @@ export const SidebarCalendar = ({ onDateSelect, selectedDate, noPadding = false,
             display: 'flex',
             alignItems: 'center',
             color: colors.text.secondary,
-            borderRadius: '4px',
+            borderRadius: radius['3'],
             transition: 'background-color 150ms ease',
           }}
           onMouseEnter={(e) => {
@@ -166,7 +167,7 @@ export const SidebarCalendar = ({ onDateSelect, selectedDate, noPadding = false,
             display: 'flex',
             alignItems: 'center',
             color: colors.text.secondary,
-            borderRadius: '4px',
+            borderRadius: radius['3'],
             transition: 'background-color 150ms ease',
           }}
           onMouseEnter={(e) => {
@@ -249,7 +250,7 @@ export const SidebarCalendar = ({ onDateSelect, selectedDate, noPadding = false,
                   ? colors.background.tertiary
                   : 'transparent',
                 border: isToday ? `1px solid ${colors.border.default}` : '1px solid transparent',
-                borderRadius: '4px',
+                borderRadius: radius['3'],
                 cursor: 'pointer',
                 transition: 'all 150ms ease',
                 padding: '4px 0',

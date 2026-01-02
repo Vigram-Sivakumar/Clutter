@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { MoreVertical, Plus, Folder } from '../../../../icons';
 import { useTheme } from '../../../../hooks/useTheme';
 import { spacing } from '../../../../tokens/spacing';
+import { radius } from '../../../../tokens/radius';
 import { CountBadge } from '../../../ui-primitives';
 import { sizing } from '../../../../tokens/sizing';
 import { typography } from '../../../../tokens/typography';
@@ -15,7 +16,7 @@ const DESIGN = {
   sizing: {
     cardMinHeight: '220px',                     // Minimum height of the entire card
     previewHeight: '90px',                      // Height of each note preview in the grid
-    borderRadius: sizing.radius.lg,             // Corner radius for cards and previews
+    borderRadius: radius['6'],                  // Corner radius for cards and previews
   },
   spacing: {
     cardPadding: spacing['12'],                    // Padding inside the main card container
@@ -26,14 +27,14 @@ const DESIGN = {
     previewInnerGap: '0.4em',                   // Gap between elements inside preview (relative to fontSize)
   },
   typography: {
-    folderNameSize: typography.fontSize.base,   // Font size for folder name
+    folderNameSize: typography.fontSize['16'],   // Font size for folder name
     folderNameWeight: typography.fontWeight.semibold, // Font weight for folder name
-    subtitleSize: typography.fontSize.xs,       // Font size for subtitle
+    subtitleSize: typography.fontSize['12'],       // Font size for subtitle
     previewBaseSize: '12px',                    // Base font size for note previews (everything scales from this)
     previewTitleSize: '1.1em',                  // Title size in preview (relative to base)
     previewContentSize: '0.9em',                // Content snippet size (relative to base)
     previewEmojiSize: '1.6em',                  // Emoji size in preview (relative to base)
-    emptyStateSize: typography.fontSize.sm,     // Font size for empty state text
+    emptyStateSize: typography.fontSize['14'],     // Font size for empty state text
   },
   transitions: {
     hover: '150ms ease',                        // Hover transition timing
@@ -175,7 +176,7 @@ export const FolderCard = ({ folder, onClick, onNoteClick, onCreateNote, onConte
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          zIndex: 10,
+          zIndex: 5,
           background: colors.background.default,
 
           // boxShadow: '0 -4px 12px rgba(0, 0, 0, 0.12)',
@@ -211,7 +212,7 @@ export const FolderCard = ({ folder, onClick, onNoteClick, onCreateNote, onConte
           padding: DESIGN.spacing.cardPadding,
           zIndex: 1,
           background: colors.background.default,
-          borderTop: `1px solid ${colors.border.SubtleDivider}`,
+          borderTop: `1px solid ${colors.border.subtle}`,
           }}
           >
           {/* Folder Name with optional emoji */}
@@ -242,6 +243,7 @@ export const FolderCard = ({ folder, onClick, onNoteClick, onCreateNote, onConte
               onClick={() => onClick(folder.id)}
               onMouseEnter={() => setIsTitleHovered(true)}
               onMouseLeave={() => setIsTitleHovered(false)}
+              title={folder.name || 'Untitled'}
               style={{
                 fontSize: '14px',
                 fontWeight: 600,
@@ -255,7 +257,7 @@ export const FolderCard = ({ folder, onClick, onNoteClick, onCreateNote, onConte
                 cursor: 'pointer',
               }}
             >
-              {folder.name}
+              {folder.name || 'Untitled'}
             </div>
           </div>
           <div
@@ -392,7 +394,7 @@ const DocumentIcon = ({
             width: '100%',
             height: '100%',
             border: `1px dashed ${colors.border.divider}`,
-            borderRadius: '6px',
+            borderRadius: radius['6'],
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -413,7 +415,7 @@ const DocumentIcon = ({
           style={{
             width: '100%',
             height: '100%',
-            borderRadius: '6px',
+            borderRadius: radius['6'],
             overflow: 'hidden',
           }}
         >

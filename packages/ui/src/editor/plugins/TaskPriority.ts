@@ -1,15 +1,14 @@
 /**
  * Task Priority Plugin
- * Detects and highlights "!" symbols in task blocks for priority indication
- * - Detects !, !!, or !!! at the start of task text
- * - Highlights each "!" in orange (like slash commands)
+ * Commits priority when user types !, !!, or !!! and presses Space/Enter/blur
+ * - Detects !, !!, or !!! anywhere in task text (start, middle, end)
+ * - Priority preview is shown by ListBlock component (no inline decorations)
+ * - Triggers on Space/Enter/blur: removes the marks and sets priority attribute
  * - Only activates in task blocks (listType === 'task')
  */
 
 import { Extension } from '@tiptap/core';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
-import { Decoration, DecorationSet } from '@tiptap/pm/view';
-import type { Editor } from '@tiptap/core';
 
 export const TASK_PRIORITY_PLUGIN_KEY = new PluginKey('taskPriority');
 
@@ -19,111 +18,126 @@ export const TaskPriority = Extension.create({
   priority: 1000,
 
   addProseMirrorPlugins() {
-    const editor = this.editor;
+    // Helper function to detect and set priority (used by both space and enter)
+    const handlePriorityDetection = (view: any, from: number) => {
+      const { state } = view;
+      const { $from } = state.selection;
+
+      // Find the listBlock node
+      let listBlockNode = null;
+      let listBlockPos = null;
+
+      for (let d = $from.depth; d >= 1; d--) {
+        const node = $from.node(d);
+        if (node.type.name === 'listBlock') {
+          listBlockNode = node;
+          listBlockPos = $from.start(d) - 1;
+          break;
+        }
+      }
+
+      // Only process in task blocks
+      if (!listBlockNode || !listBlockPos || listBlockNode.attrs.listType !== 'task') {
+        return false;
+      }
+
+      // Search backwards from cursor for !{1,3} using actual document positions
+      // This correctly handles atomic nodes like mentions
+      const exclamationPositions: number[] = [];
+      
+      // Check up to 3 characters back
+      for (let i = 1; i <= 3; i++) {
+        const pos = from - i;
+        
+        // Make sure position is valid and within the listBlock
+        if (pos < listBlockPos + 1) break;
+        
+        try {
+          // Get the actual character at this position
+          const char = state.doc.textBetween(pos, pos + 1, null, '');
+          
+          if (char === '!') {
+            exclamationPositions.unshift(pos); // Add to front to maintain order
+          } else {
+            // Stop when we hit a non-! character
+            break;
+          }
+        } catch (e) {
+          break;
+        }
+      }
+      
+      // No exclamation marks found
+      if (exclamationPositions.length === 0) return false;
+      
+      const priorityLevel = exclamationPositions.length;
+      const deleteFrom = exclamationPositions[0];
+      const deleteTo = exclamationPositions.at(-1)! + 1;
+
+      // Delete the exclamation marks and set priority attribute
+      const tr = state.tr;
+      
+      // Delete the exclamation marks
+      tr.delete(deleteFrom, deleteTo);
+      
+      // Set the priority attribute on the listBlock
+      tr.setNodeMarkup(listBlockPos, undefined, {
+        ...listBlockNode.attrs,
+        priority: priorityLevel,
+      });
+
+      view.dispatch(tr);
+      return true;
+    };
 
     return [
       new Plugin({
         key: TASK_PRIORITY_PLUGIN_KEY,
 
         props: {
-          handleTextInput(view, from, to, text) {
-            // Only handle space character
-            if (text !== ' ') return false;
-
-            const { state } = view;
-            const { $from } = state.selection;
-
-            // Find the listBlock node
-            let listBlockNode = null;
-            let listBlockPos = null;
-
-            for (let d = $from.depth; d >= 1; d--) {
-              const node = $from.node(d);
-              if (node.type.name === 'listBlock') {
-                listBlockNode = node;
-                listBlockPos = $from.start(d) - 1;
-                break;
+          handleKeyDown(view, event) {
+            // Handle both Space and Enter keys for priority detection
+            if (event.key === ' ' || event.key === 'Enter') {
+              const { state } = view;
+              const { from, $from } = state.selection;
+              
+              // For Enter: skip if block is empty (avoid converting empty block)
+              if (event.key === 'Enter') {
+                const parent = $from.parent;
+                if (parent && parent.type.name === 'listBlock' && !parent.textContent.trim()) {
+                  return false; // Empty block, let Enter create new line normally
+                }
               }
-            }
-
-            // Only process in task blocks
-            if (!listBlockNode || listBlockNode.attrs.listType !== 'task') {
+              
+              // Try to detect and set priority
+              handlePriorityDetection(view, from);
+              
+              // Return false to allow the key to work normally
               return false;
             }
-
-            // Get the text content
-            const taskText = listBlockNode.textContent;
-
-            // Check if text starts with 1-3 exclamation marks
-            const priorityMatch = taskText.match(/^(!{1,3})$/);
-            if (!priorityMatch) return false;
-
-            const priorityLevel = priorityMatch[1].length;
-
-            // Delete the exclamation marks and set priority attribute
-            const tr = state.tr;
             
-            // Delete the exclamation marks (from start of content to cursor)
-            tr.delete(listBlockPos + 1, from);
-            
-            // Set the priority attribute on the listBlock
-            tr.setNodeMarkup(listBlockPos, undefined, {
-              ...listBlockNode.attrs,
-              priority: priorityLevel,
-            });
-
-            view.dispatch(tr);
-            return true; // Space will still be inserted by returning true here
+            return false;
           },
 
-          decorations(state) {
-            const { $from } = state.selection;
-            const decorations: Decoration[] = [];
+          handleDOMEvents: {
+            blur(view) {
+              const { state } = view;
+              const { from, $from } = state.selection;
 
-            // Check if we're in a listBlock
-            const listBlockDepth = $from.depth;
-            let listBlockNode = null;
-            let listBlockPos = null;
+              // Only commit if cursor is at end of a task block
+              const parent = $from.parent;
+              if (!parent || parent.type.name !== 'listBlock') return false;
+              if (parent.attrs.listType !== 'task') return false;
 
-            // Find the listBlock node
-            for (let d = listBlockDepth; d >= 1; d--) {
-              const node = $from.node(d);
-              if (node.type.name === 'listBlock') {
-                listBlockNode = node;
-                listBlockPos = $from.start(d) - 1; // Position of the listBlock itself
-                break;
-              }
-            }
+              // Cursor must be at end
+              if (from !== $from.end()) return false;
 
-            // Only process if we're in a task block
-            if (!listBlockNode || listBlockNode.attrs.listType !== 'task') {
-              return null;
-            }
-
-            // Get the text content of the task
-            const taskText = listBlockNode.textContent;
-            
-            // Match 1-3 exclamation marks at the start (WITHOUT space - while typing)
-            const priorityMatch = taskText.match(/^(!{1,3})$/);
-            
-            if (priorityMatch) {
-              const exclamations = priorityMatch[1]; // The "!" characters
-              const matchLength = exclamations.length;
-              
-              // Create decoration for each "!" symbol (only while typing, before space)
-              for (let i = 0; i < matchLength; i++) {
-                decorations.push(
-                  Decoration.inline(
-                    listBlockPos + 1 + i, // +1 to account for node start
-                    listBlockPos + 1 + i + 1,
-                    { class: 'task-priority-symbol' }
-                  )
-                );
-              }
-            }
-
-            return decorations.length > 0 ? DecorationSet.create(state.doc, decorations) : null;
+              // Try priority detection
+              handlePriorityDetection(view, from);
+              return false;
+            },
           },
+
         },
       }),
     ];

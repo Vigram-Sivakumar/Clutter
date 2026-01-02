@@ -35,7 +35,9 @@ export const TitleInput = forwardRef<TitleInputHandle, TitleInputProps>(({ place
   }));
 
   useEffect(() => {
-    if (divRef.current && value !== undefined && divRef.current.textContent !== value) {
+    if (!divRef.current || value === undefined) return;
+    
+    if (divRef.current.textContent !== value) {
       divRef.current.textContent = value;
     }
   }, [value]);

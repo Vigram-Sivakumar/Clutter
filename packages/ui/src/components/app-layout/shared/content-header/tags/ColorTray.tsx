@@ -49,7 +49,7 @@ export const ColorTray = ({ isOpen, onClose, onSelect, selectedColor, position }
         top: (position?.top ?? 100) + window.scrollY,
         left: (position?.left ?? 100) + window.scrollX,
         marginTop: '4px',
-        zIndex: 1000,
+        zIndex: 10000,
         backgroundColor: colors.background.default,
         border: `1px solid ${colors.border.default}`,
         borderRadius: sizing.radius.md,

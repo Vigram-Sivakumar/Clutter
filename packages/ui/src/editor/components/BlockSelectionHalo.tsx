@@ -7,6 +7,7 @@
 
 import React from 'react';
 import { useTheme } from '../../hooks/useTheme';
+import { radius } from '../../tokens/radius';
 
 interface BlockSelectionHaloProps {
   isSelected: boolean;
@@ -26,7 +27,7 @@ export function BlockSelectionHalo({ isSelected, indent = 0 }: BlockSelectionHal
         bottom: -2,         // Extend 2px down
         left: indent - 2,   // Extend 2px left (accounting for indent)
         background: 'rgba(35, 131, 226, 0.14)',
-        borderRadius: '4px',
+        borderRadius: radius['3'],
         opacity: isSelected ? 1 : 0,
         transition: 'opacity 200ms ease',
         zIndex: 81,

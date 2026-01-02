@@ -1,6 +1,7 @@
 import { useRef, ReactNode } from 'react';
 import { useTheme } from '../../../../hooks/useTheme';
 import { sizing } from '../../../../tokens/sizing';
+import { radius } from '../../../../tokens/radius';
 
 interface EmojiPickerProps {
   selectedEmoji: string | null;
@@ -36,7 +37,7 @@ export const EmojiPicker = ({
       style={{
         width: '40px',
         height: '40px',
-        borderRadius: '6px',
+        borderRadius: radius['6'],
         border: 'none',
         background: isHovered && !disabled ? hoverBackground : defaultBackground,
         fontSize: sizing.icon.pageTitleIcon,

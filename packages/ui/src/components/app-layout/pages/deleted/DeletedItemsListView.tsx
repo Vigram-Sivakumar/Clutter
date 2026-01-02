@@ -1,16 +1,14 @@
 import { useMemo, useState, useCallback } from 'react';
 import { useTheme } from '../../../../hooks/useTheme';
-import { useNotesStore, useFoldersStore } from '@clutter/shared';
+import { useNotesStore, useFoldersStore, useTagsStore } from '@clutter/shared';
 import { PageTitleSection } from '../../shared/content-header';
-import { PageContent } from '../../shared/page-content/PageContent';
+import { ListViewLayout } from '../../shared/list-view-layout';
 import { NotesListView } from '../../shared/notes-list';
+import { TagsListView } from '../../shared/tags-list';
 import { FolderGrid } from '../folder';
-import { SectionTitle } from '../../shared/section-title';
-import { WavyDivider } from '../../shared/wavy-divider';
 import { Trash2, RotateCcw } from '../../../../icons';
-import { sizing } from '../../../../tokens/sizing';
 import { TertiaryButton } from '../../../ui-buttons';
-import { spacing } from '../../../../tokens/spacing';
+import { sizing } from '../../../../tokens/sizing';
 import { isContentEmpty } from '../../../../utils/noteHelpers';
 
 // Helper function to count tasks (copied from FolderListView)
@@ -63,6 +61,11 @@ export const DeletedItemsListView = ({
   const restoreFolder = useFoldersStore((state) => state.restoreFolder);
   const permanentlyDeleteFolder = useFoldersStore((state) => state.permanentlyDeleteFolder);
   
+  // Tags
+  const tagMetadata = useTagsStore((state) => state.tagMetadata);
+  const restoreTag = useTagsStore((state) => state.restoreTag);
+  const permanentlyDeleteTag = useTagsStore((state) => state.permanentlyDeleteTag);
+  
   const [searchQuery, setSearchQuery] = useState('');
   const [sortActive, setSortActive] = useState(false);
   const [filterActive, setFilterActive] = useState(false);
@@ -70,6 +73,7 @@ export const DeletedItemsListView = ({
   // Section collapse state
   const [foldersCollapsed, setFoldersCollapsed] = useState(false);
   const [notesCollapsed, setNotesCollapsed] = useState(false);
+  const [tagsCollapsed, setTagsCollapsed] = useState(false);
 
   // Get deleted items (depend on actual data, not function reference)
   const deletedNotes = useMemo(() => {
@@ -79,6 +83,15 @@ export const DeletedItemsListView = ({
   const deletedFolders = useMemo(() => {
     return folders.filter(f => f.deletedAt);
   }, [folders]);
+  
+  const deletedTags = useMemo(() => {
+    const tags = Object.values(tagMetadata).filter(tag => tag.deletedAt !== null);
+    console.log('🏷️ [DEBUG] DeletedItemsListView - deletedTags computed:', {
+      count: tags.length,
+      tags: tags.map(t => ({ name: t.name, deletedAt: t.deletedAt })),
+    });
+    return tags;
+  }, [tagMetadata]);
 
   // Helper to get item location
   const getNoteLocation = useCallback((note: any) => {
@@ -104,35 +117,44 @@ export const DeletedItemsListView = ({
   }, [folders, getFolderPath]);
 
   // Transform deleted notes for NotesListView
+  // ✅ Only show notes that DON'T belong to a deleted folder
+  // (Notes in deleted folders are shown inside the folder card)
   const noteListItems = useMemo(() => 
-    deletedNotes.map(note => {
-      const location = getNoteLocation(note);
-      const parentDeleted = note.folderId && folders.find(f => f.id === note.folderId)?.deletedAt;
-      
-      return {
-        id: note.id,
-        title: note.title,
-        emoji: note.emoji,
-        tags: note.tags,
-        taskCount: countTasksInNote(note.content),
-        dailyNoteDate: note.dailyNoteDate,
-        hasContent: !isContentEmpty(note.content),
-        subtitle: parentDeleted 
-          ? `${location} ⚠️ Will restore to root`
-          : location,
-      };
-    }),
+    deletedNotes
+      .filter(note => {
+        // Hide notes that belong to a deleted folder
+        const folder = folders.find(f => f.id === note.folderId);
+        return !folder?.deletedAt;
+      })
+      .map(note => {
+        const location = getNoteLocation(note);
+        const parentDeleted = note.folderId && folders.find(f => f.id === note.folderId)?.deletedAt;
+        
+        return {
+          id: note.id,
+          title: note.title,
+          emoji: note.emoji,
+          tags: note.tags,
+          taskCount: countTasksInNote(note.content),
+          dailyNoteDate: note.dailyNoteDate,
+          hasContent: !isContentEmpty(note.content),
+          subtitle: parentDeleted 
+            ? `${location} ⚠️ Will restore to root`
+            : location,
+        };
+      }),
     [deletedNotes, getNoteLocation, folders]
   );
 
   // Transform deleted folders for FolderGrid
   const folderGridItems = useMemo(() => 
     deletedFolders.map(folder => {
+      // ✅ Show DELETED notes that belong to this folder
       const notesInFolder = notes.filter(n => 
-        !n.deletedAt && n.folderId === folder.id
+        n.deletedAt && n.folderId === folder.id
       );
       const subfoldersInFolder = folders.filter(f => 
-        !f.deletedAt && f.parentId === folder.id
+        f.deletedAt && f.parentId === folder.id
       );
       
       return {
@@ -147,21 +169,67 @@ export const DeletedItemsListView = ({
           content: n.content,
           emoji: n.emoji,
         })),
-        subtitle: getFolderLocation(folder),
+        subtitle: notesInFolder.length > 0 
+          ? `${notesInFolder.length} ${notesInFolder.length === 1 ? 'note' : 'notes'} deleted with folder`
+          : getFolderLocation(folder),
       };
     }),
     [deletedFolders, notes, folders, getFolderLocation]
   );
+
+  // Transform deleted tags for TagsListView
+  const tagListItems = useMemo(() => {
+    const items = deletedTags.map(tag => {
+      // Count notes and folders that still have this tag (they keep tags even when tag is deleted)
+      const noteCount = notes.filter(n => 
+        !n.deletedAt && n.tags.some(t => t.toLowerCase() === tag.name.toLowerCase())
+      ).length;
+      
+      const folderCount = folders.filter(f => 
+        !f.deletedAt && f.tags?.some(t => t.toLowerCase() === tag.name.toLowerCase())
+      ).length;
+      
+      return {
+        id: tag.name,
+        tag: tag.name,
+        noteCount,
+        folderCount,
+      };
+    });
+    
+    console.log('🏷️ [DEBUG] tagListItems computed:', {
+      count: items.length,
+      items,
+    });
+    
+    return items;
+  }, [deletedTags, notes, folders]);
 
   const handleRestoreNote = useCallback((noteId: string, event?: React.MouseEvent) => {
     event?.stopPropagation();
     restoreNote(noteId);
   }, [restoreNote]);
 
-  const handlePermanentlyDeleteNote = useCallback((noteId: string, event?: React.MouseEvent) => {
+  const handlePermanentlyDeleteNote = useCallback(async (noteId: string, event?: React.MouseEvent) => {
+    console.log('🔴 handlePermanentlyDeleteNote called for:', noteId);
     event?.stopPropagation();
-    if (window.confirm('Permanently delete this note? This cannot be undone.')) {
-      permanentlyDeleteNote(noteId);
+    
+    try {
+      console.log('🔴 Showing confirmation dialog for note...');
+      // Use Tauri dialog.confirm for proper UX
+      const { confirm } = await import('@tauri-apps/api/dialog');
+      const confirmed = await confirm(
+        'Permanently delete this note? This cannot be undone.',
+        { title: 'Permanent Delete', type: 'warning', okLabel: 'Delete', cancelLabel: 'Cancel' }
+      );
+      
+      console.log(`🔴 User ${confirmed ? 'CONFIRMED' : 'CANCELLED'} note deletion`);
+      if (confirmed) {
+        console.log('🔴 Calling permanentlyDeleteNote:', noteId);
+        await permanentlyDeleteNote(noteId);
+      }
+    } catch (error) {
+      console.error('❌ Error showing confirmation dialog:', error);
     }
   }, [permanentlyDeleteNote]);
 
@@ -170,12 +238,56 @@ export const DeletedItemsListView = ({
     restoreFolder(folderId);
   }, [restoreFolder]);
 
-  const handlePermanentlyDeleteFolder = useCallback((folderId: string, event?: React.MouseEvent) => {
+  const handlePermanentlyDeleteFolder = useCallback(async (folderId: string, event?: React.MouseEvent) => {
+    console.log('🟠 handlePermanentlyDeleteFolder called for:', folderId);
     event?.stopPropagation();
-    if (window.confirm('Permanently delete this folder? This cannot be undone.')) {
-      permanentlyDeleteFolder(folderId);
+    
+    try {
+      console.log('🟠 Showing confirmation dialog for folder...');
+      // Use Tauri dialog.confirm for proper UX
+      const { confirm } = await import('@tauri-apps/api/dialog');
+      const confirmed = await confirm(
+        'Permanently delete this folder? This cannot be undone.',
+        { title: 'Permanent Delete', type: 'warning', okLabel: 'Delete', cancelLabel: 'Cancel' }
+      );
+      
+      console.log(`🟠 User ${confirmed ? 'CONFIRMED' : 'CANCELLED'} folder deletion`);
+      if (confirmed) {
+        console.log('🟠 Calling permanentlyDeleteFolder:', folderId);
+        await permanentlyDeleteFolder(folderId);
+      }
+    } catch (error) {
+      console.error('❌ Error showing confirmation dialog:', error);
     }
   }, [permanentlyDeleteFolder]);
+
+  const handleRestoreTag = useCallback((tagName: string, event?: React.MouseEvent) => {
+    event?.stopPropagation();
+    restoreTag(tagName);
+  }, [restoreTag]);
+
+  const handlePermanentlyDeleteTag = useCallback(async (tagName: string, event?: React.MouseEvent) => {
+    console.log('🏷️ handlePermanentlyDeleteTag called for:', tagName);
+    event?.stopPropagation();
+    
+    try {
+      console.log('🏷️ Showing confirmation dialog for tag...');
+      // Use Tauri dialog.confirm for proper UX
+      const { confirm } = await import('@tauri-apps/api/dialog');
+      const confirmed = await confirm(
+        'Permanently delete this tag? This cannot be undone.',
+        { title: 'Permanent Delete', type: 'warning', okLabel: 'Delete', cancelLabel: 'Cancel' }
+      );
+      
+      console.log(`🏷️ User ${confirmed ? 'CONFIRMED' : 'CANCELLED'} tag deletion`);
+      if (confirmed) {
+        console.log('🏷️ Calling permanentlyDeleteTag:', tagName);
+        permanentlyDeleteTag(tagName);
+      }
+    } catch (error) {
+      console.error('❌ Error showing confirmation dialog:', error);
+    }
+  }, [permanentlyDeleteTag]);
 
   // Get context menu actions for notes
   const getNoteActions = useCallback((noteId: string) => [
@@ -213,6 +325,33 @@ export const DeletedItemsListView = ({
     />,
   ], [handleRestoreFolder, handlePermanentlyDeleteFolder]);
 
+  // Get context menu actions for tags
+  const getTagActions = useCallback((tagName: string) => [
+    <TertiaryButton
+      key="restore"
+      icon={<RotateCcw size={16} />}
+      onClick={(e) => handleRestoreTag(tagName, e)}
+      size="xs"
+      
+    />,
+    <TertiaryButton
+      key="delete-forever"
+      icon={<Trash2 size={16} />}
+      onClick={(e) => handlePermanentlyDeleteTag(tagName, e)}
+      size="xs"
+      
+    />,
+  ], [handleRestoreTag, handlePermanentlyDeleteTag]);
+
+  // Debug: Log what sections should be visible
+  console.log('🏷️ [DEBUG] DeletedItemsListView render:', {
+    deletedNotesCount: deletedNotes.length,
+    deletedFoldersCount: deletedFolders.length,
+    deletedTagsCount: deletedTags.length,
+    tagListItemsCount: tagListItems.length,
+    shouldShowTagsSection: deletedTags.length > 0,
+  });
+
   return (
     <>
         {/* Page Title Section - Reused! */}
@@ -231,80 +370,65 @@ export const DeletedItemsListView = ({
         />
 
         {/* Content Section - Reused! */}
-        <PageContent>
-          {deletedNotes.length === 0 && deletedFolders.length === 0 ? (
-            // Empty State
-            <div style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flex: 1,
-              color: colors.text.tertiary,
-              fontSize: '14px',
-            }}>
-              <span>Trash is empty</span>
-            </div>
-          ) : (
-            <div style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: spacing['3xl'], // 32px between sections
-            }}>
-              {/* Deleted Folders Section - Reuses FolderGrid! */}
-              {deletedFolders.length > 0 && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: spacing['12'] }}>
-                  <SectionTitle 
-                    collapsible 
-                    isCollapsed={foldersCollapsed} 
-                    onToggle={() => setFoldersCollapsed(!foldersCollapsed)}
-                  >
-                    Folders
-                  </SectionTitle>
-                  {!foldersCollapsed && (
-                  <FolderGrid
-                    folders={folderGridItems}
-                    onClick={onFolderClick}
-                    onCreateNote={() => {}} // Disabled in trash
-                  />
-                  )}
-                </div>
-              )}
-
-              {/* Wavy Divider */}
-              {deletedFolders.length > 0 && deletedNotes.length > 0 && <WavyDivider />}
-
-              {/* Deleted Notes Section - Reuses NotesListView! */}
-              {deletedNotes.length > 0 && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: spacing['12'] }}>
-                  <SectionTitle 
-                    collapsible 
-                    isCollapsed={notesCollapsed} 
-                    onToggle={() => setNotesCollapsed(!notesCollapsed)}
-                  >
-                    Notes
-                  </SectionTitle>
-                  {!notesCollapsed && (
+        <ListViewLayout
+          sections={[
+            {
+              id: 'folders',
+              title: 'Folders',
+              show: deletedFolders.length > 0,
+              collapsible: true,
+              isCollapsed: foldersCollapsed,
+              onToggle: () => setFoldersCollapsed(!foldersCollapsed),
+              content: (
+                <FolderGrid
+                  folders={folderGridItems}
+                  onClick={onFolderClick}
+                  onCreateNote={() => {}} // Disabled in trash
+                />
+              ),
+            },
+            {
+              id: 'notes',
+              title: 'Notes',
+              show: deletedNotes.length > 0,
+              collapsible: true,
+              isCollapsed: notesCollapsed,
+              onToggle: () => setNotesCollapsed(!notesCollapsed),
+              content: (
                 <NotesListView
-                  
                   notes={noteListItems}
                   onNoteClick={onNoteClick}
                   onTagClick={onTagClick}
-                      onRemoveTag={(noteId, tagToRemove) => {
-                        const note = notes.find(n => n.id === noteId);
-                        if (note) {
-                          const newTags = note.tags.filter(t => t !== tagToRemove);
-                          updateNote(noteId, { tags: newTags });
-                        }
-                      }}
-                  emptyState={<span>No deleted notes</span>}
+                  onRemoveTag={(noteId, tagToRemove) => {
+                    const note = notes.find(n => n.id === noteId);
+                    if (note) {
+                      const newTags = note.tags.filter(t => t !== tagToRemove);
+                      updateNote(noteId, { tags: newTags });
+                    }
+                  }}
+                  emptyState="No deleted notes"
                 />
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-        </PageContent>
+              ),
+            },
+            {
+              id: 'tags',
+              title: 'Tags',
+              show: deletedTags.length > 0,
+              collapsible: true,
+              isCollapsed: tagsCollapsed,
+              onToggle: () => setTagsCollapsed(!tagsCollapsed),
+              content: (
+                <TagsListView
+                  tags={tagListItems}
+                  onTagClick={onTagClick || (() => {})}
+                  getTagActions={getTagActions}
+                  emptyState="No deleted tags"
+                />
+              ),
+            },
+          ]}
+          emptyState="Trash is empty"
+        />
     </>
   );
 };

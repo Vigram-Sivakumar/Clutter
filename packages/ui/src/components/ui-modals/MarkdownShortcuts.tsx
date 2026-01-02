@@ -130,7 +130,7 @@ export const MarkdownShortcuts = ({ isOpen, onClose, buttonRef }: MarkdownShortc
       >
         <h2
           style={{
-            fontSize: typography.fontSize.sm,
+            fontSize: typography.fontSize['14'],
             fontWeight: typography.fontWeight.semibold,
             color: colors.text.default,
             margin: 0,
@@ -155,7 +155,7 @@ export const MarkdownShortcuts = ({ isOpen, onClose, buttonRef }: MarkdownShortc
             <div key={category}>
               <h3
                 style={{
-                  fontSize: typography.fontSize.xs,
+                  fontSize: typography.fontSize['12'],
                   fontWeight: typography.fontWeight.semibold,
                   color: colors.text.default,
                   margin: `0 0 ${spacing['6']} 0`,
@@ -178,12 +178,12 @@ export const MarkdownShortcuts = ({ isOpen, onClose, buttonRef }: MarkdownShortc
                       borderRadius: sizing.radius.sm,
                     }}
                   >
-                    <span style={{ fontSize: typography.fontSize.xs, color: colors.text.secondary }}>
+                    <span style={{ fontSize: typography.fontSize['12'], color: colors.text.secondary }}>
                       {shortcut.description}
                     </span>
                     <code
                       style={{
-                        fontSize: typography.fontSize.xs,
+                        fontSize: typography.fontSize['12'],
                         fontFamily: typography.fontFamily.mono,
                         color: colors.text.tertiary,
                       }}

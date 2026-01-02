@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useFoldersStore, DAILY_NOTES_FOLDER_ID, type Note } from '@clutter/shared';
+import { useFoldersStore, CLUTTERED_FOLDER_ID, DAILY_NOTES_FOLDER_ID, type Note } from '@clutter/shared';
 
 /**
  * Breadcrumb configuration for different view types
@@ -99,7 +99,7 @@ export const useBreadcrumbs = (
           };
         }
         
-        if (mainView.folderId === 'cluttered') {
+        if (mainView.folderId === CLUTTERED_FOLDER_ID) {
           // Special case: Cluttered folder
           return {
             path: ['Folders', 'Cluttered'],
@@ -170,7 +170,7 @@ export const useBreadcrumbFolderIds = (
       return getFolderPathWithIds(currentNote.folderId).map(f => f.id);
     }
     
-    if (mainView.type === 'folderView' && mainView.folderId !== 'cluttered') {
+    if (mainView.type === 'folderView' && mainView.folderId !== CLUTTERED_FOLDER_ID) {
       // Folder view (not cluttered)
       return getFolderPathWithIds(mainView.folderId).map(f => f.id);
     }

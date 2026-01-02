@@ -8,11 +8,16 @@ import { Folder } from '../types';
 import { shouldAllowSave } from './hydration';
 import { useNotesStore, getStorageHandlers } from './notes';
 
-// Platform-specific storage handler (set by app initialization)
+// Platform-specific storage handlers (set by app initialization)
 let saveFolderHandler: ((folder: Folder) => Promise<void>) | null = null;
+let deleteFolderHandler: ((folderId: string) => Promise<void>) | null = null;
 
 export const setSaveFolderHandler = (handler: typeof saveFolderHandler) => {
   saveFolderHandler = handler;
+};
+
+export const setDeleteFolderHandler = (handler: typeof deleteFolderHandler) => {
+  deleteFolderHandler = handler;
 };
 
 // Export for use by other stores (e.g., tags need to save folders during rename/delete)
@@ -27,7 +32,7 @@ interface FoldersState {
   // Actions
   createFolder: (name: string, parentId?: string | null, emoji?: string | null, tags?: string[]) => string | null;
   updateFolder: (id: string, updates: Partial<Folder>) => void;
-  deleteFolder: (id: string) => void;
+  deleteFolder: (id: string, options?: { keepNotes?: boolean }) => void;
   restoreFolder: (id: string) => void;
   permanentlyDeleteFolder: (id: string) => void;
   toggleFolderExpanded: (id: string) => void;
@@ -158,8 +163,9 @@ export const useFoldersStore = create<FoldersState>()((set, get) => ({
     }
   },
   
-  deleteFolder: (id: string) => {
+  deleteFolder: (id: string, options?: { keepNotes?: boolean }) => {
     const now = new Date().toISOString();
+    const keepNotes = options?.keepNotes ?? false;
     
     // 🔄 CASCADE DELETE: Find all child folders (recursively)
     const getDescendantFolders = (parentId: string): string[] => {
@@ -177,7 +183,7 @@ export const useFoldersStore = create<FoldersState>()((set, get) => ({
     const descendantIds = getDescendantFolders(id);
     const allFolderIds = [id, ...descendantIds];
     
-    console.log(`🗑️ Deleting folder "${id}" with ${descendantIds.length} descendants`);
+    console.log(`🗑️ Deleting folder "${id}" with ${descendantIds.length} descendants (keepNotes: ${keepNotes})`);
     
     // Soft delete the folder and all descendants
     set((state) => ({
@@ -188,40 +194,74 @@ export const useFoldersStore = create<FoldersState>()((set, get) => ({
       ),
     }));
     
-    // 🔄 CASCADE TO NOTES: Soft delete all notes in these folders
+    // 🔄 Handle notes based on user choice
     const { notes, setNotes } = useNotesStore.getState();
     const notesInFolders = notes.filter((note: any) => 
       allFolderIds.includes(note.folderId) && !note.deletedAt
     );
     
     if (notesInFolders.length > 0) {
-      console.log(`🗑️ Cascading delete to ${notesInFolders.length} notes`);
-      
-      const updatedNotes = notes.map((note: any) =>
-        allFolderIds.includes(note.folderId) && !note.deletedAt
-          ? { ...note, deletedAt: now }
-          : note
-      );
-      
-      setNotes(updatedNotes);
-      
-      // 🆕 SAVE all deleted notes to database
-      const noteStorageHandlers = getStorageHandlers();
-      
-      if (noteStorageHandlers?.save && shouldAllowSave('deleteFolder-notes')) {
-        const notesToSave = updatedNotes.filter((note: any) =>
-          allFolderIds.includes(note.folderId) && note.deletedAt === now
+      if (keepNotes) {
+        // Move notes to root (Cluttered) instead of deleting
+        console.log(`📦 Moving ${notesInFolders.length} notes to Cluttered`);
+        
+        const updatedNotes = notes.map((note: any) =>
+          allFolderIds.includes(note.folderId) && !note.deletedAt
+            ? { ...note, folderId: null, updatedAt: now }
+            : note
         );
         
-        Promise.all(
-          notesToSave.map((note: any) =>
-            noteStorageHandlers.save(note).catch((err: any) => {
-              console.error(`❌ Failed to save note deletion for ${note.id}:`, err);
-            })
-          )
-        ).then(() => {
-          console.log(`✅ Saved ${notesToSave.length} note deletions`);
-        });
+        setNotes(updatedNotes);
+        
+        // Save moved notes to database
+        const noteStorageHandlers = getStorageHandlers();
+        
+        if (noteStorageHandlers?.save && shouldAllowSave('deleteFolder-moveNotes')) {
+          const notesToSave = updatedNotes.filter((note: any) =>
+            allFolderIds.includes(note.folderId) === false && 
+            notesInFolders.find((n: any) => n.id === note.id)
+          );
+          
+          Promise.all(
+            notesToSave.map((note: any) =>
+              noteStorageHandlers.save(note).catch((err: any) => {
+                console.error(`❌ Failed to save note move for ${note.id}:`, err);
+              })
+            )
+          ).then(() => {
+            console.log(`✅ Saved ${notesToSave.length} note moves`);
+          });
+        }
+      } else {
+        // Delete notes together with folder (original behavior)
+        console.log(`🗑️ Cascading delete to ${notesInFolders.length} notes`);
+        
+        const updatedNotes = notes.map((note: any) =>
+          allFolderIds.includes(note.folderId) && !note.deletedAt
+            ? { ...note, deletedAt: now }
+            : note
+        );
+        
+        setNotes(updatedNotes);
+        
+        // Save deleted notes to database
+        const noteStorageHandlers = getStorageHandlers();
+        
+        if (noteStorageHandlers?.save && shouldAllowSave('deleteFolder-notes')) {
+          const notesToSave = updatedNotes.filter((note: any) =>
+            allFolderIds.includes(note.folderId) && note.deletedAt === now
+          );
+          
+          Promise.all(
+            notesToSave.map((note: any) =>
+              noteStorageHandlers.save(note).catch((err: any) => {
+                console.error(`❌ Failed to save note deletion for ${note.id}:`, err);
+              })
+            )
+          ).then(() => {
+            console.log(`✅ Saved ${notesToSave.length} note deletions`);
+          });
+        }
       }
     }
     
@@ -495,6 +535,13 @@ export const useFoldersStore = create<FoldersState>()((set, get) => ({
     set((state) => ({
       folders: state.folders.filter((folder) => folder.id !== id),
     }));
+    
+    // Delete from storage (database)
+    if (deleteFolderHandler) {
+      deleteFolderHandler(id).catch((err) => {
+        console.error(`❌ Failed to permanently delete folder ${id} from database:`, err);
+      });
+    }
   },
   
   setFolders: (folders: Folder[]) => {

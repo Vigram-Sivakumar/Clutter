@@ -3,11 +3,8 @@ import { useTheme } from '../../../../hooks/useTheme';
 import { useNotesStore, useTagsStore, useFoldersStore } from '@clutter/shared';
 import { NotesListView } from '../../shared/notes-list';
 import { PageTitleSection } from '../../shared/content-header';
-import { PageContent } from '../../shared/page-content/PageContent';
+import { ListViewLayout } from '../../shared/list-view-layout';
 import { FolderGrid } from '../folder';
-import { SectionTitle } from '../../shared/section-title';
-import { WavyDivider } from '../../shared/wavy-divider';
-import { spacing } from '../../../../tokens/spacing';
 import { getTagColor } from '../../../../utils/tagColors';
 import { isContentEmpty } from '../../../../utils/noteHelpers';
 
@@ -164,13 +161,34 @@ export const TagFilteredNotesView = ({
   
   // Tag color change handler
   const handleColorChange = useCallback((tagName: string, color: string) => {
-    updateTagMetadata(tagName, { color });
-  }, [updateTagMetadata]);
+    const existing = getTagMetadata(tagName);
+    if (existing) {
+      updateTagMetadata(tagName, { color });
+    } else {
+      // Create metadata with the color for tags that don't have metadata yet
+      upsertTagMetadata(tagName, '', true, false, color);
+    }
+  }, [updateTagMetadata, upsertTagMetadata, getTagMetadata]);
   
   // Tag rename handler
   const handleTagRename = useCallback((oldTag: string, newTag: string) => {
     if (renameTag) {
+      // Before renaming, ensure the tag has a color saved to metadata
+      // This preserves the visual appearance through the rename
+      const metadata = getTagMetadata(oldTag);
+      if (!metadata?.color) {
+        // Save the current hash-based color so it's preserved after rename
+        const currentVisualColor = getTagColor(oldTag);
+        if (metadata) {
+          updateTagMetadata(oldTag, { color: currentVisualColor });
+        } else {
+          upsertTagMetadata(oldTag, '', true, false, currentVisualColor);
+        }
+      }
+      
+      // Now perform the rename - the color will be preserved
       renameTag(oldTag, newTag);
+      
       // Use requestAnimationFrame to wait for React to complete all pending renders
       // This ensures Zustand state updates have propagated to all subscribers
       if (onTagClick) {
@@ -181,7 +199,7 @@ export const TagFilteredNotesView = ({
         });
       }
     }
-  }, [renameTag, onTagClick]);
+  }, [renameTag, onTagClick, getTagMetadata, getTagColor, updateTagMetadata, upsertTagMetadata]);
 
   return (
     <>
@@ -211,87 +229,72 @@ export const TagFilteredNotesView = ({
         />
 
         {/* Page Content */}
-        <PageContent>
-          <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: spacing['3xl'], // 32px between sections
-          }}>
-          {/* Folders Grid */}
-          {filteredFolders.length > 0 && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: spacing['12'] }}>
-                <SectionTitle 
-                  collapsible 
-                  isCollapsed={foldersCollapsed} 
-                  onToggle={() => setFoldersCollapsed(!foldersCollapsed)}
-                >
-                  Folders
-                </SectionTitle>
-                {!foldersCollapsed && (
-            <FolderGrid
-              folders={filteredFolders.map(folder => {
-                const allFolderNotes = notes.filter(note => note.folderId === folder.id && !note.deletedAt);
-                // Filter out empty notes for preview display only (except current note)
-                const previewNotes = allFolderNotes.filter(note => 
-                  note.id === currentNoteId || !isNoteEmpty(note)
-                );
-                const subfolderCount = folders.filter(f => 
-                  !f.deletedAt && f.parentId === folder.id
-                ).length;
-                
-                return {
-                  id: folder.id,
-                  name: folder.name || 'Untitled Folder',
-                  emoji: folder.emoji,
-                  noteCount: allFolderNotes.length, // Count ALL notes (including empty)
-                  folderCount: subfolderCount,
-                  previewNotes: previewNotes.slice(0, 3).map(note => ({
+        <ListViewLayout
+          sections={[
+            {
+              id: 'folders',
+              title: 'Folders',
+              show: filteredFolders.length > 0,
+              collapsible: true,
+              isCollapsed: foldersCollapsed,
+              onToggle: () => setFoldersCollapsed(!foldersCollapsed),
+              content: (
+                <FolderGrid
+                  folders={filteredFolders.map(folder => {
+                    const allFolderNotes = notes.filter(note => note.folderId === folder.id && !note.deletedAt);
+                    // Filter out empty notes for preview display only (except current note)
+                    const previewNotes = allFolderNotes.filter(note => 
+                      note.id === currentNoteId || !isNoteEmpty(note)
+                    );
+                    const subfolderCount = folders.filter(f => 
+                      !f.deletedAt && f.parentId === folder.id
+                    ).length;
+                    
+                    return {
+                      id: folder.id,
+                      name: folder.name || 'Untitled Folder',
+                      emoji: folder.emoji,
+                      noteCount: allFolderNotes.length, // Count ALL notes (including empty)
+                      folderCount: subfolderCount,
+                      previewNotes: previewNotes.slice(0, 3).map(note => ({
+                        id: note.id,
+                        title: note.title || 'Untitled',
+                        emoji: note.emoji,
+                        contentSnippet: note.description || '',
+                      })),
+                    };
+                  })}
+                  onClick={onFolderClick || (() => {})}
+                  onNoteClick={onNoteClick}
+                  onCreateNote={(folderId) => {
+                    // Create a note in the folder with the current tag
+                    const newNote = createNote({ folderId, tags: [tag] });
+                    onNoteClick(newNote.id);
+                  }}
+                />
+              ),
+            },
+            {
+              id: 'notes',
+              title: 'Notes',
+              show: filteredNotes.length > 0,
+              collapsible: true,
+              isCollapsed: notesCollapsed,
+              onToggle: () => setNotesCollapsed(!notesCollapsed),
+              content: (
+                <NotesListView
+                  notes={filteredNotes.map(note => ({
                     id: note.id,
-                    title: note.title || 'Untitled',
+                    title: note.title,
                     emoji: note.emoji,
-                    contentSnippet: note.description || '',
-                  })),
-                };
-              })}
-              onClick={onFolderClick || (() => {})}
-              onNoteClick={onNoteClick}
-              onCreateNote={(folderId) => {
-                // Create a note in the folder with the current tag
-                const newNote = createNote({ folderId, tags: [tag] });
-                onNoteClick(newNote.id);
-              }}
-            />
-          )}
-              </div>
-            )}
-
-            {/* Wavy Divider */}
-            {filteredFolders.length > 0 && <WavyDivider />}
-
-          {/* Notes List */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: spacing['12'] }}>
-              <SectionTitle 
-                collapsible 
-                isCollapsed={notesCollapsed} 
-                onToggle={() => setNotesCollapsed(!notesCollapsed)}
-              >
-                Notes
-              </SectionTitle>
-              {!notesCollapsed && (
-          <NotesListView
-            
-            notes={filteredNotes.map(note => ({
-              id: note.id,
-              title: note.title,
-              emoji: note.emoji,
-              tags: note.tags,
-              taskCount: countTasksInNote(note.content),
-              dailyNoteDate: note.dailyNoteDate,
-              hasContent: !isContentEmpty(note.content),
-            }))}
-            selectedNoteId={null}
-            onNoteClick={onNoteClick}
-            onTagClick={onTagClick}
+                    tags: note.tags,
+                    taskCount: countTasksInNote(note.content),
+                    dailyNoteDate: note.dailyNoteDate,
+                    hasContent: !isContentEmpty(note.content),
+                  }))}
+                  selectedNoteId={null}
+                  onNoteClick={onNoteClick}
+                  onTagClick={onTagClick}
                   onRemoveTag={(noteId, tagToRemove) => {
                     const note = notes.find(n => n.id === noteId);
                     if (note) {
@@ -299,13 +302,14 @@ export const TagFilteredNotesView = ({
                       updateNote(noteId, { tags: newTags });
                     }
                   }}
-            onUpdateEmoji={handleUpdateEmoji}
-            emptyState={filteredFolders.length > 0 ? `No notes with this tag` : `No folders or notes with this tag`}
-          />
-              )}
-            </div>
-          </div>
-        </PageContent>
+                  onUpdateEmoji={handleUpdateEmoji}
+                  emptyState="No folders or notes with this tag"
+                />
+              ),
+            },
+          ]}
+          emptyState="No folders or notes with this tag"
+        />
     </>
   );
 };

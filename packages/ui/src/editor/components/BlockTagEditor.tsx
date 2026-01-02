@@ -76,19 +76,32 @@ export function BlockTagEditor({ tags, onUpdate, onTagClick }: BlockTagEditorPro
   }, [refs]);
 
   const handleRenameTag = useCallback((oldTag: string, newTag: string) => {
-    // IMPORTANT: Call renameTag FIRST to update metadata
+    // Before renaming, ensure the tag has a color saved to metadata
+    // This preserves the visual appearance through the rename
+    const metadata = getTagMetadata(oldTag);
+    if (!metadata?.color) {
+      // Save the current hash-based color so it's preserved after rename
+      const currentVisualColor = getTagColor(oldTag);
+      if (metadata) {
+        updateTagMetadata(oldTag, { color: currentVisualColor });
+      } else {
+        upsertTagMetadata(oldTag, '', true, false, currentVisualColor);
+      }
+    }
+    
+    // IMPORTANT: Call renameTag to update metadata globally
     // This removes the old tag from all notes' metadata before the sync happens
     renameTag(oldTag, newTag);
     
     // Then update the local block tags
-    // Use setTimeout to ensure renameTag completes first
+    // Use requestAnimationFrame to ensure renameTag completes first
     requestAnimationFrame(() => {
       const newTags = tags.map((t: string) => t.toLowerCase() === oldTag.toLowerCase() ? newTag : t);
       onUpdate(newTags);
     });
     
     handleCloseEditor();
-  }, [tags, renameTag, onUpdate, handleCloseEditor]);
+  }, [tags, renameTag, onUpdate, handleCloseEditor, getTagMetadata, getTagColor, updateTagMetadata, upsertTagMetadata]);
 
   const handleColorChange = useCallback((tag: string, color: string) => {
     const existing = getTagMetadata(tag);

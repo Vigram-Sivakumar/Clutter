@@ -1,6 +1,7 @@
 import { ReactNode, useState } from 'react';
 import { useTheme } from '../../../../../hooks/useTheme';
 import { transitions } from '../../../../../tokens/transitions';
+import { radius } from '../../../../../tokens/radius';
 import { SidebarItem } from '../items/SidebarItem';
 import { sidebarLayout } from '../../../../../tokens/sidebar';
 import { spacing } from '../../../../../tokens/spacing';
@@ -11,6 +12,7 @@ interface SidebarSectionProps {
   onToggle: () => void;
   onHeaderClick?: () => void; // Click on title text (optional)
   badge?: string;
+  icon?: ReactNode; // Optional icon for the section header
   actions?: ReactNode[];
   
   // Drop target props (for section body)
@@ -39,6 +41,7 @@ export const SidebarSection = ({
   onToggle,
   onHeaderClick,
   badge,
+  icon,
   actions,
   isDropTarget = false,
   onDragOver,
@@ -51,7 +54,8 @@ export const SidebarSection = ({
   children,
 }: SidebarSectionProps) => {
   const { colors } = useTheme();
-  const [isHoveredDrop, setIsHoveredDrop] = useState(false);
+  // Note: isDropTarget prop already controls visual feedback
+  // No need for internal hover state - drag events are sufficient
   
   // Auto-render items if provided, otherwise use children
   const content = items && renderItem ? (
@@ -73,7 +77,6 @@ export const SidebarSection = ({
     if (!onDragOver) return;
     e.preventDefault();
     e.stopPropagation();
-    setIsHoveredDrop(true);
     
     // Clear all reorder indicators when entering section drop zone
     if (onClearAllReorderIndicators) {
@@ -88,10 +91,6 @@ export const SidebarSection = ({
     e.preventDefault();
     e.stopPropagation();
     e.dataTransfer.dropEffect = 'move';
-    // Call onDragOver continuously to keep the highlight active
-    if (!isHoveredDrop) {
-      setIsHoveredDrop(true);
-    }
     
     // Clear all reorder indicators when hovering over section drop zone
     if (onClearAllReorderIndicators) {
@@ -108,7 +107,6 @@ export const SidebarSection = ({
     if (relatedTarget && e.currentTarget.contains(relatedTarget)) {
       return; // Still inside the container
     }
-    setIsHoveredDrop(false);
     onDragLeave();
   };
 
@@ -116,7 +114,6 @@ export const SidebarSection = ({
     if (!onDrop) return;
     e.preventDefault();
     e.stopPropagation();
-    setIsHoveredDrop(false);
     
     // Clear all reorder indicators after section drop
     if (onClearAllReorderIndicators) {
@@ -141,9 +138,9 @@ export const SidebarSection = ({
         display: 'flex',
         flexDirection: 'column',
         gap: sidebarLayout.headerToItemsGap,
-        backgroundColor: isDropTarget && isHoveredDrop ? colors.background.hover : 'transparent',
-        border: `1px solid ${isDropTarget && isHoveredDrop ? colors.semantic.info : 'transparent'}`,
-        borderRadius: '6px',
+        backgroundColor: isDropTarget ? colors.background.hover : 'transparent',
+        border: `1px solid ${isDropTarget ? colors.semantic.info : 'transparent'}`,
+        borderRadius: radius['6'],
         transition: 'background-color 150ms ease, border-color 150ms ease',
       }}
     >
@@ -154,6 +151,7 @@ export const SidebarSection = ({
           id={title}
           label={title}
           badge={badge}
+          icon={icon}
           isOpen={!isCollapsed}
           onClick={onHeaderClick || (() => {})}
           onToggle={onToggle}

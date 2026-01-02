@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useNotesStore } from '@clutter/shared';
 import { ListView, ListItem, TaskListItemData } from '../../shared/list-view';
 import { PageTitleSection } from '../../shared/content-header';
-import { PageContent } from '../../shared/page-content/PageContent';
+import { ListViewLayout } from '../../shared/list-view-layout';
 import { CheckSquare } from '../../../../icons';
 import { sizing } from '../../../../tokens/sizing';
 import type { Note } from '@clutter/shared';
@@ -166,27 +166,37 @@ export const AllTasksListView = ({ onTaskClick }: AllTasksListViewProps) => {
       />
 
       {/* Content Section */}
-      <PageContent>
-        <ListView<TaskListItemData>
-          items={sortedTasks}
-          selectedId={null}
-          onItemClick={(taskId) => {
-            const task = allTasks.find(t => t.id === taskId);
-            if (task) {
-              onTaskClick(task.noteId, task.id);
-            }
-          }}
-          renderItem={(task) => (
-            <ListItem
-              variant="task"
-              data={task}
-              onToggle={handleToggleTask}
-            />
-          )}
-          emptyState="No tasks yet. Create tasks in your notes."
-          showDividers={false}
-        />
-      </PageContent>
+      <ListViewLayout
+        sections={[
+          {
+            id: 'tasks',
+            title: '', // No title for single-section view
+            show: sortedTasks.length > 0,
+            content: (
+              <ListView<TaskListItemData>
+                items={sortedTasks}
+                selectedId={null}
+                onItemClick={(taskId) => {
+                  const task = allTasks.find(t => t.id === taskId);
+                  if (task) {
+                    onTaskClick(task.noteId, task.id);
+                  }
+                }}
+                renderItem={(task) => (
+                  <ListItem
+                    variant="task"
+                    data={task}
+                    onToggle={handleToggleTask}
+                  />
+                )}
+                emptyState="No tasks yet. Create tasks in your notes."
+                showDividers={false}
+              />
+            ),
+          },
+        ]}
+        emptyState="No tasks yet. Create tasks in your notes."
+      />
     </>
   );
 };

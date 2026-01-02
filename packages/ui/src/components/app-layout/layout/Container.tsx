@@ -1,4 +1,5 @@
-import { ReactNode } from 'react';
+import { ReactNode, useRef, useLayoutEffect } from 'react';
+import { spacing } from '../../../tokens/spacing';
 
 interface AppLayoutProps {
   /** Content for the global header */
@@ -19,6 +20,15 @@ interface AppLayoutProps {
  * This component is typically used as a building block within AppShell
  */
 export const AppLayout = ({ header, children, isFullWidth = false, backgroundColor }: AppLayoutProps) => {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  
+  // Scroll to top whenever content changes (new note, new view, etc.)
+  useLayoutEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = 0;
+    }
+  }, [children]);
+  
   return (
     <div
       className="main-content-area"
@@ -50,6 +60,7 @@ export const AppLayout = ({ header, children, isFullWidth = false, backgroundCol
 
       {/* Scroll wrapper - Full width scrollable area (scrollbar at screen edge) */}
       <div
+        ref={scrollRef}
         className="scroll-wrapper"
         style={{
           height: '100%',
@@ -66,11 +77,11 @@ export const AppLayout = ({ header, children, isFullWidth = false, backgroundCol
             position: 'relative',
             display: 'flex',
             flexDirection: 'column',
-            gap: '42px', // Gap between PageTitleSection and PageContent
+            gap: spacing['48'], // Gap between PageTitleSection and PageContent
             width: '100%',
             maxWidth: isFullWidth ? '100%' : '720px', // Content max width - toggles based on prop
-            paddingLeft: '40px', // Horizontal padding
-            paddingRight: '40px',
+            paddingLeft: spacing['48'], // Horizontal padding
+            paddingRight: spacing['48'],
             paddingBottom: 'max(25vh, 100px)', // Bottom space for scrolling
             minHeight: 'min-content', // Allow wrapper to grow with content
             height: 'fit-content', // Fit to content + padding

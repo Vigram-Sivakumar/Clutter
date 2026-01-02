@@ -5,6 +5,7 @@ import { ContextMenu } from '../../../ui-primitives';
 import { spacing } from '../../../../tokens/spacing';
 import { sizing } from '../../../../tokens/sizing';
 import { useTheme } from '../../../../hooks/useTheme';
+import { DragRegion } from '../DragRegion';
 
 /**
  * TopBar Design Specification
@@ -52,6 +53,9 @@ interface TopBarProps {
       }
   >;
   
+  // Custom actions - additional action buttons to show before favorite/width/menu
+  customActions?: ReactNode;
+  
   // Custom content (can be breadcrumbs, title, or any custom component)
   children?: ReactNode;
   
@@ -71,77 +75,58 @@ export const TopBar = ({
   isFavorite = false,
   onToggleFavorite,
   contextMenuItems,
+  customActions,
   children,
   showBorderGuide = false,
 }: TopBarProps) => {
   const { colors } = useTheme();
 
   const guideBorder = showBorderGuide ? '2px dashed #00ff0080' : 'none';
-  const guideBackground = showBorderGuide ? '#00ff0008' : 'transparent';
 
   return (
-    <div
-      style={{
+    <DragRegion
+      padding={{
+        top: 12,
+        right: 12,
+        bottom: 12,
+        left: 12,  // DESIGN.spacing.containerMargin = 12px
+      }}
+      containerStyle={{
         width: '100%',
-        position: 'sticky',
-        top: 0,
+        padding: DESIGN.spacing.containerMargin,  // 12px on all sides
+        boxSizing: 'border-box',
+        height: '48px',  // Fixed height (total including padding)
         zIndex: 100,
         flexShrink: 0,
+        backgroundColor: colors.background.default,
+        border: guideBorder,
+      }}
+      contentStyle={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        width: '100%',
+        height: '100%',  // Fill parent height
+        userSelect: 'none',
       }}
     >
-      {/* Drag layer - covers full TopBar area including padding */}
-      <div
-        data-tauri-drag-region
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          WebkitAppRegion: 'drag',
-          // backgroundColor: 'rgba(255, 0, 0, 0.1)', // 🔴 TEMP: Red = Draggable area
-          pointerEvents: 'auto',
-          zIndex: 0,
-        } as any}
-      />
-      
-      {/* Content layer - above drag layer */}
-      <div
-        style={{
-          width: '100%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          paddingTop: 0,
-          paddingLeft: DESIGN.spacing.containerMargin,
-          paddingRight: DESIGN.spacing.containerMargin,
-          boxSizing: 'border-box',
-          position: 'relative',
-          zIndex: 1,
-          border: guideBorder,
-          // height: 24+16,
-        } as any}
-      >
         {/* Left: Navigation + Custom content */}
         <div 
-          data-tauri-drag-region="false"
           style={{ 
             display: 'flex', 
             alignItems: 'center', 
             gap: spacing['4'],
             flex: 1,
             minWidth: 0,
-            WebkitAppRegion: 'no-drag',
           } as any}>
           {/* Navigation buttons - always visible */}
           <div 
-            data-tauri-drag-region="false"
             style={{ 
               display: 'flex', 
               alignItems: 'center', 
               gap: spacing['2'],
-              WebkitAppRegion: 'no-drag',
               marginRight: '8px',
+              WebkitAppRegion: 'no-drag', // ✅ Buttons are clickable, not draggable
             } as any}>
             {/* Sidebar expand button - fades in when collapsed */}
             {onToggleSidebar && (
@@ -185,18 +170,15 @@ export const TopBar = ({
             />
           </div>
 
-          {/* Custom content - sits above drag layer */}
+          {/* Custom content - DRAGGABLE AREA */}
           <div 
-            data-tauri-drag-region="false"
+            data-tauri-drag-region // ✅ Center area is draggable
             style={{ 
               display: 'flex', 
               alignItems: 'center', 
               flex: 1,
               minWidth: 0,
               height: 24+24,
-              WebkitAppRegion: 'no-drag',
-          // backgroundColor: 'rgba(255, 0, 0, 0.1)', // 🔴 TEMP: Red = Draggable area
-
             } as any}>
             {children}
           </div>
@@ -204,13 +186,15 @@ export const TopBar = ({
         
         {/* Right: Action buttons */}
         <div 
-          data-tauri-drag-region="false"
           style={{ 
             display: 'flex', 
             alignItems: 'center', 
             gap: spacing['2'],
-            WebkitAppRegion: 'no-drag',
+            WebkitAppRegion: 'no-drag', // ✅ Buttons are clickable, not draggable
           } as any}>
+          {/* Custom actions */}
+          {customActions}
+          
           {/* Favorite button */}
           {onToggleFavorite && (
             <TertiaryButton
@@ -239,8 +223,6 @@ export const TopBar = ({
             </ContextMenu>
           )}
         </div>
-      </div>
-    </div>
+    </DragRegion>
   );
 };
-

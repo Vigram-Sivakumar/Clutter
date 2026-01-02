@@ -14,11 +14,12 @@ import { FavouritesListView } from '../favourites';
 import { DeletedItemsListView } from '../deleted';
 import { AllTasksListView } from '../tasks';
 import { useBreadcrumbs, useBreadcrumbFolderIds } from './useBreadcrumbs';
-import { useNotesStore, useFoldersStore, useTagsStore, type Note } from '@clutter/shared';
+import { useNotesStore, useFoldersStore, useTagsStore, useConfirmation, CLUTTERED_FOLDER_ID, type Note } from '@clutter/shared';
 import { useTheme } from '../../../../hooks/useTheme';
 import { useUIPreferences } from '../../../../hooks/useUIPreferences';
 import { sizing } from '../../../../tokens/sizing';
 import { getTagColor } from '../../../../utils/tagColors';
+import { FilledButton } from '../../../ui-buttons';
 
 // Main view type
 type MainView = 
@@ -96,15 +97,16 @@ export const NoteEditor = ({
     updateNoteMeta,
     duplicateNote,
     deleteNote,
+    permanentlyDeleteNote,
     findDailyNoteByDate,
     createDailyNote,
   } = useNotesStore();
   
   // Folders store
-  const { folders, createFolder, updateFolder, deleteFolder } = useFoldersStore();
+  const { folders, createFolder, updateFolder, deleteFolder, permanentlyDeleteFolder } = useFoldersStore();
   
   // Tags store
-  const { getTagMetadata, updateTagMetadata, upsertTagMetadata, renameTag } = useTagsStore();
+  const { getTagMetadata, updateTagMetadata, upsertTagMetadata, renameTag, deleteTag } = useTagsStore();
   
   // Get current note or create one
   const currentNote = useMemo(() => {
@@ -413,7 +415,7 @@ export const NoteEditor = ({
 
   // Update view context when current folder is deleted
   useEffect(() => {
-    if (mainView.type === 'folderView' && mainView.folderId !== 'cluttered' && mainView.source !== 'deletedItems') {
+    if (mainView.type === 'folderView' && mainView.folderId !== CLUTTERED_FOLDER_ID && mainView.source !== 'deletedItems') {
       const folder = folders.find(f => f.id === mainView.folderId);
       if (folder?.deletedAt) {
         // Folder was just deleted -> update context to show it's now in "Recently deleted"
@@ -466,6 +468,19 @@ export const NoteEditor = ({
     // If tag name didn't change (case-insensitive), do nothing
     if (trimmedNewTag.toLowerCase() === trimmedOldTag.toLowerCase()) return;
     
+    // Before renaming, ensure the tag has a color saved to metadata
+    // This preserves the visual appearance through the rename
+    const metadata = getTagMetadata(trimmedOldTag);
+    if (!metadata?.color) {
+      // Save the current hash-based color so it's preserved after rename
+      const currentVisualColor = getTagColor(trimmedOldTag);
+      if (metadata) {
+        updateTagMetadata(trimmedOldTag, { color: currentVisualColor });
+      } else {
+        upsertTagMetadata(trimmedOldTag, '', true, false, currentVisualColor);
+      }
+    }
+    
     // Use global rename to update all notes with this tag
     renameTag(trimmedOldTag, trimmedNewTag);
     
@@ -500,7 +515,7 @@ export const NoteEditor = ({
       debouncedSave({ tags: newTags });
       return newTags;
     });
-  }, [debouncedSave, renameTag]);
+  }, [debouncedSave, renameTag, getTagMetadata, getTagColor, updateTagMetadata, upsertTagMetadata]);
 
   const handleColorChange = useCallback((tag: string, color: string) => {
     // Update tag metadata with the new color (upsert to handle tags without existing metadata)
@@ -642,6 +657,84 @@ export const NoteEditor = ({
     }
   }, [currentNoteId, deleteNote]);
 
+  // Clear all deleted items handler
+  const { openConfirmation } = useConfirmation();
+  
+  // Check if there are any deleted items
+  const hasDeletedItems = useMemo(() => {
+    const deletedNotes = notes.filter(n => n.deletedAt);
+    const deletedFolders = folders.filter(f => f.deletedAt);
+    const deletedTags = useTagsStore.getState().getDeletedTags();
+    return deletedNotes.length > 0 || deletedFolders.length > 0 || deletedTags.length > 0;
+  }, [notes, folders]);
+  
+  const handleClearClutter = useCallback(async () => {
+    console.log('🔵 Clear clutter button clicked');
+    
+    // Get deleted items from all stores
+    const deletedNotes = notes.filter(n => n.deletedAt);
+    const deletedFolders = folders.filter(f => f.deletedAt);
+    const deletedTags = useTagsStore.getState().getDeletedTags();
+    
+    const totalItems = deletedNotes.length + deletedFolders.length + deletedTags.length;
+    
+    console.log(`🔵 Found ${totalItems} items to delete (${deletedNotes.length} notes, ${deletedFolders.length} folders, ${deletedTags.length} tags)`);
+    
+    if (totalItems === 0) {
+      console.log('🔵 No items to delete, returning');
+      return;
+    }
+    
+    // Open the confirmation dialog
+    openConfirmation(
+      'Clear Clutter',
+      'All items in Recently Deleted will be permanently removed.',
+      true, // isDangerous
+      async () => {
+        console.log('🔵 Starting deletion...');
+        
+        // Define deletion tasks for each type
+        const deletionTasks = [
+          {
+            name: 'notes',
+            items: deletedNotes,
+            deleteFunc: permanentlyDeleteNote,
+            getId: (item: any) => item.id,
+          },
+          {
+            name: 'folders',
+            items: deletedFolders,
+            deleteFunc: permanentlyDeleteFolder,
+            getId: (item: any) => item.id,
+          },
+          {
+            name: 'tags',
+            items: deletedTags,
+            deleteFunc: useTagsStore.getState().permanentlyDeleteTag,
+            getId: (item: any) => item.name,
+          },
+        ];
+        
+        // Execute deletions for all types
+        for (const task of deletionTasks) {
+          if (task.items.length > 0) {
+            console.log(`🗑️ Deleting ${task.items.length} ${task.name}...`);
+            
+            for (const item of task.items) {
+              const itemId = task.getId(item);
+              console.log(`🗑️ Deleting ${task.name}: ${itemId}`);
+              await task.deleteFunc(itemId);
+            }
+            
+            console.log(`✅ Cleared ${task.items.length} ${task.name}`);
+          }
+        }
+        
+        console.log(`✅ Successfully cleared all items from trash`);
+      }
+    );
+  }, [notes, folders, openConfirmation, permanentlyDeleteNote, permanentlyDeleteFolder]);
+
   // Tag view handlers
   const handleShowTagFilter = useCallback((tag: string, source: 'all' | 'favorites' = 'all') => {
     // Save metadata (NOT content - content is owned by editor autosave)
@@ -689,23 +782,20 @@ export const NoteEditor = ({
     }
   }, [mainView, tagFavorite, getTagMetadata, updateTagMetadata, upsertTagMetadata]);
 
-  // Delete tag handler - removes tag from all notes
+  // Delete tag handler - soft deletes the tag
   const handleDeleteTag = useCallback(() => {
     if (mainView.type === 'tagFilter') {
       const tagToDelete = mainView.tag;
       
-      // Remove tag from all notes
-      notes.forEach((note) => {
-        if (!note.deletedAt && note.tags.some(t => t.toLowerCase() === tagToDelete.toLowerCase())) {
-          const updatedTags = note.tags.filter(t => t.toLowerCase() !== tagToDelete.toLowerCase());
-          updateNoteMeta(note.id, { tags: updatedTags });
-        }
-      });
+      console.log('🗑️ [DEBUG] handleDeleteTag called from tag filtered view:', tagToDelete);
+      
+      // Soft delete the tag using the store's deleteTag function
+      deleteTag(tagToDelete);
       
       // Navigate back to editor
       handleBackToEditor();
     }
-  }, [mainView, notes, updateNoteMeta, handleBackToEditor]);
+  }, [mainView, deleteTag, handleBackToEditor]);
 
   // Update tag favorite state when tag changes
   useEffect(() => {
@@ -860,7 +950,7 @@ export const NoteEditor = ({
 
   const handleCreateNoteInFolder = useCallback((folderId: string) => {
     // Handle special "cluttered" folder (no folder assigned)
-    const actualFolderId = folderId === 'cluttered' ? null : folderId;
+    const actualFolderId = folderId === CLUTTERED_FOLDER_ID ? null : folderId;
     const newNote = createNote({ folderId: actualFolderId });
     setCurrentNoteId(newNote.id);
     setMainView({ type: 'editor' });
@@ -930,7 +1020,7 @@ export const NoteEditor = ({
 
   // Get current folder for folder views
   const currentFolder = useMemo(() => {
-    if (mainView.type === 'folderView' && mainView.folderId && mainView.folderId !== 'cluttered') {
+    if (mainView.type === 'folderView' && mainView.folderId && mainView.folderId !== CLUTTERED_FOLDER_ID) {
       return folders.find(f => f.id === mainView.folderId);
     }
     return null;
@@ -960,16 +1050,27 @@ export const NoteEditor = ({
       { 
         icon: <Trash2 size={sizing.icon.sm} />, 
         label: 'Delete folder',
-        onClick: () => {
-          if (window.confirm(`Move "${currentFolder.name || 'this folder'}" to trash?`)) {
-            // Soft delete the folder
-            deleteFolder(currentFolder.id);
-            // Navigate to parent folder or all folders view
-            if (currentFolder.parentId) {
-              setMainView({ type: 'folderView', folderId: currentFolder.parentId });
-            } else {
-              setMainView({ type: 'allFoldersView' });
+        onClick: async () => {
+          try {
+            // Use Tauri dialog.confirm for proper UX
+            const { confirm } = await import('@tauri-apps/api/dialog');
+            const confirmed = await confirm(
+              `Move "${currentFolder.name || 'this folder'}" to trash?`,
+              { title: 'Delete Folder', type: 'warning', okLabel: 'Move to Trash', cancelLabel: 'Cancel' }
+            );
+            
+            if (confirmed) {
+              // Soft delete the folder
+              deleteFolder(currentFolder.id);
+              // Navigate to parent folder or all folders view
+              if (currentFolder.parentId) {
+                setMainView({ type: 'folderView', folderId: currentFolder.parentId });
+              } else {
+                setMainView({ type: 'allFoldersView' });
+              }
             }
+          } catch (error) {
+            console.error('❌ Error showing folder deletion dialog:', error);
           }
         }, 
         danger: true 
@@ -1052,7 +1153,7 @@ export const NoteEditor = ({
                 
                 if (pathItem === 'Cluttered') {
                   // Navigate to Cluttered folder view
-                  handleFolderClick('cluttered');
+                  handleFolderClick(CLUTTERED_FOLDER_ID);
                 } else if (folderPathIds[actualFolderIndex]) {
                   // Navigate to specific folder by ID
                   handleFolderClick(folderPathIds[actualFolderIndex]);
@@ -1081,6 +1182,17 @@ export const NoteEditor = ({
               : mainView.type === 'tagFilter' ? tagContextMenuItems 
               : mainView.type === 'folderView' && currentFolder ? folderContextMenuItems
               : undefined
+            }
+            customActions={
+              mainView.type === 'deletedItemsView' ? (
+                <FilledButton
+                  onClick={handleClearClutter}
+                  size="small"
+                  disabled={!hasDeletedItems}
+                >
+                  Clear clutter
+                </FilledButton>
+              ) : undefined
             }
             />
         }
@@ -1151,7 +1263,7 @@ export const NoteEditor = ({
             onNoteClick={handleNoteClickFromTagView}
             onCreateNote={() => handleCreateNoteInFolder(mainView.folderId)}
             onCreateFolder={() => {
-              const parentId = mainView.folderId === 'cluttered' ? null : mainView.folderId;
+              const parentId = mainView.folderId === CLUTTERED_FOLDER_ID ? null : mainView.folderId;
               const folderId = createFolder('', parentId, null); // Empty name shows placeholder
               if (folderId) {
                 // Navigate to the newly created folder (history is auto-managed by useEffect)

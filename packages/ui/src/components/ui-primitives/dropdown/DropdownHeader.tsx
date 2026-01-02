@@ -21,7 +21,7 @@ export const DropdownHeader = ({ label, marginTop }: DropdownHeaderProps) => {
   return (
     <div
       style={{
-        fontSize: typography.fontSize.xs,
+        fontSize: typography.fontSize['12'],
         fontWeight: typography.fontWeight.semibold,
         lineHeight: typography.lineHeight.tight,
         color: colors.text.tertiary,

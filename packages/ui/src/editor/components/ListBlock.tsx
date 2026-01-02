@@ -26,6 +26,7 @@ import { MarkerContainer } from './BlockWrapper';
 import { BlockHandle } from './BlockHandle';
 import { BlockSelectionHalo } from './BlockSelectionHalo';
 import { isHiddenByCollapsedToggle } from '../utils/collapseHelpers';
+import { TaskPriorityIndicator } from './TaskPriorityIndicator';
 
 // Props are provided by TipTap's ReactNodeViewRenderer
 type ListBlockProps = NodeViewProps;
@@ -326,7 +327,14 @@ export function ListBlock({
   const placeholderText = usePlaceholder({ node, editor, getPos });
 
   // Get priority level from attribute (set when user types ! and presses space)
-  const priorityLevel = priority || 0;
+  const committedPriority = priority || 0;
+  
+  // Detect uncommitted priority from text content (preview as user types)
+  const textContent = node.textContent || '';
+  const exclamationMatches = textContent.match(/!+/g);
+  const previewPriority = exclamationMatches 
+    ? Math.min(Math.max(...exclamationMatches.map(m => m.length)), 3)
+    : 0;
 
   // Check if this task is a child of the previous task (for showing connectors)
   const showConnector = useMemo(() => {
@@ -647,42 +655,12 @@ export function ListBlock({
       </div>
 
       {/* Priority indicators - outside the block (mirrors handle position) */}
-      {listType === 'task' && priorityLevel > 0 && (
-        <div
-          style={{
-            position: 'absolute',
-            right: -32, // Outside block boundary, mirrors handle on left
-            top: '50%',
-            transform: 'translateY(-50%)',
-            display: 'flex',
-            alignItems: 'center',
-            pointerEvents: 'none',
-          }}
-        >
-          {Array.from({ length: priorityLevel }).map((_, i) => (
-            <span
-              key={i}
-              style={{
-                color: colors.semantic.orange,
-                fontWeight: 600,
-                display: 'inline-block',
-                backgroundColor: `${colors.semantic.orange}10`,
-                borderRadius: '3px',
-                padding: '1px 2px',
-                marginRight: '-2px',
-                transformOrigin: 'center center',
-                transform:
-                  i === 0
-                    ? 'rotate(-3deg) translateY(-1px)'
-                    : i === 1
-                    ? 'rotate(4deg) translateY(1px)'
-                    : 'rotate(-2deg) translateY(0px)',
-              }}
-            >
-              !
-            </span>
-          ))}
-        </div>
+      {listType === 'task' && (
+        <TaskPriorityIndicator
+          committedPriority={committedPriority}
+          previewPriority={previewPriority}
+          onDismiss={() => updateAttributes({ priority: 0 })}
+        />
       )}
 
       {/* Toggle row for tasks with children */}

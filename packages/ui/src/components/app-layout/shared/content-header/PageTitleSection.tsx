@@ -5,7 +5,7 @@ import { Description } from './description/Description';
 import { Tags } from './tags/Tags';
 import { Tag } from './tags/Tag';
 import { ColorTray } from './tags/ColorTray';
-import { Folder, HashStraight, ArrowUpDown, Filter, ChevronDown, Note, CalendarBlank } from '../../../../icons';
+import { Folder, Note, HashStraight, ArrowUpDown, Filter, ChevronDown } from '../../../../icons';
 import { Button } from '../../../ui-buttons';
 import { SearchInput } from '../../../ui-inputs';
 import { ContextMenu } from '../../../ui-primitives';
@@ -15,9 +15,10 @@ import { sizing } from '../../../../tokens/sizing';
 import { useTheme } from '../../../../hooks/useTheme';
 import { getTagColor } from '../../../../utils/tagColors';
 import { useTagsStore } from '@clutter/shared';
+import { getNoteIcon, getFolderIcon } from '../../../../utils/itemIcons';
 
 // Global page title margin - change once to affect all variants
-const PAGE_TITLE_MARGIN_TOP = '100px';
+const PAGE_TITLE_MARGIN_TOP = '94px';
 
 // Action controls available for all page title sections
 interface ActionControls {
@@ -40,6 +41,9 @@ interface ActionControls {
   searchQuery?: string;
   onSearchChange?: (query: string) => void;
   searchPlaceholder?: string;
+  
+  // Custom actions - additional action buttons
+  customActions?: ReactNode;
   
   // Static description (read-only, always visible) - for system views like Cluttered, All Folders, etc.
   staticDescription?: string;
@@ -173,7 +177,7 @@ const ActionControlsBar = ({ controls }: { controls: Partial<ActionControls> }) 
   const hasDropdown = controls.onNewNote && controls.onNewFolder;
   
   // Check if any controls are provided
-  const hasControls = controls.onNewNote || controls.onNewFolder || controls.onSort || controls.onFilter || controls.onSearchChange;
+  const hasControls = controls.onNewNote || controls.onNewFolder || controls.onSort || controls.onFilter || controls.onSearchChange || controls.customActions;
   
   if (!hasControls) return null;
   
@@ -216,6 +220,9 @@ const ActionControlsBar = ({ controls }: { controls: Partial<ActionControls> }) 
           active={controls.filterActive}
         />
       )}
+      
+      {/* Custom actions */}
+      {controls.customActions}
       
       {/* NOTE: Favorite button and context menu removed from here - now only in TopBar to avoid duplication */}
       
@@ -276,7 +283,6 @@ export const PageTitleSection = forwardRef<TitleInputHandle, PageTitleSectionPro
   const { colors } = useTheme();
   const getTagMetadata = useTagsStore((state) => state.getTagMetadata);
   const [isTitleHovered, setIsTitleHovered] = useState(false);
-  const [isMetaControlsHovered, setIsMetaControlsHovered] = useState(false);
   
   // Ref for editable folder name
   const folderNameRef = useRef<HTMLDivElement>(null);
@@ -305,6 +311,8 @@ export const PageTitleSection = forwardRef<TitleInputHandle, PageTitleSectionPro
       <div
         className="layout-title"
         data-title-section
+        onMouseEnter={() => setIsTitleHovered(true)}
+        onMouseLeave={() => setIsTitleHovered(false)}
         style={{
           display: 'flex',
           flexDirection: 'column',
@@ -314,8 +322,6 @@ export const PageTitleSection = forwardRef<TitleInputHandle, PageTitleSectionPro
       >
         {/* Metadata controls and title wrapper */}
         <div
-          onMouseEnter={() => setIsTitleHovered(true)}
-          onMouseLeave={() => setIsTitleHovered(false)}
           style={{
             display: 'flex',
             flexDirection: 'column',
@@ -338,10 +344,7 @@ export const PageTitleSection = forwardRef<TitleInputHandle, PageTitleSectionPro
             showTagInput={props.showTagInput ?? false}
             tagsVisible={props.tagsVisible ?? true}
             isTitleHovered={isTitleHovered}
-            isMetaControlsHovered={isMetaControlsHovered}
             isEmojiTrayOpen={props.isEmojiTrayOpen || false}
-            onMouseEnter={() => setIsMetaControlsHovered(true)}
-            onMouseLeave={() => setIsMetaControlsHovered(false)}
             onAddEmoji={props.onAddEmoji}
             onShowDescriptionInput={props.staticDescription ? undefined : props.onShowDescriptionInput}
             onShowTagInput={props.onShowTagInput}
@@ -506,6 +509,8 @@ export const PageTitleSection = forwardRef<TitleInputHandle, PageTitleSectionPro
       <div
         className="layout-title"
         data-title-section
+        onMouseEnter={() => setIsTitleHovered(true)}
+        onMouseLeave={() => setIsTitleHovered(false)}
         style={{
           display: 'flex',
           flexDirection: 'column',
@@ -515,8 +520,6 @@ export const PageTitleSection = forwardRef<TitleInputHandle, PageTitleSectionPro
       >
         {/* Metadata controls and title wrapper */}
         <div
-          onMouseEnter={() => setIsTitleHovered(true)}
-          onMouseLeave={() => setIsTitleHovered(false)}
           style={{
             display: 'flex',
             flexDirection: 'column',
@@ -538,10 +541,7 @@ export const PageTitleSection = forwardRef<TitleInputHandle, PageTitleSectionPro
             showTagInput={false}
             tagsVisible={true}
             isTitleHovered={isTitleHovered}
-            isMetaControlsHovered={isMetaControlsHovered}
             isEmojiTrayOpen={false}
-            onMouseEnter={() => setIsMetaControlsHovered(true)}
-            onMouseLeave={() => setIsMetaControlsHovered(false)}
             onShowDescriptionInput={props.staticDescription ? undefined : props.onShowDescriptionInput}
             onToggleDescriptionVisibility={props.staticDescription ? undefined : props.onToggleDescriptionVisibility}
             addEmojiButtonRef={{ current: null }}
@@ -612,6 +612,8 @@ export const PageTitleSection = forwardRef<TitleInputHandle, PageTitleSectionPro
     <div
       className="layout-title"
       data-title-section
+        onMouseEnter={() => setIsTitleHovered(true)}
+        onMouseLeave={() => setIsTitleHovered(false)}
       style={{
         display: 'flex',
         flexDirection: 'column',
@@ -621,8 +623,6 @@ export const PageTitleSection = forwardRef<TitleInputHandle, PageTitleSectionPro
     >
       {/* Title section with hover */}
       <div
-        onMouseEnter={() => setIsTitleHovered(true)}
-        onMouseLeave={() => setIsTitleHovered(false)}
         style={{
           display: 'flex',
           flexDirection: 'column',
@@ -637,7 +637,11 @@ export const PageTitleSection = forwardRef<TitleInputHandle, PageTitleSectionPro
           selectedEmoji={props.dailyNoteDate ? undefined : props.selectedEmoji}
           emojiButtonRef={props.dailyNoteDate ? undefined : props.emojiButtonRef}
           onRemoveEmoji={props.dailyNoteDate ? undefined : props.onRemoveEmoji}
-          staticIcon={props.dailyNoteDate ? <CalendarBlank size={sizing.icon.pageTitleIcon} /> : undefined}
+          staticIcon={props.dailyNoteDate ? getNoteIcon({
+            dailyNoteDate: props.dailyNoteDate,
+            hasContent: props.hasContent,
+            size: sizing.icon.pageTitleIcon,
+          }) : undefined}
           dailyNoteDate={props.dailyNoteDate}
           hasDescription={!!props.description}
           showDescriptionInput={props.showDescriptionInput}
@@ -646,10 +650,7 @@ export const PageTitleSection = forwardRef<TitleInputHandle, PageTitleSectionPro
           showTagInput={props.showTagInput}
           tagsVisible={props.tagsVisible}
           isTitleHovered={isTitleHovered}
-          isMetaControlsHovered={isMetaControlsHovered}
           isEmojiTrayOpen={props.isEmojiTrayOpen}
-          onMouseEnter={() => setIsMetaControlsHovered(true)}
-          onMouseLeave={() => setIsMetaControlsHovered(false)}
           onAddEmoji={props.dailyNoteDate ? undefined : props.onAddEmoji}
           onShowDescriptionInput={props.onShowDescriptionInput}
           onShowTagInput={props.onShowTagInput}

@@ -3,6 +3,7 @@ import { useTheme } from '../../../../../hooks/useTheme';
 import { DismissButton } from '../../../../ui-buttons';
 import { getTagColor } from '../../../../../utils/tagColors';
 import { useTagsStore } from '@clutter/shared';
+import { radius } from '../../../../../tokens/radius';
 
 interface TagProps {
   label: string;
@@ -90,7 +91,7 @@ export const Tag = ({ label, onRemove, onClick, onEdit, onScheduleClose, maxWidt
         padding: '0px 4px',
         minHeight: '20px',
         maxWidth: maxWidth,
-        borderRadius: '3px',
+        borderRadius: radius['3'],
         fontSize: '14px',
         lineHeight: '20px',
         fontWeight: 400,

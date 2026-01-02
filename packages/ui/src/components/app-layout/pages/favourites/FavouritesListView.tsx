@@ -2,12 +2,9 @@ import { useMemo, useState, useCallback } from 'react';
 import { useTheme } from '../../../../hooks/useTheme';
 import { useNotesStore, useFoldersStore } from '@clutter/shared';
 import { PageTitleSection } from '../../shared/content-header';
-import { PageContent } from '../../shared/page-content/PageContent';
+import { ListViewLayout } from '../../shared/list-view-layout';
 import { NotesListView } from '../../shared/notes-list/NotesListView';
 import { FolderGrid } from '../folder';
-import { SectionTitle } from '../../shared/section-title';
-import { WavyDivider } from '../../shared/wavy-divider';
-import { spacing } from '../../../../tokens/spacing';
 import { isContentEmpty } from '../../../../utils/noteHelpers';
 
 interface FavouritesListViewProps {
@@ -129,36 +126,16 @@ export const FavouritesListView = ({
         />
 
         {/* Content Section */}
-        <PageContent>
-          {favouriteFolders.length === 0 && favouriteNotes.length === 0 ? (
-            <div style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flex: 1,
-              color: colors.text.tertiary,
-              fontSize: '14px',
-            }}>
-              <span>No favourites yet.</span>
-            </div>
-          ) : (
-            <div style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: spacing['3xl'], // 32px between sections
-            }}>
-              {/* Folders Grid */}
-              {favouriteFolders.length > 0 && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: spacing['12'] }}>
-                  <SectionTitle 
-                    collapsible 
-                    isCollapsed={foldersCollapsed} 
-                    onToggle={() => setFoldersCollapsed(!foldersCollapsed)}
-                  >
-                    Folders
-                  </SectionTitle>
-                  {!foldersCollapsed && (
+        <ListViewLayout
+          sections={[
+            {
+              id: 'folders',
+              title: 'Folders',
+              show: favouriteFolders.length > 0,
+              collapsible: true,
+              isCollapsed: foldersCollapsed,
+              onToggle: () => setFoldersCollapsed(!foldersCollapsed),
+              content: (
                 <FolderGrid
                   folders={favouriteFolders.map(folder => {
                     const folderNotes = notes.filter(note => 
@@ -194,26 +171,17 @@ export const FavouritesListView = ({
                     onNoteClick(newNote.id);
                   }}
                 />
-              )}
-                </div>
-              )}
-
-              {/* Wavy Divider */}
-              {favouriteFolders.length > 0 && favouriteNotes.length > 0 && <WavyDivider />}
-
-              {/* Notes List */}
-              {favouriteNotes.length > 0 && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: spacing['12'] }}>
-                  <SectionTitle 
-                    collapsible 
-                    isCollapsed={notesCollapsed} 
-                    onToggle={() => setNotesCollapsed(!notesCollapsed)}
-                  >
-                    Notes
-                  </SectionTitle>
-                  {!notesCollapsed && (
+              ),
+            },
+            {
+              id: 'notes',
+              title: 'Notes',
+              show: favouriteNotes.length > 0,
+              collapsible: true,
+              isCollapsed: notesCollapsed,
+              onToggle: () => setNotesCollapsed(!notesCollapsed),
+              content: (
                 <NotesListView
-                  
                   notes={favouriteNotes.map(note => ({
                     id: note.id,
                     title: note.title,
@@ -226,21 +194,20 @@ export const FavouritesListView = ({
                   selectedNoteId={null}
                   onNoteClick={onNoteClick}
                   onTagClick={onTagClick}
-                      onRemoveTag={(noteId, tagToRemove) => {
-                        const note = notes.find(n => n.id === noteId);
-                        if (note) {
-                          const newTags = note.tags.filter(t => t !== tagToRemove);
-                          updateNote(noteId, { tags: newTags });
-                        }
-                      }}
+                  onRemoveTag={(noteId, tagToRemove) => {
+                    const note = notes.find(n => n.id === noteId);
+                    if (note) {
+                      const newTags = note.tags.filter(t => t !== tagToRemove);
+                      updateNote(noteId, { tags: newTags });
+                    }
+                  }}
                   onUpdateEmoji={handleUpdateEmoji}
                 />
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-        </PageContent>
+              ),
+            },
+          ]}
+          emptyState="No favourites yet."
+        />
     </>
   );
 };

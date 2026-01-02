@@ -11,13 +11,13 @@ export interface PageContentProps {
  * Global wrapper for page content sections (below PageTitleSection)
  * 
  * Provides:
- * - Wavy dividers between sections (automatically inserted)
- * - Consistent gap between sections (spacing['12'] = 12px)
+ * - Wavy dividers between children (automatically inserted)
+ * - Consistent gap between children (spacing['12'] = 12px)
  * - Fills viewport height by default (minHeight: 50vh)
  * - Grows to fit content naturally
  * 
  * Note: 
- * - Gap from PageTitleSection is controlled by parent Container (42px)
+ * - Gap from PageTitleSection is controlled by parent Container (spacing['40'] = 40px)
  * - Padding should be controlled by parent view/layout
  * - Empty states will be centered vertically within available space
  * 
@@ -51,7 +51,7 @@ export const PageContent = ({ children }: PageContentProps) => {
       style={{
         display: 'flex',
         flexDirection: 'column',
-        gap: spacing['md'], // 12px gap between sections
+        gap: spacing['12'], // 12px gap between direct children
         minHeight: '50vh', // Fill at least half viewport by default
         flex: 1, // Grow to fill available space
       }}

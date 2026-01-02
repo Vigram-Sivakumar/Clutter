@@ -15,6 +15,7 @@ interface SecondaryButtonProps {
   withBackground?: boolean;
   onBackground?: 'default' | 'secondary' | 'tertiary';
   noBorder?: boolean;
+  disabled?: boolean;
 }
 
 export const SecondaryButton = ({
@@ -31,6 +32,7 @@ export const SecondaryButton = ({
   withBackground = false,
   onBackground = 'secondary',
   noBorder = false,
+  disabled = false,
 }: SecondaryButtonProps) => {
   return (
     <Button
@@ -47,6 +49,7 @@ export const SecondaryButton = ({
       withBackground={withBackground}
       onBackground={onBackground}
       noBorder={noBorder}
+      disabled={disabled}
     >
       {children}
     </Button>

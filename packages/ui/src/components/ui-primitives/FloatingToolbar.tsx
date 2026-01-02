@@ -9,6 +9,7 @@ import { NodeSelection } from '@tiptap/pm/state';
 import { useTheme } from '../../hooks/useTheme';
 import { spacing } from '../../tokens/spacing';
 import { sizing } from '../../tokens/sizing';
+import { radius } from '../../tokens/radius';
 import { Bold, Italic, Strikethrough, Code, Underline, Link, Check, X, ChevronDown, Tag } from '../../icons';
 import { colors as colorTokens } from '../../tokens/colors';
 import { Button } from '../ui-buttons/Button';
@@ -163,7 +164,7 @@ export const FloatingToolbar = ({ editor }: FloatingToolbarProps) => {
         transform: 'translateX(-50%)',
         backgroundColor: colors.background.default,
         border: `1px solid ${colors.border.default}`,
-        borderRadius: sizing.radius.lg,
+        borderRadius: radius['12'],
         padding: spacing['4'],
         display: 'flex',
         alignItems: 'center',
@@ -269,7 +270,7 @@ export const FloatingToolbar = ({ editor }: FloatingToolbarProps) => {
               backgroundColor: colorTokens[mode].accent[selectedColor]?.bg || colors.background.secondary,
               color: colorTokens[mode].accent[selectedColor]?.text || colors.text.default,
               border: `1px solid ${colors.border.default}`,
-              borderRadius: '3px',
+              borderRadius: radius['3'],
               fontSize: '16px',
               fontWeight: 600,
               cursor: 'pointer',
@@ -342,7 +343,7 @@ export const FloatingToolbar = ({ editor }: FloatingToolbarProps) => {
                   marginTop: spacing['4'],
                   backgroundColor: colors.background.default,
                   border: `1px solid ${colors.border.default}`,
-                  borderRadius: sizing.radius.md,
+                  borderRadius: radius['6'],
                   padding: spacing['6'],
                   display: 'grid',
                   gridTemplateColumns: 'repeat(5, 1fr)',

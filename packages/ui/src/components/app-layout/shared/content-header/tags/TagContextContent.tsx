@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useTheme } from '../../../../../hooks/useTheme';
 import { ColorTray } from './ColorTray';
 import { spacing } from '../../../../../tokens/spacing';
+import { radius } from '../../../../../tokens/radius';
 
 interface TagContextContentProps {
   tag: string;
@@ -60,7 +61,7 @@ export const TagContextContent = ({
             padding: '6px 8px',
             fontSize: '14px',
             border: `1px solid ${colors.border.default}`,
-            borderRadius: '4px',
+            borderRadius: radius['3'],
             backgroundColor: colors.background.secondary,
             color: colors.text.default,
             outline: 'none',
@@ -83,7 +84,7 @@ export const TagContextContent = ({
           color: colors.text.secondary,
           backgroundColor: 'transparent',
           border: 'none',
-          borderRadius: '4px',
+          borderRadius: radius['3'],
           cursor: 'pointer',
           textAlign: 'left',
           width: '100%',
@@ -108,7 +109,7 @@ export const TagContextContent = ({
           color: colors.text.secondary,
           backgroundColor: 'transparent',
           border: 'none',
-          borderRadius: '4px',
+          borderRadius: radius['3'],
           cursor: 'pointer',
           textAlign: 'left',
           width: '100%',
@@ -133,7 +134,7 @@ export const TagContextContent = ({
           color: colors.text.secondary,
           backgroundColor: 'transparent',
           border: 'none',
-          borderRadius: '4px',
+          borderRadius: radius['3'],
           cursor: 'pointer',
           textAlign: 'left',
           width: '100%',

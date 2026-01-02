@@ -1,6 +1,7 @@
 import { ReactNode, RefObject } from 'react';
 import { AppSidebar } from './sidebar';
 import { AppLayout } from './Container';
+import { radius } from '../../../tokens/radius';
 
 // Check if running in Tauri (native app)
 const isTauri = typeof window !== 'undefined' && '__TAURI__' in window;
@@ -69,7 +70,7 @@ export const AppShell = ({
         overscrollBehavior: 'none',
         // macOS-specific styles (rounded window with background)
         ...(isTauri && {
-          borderRadius: '12px',
+          borderRadius: radius['12'],
           backgroundColor,
         }),
       }}

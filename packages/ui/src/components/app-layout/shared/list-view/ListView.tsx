@@ -1,6 +1,7 @@
 import { ReactNode, Fragment } from 'react';
 import { useTheme } from '../../../../hooks/useTheme';
 import { spacing } from '../../../../tokens/spacing';
+import { emptyStateStyles } from '../../../../tokens/emptyState';
 import { SectionTitle } from '../section-title';
 
 // Generic list item data
@@ -44,18 +45,7 @@ export function ListView<T extends ListItemData = ListItemData>({
       
       {/* Empty State */}
       {items.length === 0 && emptyState && (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flex: 1,
-            padding: `${spacing['12']} ${spacing['6']}`,
-            color: colors.text.tertiary,
-            fontSize: '14px',
-            textAlign: 'center',
-          }}
-        >
+        <div style={emptyStateStyles(colors)}>
           {emptyState}
         </div>
       )}
@@ -73,7 +63,7 @@ export function ListView<T extends ListItemData = ListItemData>({
             <div
               style={{
                 height: '1px',
-                backgroundColor: colors.border.SubtleDivider,
+                backgroundColor: colors.border.subtle,
               }}
             />
           )}

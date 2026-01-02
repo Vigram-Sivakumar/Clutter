@@ -4,6 +4,7 @@
  */
 
 import { useTheme } from '../../../../../hooks/useTheme';
+import { radius } from '../../../../../tokens/radius';
 
 interface DropIndicatorProps {
   position: 'before' | 'after';
@@ -32,7 +33,7 @@ export const DropIndicator = ({ position, visible, level = 0 }: DropIndicatorPro
         [position === 'before' ? 'top' : 'bottom']: -2, // Line sits fully in the 2px gap, no shifting
         zIndex: 1000, // High z-index to appear above items
         pointerEvents: 'none',
-        borderRadius: '2px', // Slightly rounded edges
+        borderRadius: radius['3'], // Slightly rounded edges
       }}
     />
   );

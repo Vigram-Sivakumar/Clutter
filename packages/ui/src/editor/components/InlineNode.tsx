@@ -47,7 +47,7 @@ export const InlineNode = ({
     gap: spacing.xs,
     borderRadius: sizing.radius.sm,
     color,
-    fontSize: typography.fontSize.base,
+    fontSize: typography.fontSize['16'],
     fontWeight: typography.fontWeight.medium,
     lineHeight: typography.lineHeightPx.base,
     height: typography.lineHeightPx.sm, // Force exact 20px height

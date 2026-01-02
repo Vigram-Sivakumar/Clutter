@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useNotesStore, useFoldersStore, useAllTags } from '@clutter/shared';
 import { PageTitleSection } from '../../shared/content-header';
-import { PageContent } from '../../shared/page-content/PageContent';
+import { ListViewLayout } from '../../shared/list-view-layout';
 import { TagsListView } from '../../shared/tags-list';
 import { Tag } from '../../../../icons';
 import { sizing } from '../../../../tokens/sizing';
@@ -39,14 +39,15 @@ export const AllTagsListView = ({
           folder.tags.some((t) => t.toLowerCase() === tag.toLowerCase())
       ).length;
       
-      const count = noteCount + folderCount;
-      return { id: tag, tag, count };
+      return { id: tag, tag, noteCount, folderCount };
     });
   }, [allTags, notes, folders]);
 
-  // Sort tags by count (descending)
+  // Sort tags by total count (descending)
   const sortedTags = useMemo(() => {
-    return [...tagsWithCounts].sort((a, b) => b.count - a.count);
+    return [...tagsWithCounts].sort((a, b) => 
+      (b.noteCount + b.folderCount) - (a.noteCount + a.folderCount)
+    );
   }, [tagsWithCounts]);
 
   return (
@@ -67,15 +68,25 @@ export const AllTagsListView = ({
         />
 
         {/* Content Section */}
-        <PageContent>
-          <TagsListView
-            tags={sortedTags}
-            selectedTag={null}
-            onTagClick={(tag) => onTagClick(tag, 'all')}
-            getTagActions={getTagActions}
-            emptyState="No tags yet."
-          />
-        </PageContent>
+        <ListViewLayout
+          sections={[
+            {
+              id: 'tags',
+              title: '', // No title for single-section view
+              show: sortedTags.length > 0,
+              content: (
+                <TagsListView
+                  tags={sortedTags}
+                  selectedTag={null}
+                  onTagClick={(tag) => onTagClick(tag, 'all')}
+                  getTagActions={getTagActions}
+                  emptyState="No tags yet."
+                />
+              ),
+            },
+          ]}
+          emptyState="No tags yet."
+        />
     </>
   );
 };

@@ -34,6 +34,9 @@ interface NoteTopBarProps {
         separator: true;
       }
   >;
+  
+  // Custom actions
+  customActions?: ReactNode;
 }
 
 export const NoteTopBar = ({ 
@@ -51,7 +54,8 @@ export const NoteTopBar = ({
   onToggleWidth,
   isFavorite,
   onToggleFavorite,
-  contextMenuItems 
+  contextMenuItems,
+  customActions
 }: NoteTopBarProps) => {
   // Convert old API to new generic breadcrumb items
   const breadcrumbItems = useMemo<BreadcrumbItem[]>(() => {
@@ -97,6 +101,7 @@ export const NoteTopBar = ({
       isFavorite={isFavorite}
       onToggleFavorite={onToggleFavorite}
       contextMenuItems={contextMenuItems}
+      customActions={customActions}
     >
       <Breadcrumbs items={breadcrumbItems} />
     </TopBar>

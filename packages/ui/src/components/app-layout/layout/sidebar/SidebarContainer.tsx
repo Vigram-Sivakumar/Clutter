@@ -4,7 +4,8 @@ import { spacing } from '../../../../tokens/spacing';
 import { SidebarTabs } from './sections/Tabs';
 import { SidebarActionBar } from './sections/ActionBar';
 import { WindowControls } from './internal/WindowControls';
-import { Folder, CalendarDots, Tag } from '../../../../icons';
+import { CalendarMonthHeader, CalendarDateGrid } from './internal';
+import { Folder, Calendar, Tag } from '../../../../icons';
 
 const DESIGN = {
   spacing: {
@@ -20,6 +21,11 @@ interface SidebarContainerProps {
   onSearch: () => void;
   createButtonShortcut?: string;
 
+  // Calendar (for tasks tab)
+  currentWeekStart?: Date;
+  onWeekChange?: (newWeekStart: Date) => void;
+  onDateSelect?: (date: Date) => void;
+
   // Dynamic content
   children: ReactNode;
 
@@ -33,6 +39,9 @@ interface SidebarContainerProps {
   // Collapse
   onToggleSidebar?: () => void;
   isCollapsed?: boolean;
+  
+  // Scroll control
+  disableScroll?: boolean; // Disable scrolling when context menu or other overlay is open
 }
 
 export const SidebarContainer = ({
@@ -41,12 +50,16 @@ export const SidebarContainer = ({
   onCreateNote,
   onSearch,
   createButtonShortcut,
+  currentWeekStart,
+  onWeekChange,
+  onDateSelect,
   children,
   width = '280px',
   height = '100vh',
   showWindowControls = false,
   onToggleSidebar,
   isCollapsed = false,
+  disableScroll = false,
 }: SidebarContainerProps) => {
   const { colors } = useTheme();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -54,7 +67,7 @@ export const SidebarContainer = ({
 
   const tabOptions = [
     { value: 'notes', icon: <Folder size={16} /> },
-    { value: 'tasks', icon: <CalendarDots size={16} /> },
+    { value: 'tasks', icon: <Calendar size={16} /> },
     { value: 'tags', icon: <Tag size={16} /> },
   ];
 
@@ -82,66 +95,100 @@ export const SidebarContainer = ({
         height,
         display: 'flex',
         flexDirection: 'column',
-        gap: '16px', // Gap between Window Controls, Content Type Toggle, Action Buttons
+        gap: '4px', // ✅ 4px gap from window controls to app layer
         paddingTop: hasWindowControls ? '0' : '12px',
         boxSizing: 'border-box',
         overflow: 'hidden',
         minHeight: 0,
       }}
     >
-      {/* Window Controls (macOS only) - at the very top */}
+      {/* System Layer: Window Controls (macOS only) */}
       <div style={{ flexShrink: 0 }}>
         <WindowControls 
-        variant="sidebar"
-        showToggleButton 
+          variant="sidebar"
+          showToggleButton 
           forceShow={showWindowControls}
           onToggleSidebar={onToggleSidebar}
           isCollapsed={isCollapsed}
         />
       </div>
 
-      {/* Content Type Toggle */}
-      <div style={{ paddingLeft: DESIGN.spacing.paddingBase, paddingRight: DESIGN.spacing.paddingBase, flexShrink: 0 }}>
-        <SidebarTabs
-          value={contentType}
-          onChange={onContentTypeChange}
-          options={tabOptions}
-          size="medium"
-        />
-      </div>
-
-      {/* Action Buttons */}
-      <div style={{ paddingLeft: DESIGN.spacing.paddingBase, paddingRight: DESIGN.spacing.paddingBase, flexShrink: 0 }}>
-        <SidebarActionBar
-          onCreateNote={onCreateNote}
-          onSearch={onSearch}
-          createButtonShortcut={createButtonShortcut}
-        />
-      </div>
-
-      {/* Dynamic Content Area */}
-      <div 
-        style={{ 
-          flex: 1, 
-          overflow: 'hidden', 
+      {/* App Layer - 16px gaps between all elements */}
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '16px', // 16px within app layer
+          flex: 1,
           minHeight: 0,
-          // borderTop: isScrolled ? `1px solid ${colors.border.default}` : 'none',
-          transition: 'border-color 150ms ease',
+          overflow: 'hidden',
         }}
       >
+        {/* Tab Toggle */}
+        <div style={{ paddingLeft: DESIGN.spacing.paddingBase, paddingRight: DESIGN.spacing.paddingBase, flexShrink: 0 }}>
+          <SidebarTabs
+            value={contentType}
+            onChange={onContentTypeChange}
+            options={tabOptions}
+            size="medium"
+          />
+        </div>
+
+        {/* Tab-specific Action Area */}
+        {contentType === 'notes' && (
+          <div style={{ paddingLeft: DESIGN.spacing.paddingBase, paddingRight: DESIGN.spacing.paddingBase, flexShrink: 0 }}>
+            <SidebarActionBar
+              onCreateNote={onCreateNote}
+              onSearch={onSearch}
+              createButtonShortcut={createButtonShortcut}
+            />
+          </div>
+        )}
+
+        {contentType === 'tasks' && currentWeekStart && onWeekChange && (
+          <div style={{ paddingLeft: DESIGN.spacing.paddingBase, paddingRight: DESIGN.spacing.paddingBase, flexShrink: 0 }}>
+            <div style={{ marginBottom: '6px' }}>
+              <CalendarMonthHeader 
+                currentWeekStart={currentWeekStart}
+                onWeekChange={onWeekChange}
+                onDateSelect={onDateSelect}
+              />
+            </div>
+            <CalendarDateGrid
+              view="week"
+              weekStart={currentWeekStart}
+              onDateClick={onDateSelect}
+            />
+          </div>
+        )}
+
+        {contentType === 'tags' && (
+          // Tags tab: no action area (or could add search later)
+          null
+        )}
+
+        {/* Scrollable Content Area */}
         <div 
-          ref={scrollRef}
           style={{ 
-            height: '100%', 
-            overflowY: 'auto', 
-            overflowX: 'hidden',
-            padding: `0px ${DESIGN.spacing.paddingBase}`, 
-            borderTop: isScrolled ? `1px solid ${colors.border.default}` : 'none',
-
-
+            flex: 1, 
+            overflow: 'hidden', 
+            minHeight: 0,
+            display: 'flex',
+            flexDirection: 'column',
           }}
         >
-          {children}
+          <div 
+            ref={scrollRef}
+            style={{ 
+              flex: 1,
+              overflowY: disableScroll ? 'hidden' : 'auto', 
+              overflowX: 'hidden',
+              padding: `0px ${DESIGN.spacing.paddingBase}`, 
+              borderTop: isScrolled ? `1px solid ${colors.border.subtle}` : 'none',
+            }}
+          >
+            {children}
+          </div>
         </div>
       </div>
     </div>

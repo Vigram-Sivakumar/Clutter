@@ -56,7 +56,7 @@ export const colors = {
       subtle: stone[600],     // lighter for subtle content
 
       disabled: stone[700],     // faded/disabled state
-      placeholder: `${stone[700]}99`, // placeholder at 60%
+      placeholder: `${stone[700]}50`, // placeholder at 60%
       inverse: stone[50],       // off-white text on dark backgrounds
     },
 
@@ -66,7 +66,7 @@ export const colors = {
     // Border colors - Minimal lines
     border: {
       default: stone[300],      // default border
-      SubtleDivider: stone[200],      // default border
+      subtle: stone[200],      // default border
       hover: stone[400],        // interactive border
       focus: stone[700],        // focus indicator
       divider: stone[200],      // subtle dividers
@@ -95,6 +95,21 @@ export const colors = {
       error: '#dc2626',       // red-600
       info: stone[700],       // use dark shade instead of blue
       orange: '#f97316',      // orange-500
+      calendarAccent: '#e95824', // Calendar today/selected highlight
+    },
+
+    // Button colors
+    button: {
+      primary: {
+        background: stone[800],     // Light gray for primary action
+        text: stone[100],           // Dark text on light background
+        hover: stone[700],           // Lighter on hover
+      },
+      danger: {
+        background: '#dc2626',      // red-600
+        text: stone[50],            // Light text on red background
+        hover: '#b91c1c',           // red-700
+      },
     },
 
     // Overlay colors
@@ -102,7 +117,7 @@ export const colors = {
       light: `${stone[900]}14`,    // ink overlay at 8%
       medium: `${stone[900]}29`,   // ink overlay at 16%
       heavy: `${stone[900]}66`,    // ink overlay at 40%
-      backdrop: 'rgba(37, 36, 32, 0.3)', // newspaper ink backdrop
+      backdrop: 'rgba(37, 36, 32, 0.5)', // modal backdrop (50% opacity)
     },
 
     // Shadow colors (for box-shadow) - softer shadows for newspaper aesthetic
@@ -143,7 +158,7 @@ export const colors = {
     // Border colors - Notion-inspired borders
     border: {
       default: neutral[600],    // #3b3b3b (default border)
-      SubtleDivider: neutral[800],      // default border
+      subtle: neutral[800],      // default border
       hover: neutral[500],      // #4d4d4d (hover border)
       focus: neutral[400],      // #6b6b6b (focus indicator)
       divider: neutral[600],    // #3b3b3b (subtle dividers)
@@ -172,6 +187,21 @@ export const colors = {
       error: '#e67c73',       // Notion error red
       info: '#3b8ef6',        // Notion info blue
       orange: '#FF8C00',      // Notion orange
+      calendarAccent: '#e95824', // Calendar today/selected highlight
+    },
+
+    // Button colors
+    button: {
+      primary: {
+        background: neutral[50],   // Light gray for primary action (d5d5d5)
+        text: neutral[950],         // Dark text on light background
+        hover: neutral[100],         // Brighter on hover
+      },
+      danger: {
+        background: '#e67c73',      // Notion error red
+        text: neutral[950],         // Dark text on red background
+        hover: '#f08a81',           // Lighter red on hover
+      },
     },
 
     // Overlay colors
@@ -179,7 +209,7 @@ export const colors = {
       light: 'rgba(245, 245, 243, 0.08)',   // warm off-white overlay
       medium: 'rgba(245, 245, 243, 0.16)',  // warm off-white overlay
       heavy: 'rgba(245, 245, 243, 0.4)',    // warm off-white overlay
-      backdrop: 'rgba(31, 31, 28, 0.7)',    // charcoal backdrop
+      backdrop: 'rgba(0, 0, 0, 0.5)',       // modal backdrop (50% opacity)
     },
 
     // Shadow colors (for box-shadow) - deeper shadows for charcoal

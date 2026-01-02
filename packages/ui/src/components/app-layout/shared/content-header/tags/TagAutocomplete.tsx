@@ -1,6 +1,7 @@
 import { useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useTheme } from '../../../../../hooks/useTheme';
+import { radius } from '../../../../../tokens/radius';
 
 interface TagAutocompleteProps {
   suggestions: string[];
@@ -38,7 +39,7 @@ export const TagAutocomplete = ({
         marginTop: '4px',
         backgroundColor: colors.background.default,
         border: `1px solid ${colors.border.default}`,
-        borderRadius: '6px',
+        borderRadius: radius['6'],
         boxShadow: `0 4px 12px ${colors.shadow.md}`,
         maxHeight: '200px',
         overflowY: 'auto',
