@@ -24,6 +24,7 @@ interface SidebarContainerProps {
   // Calendar (for tasks tab)
   currentWeekStart?: Date;
   onWeekChange?: (newWeekStart: Date) => void;
+  selectedDate?: Date;
   onDateSelect?: (date: Date) => void;
 
   // Dynamic content
@@ -52,6 +53,7 @@ export const SidebarContainer = ({
   createButtonShortcut,
   currentWeekStart,
   onWeekChange,
+  selectedDate,
   onDateSelect,
   children,
   width = '280px',
@@ -157,6 +159,7 @@ export const SidebarContainer = ({
             <CalendarDateGrid
               view="week"
               weekStart={currentWeekStart}
+              selectedDate={selectedDate}
               onDateClick={onDateSelect}
             />
           </div>

@@ -1,7 +1,7 @@
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useTheme } from '../../../../../hooks/useTheme';
 import { spacing } from '../../../../../tokens/spacing';
-import { radius } from '../../../../../tokens/radius';
+import { sidebarLayout } from '../../../../../tokens/sidebar';
 
 
 interface CalendarDateGridProps {
@@ -19,10 +19,39 @@ export const CalendarDateGrid = ({
 }: CalendarDateGridProps) => {
   const { colors } = useTheme();
 
-  // Get today at start of day (normalized)
-  const today = useMemo(() => {
+  // Get today at start of day (normalized) - updates at midnight
+  const [today, setToday] = useState(() => {
     const d = new Date();
     return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  });
+
+  // 🕐 AUTO-UPDATE: Detect day change at exactly 00:00:00 and update "today"
+  useEffect(() => {
+    const scheduleNextDayCheck = () => {
+      const now = new Date();
+      const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0); // 00:00:00 tomorrow
+      const msUntilMidnight = tomorrow.getTime() - now.getTime();
+      
+      // Set timeout to trigger at exactly 00:00:00
+      const timeoutId = setTimeout(() => {
+        const newToday = new Date();
+        const normalizedToday = new Date(newToday.getFullYear(), newToday.getMonth(), newToday.getDate());
+        
+        console.log('📅 CalendarDateGrid: Day changed! Updating today to', normalizedToday.toLocaleDateString());
+        
+        // Update today
+        setToday(normalizedToday);
+        
+        // Schedule next day check
+        scheduleNextDayCheck();
+      }, msUntilMidnight);
+      
+      return timeoutId;
+    };
+    
+    const timeoutId = scheduleNextDayCheck();
+    
+    return () => clearTimeout(timeoutId);
   }, []);
 
   // Calculate week days based on the provided weekStart
@@ -63,7 +92,7 @@ export const CalendarDateGrid = ({
         style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(7, 1fr)',
-          gap: spacing['2'],
+          gap: sidebarLayout.calendarGridGap, // ✅ Controlled by global token
           padding: spacing['2'],
         }}
       >
@@ -71,7 +100,7 @@ export const CalendarDateGrid = ({
           <div
             key={i}
             style={{
-              height: '24px',
+              height: sidebarLayout.calendarCellHeight, // ✅ Controlled by global token
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -90,10 +119,10 @@ export const CalendarDateGrid = ({
         style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(7, 1fr)',
-          gap: spacing['2'],
+          gap: sidebarLayout.calendarGridGap, // ✅ Controlled by global token
           backgroundColor: colors.background.tertiary,
-          padding: spacing['4'],
-          borderRadius: radius['6'], // 6px radius for weekly wrapper
+          padding: sidebarLayout.calendarPadding, // ✅ Controlled by global token
+          borderRadius: sidebarLayout.calendarBorderRadius, // ✅ Controlled by global token
         }}
       >
       {weekDays.map((date, index) => {
@@ -110,40 +139,36 @@ export const CalendarDateGrid = ({
             key={index}
             onClick={() => handleDateClick(date)}
             style={{
-              height: '24px',
+              height: sidebarLayout.calendarCellHeight, // ✅ Controlled by global token
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               fontSize: '12px',
               fontWeight: isToday || isSelected ? 600 : 400,
               color: isSelected
-                ? '#FFFFFF'
+                ? '#FFFFFF' // Selected: white text
                 : isToday
-                ? '#FFFFFF'
+                ? colors.semantic.calendarAccent // ✅ Today (not selected): orange text
                 : isCurrentMonth
-                ? colors.text.default
-                : colors.text.tertiary,
+                ? colors.text.default // Current month: normal text
+                : colors.text.tertiary, // Other month: faded text
               backgroundColor: isSelected
-                ? colors.semantic.calendarAccent
-                : isToday
-                ? colors.semantic.calendarAccent
-                : 'transparent',
+                ? colors.semantic.calendarAccent // Selected: orange background
+                : 'transparent', // ✅ Today/others: no background
               border: '1px solid transparent',
-              borderRadius: radius['6'],
+              borderRadius: sidebarLayout.calendarBorderRadius, // ✅ Controlled by global token
               cursor: 'pointer',
               transition: 'all 150ms ease',
               padding: '4px 0',
               boxSizing: 'border-box',
             }}
             onMouseEnter={(e) => {
-              if (!isSelected && !isToday) {
+              if (!isSelected) {
                 e.currentTarget.style.backgroundColor = colors.background.hover;
-              } else {
-                e.currentTarget.style.backgroundColor = colors.semantic.calendarAccent;
               }
             }}
             onMouseLeave={(e) => {
-              if (isSelected || isToday) {
+              if (isSelected) {
                 e.currentTarget.style.backgroundColor = colors.semantic.calendarAccent;
               } else {
                 e.currentTarget.style.backgroundColor = 'transparent';

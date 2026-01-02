@@ -163,6 +163,57 @@ export const AppSidebar = ({
     return startOfWeek;
   });
   
+  // Calendar selected date state
+  const [selectedDate, setSelectedDate] = useState<Date>(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Normalize to start of day
+    return today;
+  });
+  
+  // Handle date selection - update local state and call parent handler
+  const handleDateSelect = useCallback((date: Date) => {
+    setSelectedDate(date);
+    onDateSelect?.(date);
+  }, [onDateSelect]);
+  
+  // 🕐 AUTO-UPDATE: Detect day change at exactly 00:00:00 and update calendar
+  useEffect(() => {
+    const scheduleNextDayCheck = () => {
+      const now = new Date();
+      const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0); // 00:00:00 tomorrow
+      const msUntilMidnight = tomorrow.getTime() - now.getTime();
+      
+      // Set timeout to trigger at exactly 00:00:00
+      const timeoutId = setTimeout(() => {
+        const newToday = new Date();
+        newToday.setHours(0, 0, 0, 0); // Normalize to start of day
+        
+        console.log('📅 Day changed! Updating calendar to', newToday.toLocaleDateString());
+        
+        // Update selected date to today
+        setSelectedDate(newToday);
+        
+        // Update week to current week
+        const dayOfWeek = newToday.getDay();
+        const startOfWeek = new Date(newToday);
+        startOfWeek.setDate(newToday.getDate() - dayOfWeek); // Go back to Sunday
+        setCurrentWeekStart(startOfWeek);
+        
+        // Notify parent if handler exists
+        onDateSelect?.(newToday);
+        
+        // Schedule next day check
+        scheduleNextDayCheck();
+      }, msUntilMidnight);
+      
+      return timeoutId;
+    };
+    
+    const timeoutId = scheduleNextDayCheck();
+    
+    return () => clearTimeout(timeoutId);
+  }, [onDateSelect]);
+  
   // Sidebar resize
   const { 
     sidebarWidth, 
@@ -1504,7 +1555,8 @@ export const AppSidebar = ({
             createButtonShortcut="⌘ N"
             currentWeekStart={currentWeekStart}
             onWeekChange={setCurrentWeekStart}
-            onDateSelect={onDateSelect}
+            selectedDate={selectedDate}
+            onDateSelect={handleDateSelect}
             width="100%"
             height="100%"
             showWindowControls={true}

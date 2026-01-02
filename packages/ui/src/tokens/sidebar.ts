@@ -45,6 +45,12 @@ export const sidebarLayout = {
   tagPillMinHeight: '20px',       // Minimum height for tag pill
   tagPillFontSize: '14px',        // Tag pill font size
   tagPillLineHeight: '20px',      // Tag pill line height
+  
+  // Calendar-specific (Tasks tab)
+  calendarGridGap: '0px',         // Gap between calendar date cells (weekday headers & dates)
+  calendarCellHeight: '24px',     // Height of weekday headers and date buttons
+  calendarPadding: '4px',         // Padding inside calendar date grid wrapper
+  calendarBorderRadius: '6px',    // Border radius for calendar wrapper and date buttons
 } as const;
 
 export type SidebarLayout = typeof sidebarLayout;
