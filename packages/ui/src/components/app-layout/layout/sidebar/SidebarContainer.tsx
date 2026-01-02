@@ -107,8 +107,8 @@ export const SidebarContainer = ({
       {/* System Layer: Window Controls (macOS only) */}
       <div style={{ flexShrink: 0 }}>
         <WindowControls 
-          variant="sidebar"
-          showToggleButton 
+        variant="sidebar"
+        showToggleButton 
           forceShow={showWindowControls}
           onToggleSidebar={onToggleSidebar}
           isCollapsed={isCollapsed}
@@ -127,24 +127,24 @@ export const SidebarContainer = ({
         }}
       >
         {/* Tab Toggle */}
-        <div style={{ paddingLeft: DESIGN.spacing.paddingBase, paddingRight: DESIGN.spacing.paddingBase, flexShrink: 0 }}>
-          <SidebarTabs
-            value={contentType}
-            onChange={onContentTypeChange}
-            options={tabOptions}
-            size="medium"
-          />
-        </div>
+      <div style={{ paddingLeft: DESIGN.spacing.paddingBase, paddingRight: DESIGN.spacing.paddingBase, flexShrink: 0 }}>
+        <SidebarTabs
+          value={contentType}
+          onChange={onContentTypeChange}
+          options={tabOptions}
+          size="medium"
+        />
+      </div>
 
         {/* Tab-specific Action Area */}
         {contentType === 'notes' && (
-          <div style={{ paddingLeft: DESIGN.spacing.paddingBase, paddingRight: DESIGN.spacing.paddingBase, flexShrink: 0 }}>
-            <SidebarActionBar
-              onCreateNote={onCreateNote}
-              onSearch={onSearch}
-              createButtonShortcut={createButtonShortcut}
-            />
-          </div>
+      <div style={{ paddingLeft: DESIGN.spacing.paddingBase, paddingRight: DESIGN.spacing.paddingBase, flexShrink: 0 }}>
+        <SidebarActionBar
+          onCreateNote={onCreateNote}
+          onSearch={onSearch}
+          createButtonShortcut={createButtonShortcut}
+        />
+      </div>
         )}
 
         {contentType === 'tasks' && currentWeekStart && onWeekChange && (
@@ -171,26 +171,26 @@ export const SidebarContainer = ({
         )}
 
         {/* Scrollable Content Area */}
+      <div 
+        style={{ 
+          flex: 1, 
+          overflow: 'hidden', 
+          minHeight: 0,
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
         <div 
+          ref={scrollRef}
           style={{ 
-            flex: 1, 
-            overflow: 'hidden', 
-            minHeight: 0,
-            display: 'flex',
-            flexDirection: 'column',
-          }}
-        >
-          <div 
-            ref={scrollRef}
-            style={{ 
               flex: 1,
               overflowY: disableScroll ? 'hidden' : 'auto', 
-              overflowX: 'hidden',
-              padding: `0px ${DESIGN.spacing.paddingBase}`, 
+            overflowX: 'hidden',
+            padding: `0px ${DESIGN.spacing.paddingBase}`, 
               borderTop: isScrolled ? `1px solid ${colors.border.subtle}` : 'none',
-            }}
-          >
-            {children}
+          }}
+        >
+          {children}
           </div>
         </div>
       </div>
