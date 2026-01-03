@@ -851,6 +851,38 @@ export const NoteEditor = ({
     }
   }, [setCurrentNoteId, notes]);
   
+  // Handler for navigating from @ mention links (note/folder links in editor)
+  const handleNavigate = useCallback((linkType: 'note' | 'folder', targetId: string) => {
+    // Save current note metadata before navigating
+    if (currentNoteId && !isHydratingRef.current) {
+      updateNoteMeta(currentNoteId, {
+        title,
+        description,
+        tags,
+        emoji: selectedEmoji,
+        isFavorite,
+        descriptionVisible,
+        tagsVisible,
+      });
+    }
+    
+    if (linkType === 'note') {
+      // Navigate to the linked note
+      const note = notes.find(n => n.id === targetId);
+      if (note?.deletedAt) {
+        // Note is deleted -> open in "Recently deleted" context
+        setMainView({ type: 'editor', source: 'deletedItems' });
+      } else {
+        // Note is active -> open in normal context
+        setMainView({ type: 'editor' });
+      }
+      setCurrentNoteId(targetId);
+    } else if (linkType === 'folder') {
+      // Navigate to the folder view
+      setMainView({ type: 'folderView', folderId: targetId });
+    }
+  }, [currentNoteId, notes, title, description, tags, selectedEmoji, isFavorite, descriptionVisible, tagsVisible, updateNoteMeta, setCurrentNoteId, setMainView]);
+  
   // Check if current note is a daily note
   const isDailyNote = useMemo(() => {
     return currentNote?.dailyNoteDate !== null && currentNote?.dailyNoteDate !== undefined;
@@ -1378,6 +1410,7 @@ export const NoteEditor = ({
                 }
               }}
               onTagClick={handleShowTagFilter}
+              onNavigate={handleNavigate}
               onTagsChange={(extractedTags) => {
                 // Merge extracted tags from editor with existing metadata tags
                 setTags((prevTags) => {

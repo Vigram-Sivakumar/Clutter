@@ -80,6 +80,7 @@ interface EditorCoreProps {
   content?: object | null;
   onChange?: (content: object) => void;
   onTagClick?: (tag: string) => void; // Callback when a tag is clicked for navigation
+  onNavigate?: (linkType: 'note' | 'folder', targetId: string) => void; // Callback when a note/folder link is clicked
   placeholder?: string;
   editable?: boolean;
   className?: string;
@@ -90,6 +91,7 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(({
   content,
   onChange,
   onTagClick,
+  onNavigate,
   // placeholder prop kept for API compatibility but not used
   // (placeholders are handled by individual React components)
   placeholder: _placeholder = placeholders.default,
@@ -122,7 +124,9 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(({
       Callout, // Info/warning/error/success callout boxes
       ToggleHeader, // Standalone toggle header (flat structure like ListBlock)
       DateMentionNode, // Date mentions (@Today, @Yesterday, etc.) - atomic inline node
-      NoteLink, // Note/folder links (no @) - atomic inline node
+      NoteLink.configure({
+        onNavigate, // Pass navigation callback to NoteLink extension
+      }), // Note/folder links (no @) - atomic inline node
       Gapcursor, // Shows cursor when navigating around atomic nodes
 
       // Marks

@@ -83,7 +83,10 @@ export function searchEntities(
   }
 
   // Check if we should show create options
-  // Show if query has content and no exact match exists
+  // Show create only if:
+  // 1. No exact match exists
+  // 2. Query is at least 2 characters (avoid showing "Create 'a'" etc.)
+  // 3. No strong match (title doesn't start with query)
   const hasExactNoteMatch = noteMatches.some(
     n => n.title.toLowerCase() === normalizedQuery
   );
@@ -91,10 +94,17 @@ export function searchEntities(
     f => f.title.toLowerCase() === normalizedQuery
   );
 
+  const hasStrongNoteMatch = noteMatches.some(
+    n => n.title.toLowerCase().startsWith(normalizedQuery)
+  );
+  const hasStrongFolderMatch = folderMatches.some(
+    f => f.title.toLowerCase().startsWith(normalizedQuery)
+  );
+
   return {
     matches,
-    showCreateNote: !hasExactNoteMatch,
-    showCreateFolder: !hasExactFolderMatch,
+    showCreateNote: !hasExactNoteMatch && !hasStrongNoteMatch && normalizedQuery.length >= 2,
+    showCreateFolder: !hasExactFolderMatch && !hasStrongFolderMatch && normalizedQuery.length >= 2,
   };
 }
 

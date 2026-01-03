@@ -14,6 +14,7 @@ interface MentionPillProps {
   label: string;
   className?: string;
   dataType?: string;
+  onClick?: () => void;
   [key: string]: any; // For additional data attributes
 }
 
@@ -22,6 +23,7 @@ export function MentionPill({
   label, 
   className = '', 
   dataType,
+  onClick,
   ...rest 
 }: MentionPillProps) {
   const { colors } = useTheme();
@@ -82,6 +84,7 @@ export function MentionPill({
       style={pillStyle}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
+      onClick={onClick}
       {...rest}
     >
       <span className="mention-icon" style={iconStyle}>{styledIcon}</span>

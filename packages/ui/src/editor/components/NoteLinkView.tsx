@@ -8,7 +8,7 @@ import type { NodeViewProps } from '@tiptap/react';
 import { CalendarBlank, Note, Folder } from '../../icons';
 import { MentionPill } from './MentionPill';
 
-export function NoteLinkView({ node }: NodeViewProps) {
+export function NoteLinkView({ node, editor }: NodeViewProps) {
   const { linkType, targetId, label, emoji } = node.attrs;
 
   // Determine icon based on link type and whether there's a custom emoji
@@ -31,6 +31,18 @@ export function NoteLinkView({ node }: NodeViewProps) {
     return <Note style={{ width: '14px', height: '14px' }} />;
   };
 
+  // Handle click to navigate
+  const handleClick = () => {
+    // Get onNavigate callback from the extension's options
+    const onNavigate = editor.extensionManager.extensions.find(
+      ext => ext.name === 'noteLink'
+    )?.options.onNavigate;
+
+    if (onNavigate && linkType && targetId) {
+      onNavigate(linkType, targetId);
+    }
+  };
+
   return (
     <NodeViewWrapper as="span" className="note-link">
       <MentionPill
@@ -39,6 +51,7 @@ export function NoteLinkView({ node }: NodeViewProps) {
         dataType="note-link"
         data-link-type={linkType}
         data-target-id={targetId}
+        onClick={handleClick}
       />
     </NodeViewWrapper>
   );
