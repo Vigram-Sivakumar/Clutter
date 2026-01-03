@@ -714,7 +714,16 @@ export const AppSidebar = ({
     // Store context for the effect to use
     lastTaskContextRef.current = context || null;
     handleTaskMultiSelectBase(taskId, event);
-  }, [handleTaskMultiSelectBase, clearNoteSelection, clearFolderSelection]);
+    
+    // If this is a normal click (no modifiers), navigate to task (like tags do)
+    if (!event?.metaKey && !event?.ctrlKey && !event?.shiftKey) {
+      // Find the task to get its noteId
+      const task = visibleTasks.find(t => t.id === taskId);
+      if (task && onNoteClickWithBlock) {
+        onNoteClickWithBlock(task.noteId, taskId);
+      }
+    }
+  }, [handleTaskMultiSelectBase, clearNoteSelection, clearFolderSelection, visibleTasks, onNoteClickWithBlock]);
 
   // Sync selection state when selectedTaskIds changes (after multi-select hook updates)
   useEffect(() => {

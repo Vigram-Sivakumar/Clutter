@@ -258,17 +258,7 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(({
         editor.view.dispatch(tr);
         editor.view.focus();
         
-        // Clear selection after 2 seconds
-        setTimeout(() => {
-          const currentDoc = editor.state.doc;
-          const lastPos = currentDoc.content.size;
-          const tr = editor.state.tr.setSelection(
-            editor.state.selection.constructor.near(
-              currentDoc.resolve(Math.min(lastPos - 1, blockPos + 1))
-            )
-          );
-          editor.view.dispatch(tr);
-        }, 2000);
+        // Selection persists until user manually clicks elsewhere
       }
     },
   }), [editor]);
