@@ -16,6 +16,8 @@ export const UI_STATE_KEYS = {
   FAVOURITES_COLLAPSED: 'ui.notes.favourites.collapsed',
   FOLDERS_COLLAPSED: 'ui.notes.folders.collapsed',
   OPEN_FOLDER_IDS: 'ui.notes.openFolderIds',
+  COLLAPSED_DAILY_NOTE_GROUPS: 'ui.notes.collapsedDailyNoteGroups',
+  SIDEBAR_COLLAPSED_DAILY_NOTE_GROUPS: 'ui.notes.sidebar.collapsedDailyNoteGroups',
   
   // Notes tab - manual toggle tracking
   MANUALLY_TOGGLED_CLUTTERED: 'ui.notes.manuallyToggledCluttered',
@@ -65,6 +67,8 @@ export interface UIState {
   favouritesCollapsed?: boolean;
   foldersCollapsed?: boolean;
   openFolderIds?: string[];
+  collapsedDailyNoteGroups?: string[];
+  sidebarCollapsedDailyNoteGroups?: string[];
   
   // Manual toggle tracking
   manuallyToggledCluttered?: boolean;

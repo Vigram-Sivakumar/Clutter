@@ -30,6 +30,9 @@ export interface ListViewSection {
   
   /** Handler for toggle collapse/expand */
   onToggle?: () => void;
+  
+  /** Optional color override for the section title (e.g., calendarAccent for current year/month) */
+  titleColor?: string;
 }
 
 export interface ListViewLayoutProps {
@@ -90,7 +93,7 @@ export const ListViewLayout = ({ sections, emptyState }: ListViewLayoutProps) =>
         style={{
           display: 'flex',
           flexDirection: 'column',
-          gap: spacing['32'], // 32px between major sections (Folders, Notes, etc)
+          gap: spacing['4'], // 4px between sections
           flex: 1, // Fill available height for empty state centering
           height: '100%', // Fallback for non-flex contexts
         }}
@@ -102,7 +105,7 @@ export const ListViewLayout = ({ sections, emptyState }: ListViewLayoutProps) =>
               <div style={{ 
                 display: 'flex', 
                 flexDirection: 'column', 
-                gap: spacing['12'] // 12px between section title and section content
+                gap: spacing['4'] // 4px between section title and section content
               }}>
                 {/* Section Title (if provided) */}
                 {section.title && (
@@ -110,6 +113,7 @@ export const ListViewLayout = ({ sections, emptyState }: ListViewLayoutProps) =>
                     collapsible={section.collapsible}
                     isCollapsed={section.isCollapsed}
                     onToggle={section.onToggle}
+                    titleColor={section.titleColor}
                   >
                     {section.title}
                   </SectionTitle>
@@ -119,8 +123,12 @@ export const ListViewLayout = ({ sections, emptyState }: ListViewLayoutProps) =>
                 {!section.isCollapsed && section.content}
               </div>
               
-              {/* Wavy Divider (between sections, not after last) */}
-              {index < visibleSections.length - 1 && <WavyDivider />}
+              {/* Wavy Divider (only show if current section is expanded and not last) */}
+              {!section.isCollapsed && index < visibleSections.length - 1 && (
+                <div style={{ marginTop: spacing['24'], marginBottom: spacing['24'] }}>
+                  <WavyDivider />
+                </div>
+              )}
             </Fragment>
           ))
         ) : (

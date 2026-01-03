@@ -51,13 +51,12 @@ const getRelativeDatePrefix = (date: Date): string => {
   return '';
 };
 
-// Helper to format daily note title: "Today, Thu, 1 Jan 2026" or "Thu, 1 Jan 2026"
+// Helper to format daily note title: "Today, 3 Jan 2026" or "3 Jan 2026"
 const formatDailyNoteTitle = (date: Date): string => {
-  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   
   const prefix = getRelativeDatePrefix(date);
-  const dateStr = `${days[date.getDay()]}, ${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
+  const dateStr = `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
   
   return `${prefix}${dateStr}`;
 };
@@ -514,9 +513,8 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
       console.log(`♻️ Converting deleted daily note ${deletedDailyNote.id} to regular note (new daily note created for ${dateStr})`);
       
       // Create a fixed title without "Today/Yesterday" prefix
-      const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
       const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      const fixedTitle = `${days[date.getDay()]}, ${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
+      const fixedTitle = `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
       
       get().updateNote(deletedDailyNote.id, {
         dailyNoteDate: null,  // Convert to regular note

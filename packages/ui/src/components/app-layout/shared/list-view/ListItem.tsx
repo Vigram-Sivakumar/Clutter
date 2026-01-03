@@ -17,7 +17,7 @@ import { getNoteIcon, getFolderIcon } from '../../../../utils/itemIcons';
  */
 const DESIGN = {
   spacing: {
-    iconToLabel: spacing['6'],        // Gap between icon/emoji and label text
+    iconToLabel: spacing['4'],        // Gap between icon/emoji and label text
     labelToMetadata: spacing['6'],             // Gap between label and metadata group (right side)
     metadataGap: spacing['8'],                 // Gap between metadata items (badges, tags)
     tagsGap: spacing['4'],                     // Gap between individual tag pills
@@ -62,6 +62,7 @@ export interface NoteListItemData {
   taskCount: number;
   dailyNoteDate?: string | null; // ISO date string for daily notes
   hasContent?: boolean; // Whether note has editor content (for Note/NoteBlank icon switching)
+  isToday?: boolean; // Whether this is today's daily note (for highlighting)
 }
 
 interface NoteListItemProps extends BaseListItemProps {
@@ -160,13 +161,13 @@ export const ListItem = (props: ListItemProps) => {
 const NoteContent = ({ data, onTagClick, onRemoveTag, onEmojiClick, isHovered }: NoteListItemProps & { isHovered: boolean }) => {
   const { colors } = useTheme();
 
-  // Use centralized icon system
+  // Use centralized icon system - highlight icon color for today's note
   const noteIcon = getNoteIcon({
     emoji: data.emoji || undefined,
     dailyNoteDate: data.dailyNoteDate,
     hasContent: data.hasContent,
     size: 16,
-    color: colors.text.secondary,
+    color: data.isToday ? colors.semantic.calendarAccent : colors.text.secondary,
   });
 
   return (

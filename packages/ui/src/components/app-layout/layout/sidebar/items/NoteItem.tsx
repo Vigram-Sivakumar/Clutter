@@ -5,6 +5,7 @@ interface SidebarItemNoteProps {
   id: string;
   title: string;
   icon?: string;
+  labelColor?: string; // Optional color override for the label (e.g., calendarAccent for today's note)
   hasContent?: boolean;
   dailyNoteDate?: string | null; // For daily notes - date in YYYY-MM-DD format
   isSelected: boolean;
@@ -39,6 +40,7 @@ export const SidebarItemNote = ({
   id,
   title,
   icon,
+  labelColor,
   hasContent,
   dailyNoteDate,
   isSelected,
@@ -66,6 +68,7 @@ export const SidebarItemNote = ({
       id={id}
       label={title}
       icon={icon}
+      labelColor={labelColor}
       hasContent={hasContent}
       dailyNoteDate={dailyNoteDate}
       level={level}

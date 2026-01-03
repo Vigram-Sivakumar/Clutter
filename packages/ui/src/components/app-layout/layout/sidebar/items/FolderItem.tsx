@@ -9,6 +9,7 @@ interface SidebarItemFolderProps {
   level: number;
   emoji?: string | ReactNode | null; // Optional emoji string or icon component for folder
   folderId?: string; // Folder ID for system folder identification (cluttered, __daily_notes__)
+  labelColor?: string; // Optional color override for the label (e.g., calendarAccent for current year/month)
   onClick: (event?: React.MouseEvent) => void; // Click folder to open folder view
   onToggle?: () => void; // Click chevron to expand/collapse
   actions?: ReactNode[];
@@ -49,6 +50,7 @@ export const SidebarItemFolder = ({
   level,
   emoji,
   folderId,
+  labelColor,
   onClick,
   onToggle,
   actions,
@@ -79,6 +81,7 @@ export const SidebarItemFolder = ({
       label={label}
       icon={emoji || undefined}
       folderId={folderId}
+      labelColor={labelColor}
       level={level}
       badge={badge}
       isOpen={isOpen}

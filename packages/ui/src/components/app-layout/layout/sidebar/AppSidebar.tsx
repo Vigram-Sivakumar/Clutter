@@ -5,7 +5,7 @@ import { ContextMenu } from '../../../ui-primitives';
 import { SidebarContainer } from './SidebarContainer';
 import { NotesView } from './views/NotesView';
 import { TagsView } from './views/TagsView';
-import { TasksView } from './views/TasksView';
+import { CalendarView } from './views/CalendarView';
 import { EmojiTray } from '../../shared/emoji';
 import { sizing } from '../../../../tokens/sizing';
 import { spacing } from '../../../../tokens/spacing';
@@ -88,6 +88,8 @@ interface AppSidebarProps {
   onDateSelect?: (date: Date) => void; // Called when calendar date is selected (for daily notes)
   onToggleSidebar?: () => void;
   currentView?: { type: 'editor' } | { type: 'tagFilter'; tag: string }; // Current main view
+  onYearClick?: (year: string) => void; // Called when year is clicked in daily notes
+  onMonthClick?: (year: string, month: string) => void; // Called when month is clicked in daily notes
 }
 
 export const AppSidebar = ({ 
@@ -97,6 +99,8 @@ export const AppSidebar = ({
   isCollapsed = false,
   onTagClick,
   onFolderClick,
+  onYearClick,
+  onMonthClick,
   onBackToEditor,
   onNoteClickFromSidebar,
   onNoteClickWithBlock,
@@ -1779,7 +1783,7 @@ export const AppSidebar = ({
 
               {/* Tasks Tab */}
             {contentType === 'tasks' && (
-                <TasksView
+                <CalendarView
                   onTaskClick={(noteId, taskId) => {
                     // Navigate to the note containing the task and scroll to the task block
                     if (onNoteClickWithBlock) {
@@ -1796,6 +1800,8 @@ export const AppSidebar = ({
                 isDailyNotesCollapsed={isDailyNotesCollapsed}
                 onDailyNotesToggle={() => setDailyNotesCollapsed(!isDailyNotesCollapsed)}
                 onDailyNotesFolderClick={() => onFolderClick?.(DAILY_NOTES_FOLDER_ID)}
+                onYearClick={onYearClick}
+                onMonthClick={onMonthClick}
                 selection={selection}
                 currentNoteId={currentNoteId}
                 onClearSelection={handleClearSelection}

@@ -13,6 +13,8 @@ export interface SectionTitleProps {
   isCollapsed?: boolean;
   /** Callback when collapse state changes (if collapsible) */
   onToggle?: () => void;
+  /** Optional color override for the title (e.g., calendarAccent for current year/month) */
+  titleColor?: string;
 }
 
 /**
@@ -50,6 +52,7 @@ export const SectionTitle = ({
   collapsible = false,
   isCollapsed = false,
   onToggle,
+  titleColor,
 }: SectionTitleProps) => {
   const { colors } = useTheme();
   const [isHovered, setIsHovered] = useState(false);
@@ -69,24 +72,29 @@ export const SectionTitle = ({
         fontSize: '12px',
         fontWeight: 600,
         color: isHovered ? colors.text.secondary : colors.text.tertiary,
+        backgroundColor: isHovered ? colors.background.hover : 'transparent',
         textTransform: 'uppercase',
         letterSpacing: '0.5px',
         margin: 0,
+        paddingLeft: spacing['6'],
+        paddingRight: spacing['6'],
         height: '28px',
+        borderRadius: '6px',
         cursor: collapsible ? 'pointer' : 'default',
         userSelect: 'none',
         display: 'flex',
         alignItems: 'center',
         gap: spacing['4'],
-        transition: `color ${transitions.standard.duration} ${transitions.standard.easing}`,
+        transition: `color ${transitions.standard.duration} ${transitions.standard.easing}, background-color ${transitions.standard.duration} ${transitions.standard.easing}`,
       }}
     >
       {collapsible && (
         <ChevronDown
           size={12}
           style={{
+            color: titleColor || (isHovered ? colors.text.secondary : colors.text.tertiary),
             transform: isCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)',
-            transition: `transform ${transitions.standard.duration} ${transitions.standard.easing}`,
+            transition: `transform ${transitions.standard.duration} ${transitions.standard.easing}, color ${transitions.standard.duration} ${transitions.standard.easing}`,
             flexShrink: 0,
           }}
         />

@@ -12,6 +12,8 @@ import {
   setDeleteTagHandler,
   setHydrating,
   setInitialized as setHydrationInitialized,
+  initializeMidnightUpdater,
+  cleanupMidnightUpdater,
   type Folder
 } from '@clutter/shared';
 import { selectStorageFolder, getStorageFolder } from './lib/storage';
@@ -45,6 +47,14 @@ function App() {
   
   // Enable auto-save to SQLite (only after database is initialized AND editor is hydrated)
   useAutoSave(isInitialized, isEditorHydrated);
+
+  // Initialize global midnight updater for current date tracking
+  useEffect(() => {
+    initializeMidnightUpdater();
+    return () => {
+      cleanupMidnightUpdater();
+    };
+  }, []);
 
   // Suppress harmless TipTap flushSync warning in React 18
   // TipTap's ReactNodeViewRenderer needs flushSync to sync ProseMirror with React

@@ -4,4 +4,5 @@ export * from './tag';
 export * from './favourites';
 export * from './deleted';
 export * from './tasks';
+export * from './daily-notes';
 

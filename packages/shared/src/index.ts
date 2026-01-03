@@ -11,4 +11,5 @@ export * from './stores/hydration';
 export * from './stores/confirmation';
 export * from './stores/uiState';
 export * from './stores/formDialog';
+export * from './stores/currentDate';
 

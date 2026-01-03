@@ -1,15 +1,26 @@
 import { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import { useTheme } from '../../../../hooks/useTheme';
-import { useNotesStore, useFoldersStore, CLUTTERED_FOLDER_ID, DAILY_NOTES_FOLDER_ID } from '@clutter/shared';
+import { useNotesStore, useFoldersStore, useUIStateStore, useCurrentDateStore, CLUTTERED_FOLDER_ID, DAILY_NOTES_FOLDER_ID } from '@clutter/shared';
 import { NotesListView } from '../../shared/notes-list';
 import { PageTitleSection } from '../../shared/content-header';
 import { ListViewLayout } from '../../shared/list-view-layout';
+import { SectionTitle } from '../../shared/section-title';
 import { FolderGrid } from '../folder';
 import { EmojiTray } from '../../shared/emoji';
+import { CountBadge } from '../../../ui-primitives';
+import { CalendarBlank } from '../../../../icons';
 import { isContentEmpty } from '../../../../utils/noteHelpers';
 import { spacing } from '../../../../tokens/spacing';
 import { sizing } from '../../../../tokens/sizing';
 import { getFolderIcon } from '../../../../utils/itemIcons';
+import { 
+  groupDailyNotesByYearMonth, 
+  getSortedYears, 
+  getSortedMonths,
+  getYearNoteCount,
+  getMonthNoteCount,
+  formatYearMonthKey 
+} from '../../../../utils/dailyNotesGrouping';
 
 // Helper function to count tasks (checkboxes) in note content
 const countTasksInNote = (content: string): number => {
@@ -117,6 +128,15 @@ export const FolderListView = ({
   // Section collapse state
   const [foldersCollapsed, setFoldersCollapsed] = useState(false);
   const [notesCollapsed, setNotesCollapsed] = useState(false);
+  
+  // Daily notes grouping - UI state for year/month collapse
+  const collapsedDailyNoteGroups = useUIStateStore(state => state.collapsedDailyNoteGroups);
+  const toggleDailyNoteGroupCollapsed = useUIStateStore(state => state.toggleDailyNoteGroupCollapsed);
+  
+  // Current date for highlighting today/this month/this year
+  const currentYear = useCurrentDateStore(state => state.year);
+  const currentMonthName = useCurrentDateStore(state => state.monthName);
+  const currentDateString = useCurrentDateStore(state => state.dateString);
 
   // Sync local state with folder
   useEffect(() => {
@@ -165,6 +185,12 @@ export const FolderListView = ({
       new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
     );
   }, [notes, folderId, folders, isClutteredFolder]);
+  
+  // Group daily notes by year and month (only for Daily Notes folder)
+  const groupedDailyNotes = useMemo(() => {
+    if (!isDailyNotesFolder) return null;
+    return groupDailyNotesByYearMonth(folderNotes);
+  }, [isDailyNotesFolder, folderNotes]);
 
   // Folder name handler
   const handleFolderNameChange = useCallback((value: string) => {
@@ -334,84 +360,190 @@ export const FolderListView = ({
 
         {/* Page Content */}
         <ListViewLayout
-          sections={[
-            {
-              id: 'subfolders',
-              title: 'Folders',
-              show: subfolders.length > 0,
-              collapsible: true,
-              isCollapsed: foldersCollapsed,
-              onToggle: () => setFoldersCollapsed(!foldersCollapsed),
-              content: (
-                <FolderGrid
-                  folders={subfolders.map(subfolder => {
-                    const allSubfolderNotes = notes.filter(note => note.folderId === subfolder.id && !note.deletedAt);
-                    // Filter out empty notes for preview display only (except current note)
-                    const previewNotes = allSubfolderNotes.filter(note => 
-                      note.id === currentNoteId || !isNoteEmpty(note)
-                    );
-                    const nestedFolderCount = folders.filter(f => 
-                      !f.deletedAt && f.parentId === subfolder.id
-                    ).length;
-                    
-                    return {
-                      id: subfolder.id,
-                      name: subfolder.name || 'Untitled Folder',
-                      emoji: subfolder.emoji,
-                      noteCount: allSubfolderNotes.length, // Count ALL notes (including empty)
-                      folderCount: nestedFolderCount,
-                      previewNotes: previewNotes.slice(0, 3).map(note => ({
-                        id: note.id,
-                        title: note.title || 'Untitled',
-                        emoji: note.emoji,
-                        contentSnippet: note.description || '',
-                      })),
-                    };
-                  })}
-                  onClick={onFolderClick || (() => {})}
-                  onNoteClick={onNoteClick}
-                  onCreateNote={(subfolderId) => {
-                    // Create a note in the subfolder
-                    const newNote = createNote({ folderId: subfolderId });
-                    onNoteClick(newNote.id);
-                  }}
-                />
-              ),
-            },
-            {
-              id: 'notes',
-              title: 'Notes',
-              show: folderNotes.length > 0,
-              collapsible: true,
-              isCollapsed: notesCollapsed,
-              onToggle: () => setNotesCollapsed(!notesCollapsed),
-              content: (
-                <NotesListView
-                  notes={folderNotes.map(note => ({
-                    id: note.id,
-                    title: note.title,
-                    emoji: note.emoji,
-                    tags: note.tags,
-                    taskCount: countTasksInNote(note.content),
-                    dailyNoteDate: note.dailyNoteDate,
-                    hasContent: !isContentEmpty(note.content),
-                  }))}
-                  selectedNoteId={null}
-                  onNoteClick={onNoteClick}
-                  onTagClick={onTagClick}
-                  onRemoveTag={(noteId, tagToRemove) => {
-                    const note = notes.find(n => n.id === noteId);
-                    if (note) {
-                      const newTags = note.tags.filter(t => t !== tagToRemove);
-                      updateNote(noteId, { tags: newTags });
-                    }
-                  }}
-                  onUpdateEmoji={handleUpdateEmoji}
-                  emptyState="No notes in this folder"
-                />
-              ),
-            },
-          ]}
+          sections={(() => {
+            // Build sections array dynamically
+            const sections = [];
+            
+            // Subfolders section (not shown for Daily Notes or Cluttered)
+            if (subfolders.length > 0) {
+              sections.push({
+                id: 'subfolders',
+                title: 'Folders',
+                show: true,
+                collapsible: true,
+                isCollapsed: foldersCollapsed,
+                onToggle: () => setFoldersCollapsed(!foldersCollapsed),
+                content: (
+                  <FolderGrid
+                    folders={subfolders.map(subfolder => {
+                      const allSubfolderNotes = notes.filter(note => note.folderId === subfolder.id && !note.deletedAt);
+                      // Filter out empty notes for preview display only (except current note)
+                      const previewNotes = allSubfolderNotes.filter(note => 
+                        note.id === currentNoteId || !isNoteEmpty(note)
+                      );
+                      const nestedFolderCount = folders.filter(f => 
+                        !f.deletedAt && f.parentId === subfolder.id
+                      ).length;
+                      
+                      return {
+                        id: subfolder.id,
+                        name: subfolder.name || 'Untitled Folder',
+                        emoji: subfolder.emoji,
+                        noteCount: allSubfolderNotes.length, // Count ALL notes (including empty)
+                        folderCount: nestedFolderCount,
+                        previewNotes: previewNotes.slice(0, 3).map(note => ({
+                          id: note.id,
+                          title: note.title || 'Untitled',
+                          emoji: note.emoji,
+                          contentSnippet: note.description || '',
+                        })),
+                      };
+                    })}
+                    onClick={onFolderClick || (() => {})}
+                    onNoteClick={onNoteClick}
+                    onCreateNote={(subfolderId) => {
+                      // Create a note in the subfolder
+                      const newNote = createNote({ folderId: subfolderId });
+                      onNoteClick(newNote.id);
+                    }}
+                  />
+                ),
+              });
+            }
+            
+            // Notes section - different rendering for Daily Notes
+            if (isDailyNotesFolder && groupedDailyNotes) {
+              // Render nested year → month sections for Daily Notes
+              const years = getSortedYears(groupedDailyNotes);
+              
+              years.forEach(year => {
+                const yearKey = formatYearMonthKey(year);
+                const yearCollapsed = collapsedDailyNoteGroups.has(yearKey);
+                const isCurrentYear = year === currentYear.toString();
+                
+                sections.push({
+                  id: `year-${year}`,
+                  title: year,
+                  // Highlight year if it's current year AND collapsed (most specific visible level)
+                  titleColor: isCurrentYear && yearCollapsed ? colors.semantic.calendarAccent : undefined,
+                  show: true,
+                  collapsible: true,
+                  isCollapsed: yearCollapsed,
+                  onToggle: () => toggleDailyNoteGroupCollapsed(yearKey),
+                  content: (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: spacing['8'] }}>
+                      {getSortedMonths(groupedDailyNotes, year).map(month => {
+                        const monthKey = formatYearMonthKey(year, month);
+                        const monthCollapsed = collapsedDailyNoteGroups.has(monthKey);
+                        const monthNotes = groupedDailyNotes[year][month];
+                        const monthCount = getMonthNoteCount(groupedDailyNotes, year, month);
+                        
+                        // Determine if this is the current month in the current year
+                        const isCurrentMonth = isCurrentYear && month === currentMonthName;
+                        
+                        return (
+                          <div key={monthKey} style={{ 
+                            display: 'flex', 
+                            flexDirection: 'column', 
+                            gap: spacing['4'] 
+                          }}>
+                            {/* Month header using SectionTitle with count badge on right */}
+                            <SectionTitle
+                              collapsible
+                              isCollapsed={monthCollapsed}
+                              onToggle={() => toggleDailyNoteGroupCollapsed(monthKey)}
+                              // Highlight month if it's current month, year is expanded, AND month is collapsed
+                              titleColor={!yearCollapsed && isCurrentMonth && monthCollapsed ? colors.semantic.calendarAccent : undefined}
+                            >
+                              <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                flex: 1,
+                              }}>
+                                <span>{month}</span>
+                                <CountBadge 
+                                  count={monthCount} 
+                                  type="custom" 
+                                  customIcon={<CalendarBlank size={12} style={{ color: colors.text.secondary }} />}
+                                />
+                              </div>
+                            </SectionTitle>
+                            
+                            {/* Month notes */}
+                            {!monthCollapsed && (
+                              <NotesListView
+                                notes={monthNotes.map(note => ({
+                                  id: note.id,
+                                  title: note.title,
+                                  emoji: note.emoji,
+                                  tags: note.tags,
+                                  taskCount: countTasksInNote(note.content),
+                                  dailyNoteDate: note.dailyNoteDate,
+                                  hasContent: !isContentEmpty(note.content),
+                                  // Highlight today's note if year and month are both expanded
+                                  isToday: !yearCollapsed && !monthCollapsed && note.dailyNoteDate === currentDateString,
+                                }))}
+                                selectedNoteId={null}
+                                onNoteClick={onNoteClick}
+                                onTagClick={onTagClick}
+                                onRemoveTag={(noteId, tagToRemove) => {
+                                  const note = notes.find(n => n.id === noteId);
+                                  if (note) {
+                                    const newTags = note.tags.filter(t => t !== tagToRemove);
+                                    updateNote(noteId, { tags: newTags });
+                                  }
+                                }}
+                                onUpdateEmoji={handleUpdateEmoji}
+                                emptyState="No notes in this month"
+                              />
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ),
+                });
+              });
+            } else if (folderNotes.length > 0) {
+              // Regular flat notes section for non-Daily Notes folders
+              sections.push({
+                id: 'notes',
+                title: 'Notes',
+                show: true,
+                collapsible: true,
+                isCollapsed: notesCollapsed,
+                onToggle: () => setNotesCollapsed(!notesCollapsed),
+                content: (
+                  <NotesListView
+                    notes={folderNotes.map(note => ({
+                      id: note.id,
+                      title: note.title,
+                      emoji: note.emoji,
+                      tags: note.tags,
+                      taskCount: countTasksInNote(note.content),
+                      dailyNoteDate: note.dailyNoteDate,
+                      hasContent: !isContentEmpty(note.content),
+                    }))}
+                    selectedNoteId={null}
+                    onNoteClick={onNoteClick}
+                    onTagClick={onTagClick}
+                    onRemoveTag={(noteId, tagToRemove) => {
+                      const note = notes.find(n => n.id === noteId);
+                      if (note) {
+                        const newTags = note.tags.filter(t => t !== tagToRemove);
+                        updateNote(noteId, { tags: newTags });
+                      }
+                    }}
+                    onUpdateEmoji={handleUpdateEmoji}
+                    emptyState="No notes in this folder"
+                  />
+                ),
+              });
+            }
+            
+            return sections;
+          })()}
           emptyState="No subfolders or notes in this folder"
         />
 

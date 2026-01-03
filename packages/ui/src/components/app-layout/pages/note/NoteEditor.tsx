@@ -13,8 +13,9 @@ import { FolderListView, AllFoldersListView } from '../folder';
 import { FavouritesListView } from '../favourites';
 import { DeletedItemsListView } from '../deleted';
 import { AllTasksListView } from '../tasks';
+import { DailyNotesYearView, DailyNotesMonthView } from '../daily-notes';
 import { useBreadcrumbs, useBreadcrumbFolderIds } from './useBreadcrumbs';
-import { useNotesStore, useFoldersStore, useTagsStore, useConfirmation, CLUTTERED_FOLDER_ID, type Note } from '@clutter/shared';
+import { useNotesStore, useFoldersStore, useTagsStore, useConfirmation, CLUTTERED_FOLDER_ID, DAILY_NOTES_FOLDER_ID, type Note } from '@clutter/shared';
 import { useTheme } from '../../../../hooks/useTheme';
 import { useUIPreferences } from '../../../../hooks/useUIPreferences';
 import { sizing } from '../../../../tokens/sizing';
@@ -1088,6 +1089,8 @@ export const NoteEditor = ({
           isCollapsed: isSidebarCollapsed,
           onTagClick: handleShowTagFilter,
           onFolderClick: handleFolderClick,
+          onYearClick: (year) => setMainView({ type: 'dailyNotesYearView', year }),
+          onMonthClick: (year, month) => setMainView({ type: 'dailyNotesMonthView', year, month }),
           onBackToEditor: handleBackToEditor,
           onNoteClickFromSidebar: handleBackToEditor,
           onNoteClickWithBlock: handleNoteClickWithBlock,
@@ -1142,6 +1145,24 @@ export const NoteEditor = ({
                   } else if (pathItem === 'Recently deleted') {
                     // Click "Recently deleted" -> show deleted items view
                     setMainView({ type: 'deletedItemsView' });
+                  } else if (pathItem === 'Daily notes') {
+                    // Click "Daily notes" -> show daily notes folder view
+                    handleFolderClick(DAILY_NOTES_FOLDER_ID);
+                  }
+                  return;
+                }
+                
+                // Handle daily notes hierarchy navigation (year/month)
+                if (breadcrumbs.path[0] === 'Daily notes') {
+                  if (folderIndex === 1) {
+                    // Click on year -> show year view
+                    const year = breadcrumbs.path[1];
+                    setMainView({ type: 'dailyNotesYearView', year });
+                  } else if (folderIndex === 2) {
+                    // Click on month -> show month view
+                    const year = breadcrumbs.path[1];
+                    const month = breadcrumbs.path[2];
+                    setMainView({ type: 'dailyNotesMonthView', year, month });
                   }
                   return;
                 }
@@ -1271,6 +1292,20 @@ export const NoteEditor = ({
               }
             }}
             onFolderClick={handleFolderClick}
+            onTagClick={handleShowTagFilter}
+          />
+        ) : mainView.type === 'dailyNotesYearView' ? (
+          <DailyNotesYearView
+            year={mainView.year}
+            onMonthClick={(year, month) => setMainView({ type: 'dailyNotesMonthView', year, month })}
+            onNoteClick={handleNoteClickFromTagView}
+            onTagClick={handleShowTagFilter}
+          />
+        ) : mainView.type === 'dailyNotesMonthView' ? (
+          <DailyNotesMonthView
+            year={mainView.year}
+            month={mainView.month}
+            onNoteClick={handleNoteClickFromTagView}
             onTagClick={handleShowTagFilter}
           />
         ) : (

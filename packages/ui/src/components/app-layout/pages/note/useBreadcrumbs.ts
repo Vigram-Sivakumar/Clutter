@@ -54,9 +54,16 @@ export const useBreadcrumbs = (
         }
         
         // Note is a daily note
-        if (currentNote.folderId === DAILY_NOTES_FOLDER_ID) {
+        if (currentNote.folderId === DAILY_NOTES_FOLDER_ID && currentNote.dailyNoteDate) {
+          // Extract year and month from the daily note date
+          const date = new Date(currentNote.dailyNoteDate + 'T00:00:00');
+          const year = date.getFullYear().toString();
+          const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                              'July', 'August', 'September', 'October', 'November', 'December'];
+          const month = monthNames[date.getMonth()];
+          
           return {
-            path: ['Daily Notes'],
+            path: ['Daily notes', year, month],
             currentPageTitle: currentNote.title || 'Untitled',
           };
         }
@@ -145,6 +152,20 @@ export const useBreadcrumbs = (
         // Deleted items view - show trash
         return {
           path: ['Recently deleted'],
+        };
+      }
+      
+      case 'dailyNotesYearView': {
+        // Daily notes year view - show all months in a year
+        return {
+          path: ['Daily notes', mainView.year],
+        };
+      }
+      
+      case 'dailyNotesMonthView': {
+        // Daily notes month view - show all notes in a month
+        return {
+          path: ['Daily notes', mainView.year, mainView.month],
         };
       }
       

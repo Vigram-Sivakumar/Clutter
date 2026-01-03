@@ -70,7 +70,7 @@ export const Button = ({
   // Padding based on content type and size
   const getPadding = () => {
     if (isIconOnly) return '0'; // Icon-only buttons are square with no padding
-    if (isTextOnly) return '0 8px'; // Symmetric padding for text-only
+    if (isTextOnly) return '0 6px'; // Symmetric padding for text-only
     // Icon + text - adjust based on icon position
     if (iconPosition === 'right') {
       return '0 6px 0 8px'; // Less padding on right (icon side), more on left

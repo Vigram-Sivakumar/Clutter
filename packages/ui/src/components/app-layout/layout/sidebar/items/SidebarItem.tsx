@@ -53,6 +53,7 @@ interface SidebarItemProps {
   // Visual
   icon?: string | ReactNode; // emoji string or React icon component
   badge?: string;
+  labelColor?: string; // Optional color override for the label (e.g., calendarAccent for current year/month)
   isOpen?: boolean; // For folders - whether children are expanded
   isSelected?: boolean;
   hasOpenContextMenu?: boolean; // Whether this item's context menu is currently open
@@ -108,6 +109,7 @@ export const SidebarItem = ({
   level = 0,
   icon,
   badge,
+  labelColor,
   isOpen = false,
   isSelected = false,
   hasOpenContextMenu = false,
@@ -448,7 +450,8 @@ export const SidebarItem = ({
     }
     
     if (variant === 'note') {
-      const iconColor = isSelected ? colors.text.default : colors.text.secondary;
+      // Use labelColor (e.g., calendarAccent for today's note) if provided, otherwise use default colors
+      const iconColor = labelColor || (isSelected ? colors.text.default : colors.text.secondary);
       const noteIcon = getNoteIcon({
         emoji: typeof icon === 'string' ? icon : undefined,
         dailyNoteDate,
@@ -503,7 +506,8 @@ export const SidebarItem = ({
                   emoji: typeof icon === 'string' ? icon : undefined,
                   isOpen,
                   size: 16,
-                  color: isSelected ? colors.text.default : colors.text.secondary,
+                  // Use labelColor (e.g., calendarAccent for current year/month) if provided
+                  color: labelColor || (isSelected ? colors.text.default : colors.text.secondary),
                 })}
                 onClick={(e) => {
                   e.stopPropagation();
@@ -552,7 +556,8 @@ export const SidebarItem = ({
       }
       
       // Folder without toggle: Just show icon
-      const iconColor = isSelected ? colors.text.default : colors.text.secondary;
+      // Use labelColor (e.g., calendarAccent for current year/month) if provided, otherwise use default colors
+      const iconColor = labelColor || (isSelected ? colors.text.default : colors.text.secondary);
       const folderIcon = getFolderIcon({
         folderId: folderId || id,
         emoji: typeof icon === 'string' ? icon : undefined,

@@ -17,6 +17,8 @@ interface SidebarProps {
   onNoteClickWithBlock?: (noteId: string, blockId: string) => void;
   onDateSelect?: (date: Date) => void;
   onToggleSidebar: () => void;
+  onYearClick?: (year: string) => void;
+  onMonthClick?: (year: string, month: string) => void;
 }
 
 interface AppShellProps {

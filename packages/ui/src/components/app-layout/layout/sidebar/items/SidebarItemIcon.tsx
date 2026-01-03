@@ -30,6 +30,7 @@ interface SidebarItemIconProps {
   // Visual state
   isSelected?: boolean;
   isOpen?: boolean;  // For folders - whether expanded
+  labelColor?: string; // Optional color override (e.g., calendarAccent for today's note)
   
   // Note-specific
   hasContent?: boolean; // For notes - whether note has editor content
@@ -50,6 +51,7 @@ export const SidebarItemIcon = memo(({
   icon,
   isSelected = false,
   isOpen = false,
+  labelColor,
   hasContent = true,
   dailyNoteDate,
   folderId,
@@ -75,7 +77,8 @@ export const SidebarItemIcon = memo(({
   
   // Notes: Show note icon (blank/filled) or daily note calendar icon
   if (variant === 'note') {
-    const iconColor = isSelected ? colors.text.default : colors.text.secondary;
+    // Use labelColor (e.g., calendarAccent for today's note) if provided, otherwise use default colors
+    const iconColor = labelColor || (isSelected ? colors.text.default : colors.text.secondary);
     const noteIcon = getNoteIcon({
       emoji: typeof icon === 'string' ? icon : undefined,
       dailyNoteDate,
@@ -100,7 +103,8 @@ export const SidebarItemIcon = memo(({
   
   // Folders: Icon/emoji with optional chevron swap on hover
   if (variant === 'folder') {
-    const iconColor = isSelected ? colors.text.default : colors.text.secondary;
+    // Use labelColor (e.g., calendarAccent for current year/month) if provided, otherwise use default colors
+    const iconColor = labelColor || (isSelected ? colors.text.default : colors.text.secondary);
     const folderIcon = getFolderIcon({
       folderId: folderId || id,
       emoji: typeof icon === 'string' ? icon : undefined,

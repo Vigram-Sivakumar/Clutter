@@ -18,7 +18,7 @@ export const sidebarLayout = {
   headerPaddingX: '8px',          // Headers have more padding
   
   // Item internal spacing
-  itemContentGap: '6px',          // Gap between icon → label
+  itemContentGap: '4px',          // Gap between icon → label
   itemActionsGap: '2px',          // Gap between action buttons
   itemRightSideGap: '2px',        // Gap between label → actions → badge → chevron
   

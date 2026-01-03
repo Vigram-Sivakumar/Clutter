@@ -19,7 +19,9 @@ export type MainView =
   | { type: 'allTagsView' }
   | { type: 'favouriteTagsView' }
   | { type: 'allTasksView' }
-  | { type: 'deletedItemsView' };
+  | { type: 'deletedItemsView' }
+  | { type: 'dailyNotesYearView'; year: string } // View all months in a specific year
+  | { type: 'dailyNotesMonthView'; year: string; month: string }; // View all notes in a specific month
 
 interface UIStateStore {
   // Sidebar
@@ -35,6 +37,14 @@ interface UIStateStore {
   
   // Notes tab - folder expansion
   openFolderIds: Set<string>;
+  
+  // Daily Notes - year/month group collapse states (main list view)
+  // Stores keys like "2026" for years or "2026-January" for months
+  collapsedDailyNoteGroups: Set<string>;
+  
+  // Daily Notes - year/month group collapse states (sidebar)
+  // Independent from main list view collapse states
+  sidebarCollapsedDailyNoteGroups: Set<string>;
   
   // Notes tab - manual toggle tracking
   hasManuallyToggledCluttered: boolean;
@@ -77,6 +87,14 @@ interface UIStateStore {
   
   setOpenFolderIds: (ids: Set<string>) => void;
   toggleFolderOpen: (folderId: string) => void;
+  
+  setCollapsedDailyNoteGroups: (groups: Set<string>) => void;
+  toggleDailyNoteGroupCollapsed: (groupKey: string) => void;
+  isDailyNoteGroupCollapsed: (groupKey: string) => boolean;
+  
+  setSidebarCollapsedDailyNoteGroups: (groups: Set<string>) => void;
+  toggleSidebarDailyNoteGroupCollapsed: (groupKey: string) => void;
+  isSidebarDailyNoteGroupCollapsed: (groupKey: string) => boolean;
   
   setHasManuallyToggledCluttered: (toggled: boolean) => void;
   setHasManuallyToggledDailyNotes: (toggled: boolean) => void;
@@ -166,6 +184,9 @@ export const useUIStateStore = create<UIStateStore>()(
       
       openFolderIds: new Set<string>(),
       
+      collapsedDailyNoteGroups: new Set<string>(),
+      sidebarCollapsedDailyNoteGroups: new Set<string>(),
+      
       hasManuallyToggledCluttered: false,
       hasManuallyToggledDailyNotes: false,
       hasManuallyToggledFavourites: false,
@@ -208,6 +229,30 @@ export const useUIStateStore = create<UIStateStore>()(
         return { openFolderIds: newSet };
       }),
       
+      setCollapsedDailyNoteGroups: (groups) => set({ collapsedDailyNoteGroups: groups }),
+      toggleDailyNoteGroupCollapsed: (groupKey) => set((state) => {
+        const newSet = new Set(state.collapsedDailyNoteGroups);
+        if (newSet.has(groupKey)) {
+          newSet.delete(groupKey);
+        } else {
+          newSet.add(groupKey);
+        }
+        return { collapsedDailyNoteGroups: newSet };
+      }),
+      isDailyNoteGroupCollapsed: (groupKey) => (state) => state.collapsedDailyNoteGroups.has(groupKey),
+      
+      setSidebarCollapsedDailyNoteGroups: (groups) => set({ sidebarCollapsedDailyNoteGroups: groups }),
+      toggleSidebarDailyNoteGroupCollapsed: (groupKey) => set((state) => {
+        const newSet = new Set(state.sidebarCollapsedDailyNoteGroups);
+        if (newSet.has(groupKey)) {
+          newSet.delete(groupKey);
+        } else {
+          newSet.add(groupKey);
+        }
+        return { sidebarCollapsedDailyNoteGroups: newSet };
+      }),
+      isSidebarDailyNoteGroupCollapsed: (groupKey) => (state) => state.sidebarCollapsedDailyNoteGroups.has(groupKey),
+      
       setHasManuallyToggledCluttered: (toggled) => set({ hasManuallyToggledCluttered: toggled }),
       setHasManuallyToggledDailyNotes: (toggled) => set({ hasManuallyToggledDailyNotes: toggled }),
       setHasManuallyToggledFavourites: (toggled) => set({ hasManuallyToggledFavourites: toggled }),
@@ -240,15 +285,25 @@ export const useUIStateStore = create<UIStateStore>()(
           if (parsed.state && Array.isArray(parsed.state.openFolderIds)) {
             parsed.state.openFolderIds = new Set(parsed.state.openFolderIds);
           }
+          // Convert collapsedDailyNoteGroups array back to Set
+          if (parsed.state && Array.isArray(parsed.state.collapsedDailyNoteGroups)) {
+            parsed.state.collapsedDailyNoteGroups = new Set(parsed.state.collapsedDailyNoteGroups);
+          }
+          // Convert sidebarCollapsedDailyNoteGroups array back to Set
+          if (parsed.state && Array.isArray(parsed.state.sidebarCollapsedDailyNoteGroups)) {
+            parsed.state.sidebarCollapsedDailyNoteGroups = new Set(parsed.state.sidebarCollapsedDailyNoteGroups);
+          }
           return parsed;
         },
         setItem: (name, value) => {
-          // Convert openFolderIds Set to array for JSON serialization
+          // Convert Sets to arrays for JSON serialization
           const toStore = {
             ...value,
             state: {
               ...value.state,
               openFolderIds: Array.from(value.state.openFolderIds || []),
+              collapsedDailyNoteGroups: Array.from(value.state.collapsedDailyNoteGroups || []),
+              sidebarCollapsedDailyNoteGroups: Array.from(value.state.sidebarCollapsedDailyNoteGroups || []),
             },
           };
           safeStorage.setItem(name, JSON.stringify(toStore));
