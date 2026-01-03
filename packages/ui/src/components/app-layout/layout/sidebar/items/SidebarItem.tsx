@@ -748,7 +748,7 @@ export const SidebarItem = ({
     );
   };
 
-  // Render badge/count
+  // Render badge/count (used inside absolute positioning container)
   const renderBadge = () => {
     // Badge is always rendered but hidden on hover via CSS (when actions exist)
     // This is controlled by CSS class in the main container
@@ -758,16 +758,18 @@ export const SidebarItem = ({
       if (tagCount !== undefined && tagCount !== null) {
         return (
           <div
+            className={sidebarStyles.classes.badge}
             style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '20px',
-          minWidth: '20px',
-          fontSize: sidebarLayout.badgeFontSize,
-          color: colors.text.tertiary,
-          userSelect: 'none',
-          WebkitUserSelect: 'none',
+              position: 'absolute',
+              inset: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: sidebarLayout.badgeFontSize,
+              color: colors.text.tertiary,
+              userSelect: 'none',
+              WebkitUserSelect: 'none',
+              transition: animations.transition.opacity,
             } as any}
           >
             {tagCount}
@@ -785,17 +787,19 @@ export const SidebarItem = ({
       // For folders, notes, or any item without toggle in renderToggle()
       return (
         <div
+          className={sidebarStyles.classes.badge}
           style={{
+            position: 'absolute',
+            inset: 0,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            minHeight: '20px',
-            minWidth: '20px',
             fontSize: sidebarLayout.badgeFontSize,
             color: colors.text.tertiary,
             pointerEvents: 'none',
             userSelect: 'none',
             WebkitUserSelect: 'none',
+            transition: animations.transition.opacity,
           } as any}
         >
           {badge}
@@ -809,12 +813,11 @@ export const SidebarItem = ({
   const renderQuickAdd = () => {
     // Show + icon for:
     // 1. All folders
-    // 2. System folders (Cluttered, Daily Notes, All Tasks)
+    // 2. System folders (Cluttered, All Tasks) - NOT Daily Notes
     // 3. Section headers that can expand
     const shouldShowPlusIcon =
       variant === 'folder' ||
       folderId === CLUTTERED_FOLDER_ID ||
-      folderId === DAILY_NOTES_FOLDER_ID ||
       folderId === ALL_TASKS_FOLDER_ID ||
       (variant === 'header' && onToggle);
 
@@ -848,10 +851,12 @@ export const SidebarItem = ({
     return null;
   };
 
-  // Render context menu (replaces badge on hover)
-  const renderContextMenu = () => {
-    if (!actions || actions.length === 0) return null;
-
+  // Render badge/context menu swap container (uses absolute positioning for clean swap)
+  const renderBadgeContextMenuSwap = () => {
+    // Check if we have both badge and context menu to enable swapping
+    const hasBadgeToShow = (variant === 'tag' && tagCount !== undefined && tagCount !== null) || 
+                           (badge && !(variant === 'header' && onToggle));
+    
     // Determine if this item has a quick add button (+ icon)
     const hasQuickAddButton =
       variant === 'folder' ||
@@ -862,30 +867,48 @@ export const SidebarItem = ({
 
     // For items with + icon, the context menu is the second action (if it exists)
     // For items without + icon (notes/tags), it's the first action
-    const contextMenuAction = hasQuickAddButton 
-      ? (actions.length > 1 ? actions[1] : null)
-      : actions[0];
+    const contextMenuAction = actions && actions.length > 0
+      ? (hasQuickAddButton ? (actions.length > 1 ? actions[1] : null) : actions[0])
+      : null;
 
-    if (!contextMenuAction) return null;
+    const hasContextMenu = contextMenuAction !== null;
 
-    // Always render, CSS controls visibility (show on hover OR when context menu is open)
+    // If nothing to render, return null
+    if (!hasBadgeToShow && !hasContextMenu) return null;
+
     // Keep visible when context menu is open
     const shouldShowForContextMenu = hasOpenContextMenu && !isEditing;
-    
+
     return (
       <div
-        className="sidebar-item__context-menu"
         style={{
-          display: 'flex',
-          alignItems: 'center',
-          opacity: shouldShowForContextMenu ? 1 : 0,
-          pointerEvents: shouldShowForContextMenu ? 'auto' : 'none',
-          width: shouldShowForContextMenu ? 'auto' : '0px',
-          overflow: 'hidden',
-          transition: `${animations.transition.opacity}, width 150ms cubic-bezier(0.2, 0, 0, 1)`,
+          position: 'relative',
+          width: '20px',
+          height: '20px',
+          flexShrink: 0,
         }}
       >
-        {contextMenuAction}
+        {/* Badge - always rendered, CSS controls visibility (hidden on hover) */}
+        {hasBadgeToShow && renderBadge()}
+        
+        {/* Context Menu - always rendered, CSS controls visibility (shown on hover) */}
+        {hasContextMenu && (
+          <div
+            className="sidebar-item__context-menu"
+            style={{
+              position: 'absolute',
+              inset: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              opacity: shouldShowForContextMenu ? 1 : 0,
+              pointerEvents: shouldShowForContextMenu ? 'auto' : 'none',
+              transition: animations.transition.opacity,
+            }}
+          >
+            {contextMenuAction}
+          </div>
+        )}
       </div>
     );
   };
@@ -903,7 +926,7 @@ export const SidebarItem = ({
           opacity: 1 !important;
         }
         
-        /* Show action buttons on hover */
+        /* Show action buttons on hover (quick add and context menu) */
         .${sidebarStyles.classes.item}:hover .sidebar-item__quick-add,
         .${sidebarStyles.classes.item}:hover .sidebar-item__context-menu {
           opacity: 1 !important;
@@ -911,7 +934,7 @@ export const SidebarItem = ({
           width: auto !important;
         }
         
-        /* Hide badge on hover for headers (when not drop target) */
+        /* GLOBAL: Hide badge on hover for ALL variants (when not drop target) */
         .${sidebarStyles.classes.item}:not([data-drop-target="true"]):hover .${sidebarStyles.classes.badge} {
           opacity: 0 !important;
         }
@@ -996,9 +1019,8 @@ export const SidebarItem = ({
           {/* Quick add button (+ icon for folders/containers) */}
           {renderQuickAdd()}
           
-          {/* Badge or Context Menu (swaps on hover) */}
-          {renderBadge()}
-          {renderContextMenu()}
+          {/* Badge/Context Menu swap (uses absolute positioning for clean swap) */}
+          {renderBadgeContextMenuSwap()}
           
           {/* Badge/Chevron Toggle (for folders/headers, on right like section header) */}
           {renderToggle()}

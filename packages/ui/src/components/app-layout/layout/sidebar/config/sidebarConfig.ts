@@ -53,8 +53,11 @@ export const sidebarBehavior = {
     /** Show action buttons (+/⋮) on hover */
     showActionsOnHover: true,
     
-    /** Hide badge/count when actions are visible on hover */
+    /** GLOBAL: Hide badge/count on hover for ALL variants (notes, folders, tags, headers) */
     hideBadgeOnHover: true,
+    
+    /** Badge and context menu use absolute positioning for clean 1:1 swap */
+    badgeContextMenuSwap: 'absolute',
     
     /** Background color changes on hover (CSS-driven) */
     backgroundOnHover: true,
@@ -76,8 +79,8 @@ export const sidebarBehavior = {
       /** Contexts where + button should NOT appear */
       exclude: ['favourites'],
       
-      /** System folders that get + button */
-      systemFolders: ['__cluttered__', '__daily_notes__', 'all-tasks'],
+      /** System folders that get + button (excluding Daily Notes - date-based auto-creation) */
+      systemFolders: ['__cluttered__', 'all-tasks'],
     },
     
     /**

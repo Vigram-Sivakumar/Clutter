@@ -346,7 +346,6 @@ export const TasksView = ({
         onToggle={onDailyNotesToggle}
         onHeaderClick={onDailyNotesFolderClick}
         badge={dailyNotes.length > 0 ? String(dailyNotes.length) : undefined}
-        actions={getFolderActions ? getFolderActions(DAILY_NOTES_FOLDER_ID) : []}
         isDropTarget={dropTargetType === 'dailyNotes' && dropTargetId === 'dailyNotes'}
         onDragOver={onDailyNotesDragOver}
         onDragLeave={onDragLeave}
