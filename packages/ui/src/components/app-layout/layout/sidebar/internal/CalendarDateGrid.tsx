@@ -1,7 +1,6 @@
 import { useMemo, useState, useEffect } from 'react';
 import { useTheme } from '../../../../../hooks/useTheme';
 import { spacing } from '../../../../../tokens/spacing';
-import { radius } from '../../../../../tokens/radius';
 import { sidebarLayout } from '../../../../../tokens/sidebar';
 
 
