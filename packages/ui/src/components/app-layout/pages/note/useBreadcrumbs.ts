@@ -14,7 +14,15 @@ type MainView =
   | { type: 'favouritesView' }
   | { type: 'allTagsView' }
   | { type: 'favouriteTagsView' }
-  | { type: 'deletedItemsView' };
+  | { type: 'allTasksView' }
+  | { type: 'todayTasksView' }
+  | { type: 'overdueTasksView' }
+  | { type: 'upcomingTasksView' }
+  | { type: 'unplannedTasksView' }
+  | { type: 'completedTasksView' }
+  | { type: 'deletedItemsView' }
+  | { type: 'dailyNotesYearView'; year: string }
+  | { type: 'dailyNotesMonthView'; year: string; month: string };
 
 interface BreadcrumbPath {
   /** Array of folder/section names in the path */
@@ -145,6 +153,48 @@ export const useBreadcrumbs = (
         // Favourite tags view - show all favourite tags
         return {
           path: ['Favourites'],
+        };
+      }
+      
+      case 'allTasksView': {
+        // All tasks view - show all tasks
+        return {
+          path: ['Tasks'],
+        };
+      }
+      
+      case 'todayTasksView': {
+        // Today tasks view
+        return {
+          path: ['Tasks', 'Today'],
+        };
+      }
+      
+      case 'overdueTasksView': {
+        // Overdue tasks view
+        return {
+          path: ['Tasks', 'Overdue'],
+        };
+      }
+      
+      case 'upcomingTasksView': {
+        // Upcoming tasks view
+        return {
+          path: ['Tasks', 'Upcoming'],
+        };
+      }
+      
+      case 'unplannedTasksView': {
+        // Unplanned tasks view
+        return {
+          path: ['Tasks', 'Unplanned'],
+        };
+      }
+      
+      case 'completedTasksView': {
+        // Completed tasks view
+        return {
+          path: ['Tasks', 'Completed'],
         };
       }
       

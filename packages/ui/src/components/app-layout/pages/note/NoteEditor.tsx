@@ -12,7 +12,7 @@ import { TagFilteredNotesView, AllTagsListView, FavouriteTagsListView } from '..
 import { FolderListView, AllFoldersListView } from '../folder';
 import { FavouritesListView } from '../favourites';
 import { DeletedItemsListView } from '../deleted';
-import { AllTasksListView } from '../tasks';
+import { AllTasksListView, TodayTasksListView, OverdueTasksListView, UpcomingTasksListView, UnplannedTasksListView, CompletedTasksListView } from '../tasks';
 import { DailyNotesYearView, DailyNotesMonthView } from '../daily-notes';
 import { useBreadcrumbs, useBreadcrumbFolderIds } from './useBreadcrumbs';
 import { useNotesStore, useFoldersStore, useTagsStore, useConfirmation, CLUTTERED_FOLDER_ID, DAILY_NOTES_FOLDER_ID, type Note } from '@clutter/shared';
@@ -32,7 +32,14 @@ type MainView =
   | { type: 'allTagsView' } // View showing all tags
   | { type: 'favouriteTagsView' } // View showing all favourite tags
   | { type: 'allTasksView' } // View showing all tasks
-  | { type: 'deletedItemsView' }; // View showing deleted items (trash)
+  | { type: 'todayTasksView' } // View showing today's tasks
+  | { type: 'overdueTasksView' } // View showing overdue tasks
+  | { type: 'upcomingTasksView' } // View showing upcoming tasks
+  | { type: 'unplannedTasksView' } // View showing unplanned tasks
+  | { type: 'completedTasksView' } // View showing completed tasks
+  | { type: 'deletedItemsView' } // View showing deleted items (trash)
+  | { type: 'dailyNotesYearView'; year: string } // View showing daily notes for a year
+  | { type: 'dailyNotesMonthView'; year: string; month: string }; // View showing daily notes for a month
 
 // Helper to check if TipTap JSON content is empty
 const isContentEmpty = (content: string): boolean => {
@@ -964,6 +971,32 @@ export const NoteEditor = ({
       return;
     }
     
+    // Handle special task view types
+    if (folderId === 'today-tasks') {
+      setMainView({ type: 'todayTasksView' });
+      return;
+    }
+    
+    if (folderId === 'overdue-tasks') {
+      setMainView({ type: 'overdueTasksView' });
+      return;
+    }
+    
+    if (folderId === 'upcoming-tasks') {
+      setMainView({ type: 'upcomingTasksView' });
+      return;
+    }
+    
+    if (folderId === 'unplanned-tasks') {
+      setMainView({ type: 'unplannedTasksView' });
+      return;
+    }
+    
+    if (folderId === 'completed-tasks') {
+      setMainView({ type: 'completedTasksView' });
+      return;
+    }
+    
     // Handle special "Deleted Items" view
     if (folderId === 'deleted-items') {
       setMainView({ type: 'deletedItemsView' });
@@ -1302,6 +1335,26 @@ export const NoteEditor = ({
           />
         ) : mainView.type === 'allTasksView' ? (
           <AllTasksListView
+            onTaskClick={handleNoteClickWithBlock}
+          />
+        ) : mainView.type === 'todayTasksView' ? (
+          <TodayTasksListView
+            onTaskClick={handleNoteClickWithBlock}
+          />
+        ) : mainView.type === 'overdueTasksView' ? (
+          <OverdueTasksListView
+            onTaskClick={handleNoteClickWithBlock}
+          />
+        ) : mainView.type === 'upcomingTasksView' ? (
+          <UpcomingTasksListView
+            onTaskClick={handleNoteClickWithBlock}
+          />
+        ) : mainView.type === 'unplannedTasksView' ? (
+          <UnplannedTasksListView
+            onTaskClick={handleNoteClickWithBlock}
+          />
+        ) : mainView.type === 'completedTasksView' ? (
+          <CompletedTasksListView
             onTaskClick={handleNoteClickWithBlock}
           />
         ) : mainView.type === 'deletedItemsView' ? (

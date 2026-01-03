@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useNotesStore } from '@clutter/shared';
 import { ListView, ListItem, TaskListItemData } from '../../shared/list-view';
 import { PageTitleSection } from '../../shared/content-header';
@@ -7,32 +7,36 @@ import { CheckSquare } from '../../../../icons';
 import { sizing } from '../../../../tokens/sizing';
 import type { Note } from '@clutter/shared';
 
-interface AllTasksListViewProps {
+interface OverdueTasksListViewProps {
   onTaskClick: (noteId: string, taskId: string) => void;
 }
 
-// Helper to extract tasks from note content
-const extractTasksFromNote = (note: Note): TaskListItemData[] => {
+interface TaskWithDate extends TaskListItemData {
+  date?: string;
+  dailyNoteDate?: string;
+  createdAt: string;
+}
+
+const extractTasksFromNote = (note: Note): TaskWithDate[] => {
   try {
     const parsed = JSON.parse(note.content);
-    const tasks: TaskListItemData[] = [];
+    const tasks: TaskWithDate[] = [];
     
     const traverseNodes = (node: any) => {
       if (node.type === 'listBlock' && node.attrs?.listType === 'task') {
-        // Extract text content from the task
         let text = '';
+        let taskDate: string | undefined;
+        
         if (node.content && Array.isArray(node.content)) {
-          text = node.content
-            .map((child: any) => {
-              if (child.type === 'text') {
-                return child.text || '';
-              }
-              return '';
-            })
-            .join('');
+          node.content.forEach((child: any) => {
+            if (child.type === 'text') {
+              text += child.text || '';
+            } else if (child.type === 'dateMention' && child.attrs?.date) {
+              taskDate = child.attrs.date;
+            }
+          });
         }
         
-        // Only add tasks with text content
         if (text.trim()) {
           tasks.push({
             id: node.attrs.blockId || crypto.randomUUID(),
@@ -41,11 +45,13 @@ const extractTasksFromNote = (note: Note): TaskListItemData[] => {
             noteId: note.id,
             noteTitle: note.title || 'Untitled',
             noteEmoji: note.emoji,
+            date: taskDate,
+            dailyNoteDate: note.dailyNoteDate || undefined,
+            createdAt: note.createdAt,
           });
         }
       }
       
-      // Recursively traverse child nodes
       if (node.content && Array.isArray(node.content)) {
         node.content.forEach(traverseNodes);
       }
@@ -61,7 +67,14 @@ const extractTasksFromNote = (note: Note): TaskListItemData[] => {
   }
 };
 
-// Helper to toggle task checked state in note content
+const getTodayDateString = (): string => {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 const toggleTaskInNote = (note: Note, taskId: string): string => {
   try {
     const parsed = JSON.parse(note.content);
@@ -70,7 +83,6 @@ const toggleTaskInNote = (note: Note, taskId: string): string => {
       if (node.type === 'listBlock' && 
           node.attrs?.listType === 'task' && 
           node.attrs?.blockId === taskId) {
-        // Toggle the checked state
         node.attrs.checked = !node.attrs.checked;
         return true;
       }
@@ -96,88 +108,59 @@ const toggleTaskInNote = (note: Note, taskId: string): string => {
   }
 };
 
-export const AllTasksListView = ({ onTaskClick }: AllTasksListViewProps) => {
+export const OverdueTasksListView = ({ onTaskClick }: OverdueTasksListViewProps) => {
   const { notes, updateNoteContent } = useNotesStore();
+  const todayDateString = useMemo(() => getTodayDateString(), []);
   
-  // Action controls state
-  const [searchQuery, setSearchQuery] = useState('');
-  const [sortActive, setSortActive] = useState(false);
-  const [filterActive, setFilterActive] = useState(false);
-  
-  // Extract all tasks from all active notes
-  const allTasks = useMemo(() => {
+  const overdueTasks = useMemo(() => {
     const activeNotes = notes.filter((n: Note) => !n.deletedAt);
-    const tasks: TaskListItemData[] = [];
+    const allTasks: TaskWithDate[] = [];
     
     activeNotes.forEach(note => {
       const noteTasks = extractTasksFromNote(note);
-      tasks.push(...noteTasks);
+      allTasks.push(...noteTasks);
     });
     
-    return tasks;
-  }, [notes]);
+    return allTasks
+      .filter(task => {
+        if (task.checked) return false;
+        const effectiveDate = task.date || task.dailyNoteDate;
+        return effectiveDate && effectiveDate < todayDateString;
+      })
+      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+  }, [notes, todayDateString]);
   
-  // Separate completed and incomplete tasks
-  const incompleteTasks = useMemo(
-    () => allTasks.filter(task => !task.checked),
-    [allTasks]
-  );
-  
-  const completedTasks = useMemo(
-    () => allTasks.filter(task => task.checked),
-    [allTasks]
-  );
-
-  // Combine tasks with incomplete first
-  const sortedTasks = useMemo(
-    () => [...incompleteTasks, ...completedTasks],
-    [incompleteTasks, completedTasks]
-  );
-  
-  // Handle checkbox toggle
   const handleToggleTask = (taskId: string) => {
-    // Find the note containing this task
-    const task = allTasks.find(t => t.id === taskId);
+    const task = overdueTasks.find(t => t.id === taskId);
     if (!task) return;
     
     const note = notes.find(n => n.id === task.noteId);
     if (!note) return;
     
-    // Toggle the task in the note's content
     const updatedContent = toggleTaskInNote(note, taskId);
     updateNoteContent(note.id, updatedContent);
   };
-
+  
   return (
     <>
-      {/* Page Title Section */}
       <PageTitleSection
         variant="folder"
-        folderName="All Tasks"
+        folderName="Overdue"
         staticIcon={<CheckSquare size={sizing.icon.pageTitleIcon} />}
-        staticDescription="View and manage all your tasks across all notes"
-        // Action controls
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        onSort={() => setSortActive(!sortActive)}
-        sortActive={sortActive}
-        onFilter={() => setFilterActive(!filterActive)}
-        filterActive={filterActive}
       />
-
-      {/* Content Section */}
+      
       <ListViewLayout
         sections={[
           {
-            id: 'tasks',
-            title: '', // No title for single-section view
-            show: sortedTasks.length > 0,
+            id: 'overdue-tasks',
+            title: '',
+            show: overdueTasks.length > 0,
             content: (
               <ListView<TaskListItemData>
-                items={sortedTasks}
+                items={overdueTasks}
                 selectedId={null}
                 onItemClick={(taskId) => {
-                  const task = allTasks.find(t => t.id === taskId);
+                  const task = overdueTasks.find(t => t.id === taskId);
                   if (task) {
                     onTaskClick(task.noteId, task.id);
                   }
@@ -189,13 +172,13 @@ export const AllTasksListView = ({ onTaskClick }: AllTasksListViewProps) => {
                     onToggle={handleToggleTask}
                   />
                 )}
-                emptyState="No tasks yet. Create tasks in your notes."
+                emptyState="No overdue tasks"
                 showDividers={false}
               />
             ),
           },
         ]}
-        emptyState="No tasks yet. Create tasks in your notes."
+        emptyState="No overdue tasks"
       />
     </>
   );

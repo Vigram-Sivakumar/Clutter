@@ -19,6 +19,11 @@ export type MainView =
   | { type: 'allTagsView' }
   | { type: 'favouriteTagsView' }
   | { type: 'allTasksView' }
+  | { type: 'todayTasksView' }
+  | { type: 'overdueTasksView' }
+  | { type: 'upcomingTasksView' }
+  | { type: 'unplannedTasksView' }
+  | { type: 'completedTasksView' }
   | { type: 'deletedItemsView' }
   | { type: 'dailyNotesYearView'; year: string } // View all months in a specific year
   | { type: 'dailyNotesMonthView'; year: string; month: string }; // View all notes in a specific month
@@ -27,7 +32,7 @@ interface UIStateStore {
   // Sidebar
   sidebarCollapsed: boolean;
   sidebarWidth: number;
-  sidebarTab: 'notes' | 'tasks' | 'tags';
+  sidebarTab: 'notes' | 'tasks' | 'tags' | 'task';
   
   // Notes tab - section collapse states
   clutteredCollapsed: boolean;
@@ -52,8 +57,15 @@ interface UIStateStore {
   hasManuallyToggledFavourites: boolean;
   hasManuallyToggledFolders: boolean;
   
-  // Tasks tab
+  // Tasks tab (calendar view)
   allTasksCollapsed: boolean;
+  
+  // Task tab (new organized view) - section collapse states
+  taskTodayCollapsed: boolean;
+  taskOverdueCollapsed: boolean;
+  taskUpcomingCollapsed: boolean;
+  taskUnplannedCollapsed: boolean;
+  taskCompletedCollapsed: boolean;
   
   // Tags tab
   allTagsCollapsed: boolean;
@@ -78,7 +90,7 @@ interface UIStateStore {
   // Actions
   setSidebarCollapsed: (collapsed: boolean) => void;
   setSidebarWidth: (width: number) => void;
-  setSidebarTab: (tab: 'notes' | 'tasks' | 'tags') => void;
+  setSidebarTab: (tab: 'notes' | 'tasks' | 'tags' | 'task') => void;
   
   setClutteredCollapsed: (collapsed: boolean) => void;
   setDailyNotesCollapsed: (collapsed: boolean) => void;
@@ -102,6 +114,13 @@ interface UIStateStore {
   setHasManuallyToggledFolders: (toggled: boolean) => void;
   
   setAllTasksCollapsed: (collapsed: boolean) => void;
+  
+  setTaskTodayCollapsed: (collapsed: boolean) => void;
+  setTaskOverdueCollapsed: (collapsed: boolean) => void;
+  setTaskUpcomingCollapsed: (collapsed: boolean) => void;
+  setTaskUnplannedCollapsed: (collapsed: boolean) => void;
+  setTaskCompletedCollapsed: (collapsed: boolean) => void;
+  
   setAllTagsCollapsed: (collapsed: boolean) => void;
   setFavouriteTagsCollapsed: (collapsed: boolean) => void;
   
@@ -175,7 +194,7 @@ export const useUIStateStore = create<UIStateStore>()(
       // Initial state
       sidebarCollapsed: false,
       sidebarWidth: 256,
-      sidebarTab: 'tasks',
+      sidebarTab: 'task',
       
       clutteredCollapsed: true,
       dailyNotesCollapsed: true,
@@ -193,6 +212,13 @@ export const useUIStateStore = create<UIStateStore>()(
       hasManuallyToggledFolders: false,
       
       allTasksCollapsed: true,
+      
+      taskTodayCollapsed: false,
+      taskOverdueCollapsed: false,
+      taskUpcomingCollapsed: false,
+      taskUnplannedCollapsed: false,
+      taskCompletedCollapsed: true,
+      
       allTagsCollapsed: false,
       favouriteTagsCollapsed: true,
       
@@ -259,6 +285,13 @@ export const useUIStateStore = create<UIStateStore>()(
       setHasManuallyToggledFolders: (toggled) => set({ hasManuallyToggledFolders: toggled }),
       
       setAllTasksCollapsed: (collapsed) => set({ allTasksCollapsed: collapsed }),
+      
+      setTaskTodayCollapsed: (collapsed) => set({ taskTodayCollapsed: collapsed }),
+      setTaskOverdueCollapsed: (collapsed) => set({ taskOverdueCollapsed: collapsed }),
+      setTaskUpcomingCollapsed: (collapsed) => set({ taskUpcomingCollapsed: collapsed }),
+      setTaskUnplannedCollapsed: (collapsed) => set({ taskUnplannedCollapsed: collapsed }),
+      setTaskCompletedCollapsed: (collapsed) => set({ taskCompletedCollapsed: collapsed }),
+      
       setAllTagsCollapsed: (collapsed) => set({ allTagsCollapsed: collapsed }),
       setFavouriteTagsCollapsed: (collapsed) => set({ favouriteTagsCollapsed: collapsed }),
       

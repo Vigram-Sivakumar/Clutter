@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useNotesStore } from '@clutter/shared';
 import { ListView, ListItem, TaskListItemData } from '../../shared/list-view';
 import { PageTitleSection } from '../../shared/content-header';
@@ -7,32 +7,36 @@ import { CheckSquare } from '../../../../icons';
 import { sizing } from '../../../../tokens/sizing';
 import type { Note } from '@clutter/shared';
 
-interface AllTasksListViewProps {
+interface CompletedTasksListViewProps {
   onTaskClick: (noteId: string, taskId: string) => void;
 }
 
-// Helper to extract tasks from note content
-const extractTasksFromNote = (note: Note): TaskListItemData[] => {
+interface TaskWithDate extends TaskListItemData {
+  date?: string;
+  dailyNoteDate?: string;
+  createdAt: string;
+}
+
+const extractTasksFromNote = (note: Note): TaskWithDate[] => {
   try {
     const parsed = JSON.parse(note.content);
-    const tasks: TaskListItemData[] = [];
+    const tasks: TaskWithDate[] = [];
     
     const traverseNodes = (node: any) => {
       if (node.type === 'listBlock' && node.attrs?.listType === 'task') {
-        // Extract text content from the task
         let text = '';
+        let taskDate: string | undefined;
+        
         if (node.content && Array.isArray(node.content)) {
-          text = node.content
-            .map((child: any) => {
-              if (child.type === 'text') {
-                return child.text || '';
-              }
-              return '';
-            })
-            .join('');
+          node.content.forEach((child: any) => {
+            if (child.type === 'text') {
+              text += child.text || '';
+            } else if (child.type === 'dateMention' && child.attrs?.date) {
+              taskDate = child.attrs.date;
+            }
+          });
         }
         
-        // Only add tasks with text content
         if (text.trim()) {
           tasks.push({
             id: node.attrs.blockId || crypto.randomUUID(),
@@ -41,11 +45,13 @@ const extractTasksFromNote = (note: Note): TaskListItemData[] => {
             noteId: note.id,
             noteTitle: note.title || 'Untitled',
             noteEmoji: note.emoji,
+            date: taskDate,
+            dailyNoteDate: note.dailyNoteDate || undefined,
+            createdAt: note.createdAt,
           });
         }
       }
       
-      // Recursively traverse child nodes
       if (node.content && Array.isArray(node.content)) {
         node.content.forEach(traverseNodes);
       }
@@ -61,7 +67,6 @@ const extractTasksFromNote = (note: Note): TaskListItemData[] => {
   }
 };
 
-// Helper to toggle task checked state in note content
 const toggleTaskInNote = (note: Note, taskId: string): string => {
   try {
     const parsed = JSON.parse(note.content);
@@ -70,7 +75,6 @@ const toggleTaskInNote = (note: Note, taskId: string): string => {
       if (node.type === 'listBlock' && 
           node.attrs?.listType === 'task' && 
           node.attrs?.blockId === taskId) {
-        // Toggle the checked state
         node.attrs.checked = !node.attrs.checked;
         return true;
       }
@@ -96,88 +100,54 @@ const toggleTaskInNote = (note: Note, taskId: string): string => {
   }
 };
 
-export const AllTasksListView = ({ onTaskClick }: AllTasksListViewProps) => {
+export const CompletedTasksListView = ({ onTaskClick }: CompletedTasksListViewProps) => {
   const { notes, updateNoteContent } = useNotesStore();
   
-  // Action controls state
-  const [searchQuery, setSearchQuery] = useState('');
-  const [sortActive, setSortActive] = useState(false);
-  const [filterActive, setFilterActive] = useState(false);
-  
-  // Extract all tasks from all active notes
-  const allTasks = useMemo(() => {
+  const completedTasks = useMemo(() => {
     const activeNotes = notes.filter((n: Note) => !n.deletedAt);
-    const tasks: TaskListItemData[] = [];
+    const allTasks: TaskWithDate[] = [];
     
     activeNotes.forEach(note => {
       const noteTasks = extractTasksFromNote(note);
-      tasks.push(...noteTasks);
+      allTasks.push(...noteTasks);
     });
     
-    return tasks;
+    return allTasks
+      .filter(task => task.checked)
+      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
   }, [notes]);
   
-  // Separate completed and incomplete tasks
-  const incompleteTasks = useMemo(
-    () => allTasks.filter(task => !task.checked),
-    [allTasks]
-  );
-  
-  const completedTasks = useMemo(
-    () => allTasks.filter(task => task.checked),
-    [allTasks]
-  );
-
-  // Combine tasks with incomplete first
-  const sortedTasks = useMemo(
-    () => [...incompleteTasks, ...completedTasks],
-    [incompleteTasks, completedTasks]
-  );
-  
-  // Handle checkbox toggle
   const handleToggleTask = (taskId: string) => {
-    // Find the note containing this task
-    const task = allTasks.find(t => t.id === taskId);
+    const task = completedTasks.find(t => t.id === taskId);
     if (!task) return;
     
     const note = notes.find(n => n.id === task.noteId);
     if (!note) return;
     
-    // Toggle the task in the note's content
     const updatedContent = toggleTaskInNote(note, taskId);
     updateNoteContent(note.id, updatedContent);
   };
-
+  
   return (
     <>
-      {/* Page Title Section */}
       <PageTitleSection
         variant="folder"
-        folderName="All Tasks"
+        folderName="Completed"
         staticIcon={<CheckSquare size={sizing.icon.pageTitleIcon} />}
-        staticDescription="View and manage all your tasks across all notes"
-        // Action controls
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        onSort={() => setSortActive(!sortActive)}
-        sortActive={sortActive}
-        onFilter={() => setFilterActive(!filterActive)}
-        filterActive={filterActive}
       />
-
-      {/* Content Section */}
+      
       <ListViewLayout
         sections={[
           {
-            id: 'tasks',
-            title: '', // No title for single-section view
-            show: sortedTasks.length > 0,
+            id: 'completed-tasks',
+            title: '',
+            show: completedTasks.length > 0,
             content: (
               <ListView<TaskListItemData>
-                items={sortedTasks}
+                items={completedTasks}
                 selectedId={null}
                 onItemClick={(taskId) => {
-                  const task = allTasks.find(t => t.id === taskId);
+                  const task = completedTasks.find(t => t.id === taskId);
                   if (task) {
                     onTaskClick(task.noteId, task.id);
                   }
@@ -189,13 +159,13 @@ export const AllTasksListView = ({ onTaskClick }: AllTasksListViewProps) => {
                     onToggle={handleToggleTask}
                   />
                 )}
-                emptyState="No tasks yet. Create tasks in your notes."
+                emptyState="No completed tasks"
                 showDividers={false}
               />
             ),
           },
         ]}
-        emptyState="No tasks yet. Create tasks in your notes."
+        emptyState="No completed tasks"
       />
     </>
   );

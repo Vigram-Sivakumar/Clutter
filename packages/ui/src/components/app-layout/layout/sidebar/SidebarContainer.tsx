@@ -5,7 +5,7 @@ import { SidebarTabs } from './sections/Tabs';
 import { SidebarActionBar } from './sections/ActionBar';
 import { WindowControls } from './internal/WindowControls';
 import { CalendarMonthHeader, CalendarDateGrid } from './internal';
-import { Folder, Calendar, Tag } from '../../../../icons';
+import { Folder, Calendar, Tag, CheckSquare } from '../../../../icons';
 
 const DESIGN = {
   spacing: {
@@ -15,7 +15,7 @@ const DESIGN = {
 
 interface SidebarContainerProps {
   // Header
-  contentType: 'notes' | 'tasks' | 'tags';
+  contentType: 'notes' | 'tasks' | 'tags' | 'task';
   onContentTypeChange: (type: string) => void;
   onCreateNote: () => void;
   onSearch: () => void;
@@ -70,6 +70,7 @@ export const SidebarContainer = ({
   const tabOptions = [
     { value: 'notes', icon: <Folder size={16} /> },
     { value: 'tasks', icon: <Calendar size={16} /> },
+    { value: 'task', icon: <CheckSquare size={16} /> },
     { value: 'tags', icon: <Tag size={16} /> },
   ];
 
@@ -167,6 +168,11 @@ export const SidebarContainer = ({
 
         {contentType === 'tags' && (
           // Tags tab: no action area (or could add search later)
+          null
+        )}
+
+        {contentType === 'task' && (
+          // Task tab: no action area for now
           null
         )}
 

@@ -6,6 +6,7 @@ import { SidebarContainer } from './SidebarContainer';
 import { NotesView } from './views/NotesView';
 import { TagsView } from './views/TagsView';
 import { CalendarView } from './views/CalendarView';
+import { TaskView } from './views/TaskView';
 import { EmojiTray } from '../../shared/emoji';
 import { sizing } from '../../../../tokens/sizing';
 import { spacing } from '../../../../tokens/spacing';
@@ -142,7 +143,7 @@ export const AppSidebar = ({
   const allTags = useAllTags();
   
   // Tab state - simple conditional rendering
-  const [contentType, setContentType] = useState<'notes' | 'tasks' | 'tags'>('tasks');
+  const [contentType, setContentType] = useState<'notes' | 'tasks' | 'tags' | 'task'>('task');
   
   // Global selection state - unified selection tracking for all sidebar items
   const [selection, setSelection] = useState<GlobalSelection>({
@@ -860,6 +861,36 @@ export const AppSidebar = ({
     // Navigate to "All Tasks" view when clicking "All Tasks" section title
     if (onFolderClick) {
       onFolderClick('all-tasks'); // Special ID for All Tasks view
+    }
+  }, [onFolderClick]);
+
+  const handleTodayHeaderClick = useCallback(() => {
+    if (onFolderClick) {
+      onFolderClick('today-tasks');
+    }
+  }, [onFolderClick]);
+
+  const handleOverdueHeaderClick = useCallback(() => {
+    if (onFolderClick) {
+      onFolderClick('overdue-tasks');
+    }
+  }, [onFolderClick]);
+
+  const handleUpcomingHeaderClick = useCallback(() => {
+    if (onFolderClick) {
+      onFolderClick('upcoming-tasks');
+    }
+  }, [onFolderClick]);
+
+  const handleUnplannedHeaderClick = useCallback(() => {
+    if (onFolderClick) {
+      onFolderClick('unplanned-tasks');
+    }
+  }, [onFolderClick]);
+
+  const handleCompletedHeaderClick = useCallback(() => {
+    if (onFolderClick) {
+      onFolderClick('completed-tasks');
     }
   }, [onFolderClick]);
 
@@ -1637,7 +1668,7 @@ export const AppSidebar = ({
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [onDateSelect]);
 
-  // Keyboard shortcuts for switching sidebar tabs (Cmd+1, Cmd+2, Cmd+3)
+  // Keyboard shortcuts for switching sidebar tabs (Cmd+1, Cmd+2, Cmd+3, Cmd+4)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey) {
@@ -1648,6 +1679,9 @@ export const AppSidebar = ({
           e.preventDefault();
           setContentType('tasks');
         } else if (e.key === '3') {
+          e.preventDefault();
+          setContentType('task');
+        } else if (e.key === '4') {
           e.preventDefault();
           setContentType('tags');
         }
@@ -1709,7 +1743,7 @@ export const AppSidebar = ({
       <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
           <SidebarContainer
             contentType={contentType}
-            onContentTypeChange={(type) => setContentType(type as 'notes' | 'tasks' | 'tags')}
+            onContentTypeChange={(type) => setContentType(type as 'notes' | 'tasks' | 'tags' | 'task')}
             onCreateNote={handleCreateNote}
             onSearch={() => {}}
             createButtonShortcut="⌘ N"
@@ -1908,6 +1942,33 @@ export const AppSidebar = ({
                 editingTag={editingTag}
                 onTagRenameComplete={handleTagRenameComplete}
                 onTagRenameCancel={handleTagRenameCancel}
+              />
+            )}
+
+            {/* Task Tab - Organized by date */}
+            {contentType === 'task' && (
+              <TaskView
+                onTaskClick={(noteId, taskId) => {
+                  // Navigate to the note containing the task and scroll to the task block
+                  if (onNoteClickWithBlock) {
+                    onNoteClickWithBlock(noteId, taskId);
+                  } else {
+                    // Fallback if the handler is not provided
+                    setCurrentNoteId(noteId);
+                    onNoteClickFromSidebar?.();
+                  }
+                }}
+                selection={selection}
+                openContextMenuId={openContextMenuId}
+                onClearSelection={handleClearSelection}
+                getTaskActions={getTaskActions}
+                selectedTaskIds={selectedTaskIds}
+                onTaskMultiSelect={handleTaskMultiSelect}
+                onTodayHeaderClick={handleTodayHeaderClick}
+                onOverdueHeaderClick={handleOverdueHeaderClick}
+                onUpcomingHeaderClick={handleUpcomingHeaderClick}
+                onUnplannedHeaderClick={handleUnplannedHeaderClick}
+                onCompletedHeaderClick={handleCompletedHeaderClick}
               />
             )}
           </SidebarContainer>

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 
-type TabType = 'notes' | 'tasks' | 'tags';
+type TabType = 'notes' | 'tasks' | 'tags' | 'task';
 
 interface UseCarouselAnimationReturn {
   contentType: TabType;
@@ -14,7 +14,7 @@ interface UseCarouselAnimationReturn {
  * Hook for managing carousel animation between sidebar tabs
  * Handles smooth sliding transitions with intermediate steps for non-adjacent tabs
  */
-export const useCarouselAnimation = (initialTab: TabType = 'tasks'): UseCarouselAnimationReturn => {
+export const useCarouselAnimation = (initialTab: TabType = 'task'): UseCarouselAnimationReturn => {
   // State
   const [contentType, setContentType] = useState<TabType>(initialTab);
   const [currentVisualTab, setCurrentVisualTab] = useState<TabType>(initialTab);
@@ -45,7 +45,7 @@ export const useCarouselAnimation = (initialTab: TabType = 'tasks'): UseCarousel
       return;
     }
 
-    const tabs: TabType[] = ['notes', 'tasks', 'tags'];
+    const tabs: TabType[] = ['notes', 'tasks', 'task', 'tags'];
     const currentIndex = tabs.indexOf(contentType);
     const prevIndex = tabs.indexOf(currentVisualTab);
     const distance = Math.abs(currentIndex - prevIndex);
