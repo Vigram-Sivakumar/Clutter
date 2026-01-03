@@ -1742,7 +1742,10 @@ export const AppSidebar = ({
                   <TertiaryButton
                     key="add"
                     icon={<Plus size={sizing.icon.sm} />}
-                    onClick={() => handleCreateFolder()}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleCreateFolder();
+                    }}
                     size="xs"
                   />
                 ]}
@@ -1848,7 +1851,8 @@ export const AppSidebar = ({
                   <TertiaryButton
                     key="add"
                     icon={<Plus size={sizing.icon.sm} />}
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.stopPropagation();
                       // Generate unique tag name
                       let tagName = 'Untitled Tag';
                       let counter = 1;
