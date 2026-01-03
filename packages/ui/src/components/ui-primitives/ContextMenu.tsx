@@ -292,7 +292,8 @@ export const ContextMenu = ({ children, items, onOpenChange }: ContextMenuProps)
     <>
       <div ref={containerRef} style={{ display: 'inline-block' }}>
         <div
-          onClick={() => {
+          onClick={(e) => {
+            e.stopPropagation(); // Prevent triggering parent item's onClick (e.g., opening folder)
             setIsOpen(!isOpen);
           }}
           style={{ display: 'inline-block' }}

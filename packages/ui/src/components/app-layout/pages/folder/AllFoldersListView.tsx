@@ -1,6 +1,6 @@
 import { useMemo, useState, useCallback } from 'react';
 import { useTheme } from '../../../../hooks/useTheme';
-import { useNotesStore, useFoldersStore } from '@clutter/shared';
+import { useNotesStore, useFoldersStore, CLUTTERED_FOLDER_ID, DAILY_NOTES_FOLDER_ID } from '@clutter/shared';
 import { PageTitleSection } from '../../shared/content-header';
 import { ListViewLayout } from '../../shared/list-view-layout';
 import { FolderGrid } from '../folder';
@@ -61,17 +61,21 @@ export const AllFoldersListView = ({
       (!note.folderId || !activeFolderIds.has(note.folderId))
     );
     
-    // Root-level folders
+    // Root-level folders (excluding system folders: Daily Notes)
     const rootFolders = folders
-      .filter((f) => !f.deletedAt && !f.parentId)
+      .filter((f) => 
+        !f.deletedAt && 
+        !f.parentId && 
+        f.id !== DAILY_NOTES_FOLDER_ID // Exclude Daily Notes system folder
+      )
       .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
     
     // Build folder list with Cluttered first
     const folderList = [
       {
-        id: 'cluttered',
+        id: CLUTTERED_FOLDER_ID, // Use proper constant to match icon system
         name: 'Cluttered',
-        emoji: '📮',
+        emoji: undefined, // No emoji - uses Tray icon via getFolderIcon
         noteCount: clutteredNotes.length,
         folderCount: 0, // Cluttered is a virtual view - it contains NO folders, only notes
         previewNotes: clutteredNotes.slice(0, 3).map(note => ({

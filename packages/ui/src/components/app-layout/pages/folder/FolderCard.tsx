@@ -7,6 +7,7 @@ import { CountBadge } from '../../../ui-primitives';
 import { sizing } from '../../../../tokens/sizing';
 import { typography } from '../../../../tokens/typography';
 import { Button } from '../../../ui-buttons';
+import { getFolderIcon } from '../../../../utils/itemIcons';
 
 /**
  * FolderCard Design Specification
@@ -215,7 +216,7 @@ export const FolderCard = ({ folder, onClick, onNoteClick, onCreateNote, onConte
           borderTop: `1px solid ${colors.border.subtle}`,
           }}
           >
-          {/* Folder Name with optional emoji */}
+          {/* Folder Name with icon */}
           <div
             style={{
               display: 'flex',
@@ -226,18 +227,23 @@ export const FolderCard = ({ folder, onClick, onNoteClick, onCreateNote, onConte
               minWidth: 0,
             }}
           >
-            {/* Emoji - only shown if exists */}
-            {folder.emoji && (
-              <div
-                style={{
-                  fontSize: '16px',
-                  lineHeight: 1,
-                  flexShrink: 0,
-                }}
-              >
-                {folder.emoji}
-              </div>
-            )}
+            {/* Folder Icon - uses centralized icon system (Tray for Cluttered, Calendar for Daily Notes, custom emoji if set, Folder for others) */}
+            <div
+              style={{
+                flexShrink: 0,
+                color: colors.text.secondary,
+                display: 'flex',
+                alignItems: 'center',
+              }}
+            >
+              {getFolderIcon({
+                folderId: folder.id,
+                emoji: folder.emoji,
+                isOpen: false,
+                size: 16,
+                color: colors.text.secondary,
+              })}
+            </div>
             
             <div
               onClick={() => onClick(folder.id)}
