@@ -11,7 +11,7 @@ import { animations } from '../../../../../tokens/animations';
  * Handles icon/emoji rendering for sidebar items
  * 
  * Responsibilities:
- * - Render appropriate icon based on variant (note/folder/tag/header)
+ * - Render appropriate icon based on variant (note/folder/tag/header/group)
  * - Handle icon/emoji clicks for emoji picker
  * - Handle chevron swap on hover for folders (CSS-driven)
  * - Daily note icon selection
@@ -24,7 +24,7 @@ import { animations } from '../../../../../tokens/animations';
 
 interface SidebarItemIconProps {
   // Core
-  variant: 'note' | 'folder' | 'tag' | 'header';
+  variant: 'note' | 'folder' | 'tag' | 'header' | 'group';
   icon?: string | ReactNode; // emoji string or React icon component
   
   // Visual state
@@ -64,6 +64,14 @@ export const SidebarItemIcon = memo(({
   
   // Headers can have optional icons (e.g., All Tasks with CheckSquare)
   if (variant === 'header') {
+    if (icon) {
+      return <>{icon}</>;
+    }
+    return null;
+  }
+  
+  // Groups can have optional icons but they're not interactive
+  if (variant === 'group') {
     if (icon) {
       return <>{icon}</>;
     }

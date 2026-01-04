@@ -481,7 +481,7 @@ export const FolderListView = ({
                                   taskCount: countTasksInNote(note.content),
                                   dailyNoteDate: note.dailyNoteDate,
                                   hasContent: !isContentEmpty(note.content),
-                                  // Highlight today's note if year and month are both expanded
+                                  // Show dot on note only when both year and month are expanded
                                   isToday: !yearCollapsed && !monthCollapsed && note.dailyNoteDate === currentDateString,
                                 }))}
                                 selectedNoteId={null}

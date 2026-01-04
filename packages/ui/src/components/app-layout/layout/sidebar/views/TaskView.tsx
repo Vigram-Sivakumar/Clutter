@@ -1,7 +1,9 @@
 import { useMemo, ReactNode } from 'react';
-import { useNotesStore, useUIStateStore, DAILY_NOTES_FOLDER_ID } from '@clutter/shared';
+import { useNotesStore, useUIStateStore, DAILY_NOTES_FOLDER_ID, getTodayDateString, formatTaskDateLabel, compareDates } from '@clutter/shared';
+import { useTheme } from '../../../../../hooks/useTheme';
 import { SidebarSection } from '../sections/Section';
 import { SidebarItemTask } from '../items/TaskItem';
+import { SidebarItem } from '../items/SidebarItem';
 import { SidebarEmptyState } from '../sections/EmptyState';
 import { sidebarLayout } from '../../../../../tokens/sidebar';
 import type { Note } from '@clutter/shared';
@@ -132,18 +134,19 @@ const toggleTaskInNote = (note: Note, taskId: string): string => {
   }
 };
 
-// Helper to get today's date in YYYY-MM-DD format
-const getTodayDateString = (): string => {
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = String(today.getMonth() + 1).padStart(2, '0');
-  const day = String(today.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
-
-// Helper to compare dates (returns negative if a < b, 0 if equal, positive if a > b)
-const compareDates = (dateA: string, dateB: string): number => {
-  return dateA.localeCompare(dateB);
+// Helper to group tasks by date
+const groupTasksByDate = (tasks: TaskWithDate[]): Map<string, TaskWithDate[]> => {
+  const grouped = new Map<string, TaskWithDate[]>();
+  
+  tasks.forEach(task => {
+    const effectiveDate = task.date || task.dailyNoteDate || '';
+    if (!grouped.has(effectiveDate)) {
+      grouped.set(effectiveDate, []);
+    }
+    grouped.get(effectiveDate)!.push(task);
+  });
+  
+  return grouped;
 };
 
 export const TaskView = ({
@@ -160,7 +163,9 @@ export const TaskView = ({
   onUnplannedHeaderClick,
   onCompletedHeaderClick,
 }: TaskViewProps) => {
-  const { notes, updateNoteContent } = useNotesStore();
+  const notes = useNotesStore((state) => state.notes);
+  const updateNoteContent = useNotesStore((state) => state.updateNoteContent);
+  const { colors } = useTheme();
   
   // Get collapse states from UI state store
   const {
@@ -231,7 +236,16 @@ export const TaskView = ({
     
     today.sort(sortByCreation);
     overdue.sort(sortByCreation);
-    upcoming.sort(sortByCreation);
+    
+    // Sort upcoming by date first, then by creation
+    upcoming.sort((a, b) => {
+      const dateA = a.date || a.dailyNoteDate || '';
+      const dateB = b.date || b.dailyNoteDate || '';
+      const dateComparison = compareDates(dateA, dateB);
+      if (dateComparison !== 0) return dateComparison;
+      return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+    });
+    
     unplanned.sort(sortByCreation);
     completed.sort(sortByCreation);
     
@@ -243,6 +257,20 @@ export const TaskView = ({
       completedTasks: completed,
     };
   }, [allTasks, todayDateString]);
+  
+  // Group upcoming tasks by date
+  const groupedUpcomingTasks = useMemo(() => {
+    const grouped = groupTasksByDate(upcomingTasks);
+    // Sort by date
+    return new Map([...grouped.entries()].sort((a, b) => compareDates(a[0], b[0])));
+  }, [upcomingTasks]);
+  
+  // Group overdue tasks by date
+  const groupedOverdueTasks = useMemo(() => {
+    const grouped = groupTasksByDate(overdueTasks);
+    // Sort by date (most recent first for overdue)
+    return new Map([...grouped.entries()].sort((a, b) => compareDates(b[0], a[0])));
+  }, [overdueTasks]);
   
   // Handle checkbox toggle
   const handleToggleTask = (taskId: string) => {
@@ -266,6 +294,77 @@ export const TaskView = ({
     if (onTaskMultiSelect) {
       onTaskMultiSelect(taskId, event);
     }
+  };
+  
+  // Render grouped tasks with timeline connectors
+  const renderGroupedTasks = (
+    groupedTasks: Map<string, TaskWithDate[]>,
+    sectionPrefix: string
+  ) => {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: sidebarLayout.itemGap }}>
+        {Array.from(groupedTasks.entries()).map(([date, tasks], groupIndex, groupsArray) => {
+          const isLastGroup = groupIndex === groupsArray.length - 1;
+          
+          return (
+            <div 
+              key={date} 
+              style={{ 
+                display: 'flex', 
+                flexDirection: 'column', 
+                gap: sidebarLayout.itemGap,
+                position: 'relative',
+              }}
+            >
+              {/* Date group header */}
+              <SidebarItem
+                variant="group"
+                id={`group-${sectionPrefix}-${date}`}
+                label={formatTaskDateLabel(date, todayDateString)}
+                onClick={() => {}}
+              />
+              
+              {/* Tasks container with connecting line */}
+              <div style={{ position: 'relative' }}>
+                {/* Connecting vertical line */}
+                <div
+                  style={{
+                    position: 'absolute',
+                    left: '10.5px',
+                    top: 0,
+                    bottom: isLastGroup ? 0 : `-${sidebarLayout.itemGap}`,
+                    width: '3px',
+                    backgroundColor: colors.connector.tertiary,
+                    borderRadius: '3px',
+                  }}
+                />
+                
+                {/* Tasks indented */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: sidebarLayout.itemGap }}>
+                  {tasks.map(task => (
+                    <div key={task.id} style={{ paddingLeft: sidebarLayout.indentPerLevel }}>
+                      <SidebarItemTask
+                        id={task.id}
+                        noteId={task.noteId}
+                        noteTitle={task.noteTitle}
+                        text={task.text}
+                        checked={task.checked}
+                        isSelected={selectedTaskIds?.has(task.id)}
+                        hasOpenContextMenu={openContextMenuId === task.id}
+                        onClick={(e) => handleTaskClick(task.id, e)}
+                        onToggle={handleToggleTask}
+                        onNavigate={handleTaskNavigate}
+                        actions={getTaskActions?.(task.id, task.noteId)}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
   };
   
   return (
@@ -318,22 +417,7 @@ export const TaskView = ({
         {overdueTasks.length === 0 ? (
           <SidebarEmptyState message="No overdue tasks" />
         ) : (
-          overdueTasks.map(task => (
-            <SidebarItemTask
-              key={task.id}
-              id={task.id}
-              noteId={task.noteId}
-              noteTitle={task.noteTitle}
-              text={task.text}
-              checked={task.checked}
-              isSelected={selectedTaskIds?.has(task.id)}
-              hasOpenContextMenu={openContextMenuId === task.id}
-              onClick={(e) => handleTaskClick(task.id, e)}
-              onToggle={handleToggleTask}
-              onNavigate={handleTaskNavigate}
-              actions={getTaskActions?.(task.id, task.noteId)}
-            />
-          ))
+          renderGroupedTasks(groupedOverdueTasks, 'overdue')
         )}
       </SidebarSection>
       
@@ -348,22 +432,7 @@ export const TaskView = ({
         {upcomingTasks.length === 0 ? (
           <SidebarEmptyState message="No upcoming tasks" />
         ) : (
-          upcomingTasks.map(task => (
-            <SidebarItemTask
-              key={task.id}
-              id={task.id}
-              noteId={task.noteId}
-              noteTitle={task.noteTitle}
-              text={task.text}
-              checked={task.checked}
-              isSelected={selectedTaskIds?.has(task.id)}
-              hasOpenContextMenu={openContextMenuId === task.id}
-              onClick={(e) => handleTaskClick(task.id, e)}
-              onToggle={handleToggleTask}
-              onNavigate={handleTaskNavigate}
-              actions={getTaskActions?.(task.id, task.noteId)}
-            />
-          ))
+          renderGroupedTasks(groupedUpcomingTasks, 'upcoming')
         )}
       </SidebarSection>
       

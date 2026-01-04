@@ -204,7 +204,8 @@ export const CalendarView = ({
   onTaskMultiSelect,
 }: CalendarViewProps) => {
   const { colors } = useTheme();
-  const { notes, updateNoteContent } = useNotesStore();
+  const notes = useNotesStore((state) => state.notes);
+  const updateNoteContent = useNotesStore((state) => state.updateNoteContent);
   const isAllTasksCollapsed = useUIStateStore(state => state.allTasksCollapsed);
   const setAllTasksCollapsed = useUIStateStore(state => state.setAllTasksCollapsed);
   
@@ -326,8 +327,6 @@ export const CalendarView = ({
                   <SidebarItemFolder
                     id={yearKey}
                     label={year}
-                    // Highlight year if it's current year AND collapsed (most specific visible level)
-                    labelColor={isCurrentYear && yearCollapsed ? colors.semantic.calendarAccent : undefined}
                     isOpen={!yearCollapsed}
                     level={0}
                     onClick={() => onYearClick?.(year)}
@@ -342,8 +341,8 @@ export const CalendarView = ({
                     const monthNotes = groupedDailyNotes[year][month];
                     const monthCount = getMonthNoteCount(groupedDailyNotes, year, month);
                     
-                    // Determine if this is the current month in the current year
-                    const isCurrentMonth = isCurrentYear && month === currentMonthName;
+                    // Check if this month contains today's note
+                    const monthContainsToday = monthNotes.some(note => note.dailyNoteDate === currentDateString);
                     
                     return (
                       <div key={monthKey} style={{ display: 'flex', flexDirection: 'column', gap: sidebarLayout.itemGap }}>
@@ -351,8 +350,8 @@ export const CalendarView = ({
                         <SidebarItemFolder
                           id={monthKey}
                           label={month}
-                          // Highlight month if it's current month, year is expanded, AND month is collapsed
-                          labelColor={!yearCollapsed && isCurrentMonth && monthCollapsed ? colors.semantic.calendarAccent : undefined}
+                          // Show dot on month only when collapsed and contains today
+                          isToday={monthCollapsed && monthContainsToday}
                           badge={String(monthCount)}
                           isOpen={!monthCollapsed}
                           level={1}
@@ -363,8 +362,8 @@ export const CalendarView = ({
                         
                         {/* Notes within Month */}
                         {!monthCollapsed && monthNotes.map((note) => {
-                          // Highlight today's note if year and month are both expanded
-                          const isToday = !yearCollapsed && !monthCollapsed && note.dailyNoteDate === currentDateString;
+                          // Show dot on note only when month is expanded and it's today
+                          const isToday = !monthCollapsed && note.dailyNoteDate === currentDateString;
                           
                           return (
                             <SidebarItemNote
@@ -372,7 +371,7 @@ export const CalendarView = ({
                               id={note.id}
                               title={note.title}
                               emoji={note.emoji}
-                              labelColor={isToday ? colors.semantic.calendarAccent : undefined}
+                              isToday={isToday}
                               level={2}
                               isSelected={selection.type === 'note' && selection.itemId === note.id && selection.context === 'dailyNotes'}
                               hasOpenContextMenu={openContextMenuId === note.id}

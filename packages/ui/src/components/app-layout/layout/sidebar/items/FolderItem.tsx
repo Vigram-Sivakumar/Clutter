@@ -10,6 +10,7 @@ interface SidebarItemFolderProps {
   emoji?: string | ReactNode | null; // Optional emoji string or icon component for folder
   folderId?: string; // Folder ID for system folder identification (cluttered, __daily_notes__)
   labelColor?: string; // Optional color override for the label (e.g., calendarAccent for current year/month)
+  isToday?: boolean; // Whether this is today's month (for showing dot indicator)
   onClick: (event?: React.MouseEvent) => void; // Click folder to open folder view
   onToggle?: () => void; // Click chevron to expand/collapse
   actions?: ReactNode[];
@@ -51,6 +52,7 @@ export const SidebarItemFolder = ({
   emoji,
   folderId,
   labelColor,
+  isToday = false,
   onClick,
   onToggle,
   actions,
@@ -82,6 +84,7 @@ export const SidebarItemFolder = ({
       icon={emoji || undefined}
       folderId={folderId}
       labelColor={labelColor}
+      isToday={isToday}
       level={level}
       badge={badge}
       isOpen={isOpen}

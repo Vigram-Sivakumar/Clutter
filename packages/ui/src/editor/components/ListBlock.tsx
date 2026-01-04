@@ -27,6 +27,7 @@ import { BlockHandle } from './BlockHandle';
 import { BlockSelectionHalo } from './BlockSelectionHalo';
 import { isHiddenByCollapsedToggle } from '../utils/collapseHelpers';
 import { TaskPriorityIndicator } from './TaskPriorityIndicator';
+import { Checkbox } from '../../components/ui-checkbox';
 
 // Props are provided by TipTap's ReactNodeViewRenderer
 type ListBlockProps = NodeViewProps;
@@ -473,12 +474,8 @@ export function ListBlock({
       }
 
       case 'task': {
-        // URL-encode the checkmark color for SVG data URL
-        const checkmarkColor = colors.background.default.replace('#', '%23');
-        
         return (
-          <input
-            type="checkbox"
+          <Checkbox
             checked={checked || false}
             onChange={handleCheckboxChange}
             onKeyDown={handleCheckboxKeyDown}
@@ -495,27 +492,7 @@ export function ListBlock({
             onBlur={(e) => {
               e.currentTarget.style.outline = 'none';
             }}
-            style={{
-              width: sizing.marker,
-              height: sizing.marker,
-              margin: 0,
-              cursor: 'pointer',
-              appearance: 'none',
-              WebkitAppearance: 'none',
-              MozAppearance: 'none',
-              border: `1.5px solid ${colors.marker}`,
-              borderRadius: globalSizing.radius.md,
-              backgroundColor: checked ? colors.text.default : colors.background.default,
-              transition: 'background-color 0.15s ease, border-color 0.15s ease',
-              outline: 'none',
-              // SVG checkmark when checked (dynamic color based on theme)
-              backgroundImage: checked
-                ? `url("data:image/svg+xml,%3Csvg viewBox='0 0 16 16' fill='${checkmarkColor}' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z'/%3E%3C/svg%3E")`
-                : 'none',
-              backgroundSize: '14px 14px',
-              backgroundPosition: 'center',
-              backgroundRepeat: 'no-repeat',
-            }}
+            size={sizing.marker}
           />
         );
       }
@@ -634,8 +611,8 @@ export function ListBlock({
             top: 0,
                 width: 12,
                 height: 16,
-            borderLeft: `1px solid ${colors.border.divider}`,
-            borderBottom: `1px solid ${colors.border.divider}`,
+            borderLeft: `1px solid ${colors.connector.tertiary}`,
+            borderBottom: `1px solid ${colors.connector.tertiary}`,
             borderBottomLeftRadius: 4,
             pointerEvents: 'none',
           }}

@@ -184,6 +184,28 @@ export const sidebarBehavior = {
       /** Show usage count badge */
       showBadge: true,
     },
+    
+    /**
+     * Group Variant
+     * Non-interactive grouping titles for visual organization
+     */
+    group: {
+      /** Groups don't have icons unless explicitly provided */
+      showIcon: false,
+      
+      /** Groups are not collapsible */
+      collapsible: false,
+      
+      /** No hover effects */
+      showHoverEffects: false,
+      
+      /** Groups don't have actions */
+      showQuickAdd: false,
+      showContextMenu: false,
+      
+      /** Groups are visual only, not interactive */
+      clickable: false,
+    },
   },
 
   /**
@@ -371,7 +393,7 @@ export const sidebarStyles = {
  * Check if a variant should show quick add button
  */
 export function shouldShowQuickAdd(
-  variant: 'note' | 'folder' | 'tag' | 'header',
+  variant: 'note' | 'folder' | 'tag' | 'header' | 'group',
   context?: string,
   isSystemFolder?: boolean
 ): boolean {
@@ -397,7 +419,7 @@ export function shouldShowQuickAdd(
  * Check if an item should show context menu
  */
 export function shouldShowContextMenu(
-  variant: 'note' | 'folder' | 'tag' | 'header',
+  variant: 'note' | 'folder' | 'tag' | 'header' | 'group',
   context?: string,
   isSystemFolder?: boolean
 ): boolean {
@@ -430,7 +452,7 @@ export function isSystemFolder(folderId: string): boolean {
  * Get chevron position for a variant
  */
 export function getChevronPosition(
-  variant: 'note' | 'folder' | 'tag' | 'header'
+  variant: 'note' | 'folder' | 'tag' | 'header' | 'group'
 ): 'left' | 'right' {
   if (variant === 'header') {
     return sidebarBehavior.variants.header.chevronPosition;
@@ -445,7 +467,7 @@ export function getChevronPosition(
  * Check if icon should hide on hover
  */
 export function shouldHideIconOnHover(
-  variant: 'note' | 'folder' | 'tag' | 'header'
+  variant: 'note' | 'folder' | 'tag' | 'header' | 'group'
 ): boolean {
   return sidebarBehavior.hover.hideIconOnHover.includes(variant);
 }
@@ -455,5 +477,5 @@ export function shouldHideIconOnHover(
  */
 export type SidebarBehavior = typeof sidebarBehavior;
 export type SidebarStyles = typeof sidebarStyles;
-export type SidebarVariant = 'note' | 'folder' | 'tag' | 'header';
+export type SidebarVariant = 'note' | 'folder' | 'tag' | 'header' | 'group';
 

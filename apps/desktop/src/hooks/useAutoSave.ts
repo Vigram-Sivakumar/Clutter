@@ -45,13 +45,14 @@ function hashContent(content: string): string {
   return hash.toString(36);
 }
 
-// 🛡️ Check if content is TipTap boot state (not user intent)
-// Distinguishes between editor initialization vs user-created empty notes
+// 🛡️ Check if content is pure boot state (completely empty, no structure)
+// Allow structured empty content (intentional deletions)
 function isBootEmptyTipTap(content: string): boolean {
   return (
-    content.length <= 170 &&
-    content.includes('"type":"doc"') &&
-    !content.includes('"text"') // Real content has text nodes
+    !content ||
+    content.trim() === '' ||
+    content === '""' ||
+    content === '{}'
   );
 }
 

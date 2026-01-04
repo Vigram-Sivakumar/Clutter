@@ -10,6 +10,7 @@ import { getNoteIcon, getFolderIcon, ALL_TASKS_FOLDER_ID } from '../../../../../
 import { CLUTTERED_FOLDER_ID, DAILY_NOTES_FOLDER_ID } from '@clutter/shared';
 import { sidebarStyles } from '../config/sidebarConfig';
 import { animations } from '../../../../../tokens/animations';
+import { Checkbox } from '../../../../ui-checkbox';
 
 /**
  * SidebarItem Design Specification
@@ -41,7 +42,7 @@ const DESIGN = {
   },
 } as const;
 
-type SidebarItemVariant = 'note' | 'folder' | 'tag' | 'header' | 'task';
+type SidebarItemVariant = 'note' | 'folder' | 'tag' | 'header' | 'task' | 'group';
 
 interface SidebarItemProps {
   // Core
@@ -61,6 +62,7 @@ interface SidebarItemProps {
   isDropTarget?: boolean;
   hasContent?: boolean; // For notes - whether note has editor content (switches between Note/NoteBlank)
   dailyNoteDate?: string | null; // For notes - if it's a daily note (YYYY-MM-DD format)
+  isToday?: boolean; // For notes - whether this is today's daily note (for showing dot indicator)
   folderId?: string; // For folders - the folder ID (used to identify system folders)
   
   // Interactions
@@ -117,6 +119,7 @@ export const SidebarItem = ({
   isDropTarget = false,
   hasContent = true,
   dailyNoteDate,
+  isToday = false,
   folderId,
   onClick,
   onToggle,
@@ -161,7 +164,7 @@ export const SidebarItem = ({
     '--sidebar-transition': sidebarStyles.transitions.hover,
   } as React.CSSProperties;
 
-  const paddingLeft = variant === 'tag' || variant === 'header' 
+  const paddingLeft = variant === 'tag' || variant === 'header' || variant === 'group'
     ? 0 
     : Math.min(level, DESIGN.limits.maxVisualIndent) * parseInt(DESIGN.spacing.indentPerLevel);
 
@@ -449,9 +452,17 @@ export const SidebarItem = ({
       return null;
     }
     
+    // Groups can have optional icons but they're not interactive
+    if (variant === 'group') {
+      if (icon) {
+        return icon;
+      }
+      return null;
+    }
+    
     if (variant === 'note') {
-      // Use labelColor (e.g., calendarAccent for today's note) if provided, otherwise use default colors
-      const iconColor = labelColor || (isSelected ? colors.text.default : colors.text.secondary);
+      // Don't use accent color on icon - only on label
+      const iconColor = isSelected ? colors.text.default : colors.text.secondary;
       const noteIcon = getNoteIcon({
         emoji: typeof icon === 'string' ? icon : undefined,
         dailyNoteDate,
@@ -461,16 +472,34 @@ export const SidebarItem = ({
       });
       
       return (
-        <TertiaryButton
-          icon={noteIcon}
-          onClick={(e) => {
-            e.stopPropagation();
-            if (onEmojiClick) {
-              onEmojiClick(id, e.currentTarget as HTMLButtonElement);
-            }
-          }}
-          size="xs"
-        />
+        <div style={{ position: 'relative' }}>
+          {/* Dot indicator for today's daily note */}
+          {isToday && (
+            <div
+              style={{
+                position: 'absolute',
+                left: '-6px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                width: '4px',
+                height: '4px',
+                borderRadius: '50%',
+                backgroundColor: colors.semantic.calendarAccent,
+                pointerEvents: 'none',
+              }}
+            />
+          )}
+          <TertiaryButton
+            icon={noteIcon}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (onEmojiClick) {
+                onEmojiClick(id, e.currentTarget as HTMLButtonElement);
+              }
+            }}
+            size="xs"
+          />
+        </div>
       );
     }
     
@@ -487,39 +516,56 @@ export const SidebarItem = ({
               flexShrink: 0,
             }}
           >
-            {/* Icon - always rendered, CSS controls visibility */}
-            <div
-              className={sidebarStyles.classes.icon}
-              style={{
-                position: 'absolute',
-                inset: 0,
-                display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              opacity: 1,
-              transition: animations.transition.opacity,
-              }}
-            >
-              <TertiaryButton
-                icon={getFolderIcon({
-                  folderId: folderId || id,
-                  emoji: typeof icon === 'string' ? icon : undefined,
-                  isOpen,
-                  size: 16,
-                  // Use labelColor (e.g., calendarAccent for current year/month) if provided
-                  color: labelColor || (isSelected ? colors.text.default : colors.text.secondary),
-                })}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (onEmojiClick) {
-                    onEmojiClick(id, e.currentTarget as HTMLButtonElement);
-                  }
+            {/* Dot indicator for today's month */}
+            {isToday && (
+              <div
+                style={{
+                  position: 'absolute',
+                  left: '-6px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  width: '4px',
+                  height: '4px',
+                  borderRadius: '50%',
+                  backgroundColor: colors.semantic.calendarAccent,
+                  pointerEvents: 'none',
+                  zIndex: 1,
                 }}
-                disabled={!onEmojiClick}
-                disabledNoFade={!onEmojiClick}
-                size="xs"
               />
-            </div>
+            )}
+              {/* Icon - always rendered, CSS controls visibility */}
+              <div
+                className={sidebarStyles.classes.icon}
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                opacity: 1,
+                transition: animations.transition.opacity,
+                }}
+              >
+                <TertiaryButton
+                  icon={getFolderIcon({
+                    folderId: folderId || id,
+                    emoji: typeof icon === 'string' ? icon : undefined,
+                    isOpen,
+                    size: 16,
+                    // Don't use accent color on icon - only on label
+                    color: isSelected ? colors.text.default : colors.text.secondary,
+                  })}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (onEmojiClick) {
+                      onEmojiClick(id, e.currentTarget as HTMLButtonElement);
+                    }
+                  }}
+                  disabled={!onEmojiClick}
+                  disabledNoFade={!onEmojiClick}
+                  size="xs"
+                />
+              </div>
             
             {/* Chevron - always rendered, CSS controls visibility (shown on hover) */}
             <div
@@ -556,8 +602,8 @@ export const SidebarItem = ({
       }
       
       // Folder without toggle: Just show icon
-      // Use labelColor (e.g., calendarAccent for current year/month) if provided, otherwise use default colors
-      const iconColor = labelColor || (isSelected ? colors.text.default : colors.text.secondary);
+      // Don't use accent color on icon - only on label
+      const iconColor = isSelected ? colors.text.default : colors.text.secondary;
       const folderIcon = getFolderIcon({
         folderId: folderId || id,
         emoji: typeof icon === 'string' ? icon : undefined,
@@ -568,31 +614,56 @@ export const SidebarItem = ({
       
       if (onEmojiClick) {
         return (
-          <TertiaryButton
-            icon={folderIcon}
-            onClick={(e) => {
-              e.stopPropagation();
-              onEmojiClick(id, e.currentTarget as HTMLButtonElement);
-            }}
-            size="xs"
-          />
+          <div style={{ position: 'relative' }}>
+            {/* Dot indicator for today's month */}
+            {isToday && (
+              <div
+                style={{
+                  position: 'absolute',
+                  left: '-6px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  width: '4px',
+                  height: '4px',
+                  borderRadius: '50%',
+                  backgroundColor: colors.semantic.calendarAccent,
+                  pointerEvents: 'none',
+                }}
+              />
+            )}
+            <TertiaryButton
+              icon={folderIcon}
+              onClick={(e) => {
+                e.stopPropagation();
+                onEmojiClick(id, e.currentTarget as HTMLButtonElement);
+              }}
+              size="xs"
+            />
+          </div>
         );
       }
       
       return (
-        <TertiaryButton
-          icon={folderIcon}
-          onClick={(e) => e.stopPropagation()}
-          disabled={true}
-          disabledNoFade={true}
-          size="xs"
-        />
+        <div style={{ position: 'relative' }}>
+          {/* Dot indicator for today's month */}
+          {isToday && (
+            <div
+              style={{
+                position: 'absolute',
+                left: '-6px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                width: '4px',
+                height: '4px',
+                borderRadius: '50%',
+                backgroundColor: colors.semantic.calendarAccent,
+                pointerEvents: 'none',
+              }}
+            />
+          )}
+          {folderIcon}
+        </div>
       );
-    }
-    
-    if (variant === 'tag') {
-      // Tags use NoteTag component, no icon here
-      return null;
     }
     
     // Tasks: Render checkbox in 20px container (matches icon button size)
@@ -608,11 +679,9 @@ export const SidebarItem = ({
             flexShrink: 0,
           }}
         >
-          <input
-            type="checkbox"
+          <Checkbox
             checked={isTaskChecked}
-            onChange={(e) => {
-              e.stopPropagation();
+            onChange={(checked) => {
               if (onTaskToggle) {
                 onTaskToggle(id);
               }
@@ -620,27 +689,7 @@ export const SidebarItem = ({
             onClick={(e) => {
               e.stopPropagation();
             }}
-            style={{
-              width: 16,
-              height: 16,
-              margin: 0,
-              flexShrink: 0,
-              cursor: 'pointer',
-              appearance: 'none',
-              WebkitAppearance: 'none',
-              MozAppearance: 'none',
-              border: `1.5px solid ${colors.border.default}`,
-              borderRadius: globalSizing.radius.sm,
-              backgroundColor: 'transparent',
-              transition: 'border-color 0.15s ease',
-              outline: 'none',
-              backgroundImage: isTaskChecked
-                ? `url("data:image/svg+xml,%3Csvg viewBox='0 0 16 16' fill='${colors.text.default.replace('#', '%23')}' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z'/%3E%3C/svg%3E")`
-                : 'none',
-              backgroundSize: '14px 14px',
-              backgroundPosition: 'center',
-              backgroundRepeat: 'no-repeat',
-            }}
+            size={16}
           />
         </div>
       );
@@ -766,6 +815,31 @@ export const SidebarItem = ({
             userSelect: 'none',
             WebkitUserSelect: 'none',
             cursor: 'pointer',
+          } as any}
+        >
+          {label}
+        </span>
+      );
+    }
+    
+    // Group variant - similar to header but non-interactive and more subtle
+    if (variant === 'group') {
+      return (
+        <span
+          style={{
+            fontSize: sidebarLayout.headerFontSize,
+            fontWeight: sidebarLayout.headerFontWeight,
+            letterSpacing: sidebarLayout.headerLetterSpacing,
+            color: colors.text.tertiary,
+            textTransform: 'uppercase',
+            flex: '1 1 0',
+            minWidth: 0,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            userSelect: 'none',
+            WebkitUserSelect: 'none',
+            cursor: 'default',
           } as any}
         >
           {label}
@@ -1037,8 +1111,8 @@ export const SidebarItem = ({
           pointer-events: auto !important;
         }
         
-        /* Background hover - only when not selected */
-        .${sidebarStyles.classes.item}:not([data-selected="true"]):hover {
+        /* Background hover - only when not selected and not group variant */
+        .${sidebarStyles.classes.item}:not([data-selected="true"]):not([data-variant="group"]):hover {
           background-color: var(--sidebar-hover-bg) !important;
         }
       `}</style>
@@ -1065,6 +1139,7 @@ export const SidebarItem = ({
           className={sidebarStyles.classes.item}
           data-selected={isSelected || hasOpenContextMenu}
           data-drop-target={isDropTarget}
+          data-variant={variant}
           draggable={draggable && !isEditing}
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
@@ -1073,7 +1148,7 @@ export const SidebarItem = ({
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
           onMouseUp={handleMouseUp}
-          onClick={isEditing ? undefined : (e) => onClick(e)}
+          onClick={isEditing ? undefined : (variant === 'group' ? undefined : (e) => onClick(e))}
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -1082,14 +1157,16 @@ export const SidebarItem = ({
             paddingLeft: DESIGN.spacing.paddingX,
             paddingRight: DESIGN.spacing.paddingX,
             boxSizing: 'border-box',
-            cursor: isDragging ? 'grabbing' : 'pointer',
-            backgroundColor: isSelected || hasOpenContextMenu
-              ? colors.background.tertiary
-              : (variant === 'header' && isHeaderDragOver && !isOpen)
+            cursor: isDragging ? 'grabbing' : (variant === 'group' ? 'default' : 'pointer'),
+            backgroundColor: variant === 'group' 
+              ? 'transparent'
+              : (isSelected || hasOpenContextMenu
                 ? colors.background.tertiary
-                : isDropTarget 
-                  ? colors.background.subtleHover 
-                  : 'transparent',
+                : (variant === 'header' && isHeaderDragOver && !isOpen)
+                  ? colors.background.tertiary
+                  : isDropTarget 
+                    ? colors.background.subtleHover 
+                    : 'transparent'),
             borderRadius: DESIGN.sizing.borderRadius,
             gap: DESIGN.spacing.contentGap,
           userSelect: 'none',

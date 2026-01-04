@@ -190,7 +190,7 @@ const getTodayWeekStart = (): string => {
 
 export const useUIStateStore = create<UIStateStore>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       // Initial state
       sidebarCollapsed: false,
       sidebarWidth: 256,
@@ -265,7 +265,10 @@ export const useUIStateStore = create<UIStateStore>()(
         }
         return { collapsedDailyNoteGroups: newSet };
       }),
-      isDailyNoteGroupCollapsed: (groupKey) => (state) => state.collapsedDailyNoteGroups.has(groupKey),
+      isDailyNoteGroupCollapsed: (groupKey) => {
+        const state = get();
+        return state.collapsedDailyNoteGroups.has(groupKey);
+      },
       
       setSidebarCollapsedDailyNoteGroups: (groups) => set({ sidebarCollapsedDailyNoteGroups: groups }),
       toggleSidebarDailyNoteGroupCollapsed: (groupKey) => set((state) => {
@@ -277,7 +280,10 @@ export const useUIStateStore = create<UIStateStore>()(
         }
         return { sidebarCollapsedDailyNoteGroups: newSet };
       }),
-      isSidebarDailyNoteGroupCollapsed: (groupKey) => (state) => state.sidebarCollapsedDailyNoteGroups.has(groupKey),
+      isSidebarDailyNoteGroupCollapsed: (groupKey) => {
+        const state = get();
+        return state.sidebarCollapsedDailyNoteGroups.has(groupKey);
+      },
       
       setHasManuallyToggledCluttered: (toggled) => set({ hasManuallyToggledCluttered: toggled }),
       setHasManuallyToggledDailyNotes: (toggled) => set({ hasManuallyToggledDailyNotes: toggled }),

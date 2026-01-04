@@ -56,6 +56,7 @@ import { HashtagAutocomplete } from '../plugins/HashtagAutocomplete';
 import { AtMention } from '../plugins/AtMention';
 import { BlockIdGenerator } from '../extensions/BlockIdGenerator';
 import { SelectAll } from '../plugins/SelectAll';
+import { BlockDeletion } from '../plugins/BlockDeletion';
 import { UndoBoundaries } from '../plugins/UndoBoundaries';
 // import { FocusFade } from '../plugins/FocusFade'; // Disabled for now
 
@@ -150,6 +151,7 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(({
       EscapeMarks,
       DoubleSpaceEscape,
       SelectAll, // Progressive Cmd+A: block text → block node → all blocks
+      BlockDeletion, // Handle DELETE/Backspace for node-selected blocks
       HashtagDetection, // Simple #tag detection (moves to metadata)
       HashtagAutocomplete.configure({
         getColors: () => colors,

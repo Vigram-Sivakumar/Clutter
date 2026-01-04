@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useNotesStore } from '@clutter/shared';
+import { useNotesStore, getTodayDateString, formatTaskDateLabel } from '@clutter/shared';
 import { ListView, ListItem, TaskListItemData } from '../../shared/list-view';
 import { PageTitleSection } from '../../shared/content-header';
 import { ListViewLayout } from '../../shared/list-view-layout';
@@ -65,41 +65,6 @@ const extractTasksFromNote = (note: Note): TaskWithDate[] => {
   } catch {
     return [];
   }
-};
-
-const getTodayDateString = (): string => {
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = String(today.getMonth() + 1).padStart(2, '0');
-  const day = String(today.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
-
-const getTomorrowDateString = (): string => {
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const year = tomorrow.getFullYear();
-  const month = String(tomorrow.getMonth() + 1).padStart(2, '0');
-  const day = String(tomorrow.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
-
-// Format date as "Tomorrow" or "15 Jan"
-const formatDateTitle = (dateStr: string): string => {
-  const tomorrowStr = getTomorrowDateString();
-  
-  if (dateStr === tomorrowStr) {
-    return 'Tomorrow';
-  }
-  
-  // Parse YYYY-MM-DD
-  const [year, month, day] = dateStr.split('-').map(Number);
-  const date = new Date(year, month - 1, day);
-  
-  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  const monthName = monthNames[date.getMonth()];
-  
-  return `${day} ${monthName}`;
 };
 
 const toggleTaskInNote = (note: Note, taskId: string): string => {
@@ -194,7 +159,7 @@ export const UpcomingTasksListView = ({ onTaskClick }: UpcomingTasksListViewProp
   const sections = useMemo(() => {
     return tasksByDate.map(([dateStr, tasks]) => ({
       id: `date-${dateStr}`,
-      title: formatDateTitle(dateStr),
+      title: formatTaskDateLabel(dateStr, todayDateString),
       show: tasks.length > 0,
       content: (
         <ListView<TaskListItemData>
@@ -218,7 +183,7 @@ export const UpcomingTasksListView = ({ onTaskClick }: UpcomingTasksListViewProp
         />
       ),
     }));
-  }, [tasksByDate, onTaskClick, handleToggleTask]);
+  }, [tasksByDate, onTaskClick, handleToggleTask, todayDateString]);
   
   return (
     <>

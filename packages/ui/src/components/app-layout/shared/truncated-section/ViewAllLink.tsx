@@ -52,7 +52,11 @@ export const ViewAllLink = ({
         fontSize: '13px',
         color: colors.text.tertiary,
         cursor: 'pointer',
-        paddingLeft: spacing['2'],
+        paddingLeft: spacing['6'],
+        paddingRight: spacing['6'],
+        height: '28px',
+        display: 'flex',
+        alignItems: 'center',
         transition: 'color 0.15s ease',
         userSelect: 'none',
       }}

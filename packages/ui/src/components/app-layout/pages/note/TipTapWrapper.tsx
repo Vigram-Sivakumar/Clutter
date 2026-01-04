@@ -262,10 +262,21 @@ export const TipTapWrapper = forwardRef<TipTapWrapperHandle, TipTapWrapperProps>
     }
     
     // 🛡️ Ignore first synthetic transaction after mount/content load
+    // BUT: Don't ignore if content has significantly changed (user deletion)
     if (ignoreNextUpdate.current) {
-      ignoreNextUpdate.current = false;
-      console.log('🚫 TipTapWrapper: Ignoring first synthetic update (ProseMirror normalization)');
-      return;
+      const newContentStr = JSON.stringify(newContent);
+      const prevContentStr = previousValue.current || '';
+      const lengthDiff = Math.abs(newContentStr.length - prevContentStr.length);
+      
+      // If content changed by more than 50 chars, it's a real user edit (deletion)
+      if (lengthDiff > 50) {
+        ignoreNextUpdate.current = false;
+        // Continue processing
+      } else {
+        ignoreNextUpdate.current = false;
+        console.log('🚫 TipTapWrapper: Ignoring first synthetic update (ProseMirror normalization)');
+        return;
+      }
     }
     
     // 🛡️ CRITICAL: Block onChange during hydration (prevents empty boot state from overwriting real content)

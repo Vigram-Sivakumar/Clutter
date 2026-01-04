@@ -269,25 +269,30 @@ pub fn save_note(note: Note, state: State<DbConnection>) -> Result<String, Strin
         note.content.len()
     );
     
-    // 🛡️ GUARD: Prevent saving empty content unless it's a new note
-    // Check if note exists in DB first AND what its current content length is
-    let existing_content_len: Option<usize> = conn
-        .query_row(
-            "SELECT LENGTH(content) FROM notes WHERE id = ?1",
-            [&note.id],
-            |row| row.get(0)
-        )
-        .ok();
+    // 🛡️ GUARD: Only prevent PURE boot state (null, empty string, etc.)
+    // Allow structured empty content (intentional deletions)
+    let is_pure_boot_state = note.content.is_empty() 
+        || note.content == r#""""# 
+        || note.content == "{}";
     
-    let is_empty_tiptap = note.content.len() <= 170 && note.content.contains(r#""type":"doc""#);
-    
-    // If note exists with substantial content, don't let it be overwritten with empty state
-    if let Some(existing_len) = existing_content_len {
-        if existing_len > 200 && is_empty_tiptap {
-            return Err(format!(
-                "🚨 BLOCKED: Attempted to overwrite note '{}' ({} chars) with empty TipTap state ({} chars)",
-                note.title, existing_len, note.content.len()
-            ));
+    if is_pure_boot_state {
+        // Check if note exists in DB with content
+        let existing_content_len: Option<usize> = conn
+            .query_row(
+                "SELECT LENGTH(content) FROM notes WHERE id = ?1",
+                [&note.id],
+                |row| row.get(0)
+            )
+            .ok();
+        
+        // Only block if overwriting existing content with pure boot state
+        if let Some(existing_len) = existing_content_len {
+            if existing_len > 200 {
+                return Err(format!(
+                    "🚨 BLOCKED: Attempted to overwrite note '{}' ({} chars) with pure boot state",
+                    note.title, existing_len
+                ));
+            }
         }
     }
     

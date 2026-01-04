@@ -72,6 +72,16 @@ export const colors = {
       divider: stone[200],      // subtle dividers
     },
 
+    // Connector colors - Timeline/hierarchy lines
+    connector: {
+      default: stone[300],      // default connector line
+      secondary: stone[400],    // secondary connector line
+      tertiary: stone[200],     // subtle connector line
+      hover: stone[400],        // hover state
+      focus: stone[700],        // focus state
+      divider: stone[200],      // divider connector
+    },
+
     // Accent colors - Tag/highlight colors only
     accent: {
       // Gold for favorites/stars
@@ -162,6 +172,16 @@ export const colors = {
       hover: neutral[500],      // #4d4d4d (hover border)
       focus: neutral[400],      // #6b6b6b (focus indicator)
       divider: neutral[600],    // #3b3b3b (subtle dividers)
+    },
+
+    // Connector colors - Timeline/hierarchy lines
+    connector: {
+      default: neutral[600],    // default connector line
+      secondary: neutral[500],  // secondary connector line
+      tertiary: neutral[800],   // subtle connector line
+      hover: neutral[500],      // hover state
+      focus: neutral[400],      // focus state
+      divider: neutral[600],    // divider connector
     },
 
     // Accent colors - Notion-inspired tag colors

@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useNotesStore } from '@clutter/shared';
+import { useNotesStore, getTodayDateString, formatTaskDateLabel } from '@clutter/shared';
 import { ListView, ListItem, TaskListItemData } from '../../shared/list-view';
 import { PageTitleSection } from '../../shared/content-header';
 import { ListViewLayout } from '../../shared/list-view-layout';
@@ -67,14 +67,6 @@ const extractTasksFromNote = (note: Note): TaskWithDate[] => {
   }
 };
 
-const getTodayDateString = (): string => {
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = String(today.getMonth() + 1).padStart(2, '0');
-  const day = String(today.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
-
 const toggleTaskInNote = (note: Note, taskId: string): string => {
   try {
     const parsed = JSON.parse(note.content);
@@ -112,6 +104,7 @@ export const OverdueTasksListView = ({ onTaskClick }: OverdueTasksListViewProps)
   const { notes, updateNoteContent } = useNotesStore();
   const todayDateString = useMemo(() => getTodayDateString(), []);
   
+  // Get all overdue tasks
   const overdueTasks = useMemo(() => {
     const activeNotes = notes.filter((n: Note) => !n.deletedAt);
     const allTasks: TaskWithDate[] = [];
@@ -126,9 +119,30 @@ export const OverdueTasksListView = ({ onTaskClick }: OverdueTasksListViewProps)
         if (task.checked) return false;
         const effectiveDate = task.date || task.dailyNoteDate;
         return effectiveDate && effectiveDate < todayDateString;
-      })
-      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+      });
   }, [notes, todayDateString]);
+  
+  // Group tasks by date
+  const tasksByDate = useMemo(() => {
+    const groups = new Map<string, TaskWithDate[]>();
+    
+    overdueTasks.forEach(task => {
+      const effectiveDate = task.date || task.dailyNoteDate!;
+      if (!groups.has(effectiveDate)) {
+        groups.set(effectiveDate, []);
+      }
+      groups.get(effectiveDate)!.push(task);
+    });
+    
+    // Sort tasks within each date by creation date
+    groups.forEach(tasks => {
+      tasks.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    });
+    
+    // Convert to array and sort by date (descending - most recent overdue first)
+    return Array.from(groups.entries())
+      .sort(([dateA], [dateB]) => dateB.localeCompare(dateA));
+  }, [overdueTasks]);
   
   const handleToggleTask = (taskId: string) => {
     const task = overdueTasks.find(t => t.id === taskId);
@@ -141,6 +155,36 @@ export const OverdueTasksListView = ({ onTaskClick }: OverdueTasksListViewProps)
     updateNoteContent(note.id, updatedContent);
   };
   
+  // Build sections - one per date
+  const sections = useMemo(() => {
+    return tasksByDate.map(([dateStr, tasks]) => ({
+      id: `date-${dateStr}`,
+      title: formatTaskDateLabel(dateStr, todayDateString),
+      show: tasks.length > 0,
+      content: (
+        <ListView<TaskListItemData>
+          items={tasks}
+          selectedId={null}
+          onItemClick={(taskId) => {
+            const task = tasks.find(t => t.id === taskId);
+            if (task) {
+              onTaskClick(task.noteId, task.id);
+            }
+          }}
+          renderItem={(task) => (
+            <ListItem
+              variant="task"
+              data={task}
+              onToggle={handleToggleTask}
+            />
+          )}
+          emptyState=""
+          showDividers={false}
+        />
+      ),
+    }));
+  }, [tasksByDate, onTaskClick, handleToggleTask, todayDateString]);
+  
   return (
     <>
       <PageTitleSection
@@ -150,34 +194,7 @@ export const OverdueTasksListView = ({ onTaskClick }: OverdueTasksListViewProps)
       />
       
       <ListViewLayout
-        sections={[
-          {
-            id: 'overdue-tasks',
-            title: '',
-            show: overdueTasks.length > 0,
-            content: (
-              <ListView<TaskListItemData>
-                items={overdueTasks}
-                selectedId={null}
-                onItemClick={(taskId) => {
-                  const task = overdueTasks.find(t => t.id === taskId);
-                  if (task) {
-                    onTaskClick(task.noteId, task.id);
-                  }
-                }}
-                renderItem={(task) => (
-                  <ListItem
-                    variant="task"
-                    data={task}
-                    onToggle={handleToggleTask}
-                  />
-                )}
-                emptyState="No overdue tasks"
-                showDividers={false}
-              />
-            ),
-          },
-        ]}
+        sections={sections}
         emptyState="No overdue tasks"
       />
     </>

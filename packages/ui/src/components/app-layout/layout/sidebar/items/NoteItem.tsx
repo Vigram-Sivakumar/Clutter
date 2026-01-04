@@ -8,6 +8,7 @@ interface SidebarItemNoteProps {
   labelColor?: string; // Optional color override for the label (e.g., calendarAccent for today's note)
   hasContent?: boolean;
   dailyNoteDate?: string | null; // For daily notes - date in YYYY-MM-DD format
+  isToday?: boolean; // Whether this is today's daily note (for showing dot indicator)
   isSelected: boolean;
   hasOpenContextMenu?: boolean; // Whether this note's context menu is currently open
   level: number;
@@ -43,6 +44,7 @@ export const SidebarItemNote = ({
   labelColor,
   hasContent,
   dailyNoteDate,
+  isToday = false,
   isSelected,
   hasOpenContextMenu = false,
   level,
@@ -71,6 +73,7 @@ export const SidebarItemNote = ({
       labelColor={labelColor}
       hasContent={hasContent}
       dailyNoteDate={dailyNoteDate}
+      isToday={isToday}
       level={level}
       isSelected={isSelected}
       hasOpenContextMenu={hasOpenContextMenu}

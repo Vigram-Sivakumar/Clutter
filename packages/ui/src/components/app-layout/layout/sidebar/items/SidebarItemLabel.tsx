@@ -11,7 +11,7 @@ import { Tag } from '../../../shared/content-header/tags/Tag';
  * - Render label text with proper styling
  * - Handle inline editing input
  * - Text truncation
- * - Variant-specific styling (header, tag, note, folder)
+ * - Variant-specific styling (header, tag, note, folder, group)
  * 
  * NOT responsible for:
  * - Edit state management (passed through props)
@@ -21,7 +21,7 @@ import { Tag } from '../../../shared/content-header/tags/Tag';
 interface SidebarItemLabelProps {
   // Core
   label: string;
-  variant: 'note' | 'folder' | 'tag' | 'header';
+  variant: 'note' | 'folder' | 'tag' | 'header' | 'group';
   isSelected?: boolean;
   
   // Inline editing
@@ -121,6 +121,31 @@ export const SidebarItemLabel = memo(({
           userSelect: 'none',
           WebkitUserSelect: 'none',
           cursor: 'pointer',
+        } as any}
+      >
+        {label}
+      </span>
+    );
+  }
+  
+  // Group variant - similar to header but non-interactive and more subtle
+  if (variant === 'group') {
+    return (
+      <span
+        style={{
+          fontSize: sidebarLayout.headerFontSize,
+          fontWeight: sidebarLayout.headerFontWeight,
+          letterSpacing: sidebarLayout.headerLetterSpacing,
+          color: colors.text.tertiary,
+          textTransform: 'uppercase',
+          flex: '1 1 0',
+          minWidth: 0,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+          userSelect: 'none',
+          WebkitUserSelect: 'none',
+          cursor: 'default',
         } as any}
       >
         {label}

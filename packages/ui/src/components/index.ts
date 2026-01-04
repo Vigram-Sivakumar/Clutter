@@ -9,6 +9,7 @@ export * from './app-layout';
 
 // UI Components
 export * from './ui-buttons';
+export * from './ui-checkbox';
 export * from './ui-inputs';
 export * from './ui-modals';
 export * from './ui-primitives';

@@ -25,7 +25,7 @@ export const useCurrentDateStore = create<CurrentDateState>((set) => {
   const initialState = {
     year: now.getFullYear(),
     month: now.getMonth(),
-    monthName: MONTH_NAMES[now.getMonth()],
+    monthName: MONTH_NAMES[now.getMonth()]!,
     date: now.getDate(),
     dateString: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`,
     _updateCurrentDate: () => {
@@ -33,7 +33,7 @@ export const useCurrentDateStore = create<CurrentDateState>((set) => {
       set({
         year: newDate.getFullYear(),
         month: newDate.getMonth(),
-        monthName: MONTH_NAMES[newDate.getMonth()],
+        monthName: MONTH_NAMES[newDate.getMonth()]!,
         date: newDate.getDate(),
         dateString: `${newDate.getFullYear()}-${String(newDate.getMonth() + 1).padStart(2, '0')}-${String(newDate.getDate()).padStart(2, '0')}`,
       });

@@ -61,52 +61,6 @@ const formatDailyNoteTitle = (date: Date): string => {
   return `${prefix}${dateStr}`;
 };
 
-// Check if a note has any content worth saving
-const isNoteEmpty = (note: Note): boolean => {
-  // Note is not empty if it has:
-  // - A title
-  // - A description
-  // - Content (not empty TipTap JSON)
-  // - Tags
-  // - An emoji
-  // - Is favorited
-  
-  if (note.title.trim()) return false;
-  if (note.description.trim()) return false;
-  if (note.tags.length > 0) return false;
-  if (note.emoji) return false;
-  if (note.isFavorite) return false;
-  
-  // Check if content is not empty (TipTap empty content is typically "" or minimal JSON)
-  if (note.content && note.content.trim() && note.content !== '""' && note.content !== '{}') {
-    try {
-      const parsed = JSON.parse(note.content);
-      
-      // Recursively extract all text from the document
-      const extractText = (node: any): string => {
-        if (node.type === 'text') {
-          return node.text || '';
-        }
-        if (node.content && Array.isArray(node.content)) {
-          return node.content.map(extractText).join('');
-        }
-        return '';
-      };
-      
-      const textContent = extractText(parsed).trim();
-      if (textContent.length > 0) {
-        return false; // Not empty - has text
-      }
-    } catch {
-      // If not valid JSON, assume it has content
-      if (note.content.trim()) return false;
-    }
-  }
-  
-  return true;
-};
-
-
 interface NotesStore {
   // State
   notes: Note[];
@@ -206,9 +160,8 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
       currentNoteId: setAsCurrent ? note.id : state.currentNoteId,
     }));
     
-    // Save immediately if note has any content (title, tags, emoji, etc.)
-    // Otherwise it will be saved when content is added
-    if (storageHandlers && !isNoteEmpty(note)) {
+    // Save immediately when note is created
+    if (storageHandlers) {
       console.log('💾 Saving note immediately:', note.id, note.title);
       storageHandlers.save(note).catch((err) => {
         console.error('Failed to save note:', err);
@@ -255,17 +208,21 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
   
   // 🛡️ SINGLE-WRITER INVARIANT: Content has ONE writer (prevents race conditions)
   updateNoteContent: (id, content) => {
-    // 🛡️ CRITICAL: Never accept empty TipTap boot state
-    const isBootEmptyTipTap = (
-      !content ||
-      (content.length <= 170 && content.includes('"type":"doc"') && !content.includes('"text"'))
+    // 🛡️ CRITICAL: Never accept pure boot state (completely empty, no structure)
+    // But DO allow intentional empty (has doc structure, just no content)
+    const isPureBootState = (
+      !content || 
+      content.trim() === '' ||
+      content === '""' ||
+      content === '{}'
     );
     
-    if (isBootEmptyTipTap) {
-      console.warn('🚫 Rejected empty TipTap boot state for note:', id);
+    if (isPureBootState) {
+      console.warn('🚫 Rejected pure boot state for note:', id);
       return;
     }
     
+    // Allow saves with structure even if empty (intentional deletions)
     console.log('💫 updateNoteContent:', {
       id,
       contentLength: content.length,
@@ -309,7 +266,7 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
     }
     
     // Metadata changes save immediately (they're lightweight and don't race with content)
-    if (note && storageHandlers && !isNoteEmpty(note)) {
+    if (note && storageHandlers) {
       // 🛡️ Guard: Don't save during hydration
       if (!shouldAllowSave('updateNoteMeta')) return;
       
@@ -374,8 +331,8 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
       currentNoteId: duplicate.id,
     }));
     
-    // Save to storage only if not empty
-    if (storageHandlers && !isNoteEmpty(duplicate)) {
+    // Save duplicate immediately
+    if (storageHandlers) {
       storageHandlers.save(duplicate).catch(() => {});
     }
     

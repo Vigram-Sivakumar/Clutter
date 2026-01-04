@@ -10,6 +10,7 @@ import { Tag } from '../content-header/tags';
 import { TertiaryButton } from '../../../ui-buttons';
 import { HashStraight as TagIcon, Folder as FolderIcon } from '../../../../icons';
 import { getNoteIcon, getFolderIcon } from '../../../../utils/itemIcons';
+import { Checkbox } from '../../../ui-checkbox';
 
 /**
  * ListItem Design Specification
@@ -161,28 +162,47 @@ export const ListItem = (props: ListItemProps) => {
 const NoteContent = ({ data, onTagClick, onRemoveTag, onEmojiClick, isHovered }: NoteListItemProps & { isHovered: boolean }) => {
   const { colors } = useTheme();
 
-  // Use centralized icon system - highlight icon color for today's note
+  // Use centralized icon system - don't use accent color on icon, only on label
   const noteIcon = getNoteIcon({
     emoji: data.emoji || undefined,
     dailyNoteDate: data.dailyNoteDate,
     hasContent: data.hasContent,
     size: 16,
-    color: data.isToday ? colors.semantic.calendarAccent : colors.text.secondary,
+    color: colors.text.secondary,
   });
 
   return (
     <>
-      {/* Icon/Emoji - Using TertiaryButton */}
-      <TertiaryButton
-        icon={noteIcon}
-        onClick={(e) => {
-          e.stopPropagation();
-          if (onEmojiClick) {
-            onEmojiClick(data.id, e.currentTarget as HTMLButtonElement);
-          }
-        }}
-        size="small"
-      />
+      {/* Icon/Emoji - Using TertiaryButton with dot indicator */}
+      <div style={{ position: 'relative' }}>
+        {/* Dot indicator for today's daily note */}
+        {data.isToday && (
+          <div
+            style={{
+              position: 'absolute',
+              left: '-6px',
+              top: '50%',
+              transform: 'translateY(-50%)',
+              width: '4px',
+              height: '4px',
+              borderRadius: '50%',
+              backgroundColor: colors.semantic.calendarAccent,
+              pointerEvents: 'none',
+            }}
+          />
+        )}
+        
+        <TertiaryButton
+          icon={noteIcon}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (onEmojiClick) {
+              onEmojiClick(data.id, e.currentTarget as HTMLButtonElement);
+            }
+          }}
+          size="small"
+        />
+      </div>
 
       {/* Title */}
       <div
@@ -355,37 +375,15 @@ const TaskContent = ({ data, onToggle, isHovered }: TaskListItemProps & { isHove
   return (
     <>
       {/* Checkbox */}
-      <input
-        type="checkbox"
+      <Checkbox
         checked={data.checked}
-        onChange={(e) => {
-          e.stopPropagation();
+        onChange={(checked) => {
           onToggle?.(data.id);
         }}
         onClick={(e) => {
           e.stopPropagation();
         }}
-        style={{
-          width: DESIGN.sizing.checkboxSize,
-          height: DESIGN.sizing.checkboxSize,
-          margin: 0,
-          flexShrink: 0,
-          cursor: 'pointer',
-          appearance: 'none',
-          WebkitAppearance: 'none',
-          MozAppearance: 'none',
-          border: `1.5px solid ${colors.border.default}`,
-          borderRadius: sizing.radius.md,
-          backgroundColor: 'transparent',
-          transition: 'border-color 0.15s ease',
-          outline: 'none',
-          backgroundImage: data.checked
-            ? `url("data:image/svg+xml,%3Csvg viewBox='0 0 16 16' fill='${colors.text.default.replace('#', '%23')}' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z'/%3E%3C/svg%3E")`
-            : 'none',
-          backgroundSize: '14px 14px',
-          backgroundPosition: 'center',
-          backgroundRepeat: 'no-repeat',
-        }}
+        size={DESIGN.sizing.checkboxSize}
       />
       
       {/* Task text */}
