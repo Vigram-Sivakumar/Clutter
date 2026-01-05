@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { useUIStateStore } from '@clutter/shared';
+import { useUIStateStore } from '@clutter/state';
 import { useMultiSelect } from '../../../../../hooks/useMultiSelect';
 import { sidebarBehavior } from '../config/sidebarConfig';
 import { GlobalSelection } from '../types';

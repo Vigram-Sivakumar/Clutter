@@ -1,7 +1,7 @@
 import { useMemo, ReactNode } from 'react';
 import { DAILY_NOTES_FOLDER_ID } from '@clutter/domain';
-import { useNotesStore } from '@clutter/state';
-import { useUIStateStore, getTodayDateString, formatTaskDateLabel, compareDates } from '@clutter/shared';
+import { useNotesStore, useUIStateStore } from '@clutter/state';
+import { getTodayDateString, formatTaskDateLabel, compareDates } from '@clutter/shared';
 import { useTheme } from '../../../../../hooks/useTheme';
 import { SidebarSection } from '../sections/Section';
 import { SidebarItemTask } from '../items/TaskItem';

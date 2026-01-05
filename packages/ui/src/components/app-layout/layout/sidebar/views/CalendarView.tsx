@@ -1,7 +1,6 @@
 import { useMemo, useState, useEffect, ReactNode } from 'react';
 import { DAILY_NOTES_FOLDER_ID } from '@clutter/domain';
-import { useNotesStore, useCurrentDateStore } from '@clutter/state';
-import { useUIStateStore } from '@clutter/shared';
+import { useNotesStore, useCurrentDateStore, useUIStateStore } from '@clutter/state';
 import { useTheme } from '../../../../../hooks/useTheme';
 import { SidebarEmptyState } from '../sections/EmptyState';
 import { SidebarSection } from '../sections/Section';
