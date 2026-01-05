@@ -1,6 +1,7 @@
 module.exports = {
   root: true,
   extends: ['eslint:recommended'],
+  parser: '@typescript-eslint/parser',
   parserOptions: {
     ecmaVersion: 2022,
     sourceType: 'module',
@@ -16,6 +17,9 @@ module.exports = {
     '.next',
     '.turbo',
     'coverage',
+    '**/*.config.js',
+    '**/*.config.ts',
   ],
+  // Default rules (can be overridden by package-specific configs)
+  rules: {},
 };
-

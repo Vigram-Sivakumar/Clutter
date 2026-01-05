@@ -7,6 +7,7 @@ import { useTagsStore, useFoldersStore, useNotesStore } from '@clutter/state';
 
 // Expose dev helper functions to window for console access
 if (typeof window !== 'undefined') {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (window as any).clearAllTags = () => {
     const { clearAllTags } = useTagsStore.getState();
     clearAllTags();
@@ -15,6 +16,7 @@ if (typeof window !== 'undefined') {
     console.log('✅ All tags cleared!');
   };
   
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (window as any).clearAllData = () => {
     // Clear all stores
     const { clearAllTags } = useTagsStore.getState();

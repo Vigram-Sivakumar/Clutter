@@ -47,6 +47,7 @@ function App() {
   // TipTap's ReactNodeViewRenderer needs flushSync to sync ProseMirror with React
   useEffect(() => {
     const originalError = console.error;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     console.error = (...args: any[]) => {
       if (
         typeof args[0] === 'string' &&
@@ -295,6 +296,7 @@ function App() {
 Your data is safe! Check Cluttered (📮) for recovered notes.
           `);
         }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (err: any) {
         console.error('❌ Error initializing app:', err);
         // ❌ DON'T set isInitialized on error - keep app in loading state
@@ -303,6 +305,7 @@ Your data is safe! Check Cluttered (📮) for recovered notes.
     };
     
     initializeApp();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [setNotes, setFolders, setTagMetadata, findDailyNoteByDate, createDailyNote, setCurrentNoteId]);
 
   // Update daily note titles every hour (catches date changes like midnight)

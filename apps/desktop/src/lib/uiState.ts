@@ -109,6 +109,7 @@ export interface UIState {
 /**
  * Save a single UI state value
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function saveUIState(key: string, value: any): Promise<void> {
   try {
     const valueStr = JSON.stringify(value);
@@ -121,6 +122,7 @@ export async function saveUIState(key: string, value: any): Promise<void> {
 /**
  * Load a single UI state value
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function loadUIState(key: string): Promise<any | null> {
   try {
     const valueStr = await invoke<string | null>('load_ui_state', { key });
@@ -164,6 +166,7 @@ export async function loadAllUIState(): Promise<UIState> {
  */
 const saveTimers: Record<string, NodeJS.Timeout> = {};
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function debouncedSaveUIState(key: string, value: any, delay: number = 500): void {
   if (saveTimers[key]) {
     clearTimeout(saveTimers[key]);

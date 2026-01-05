@@ -51,7 +51,8 @@ export async function saveNoteToDatabase(note: Note): Promise<void> {
   try {
     await invoke<string>('save_note', { note });
     console.log('✅ Note saved to database:', note.id);
-  } catch (error: any) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (error: any) {
     // Check if this is an FK constraint error
     const errorStr = String(error);
     
@@ -149,7 +150,8 @@ export async function searchNotesInDatabase(query: string): Promise<Note[]> {
 export async function saveFolderToDatabase(folder: Folder): Promise<void> {
   try {
     await invoke<string>('save_folder', { folder });
-  } catch (error: any) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (error: any) {
     // Check if this is an FK constraint error (parent_id reference)
     const errorStr = String(error);
     

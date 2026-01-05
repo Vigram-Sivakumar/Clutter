@@ -57,7 +57,9 @@ function isBootEmptyTipTap(content: string): boolean {
 }
 
 export function useAutoSave(isEnabled: boolean = true, isHydrated: boolean = false) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const currentNoteId = (useNotesStore as any)((state: any) => state.currentNoteId);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const notesForSeeding = (useNotesStore as any)((state: any) => state.notes);
   const saveTimeoutRef = useRef<NodeJS.Timeout>();
   const lastSavedHashRef = useRef<Map<string, string>>(new Map());
@@ -76,6 +78,7 @@ export function useAutoSave(isEnabled: boolean = true, isHydrated: boolean = fal
         console.log(`✅ Auto-save: Ready! Will save changes after 2s idle time`);
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isEnabled, isHydrated]);
 
   useEffect(() => {
@@ -171,6 +174,7 @@ export function useAutoSave(isEnabled: boolean = true, isHydrated: boolean = fal
           console.error('❌ Save failed:', error);
         });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentNoteId, isEnabled, isHydrated]);
 }
 

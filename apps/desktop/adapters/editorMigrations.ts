@@ -43,7 +43,7 @@ export function migrateEditorDocument(
   }
 
   // Run migration chain
-  let migrated = doc;
+      const migrated = doc;
 
   // Future migrations will go here:
   // if (migrated.version === 1) {
