@@ -193,6 +193,22 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(({
       handleDOMEvents: {
         focus: () => {
           onFocus?.();
+          
+          // 🔍 DEBUG: What does browser have selected on focus?
+          requestAnimationFrame(() => {
+            const sel = window.getSelection?.();
+            if (sel) {
+              console.log('[SEL:on-focus]', {
+                type: sel.type,
+                rangeCount: sel.rangeCount,
+                isCollapsed: sel.isCollapsed,
+                anchorNode: sel.anchorNode,
+                focusNode: sel.focusNode,
+                selectedText: sel.toString(),
+              });
+            }
+          });
+          
           return false; // Allow default focus behavior
         },
         blur: () => {

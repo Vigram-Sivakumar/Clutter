@@ -1,3 +1,4 @@
+/* eslint-env browser */
 /**
  * BlockHandle - Drag handle with actions menu (Craft/Notion style)
  * 
@@ -11,7 +12,7 @@ import { Editor } from '@tiptap/react';
 import { NodeSelection, TextSelection } from '@tiptap/pm/state';
 import { DragHandle, Trash2, Copy, ChevronUp, ChevronDown, Type } from '@clutter/ui';
 import { useTheme } from '@clutter/ui';
-import { isMultiBlockSelection, getSelectedBlocks, executeOnSelectedBlocks, getSelectedBlockCount } from '../utils/multiSelection';
+import { isMultiBlockSelection, getSelectedBlocks } from '../utils/multiSelection';
 
 export interface BlockHandleProps {
   editor: Editor;
@@ -21,21 +22,6 @@ export interface BlockHandleProps {
 
 // Shared anchor position for Shift+Click range selection (Finder-style)
 let anchorBlockPos: number | null = null;
-
-/**
- * Clear native browser selection to prevent visual artifacts
- * (especially after Ctrl+A → Delete which leaves browser selection range)
- */
-function clearBrowserSelection(): void {
-  // eslint-disable-next-line no-undef
-  const sel = typeof window !== 'undefined' ? window.getSelection?.() : null;
-  if (!sel) return;
-  
-  // Only clear if there's an active range selection (not a collapsed cursor)
-  if (sel.rangeCount > 0 && sel.type === 'Range') {
-    sel.removeAllRanges();
-  }
-}
 
 export function BlockHandle({ editor, getPos, indent = 0 }: BlockHandleProps) {
   const { colors } = useTheme();
@@ -311,11 +297,6 @@ export function BlockHandle({ editor, getPos, indent = 0 }: BlockHandleProps) {
       
       editor.view.dispatch(tr);
       editor.view.focus();
-      
-      // 🔥 FIX: Clear native browser selection (prevents blue highlight on empty paragraph)
-      // This is especially important after Ctrl+A → Delete
-      clearBrowserSelection();
-      
       setShowMenu(false);
       return;
     }
@@ -339,10 +320,6 @@ export function BlockHandle({ editor, getPos, indent = 0 }: BlockHandleProps) {
     
     editor.view.dispatch(tr);
     editor.view.focus();
-    
-    // 🔥 FIX: Clear native browser selection (prevents blue highlight on empty paragraph)
-    clearBrowserSelection();
-    
     setShowMenu(false);
   };
 

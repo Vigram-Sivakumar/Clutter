@@ -11,26 +11,38 @@ import { NodeSelection, TextSelection } from '@tiptap/pm/state';
 import { isMultiBlockSelection, getSelectedBlocks } from '../utils/multiSelection';
 
 /**
+ * 🔍 DEBUG: Browser Selection Inspector
+ * Logs exactly what the native browser has selected (not ProseMirror state)
+ */
+function debugBrowserSelection(label: string) {
+  const sel = window.getSelection?.();
+  if (!sel) {
+    console.log(`[SEL:${label}] ❌ No selection object`);
+    return;
+  }
+
+  console.log(`[SEL:${label}]`, {
+    type: sel.type,
+    rangeCount: sel.rangeCount,
+    isCollapsed: sel.isCollapsed,
+    anchorNode: sel.anchorNode,
+    anchorOffset: sel.anchorOffset,
+    focusNode: sel.focusNode,
+    focusOffset: sel.focusOffset,
+    selectedText: sel.toString(),
+    commonAncestor:
+      sel.rangeCount > 0
+        ? sel.getRangeAt(0).commonAncestorContainer
+        : null,
+  });
+}
+
+/**
  * Check if selection is a NodeSelection on a single block
  */
 function isNodeSelected(state: any): boolean {
   const { selection } = state;
   return selection instanceof NodeSelection;
-}
-
-/**
- * Clear native browser selection to prevent visual artifacts
- * (especially after Ctrl+A → Delete which leaves browser selection range)
- */
-function clearBrowserSelection(): void {
-  // eslint-disable-next-line no-undef
-  const sel = typeof window !== 'undefined' ? window.getSelection?.() : null;
-  if (!sel) return;
-  
-  // Only clear if there's an active range selection (not a collapsed cursor)
-  if (sel.rangeCount > 0 && sel.type === 'Range') {
-    sel.removeAllRanges();
-  }
 }
 
 export const BlockDeletion = Extension.create({
@@ -49,6 +61,9 @@ export const BlockDeletion = Extension.create({
             if (event.key !== 'Delete' && event.key !== 'Backspace') {
               return false;
             }
+
+            // 🔍 DEBUG: What does browser have selected BEFORE delete?
+            debugBrowserSelection('before-delete');
 
             const { state } = view;
             const { selection } = state;
@@ -73,9 +88,8 @@ export const BlockDeletion = Extension.create({
               // Dispatch transaction (this will trigger onUpdate with docChanged=true)
               view.dispatch(tr);
               
-              // 🔥 FIX: Clear native browser selection (prevents blue highlight on empty paragraph)
-              // This is especially important after Ctrl+A → Delete
-              clearBrowserSelection();
+              // 🔍 DEBUG: What does browser have selected AFTER delete?
+              debugBrowserSelection('after-delete-multi');
               
               return true; // Prevent default behavior
             }
@@ -97,8 +111,8 @@ export const BlockDeletion = Extension.create({
                 
                 view.dispatch(tr);
                 
-                // 🔥 FIX: Clear native browser selection (prevents blue highlight on empty paragraph)
-                clearBrowserSelection();
+                // 🔍 DEBUG: What does browser have selected AFTER delete?
+                debugBrowserSelection('after-delete-single');
                 
                 return true; // Prevent default behavior
               }
