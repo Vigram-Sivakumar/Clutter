@@ -144,9 +144,22 @@ export const NoteEditor = ({
   const [descriptionVisible, setDescriptionVisible] = useState(currentNote?.descriptionVisible ?? true);
   const [tagsVisible, setTagsVisible] = useState(currentNote?.tagsVisible ?? true);
   const [showMarkdownShortcuts, setShowMarkdownShortcuts] = useState(false);
-  // 🛡️ CRITICAL: noteContent must NOT initialize from currentNote to prevent startup races
-  // It is ONLY set by the hydration effect (single source of truth)
-  const [noteContent, setNoteContent] = useState<string>('');
+  
+  // 🛡️ HYDRATION GATE: Explicit load state (no ambiguity between "loading" and "empty")
+  type EditorLoadState =
+    | { status: 'loading' }
+    | { status: 'ready'; document: string }; // JSON string document
+  
+  // Canonical empty document (empty ≠ undefined ≠ not loaded)
+  const EMPTY_DOC = JSON.stringify({
+    type: 'doc',
+    content: [{ type: 'paragraph' }],
+  });
+  
+  const [editorState, setEditorState] = useState<EditorLoadState>({
+    status: 'loading',
+  });
+  
   const [isEmojiTrayOpen, setIsEmojiTrayOpen] = useState(false);
   const [emojiTrayPosition, setEmojiTrayPosition] = useState<{ top: number; left: number }>({ top: 100, left: 100 });
   const [isEmojiHovered, setIsEmojiHovered] = useState(false);
@@ -394,8 +407,15 @@ export const NoteEditor = ({
     cancelDebouncedSave();
 
     // ⬇️ DB → Editor: Load content into state
-    setNoteContent(currentNote.content ?? '');
-    console.log('📝 Set noteContent state:', currentNote.content?.substring(0, 100));
+    const document = currentNote.content && currentNote.content.trim() !== '' 
+      ? currentNote.content 
+      : EMPTY_DOC;
+    
+    setEditorState({
+      status: 'ready',
+      document,
+    });
+    console.log('📝 Set editorState to ready:', document.substring(0, 100));
 
     // Wait for React + ProseMirror to fully settle before mounting editor
     requestAnimationFrame(() => {
@@ -439,7 +459,7 @@ export const NoteEditor = ({
 
   // Scroll to target block when note is loaded
   useEffect(() => {
-    if (targetBlockId && currentNoteId && noteContent && mainView.type === 'editor') {
+    if (targetBlockId && currentNoteId && editorState.status === 'ready' && mainView.type === 'editor') {
       // Small delay to ensure the editor content is fully rendered
       const timer = setTimeout(() => {
         editorRef.current?.scrollToBlock(targetBlockId, true);
@@ -449,7 +469,7 @@ export const NoteEditor = ({
       
       return () => clearTimeout(timer);
     }
-  }, [targetBlockId, currentNoteId, noteContent, mainView.type]);
+  }, [targetBlockId, currentNoteId, editorState.status, mainView.type]);
 
   const handleToggleFavorite = useCallback(() => {
     setIsFavorite((prev) => {
@@ -1418,7 +1438,7 @@ export const NoteEditor = ({
             onEmojiClick={() => openEmojiTray(emojiButtonRef)}
             onRemoveEmoji={handleRemoveEmoji}
             emojiButtonRef={emojiButtonRef}
-            hasContent={!isContentEmpty(noteContent)}
+            hasContent={editorState.status === 'ready' && !isContentEmpty(editorState.document)}
             isFavorite={isFavorite}
             contextMenuItems={noteContextMenuItems}
             description={description}
@@ -1447,29 +1467,33 @@ export const NoteEditor = ({
 
           {/* Editor */}
           <PageContent>
-            <TipTapWrapper
-              ref={editorRef}
-              value={noteContent}
-              onChange={(value) => {
-                // Single guard: block during hydration
-                if (isHydratingRef.current) return;
-                
-                // 🛡️ Validate BEFORE setting state
-                // Block TipTap boot transactions (≤200 chars, no text nodes)
-                if (value.length <= 200 && !value.includes('"text"')) {
-                  console.warn('🚫 Blocked TipTap boot transaction in onChange');
-                  return;
-                }
-                
-                // User typed - update immediately
-                setNoteContent(value);
-                if (currentNoteId) {
-                  updateNoteContent(currentNoteId, value);
-                }
-              }}
-              onTagClick={handleShowTagFilter}
-              onNavigate={handleNavigate}
-              onTagsChange={(extractedTags) => {
+            {editorState.status === 'loading' ? null : (
+              <TipTapWrapper
+                ref={editorRef}
+                value={editorState.document}
+                onChange={(value) => {
+                  // Single guard: block during hydration
+                  if (isHydratingRef.current) return;
+                  
+                  // 🛡️ Validate BEFORE setting state
+                  // Block TipTap boot transactions (≤200 chars, no text nodes)
+                  if (value.length <= 200 && !value.includes('"text"')) {
+                    console.warn('🚫 Blocked TipTap boot transaction in onChange');
+                    return;
+                  }
+                  
+                  // User typed - update immediately
+                  setEditorState({
+                    status: 'ready',
+                    document: value,
+                  });
+                  if (currentNoteId) {
+                    updateNoteContent(currentNoteId, value);
+                  }
+                }}
+                onTagClick={handleShowTagFilter}
+                onNavigate={handleNavigate}
+                onTagsChange={(extractedTags) => {
                 // Merge extracted tags from editor with existing metadata tags
                 setTags((prevTags) => {
                   // Create a map of extracted tags (from editor) - case insensitive
@@ -1506,6 +1530,7 @@ export const NoteEditor = ({
               }}
               editorContext={editorContext}
             />
+            )}
           </PageContent>
           </>
         )}

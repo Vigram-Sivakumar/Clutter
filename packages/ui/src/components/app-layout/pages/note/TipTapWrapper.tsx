@@ -131,6 +131,7 @@ export const TipTapWrapper = forwardRef<TipTapWrapperHandle, TipTapWrapperProps>
   const isUpdatingFromEditor = useRef(false);
   const isProgrammaticUpdate = useRef(true); // Start locked to block editor boot output
   const ignoreNextUpdate = useRef(true); // Ignore first synthetic transaction after mount
+  const hasInitialized = useRef(false); // Single-shot initialization flag
 
   // Expose methods to parent
   useImperativeHandle(ref, () => ({
@@ -142,19 +143,35 @@ export const TipTapWrapper = forwardRef<TipTapWrapperHandle, TipTapWrapperProps>
     },
   }));
 
-  // Parse JSON string to content object when value changes
+  // Parse JSON string to content object when value changes (single-shot initialization)
   useEffect(() => {
     console.log('🔄 TipTapWrapper useEffect triggered:', {
       hasValue: !!value,
       valueLength: value?.length || 0,
       previousLength: previousValue.current?.length || 0,
       isUpdatingFromEditor: isUpdatingFromEditor.current,
-      valuesEqual: value === previousValue.current
+      valuesEqual: value === previousValue.current,
+      hasInitialized: hasInitialized.current
     });
     
-    // 🛡️ CRITICAL: Do nothing until real content arrives (prevents empty boot state)
-    if (value === undefined) {
-      console.log('⏭️ Skipping: value is undefined (waiting for hydration)');
+    // 🔄 Detect document change (e.g., note switch) - reset initialization
+    if (hasInitialized.current && value !== previousValue.current) {
+      console.log('🔄 Document changed, resetting initialization for new note');
+      hasInitialized.current = false;
+      previousValue.current = undefined; // Clear previous to force re-init
+    }
+    
+    // 🛡️ CRITICAL: Editor only mounts once per document
+    // After initial mount, editor owns its state
+    if (hasInitialized.current) {
+      console.log('⏭️ Skipping: Editor already initialized (single-shot)');
+      return;
+    }
+    
+    // 🛡️ CRITICAL: Do nothing until real content arrives
+    // Parent must provide valid document (never undefined, never "")
+    if (!value) {
+      console.log('⏭️ Skipping: No document provided');
       return;
     }
     
@@ -195,61 +212,39 @@ export const TipTapWrapper = forwardRef<TipTapWrapperHandle, TipTapWrapperProps>
       console.log('✅ Passed all checks, will load content into editor');
       previousValue.current = value;
       
-      if (value) {
-        try {
-          // Try to parse as JSON first (new format)
-          isProgrammaticUpdate.current = true;
-          ignoreNextUpdate.current = true; // Reset: ignore next synthetic transaction
-          const json = JSON.parse(value);
-          setContent(json);
-          console.log('✅ TipTapWrapper: Content parsed as JSON, setting content');
-          requestAnimationFrame(() => {
-            isProgrammaticUpdate.current = false;
-            // Notify parent that content has been applied
-            if (onContentApplied) {
-              onContentApplied();
-            }
-          });
-        } catch (error) {
-          // Fallback: try to parse as HTML (legacy format)
-          try {
-            isProgrammaticUpdate.current = true;
-            ignoreNextUpdate.current = true; // Reset: ignore next synthetic transaction
-            const json = generateJSON(value, htmlExtensions);
-            setContent(json);
-            console.log('✅ TipTapWrapper: Content parsed as HTML, setting content');
-            requestAnimationFrame(() => {
-              isProgrammaticUpdate.current = false;
-              if (onContentApplied) {
-                onContentApplied();
-              }
-            });
-          } catch (htmlError) {
-            console.warn('⚠️ TipTapWrapper: Failed to parse content, using empty doc');
-            isProgrammaticUpdate.current = true;
-            ignoreNextUpdate.current = true; // Reset: ignore next synthetic transaction
-            setContent({ type: 'doc', content: [{ type: 'paragraph' }] });
-            requestAnimationFrame(() => {
-              isProgrammaticUpdate.current = false;
-              if (onContentApplied) {
-                onContentApplied();
-              }
-            });
-          }
-        }
-      } else {
-        // Empty value - reset to empty doc
-        console.log('📝 TipTapWrapper: Empty value, resetting to empty doc');
+      try {
+        // Try to parse as JSON first (new format)
         isProgrammaticUpdate.current = true;
-        ignoreNextUpdate.current = true; // Reset: ignore next synthetic transaction
-        setContent({ type: 'doc', content: [{ type: 'paragraph' }] });
+        ignoreNextUpdate.current = true;
+        const json = JSON.parse(value);
+        setContent(json);
+        hasInitialized.current = true; // ✅ Mark as initialized (single-shot)
+        console.log('✅ TipTapWrapper: Content parsed as JSON, editor initialized');
         requestAnimationFrame(() => {
           isProgrammaticUpdate.current = false;
-          console.log('🔓 TipTapWrapper: Unlocked isProgrammaticUpdate (empty content loaded)');
           if (onContentApplied) {
             onContentApplied();
           }
         });
+      } catch (error) {
+        // Fallback: try to parse as HTML (legacy format)
+        try {
+          isProgrammaticUpdate.current = true;
+          ignoreNextUpdate.current = true;
+          const json = generateJSON(value, htmlExtensions);
+          setContent(json);
+          hasInitialized.current = true; // ✅ Mark as initialized (single-shot)
+          console.log('✅ TipTapWrapper: Content parsed as HTML, editor initialized');
+          requestAnimationFrame(() => {
+            isProgrammaticUpdate.current = false;
+            if (onContentApplied) {
+              onContentApplied();
+            }
+          });
+        } catch (htmlError) {
+          console.error('❌ TipTapWrapper: Failed to parse document', htmlError);
+          // If we can't parse, we can't initialize - parent must provide valid document
+        }
       }
     } else {
       console.log('⏭️ Skipping: value === previousValue.current');
