@@ -20,6 +20,7 @@ import {
   splitListItem,
   exitEmptyListInWrapper,
   outdentEmptyList,
+  exitEmptyList,
   exitEmptyHeading,
   exitEmptyWrapper,
   createParagraphAfterHeading,
@@ -28,11 +29,12 @@ import {
 // Create engine with all Enter rules
 const enterEngine = createKeyboardEngine([
   splitListItem, // Priority 110 - split list items before exiting
-  exitEmptyListInWrapper,
-  outdentEmptyList,
-  exitEmptyHeading,
-  exitEmptyWrapper,
-  createParagraphAfterHeading,
+  exitEmptyListInWrapper, // Priority 100
+  outdentEmptyList, // Priority 90
+  exitEmptyList, // Priority 85 - convert empty list at level 0 to paragraph
+  exitEmptyHeading, // Priority 80
+  exitEmptyWrapper, // Priority 70
+  createParagraphAfterHeading, // Priority 60
 ]);
 
 /**
