@@ -1,5 +1,15 @@
-// Domain types and entities
-// Pure TypeScript types with no dependencies on React, Zustand, or any framework
+/**
+ * @clutter/domain - Pure Domain Types
+ * 
+ * This package contains ONLY pure TypeScript types and constants.
+ * It has ZERO dependencies on any other package.
+ * 
+ * Public API: All types and constants are public.
+ */
 
-export * from './types';
+// Types
+export type { Note, Folder, Tag, NoteMetadata, User, ThemeMode } from './types';
+
+// Constants
+export { CLUTTERED_FOLDER_ID, DAILY_NOTES_FOLDER_ID } from './types';
 
