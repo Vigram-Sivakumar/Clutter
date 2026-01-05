@@ -172,6 +172,9 @@ export const NoteEditor = ({
   const isHydratingRef = useRef(true); // ✅ Starts locked to block onChange during hydration
   const lastHydratedNoteIdRef = useRef<string | null>(null); // Track which note was last hydrated
   
+  // 🚨 CRITICAL: Track which note owns the editor (prevents cross-note bleed)
+  const activeEditorNoteIdRef = useRef<string | null>(null);
+  
   // Debug: Log component mount
   useEffect(() => {
     console.log('🏁 NoteEditor mounted:', {
@@ -382,10 +385,22 @@ export const NoteEditor = ({
       return;
     }
 
-    // Skip hydration if we already hydrated this exact note
-    if (lastHydratedNoteIdRef.current === currentNote.id) {
+    // Skip hydration only if both note ID and editor state match
+    if (
+      lastHydratedNoteIdRef.current === currentNote.id &&
+      editorState.status === 'ready'
+    ) {
       console.log('🔍 Hydration skipped: note already hydrated', currentNote.id);
       return;
+    }
+
+    // 🚨 Flush previous note immediately on switch (prevents content bleed)
+    if (
+      activeEditorNoteIdRef.current &&
+      activeEditorNoteIdRef.current !== currentNote.id
+    ) {
+      console.log('💾 Flushing previous note before switch:', activeEditorNoteIdRef.current);
+      cancelDebouncedSave();
     }
 
     // Track which note we're hydrating
@@ -429,6 +444,9 @@ export const NoteEditor = ({
       setIsFavorite(currentNote.isFavorite);
       setShowDescriptionInput(!!currentNote.description);
       
+      // 🔥 BIND EDITOR OWNERSHIP (prevents cross-note bleed)
+      activeEditorNoteIdRef.current = currentNote.id;
+      
       // 🔓 Second rAF: Let ProseMirror internal state flush
       requestAnimationFrame(() => {
         isHydratingRef.current = false;
@@ -436,7 +454,7 @@ export const NoteEditor = ({
         console.log('🔓 Hydration complete');
       });
     });
-  }, [currentNote, currentNoteId, cancelDebouncedSave]); // ✅ Runs on mount + note changes
+  }, [currentNote, currentNoteId, cancelDebouncedSave, editorState.status]); // ✅ Runs on mount + note changes
 
   // Update view context when current note is deleted
   useEffect(() => {
@@ -1471,8 +1489,11 @@ export const NoteEditor = ({
               ref={editorRef}
               value={editorState.status === 'ready' ? editorState.document : undefined}
               onChange={(value) => {
-                  // Single guard: block during hydration
-                  if (isHydratingRef.current) return;
+                  // 🔒 Hard-gate: ignore ALL updates during hydration
+                  if (isHydratingRef.current) {
+                    console.log('🔒 Blocked onChange: hydration in progress');
+                    return;
+                  }
                   
                   // 🛡️ Validate BEFORE setting state
                   // Block TipTap boot transactions (≤200 chars, no text nodes)
@@ -1481,14 +1502,30 @@ export const NoteEditor = ({
                     return;
                   }
                   
-                  // User typed - update immediately
+                  // ⬆️ Editor → State: Update local state
                   setEditorState({
                     status: 'ready',
                     document: value,
                   });
-                  if (currentNoteId) {
-                    updateNoteContent(currentNoteId, value);
+                  
+                  // 🚨 ABSOLUTE SAFETY: Hard-guard against cross-note bleed
+                  const activeNoteId = activeEditorNoteIdRef.current;
+                  if (!activeNoteId) {
+                    console.warn('🚫 No active note ID - ignoring onChange');
+                    return;
                   }
+                  
+                  // 🚨 CRITICAL: Ignore stale editor emissions from previous notes
+                  if (activeNoteId !== currentNoteId) {
+                    console.warn('🚫 Ignored stale editor update (cross-note bleed prevented)', {
+                      activeNoteId,
+                      currentNoteId,
+                    });
+                    return;
+                  }
+                  
+                  // ⬆️ State → DB: Schedule debounced save (now safe)
+                  updateNoteContent(activeNoteId, value);
                 }}
                 onTagClick={handleShowTagFilter}
                 onNavigate={handleNavigate}
