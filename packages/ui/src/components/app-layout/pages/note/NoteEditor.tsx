@@ -1545,8 +1545,8 @@ export const NoteEditor = ({
 
           {/* Editor */}
           <PageContent>
-            {/* 🚨 CRITICAL: Never render editor without a document (prevents empty init on reload) */}
-            {editorState.status === 'ready' && editorState.document ? (
+            {/* 🚨 CRITICAL: Editor must not exist until hydration is COMPLETE */}
+            {editorState.status === 'ready' && editorState.document && isHydrated ? (
               <>
                 {/* 🔍 ASSERTION: Log what we're about to mount */}
                 {(() => {
@@ -1562,7 +1562,6 @@ export const NoteEditor = ({
                   key={currentNoteId}
                   ref={editorRef}
                   value={editorState.document}
-                  isFrozen={!isHydrated}
                   onChange={(value) => {
                   // 🔍 LOG: onChange fired (FIRST - before any logic)
                   dbg('EDITOR:onChange fired', {
