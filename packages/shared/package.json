@@ -27,7 +27,7 @@
   },
   "dependencies": {
     "@clutter/domain": "*",
-    "zustand": "^4.4.7"
+    "@clutter/state": "*"
   }
 }
 

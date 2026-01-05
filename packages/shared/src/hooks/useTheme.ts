@@ -3,7 +3,7 @@
  * Platform-agnostic theme hook
  */
 
-import { useThemeStore } from '../stores/theme';
+import { useThemeStore } from '@clutter/state';
 import { getThemeColors } from '../utils';
 import type { ThemeMode } from '@clutter/domain';
 

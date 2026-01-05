@@ -2,7 +2,7 @@
  * Hook to control the global confirmation dialog
  */
 
-import { useConfirmationStore } from '../stores/confirmation';
+import { useConfirmationStore } from '@clutter/state';
 
 export const useConfirmation = () => {
   const open = useConfirmationStore((state) => state.open);
