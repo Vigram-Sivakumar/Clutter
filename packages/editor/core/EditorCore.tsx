@@ -8,6 +8,7 @@ import React, { useEffect, useCallback, forwardRef, useImperativeHandle, useRef 
 import { useEditor, EditorContent } from '@tiptap/react';
 import { Editor } from '@tiptap/core';
 import { NodeSelection } from '@tiptap/pm/state';
+import { logSelectionPair } from '../utils/selectionDebug';
 
 export interface EditorCoreHandle {
   focus: () => void;
@@ -193,22 +194,6 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(({
       handleDOMEvents: {
         focus: () => {
           onFocus?.();
-          
-          // 🔍 DEBUG: What does browser have selected on focus?
-          requestAnimationFrame(() => {
-            const sel = window.getSelection?.();
-            if (sel) {
-              console.log('[SEL:on-focus]', {
-                type: sel.type,
-                rangeCount: sel.rangeCount,
-                isCollapsed: sel.isCollapsed,
-                anchorNode: sel.anchorNode,
-                focusNode: sel.focusNode,
-                selectedText: sel.toString(),
-              });
-            }
-          });
-          
           return false; // Allow default focus behavior
         },
         blur: () => {
@@ -338,6 +323,23 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(({
       editor.setEditable(editable);
     }
   }, [editable, editor]);
+
+  // 🔬 FORENSIC: Log selection on focus events
+  useEffect(() => {
+    if (!editor) return;
+    
+    const handleFocus = () => {
+      setTimeout(() => {
+        logSelectionPair('on-focus', editor);
+      }, 0);
+    };
+    
+    editor.view.dom.addEventListener('focus', handleFocus);
+    
+    return () => {
+      editor.view.dom.removeEventListener('focus', handleFocus);
+    };
+  }, [editor]);
 
   // Handle click on empty space to focus editor
   const handleWrapperClick = useCallback(

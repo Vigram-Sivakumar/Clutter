@@ -9,33 +9,7 @@ import { Extension } from '@tiptap/core';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { NodeSelection, TextSelection } from '@tiptap/pm/state';
 import { isMultiBlockSelection, getSelectedBlocks } from '../utils/multiSelection';
-
-/**
- * 🔍 DEBUG: Browser Selection Inspector
- * Logs exactly what the native browser has selected (not ProseMirror state)
- */
-function debugBrowserSelection(label: string) {
-  const sel = window.getSelection?.();
-  if (!sel) {
-    console.log(`[SEL:${label}] ❌ No selection object`);
-    return;
-  }
-
-  console.log(`[SEL:${label}]`, {
-    type: sel.type,
-    rangeCount: sel.rangeCount,
-    isCollapsed: sel.isCollapsed,
-    anchorNode: sel.anchorNode,
-    anchorOffset: sel.anchorOffset,
-    focusNode: sel.focusNode,
-    focusOffset: sel.focusOffset,
-    selectedText: sel.toString(),
-    commonAncestor:
-      sel.rangeCount > 0
-        ? sel.getRangeAt(0).commonAncestorContainer
-        : null,
-  });
-}
+import { logSelectionPair } from '../utils/selectionDebug';
 
 /**
  * Check if selection is a NodeSelection on a single block
@@ -62,8 +36,8 @@ export const BlockDeletion = Extension.create({
               return false;
             }
 
-            // 🔍 DEBUG: What does browser have selected BEFORE delete?
-            debugBrowserSelection('before-delete');
+            // 🔬 FORENSIC: Log selection BEFORE delete
+            logSelectionPair('before-delete', editor);
 
             const { state } = view;
             const { selection } = state;
@@ -88,8 +62,15 @@ export const BlockDeletion = Extension.create({
               // Dispatch transaction (this will trigger onUpdate with docChanged=true)
               view.dispatch(tr);
               
-              // 🔍 DEBUG: What does browser have selected AFTER delete?
-              debugBrowserSelection('after-delete-multi');
+              // 🔬 FORENSIC: Log selection AFTER delete
+              setTimeout(() => {
+                logSelectionPair('after-delete-multi', editor);
+                
+                // 🔬 FORENSIC: Log on next keydown (to see if selection is still wrong)
+                view.dom.addEventListener('keydown', () => {
+                  logSelectionPair('on-keydown', editor);
+                }, { once: true });
+              }, 0);
               
               return true; // Prevent default behavior
             }
@@ -111,8 +92,15 @@ export const BlockDeletion = Extension.create({
                 
                 view.dispatch(tr);
                 
-                // 🔍 DEBUG: What does browser have selected AFTER delete?
-                debugBrowserSelection('after-delete-single');
+                // 🔬 FORENSIC: Log selection AFTER delete
+                setTimeout(() => {
+                  logSelectionPair('after-delete-single', editor);
+                  
+                  // 🔬 FORENSIC: Log on next keydown (to see if selection is still wrong)
+                  view.dom.addEventListener('keydown', () => {
+                    logSelectionPair('on-keydown', editor);
+                  }, { once: true });
+                }, 0);
                 
                 return true; // Prevent default behavior
               }
