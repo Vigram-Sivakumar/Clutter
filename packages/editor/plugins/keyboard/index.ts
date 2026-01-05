@@ -25,8 +25,10 @@ export { defineRule } from './types/KeyboardRule';
 // Engine
 export { KeyboardEngine, createKeyboardEngine } from './engine/KeyboardEngine';
 
-// Rules will be exported here as they're migrated
-// export * from './rules/deleteEmptyParagraph';
-// export * from './rules/mergeWithPreviousBlock';
-// ...
+// Keymaps (recommended public API)
+export { handleBackspace, handleEnter } from './keymaps';
+
+// Rules (for advanced usage / testing)
+export * from './rules/enter';
+export * from './rules/backspace';
 
