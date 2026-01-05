@@ -36,8 +36,26 @@ export interface KeyboardContext {
   /** Is selection empty? */
   readonly isEmpty: boolean;
   
+  /** Visual X-coordinate (screen space) for vertical navigation */
+  readonly visualX: number;
+  
   /** Key that triggered this (for context) */
   readonly key: 'Enter' | 'Backspace' | 'Tab' | 'Delete' | 'ArrowLeft' | 'ArrowRight' | 'ArrowUp' | 'ArrowDown';
+}
+
+/**
+ * Get visual X-coordinate of caret (screen space)
+ */
+function getCaretVisualX(editor: Editor): number {
+  const view = editor.view;
+  const { from } = editor.state.selection;
+  try {
+    const coords = view.coordsAtPos(from);
+    return coords.left;
+  } catch (e) {
+    // Fallback if coords fail
+    return 0;
+  }
 }
 
 /**
@@ -59,6 +77,7 @@ export function createKeyboardContext(
     currentNode: $from.parent,
     cursorOffset: $from.parentOffset,
     isEmpty: empty,
+    visualX: getCaretVisualX(editor),
     key,
   };
 }
@@ -126,11 +145,53 @@ export function getNextBlock(ctx: KeyboardContext): { pos: number; node: PMNode 
 /**
  * Get visual column position (for preserving horizontal position)
  * 
- * Simple version: returns character offset within block.
- * TODO: Account for wrapped lines in future.
+ * Returns visual X-coordinate for vertical navigation.
  */
 export function getVisualColumn(ctx: KeyboardContext): number {
-  return ctx.cursorOffset;
+  return ctx.visualX;
+}
+
+/**
+ * Find the closest text position in a block to a given visual X-coordinate
+ * 
+ * This enables column-preserving vertical navigation.
+ */
+export function findClosestPosInBlock(
+  editor: Editor,
+  blockPos: number,
+  visualX: number
+): number {
+  const { view, state } = editor;
+  const { doc } = state;
+  
+  // Get the block node
+  const $pos = doc.resolve(blockPos);
+  const node = $pos.nodeAfter;
+  
+  if (!node) return blockPos + 1;
+  
+  // Start at the beginning of the block
+  let bestPos = blockPos + 1;
+  let bestDistance = Infinity;
+  
+  // Scan through the block content to find closest position
+  const endPos = blockPos + node.nodeSize;
+  for (let pos = blockPos + 1; pos < endPos; pos++) {
+    try {
+      const coords = view.coordsAtPos(pos);
+      const distance = Math.abs(coords.left - visualX);
+      
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        bestPos = pos;
+      }
+    } catch (e) {
+      // Position might not be valid, skip it
+      continue;
+    }
+  }
+  
+  return bestPos;
 }
 
 /**

@@ -9,11 +9,11 @@
 
 import { defineRule } from '../../types/KeyboardRule';
 import type { KeyboardContext } from '../../types/KeyboardContext';
-import { isAtVisualStartOfBlock, getPreviousBlock, getVisualColumn } from '../../types/KeyboardContext';
+import { isAtVisualStartOfBlock, getPreviousBlock, findClosestPosInBlock } from '../../types/KeyboardContext';
 
 export const moveToPreviousLine = defineRule({
   id: 'navigation:moveToPreviousLine',
-  description: 'Move cursor to previous block when at visual top',
+  description: 'Move cursor to previous block when at visual top, preserving X-coordinate',
   priority: 50, // Lower than editing rules
   
   when(ctx: KeyboardContext): boolean {
@@ -33,19 +33,15 @@ export const moveToPreviousLine = defineRule({
   },
   
   execute(ctx: KeyboardContext): boolean {
-    const { editor, state } = ctx;
+    const { editor } = ctx;
     const prevBlock = getPreviousBlock(ctx);
     
     if (!prevBlock) return false;
     
-    // Get current visual column to preserve horizontal position
-    const column = getVisualColumn(ctx);
+    // Find closest position in previous block using visual X-coordinate
+    const targetPos = findClosestPosInBlock(editor, prevBlock.pos, ctx.visualX);
     
-    // Move cursor to previous block at same column (or end if shorter)
-    const targetPos = prevBlock.pos + 1 + Math.min(column, prevBlock.node.content.size);
-    const $pos = state.doc.resolve(targetPos);
-    
-    return editor.commands.setTextSelection($pos.pos);
+    return editor.commands.setTextSelection(targetPos);
   },
 });
 

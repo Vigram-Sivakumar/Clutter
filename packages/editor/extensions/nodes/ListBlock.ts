@@ -189,8 +189,9 @@ export const ListBlock = Node.create({
       // Arrow navigation (cross-block)
       ArrowLeft: ({ editor }) => handleArrowLeft(editor),
       ArrowRight: ({ editor }) => handleArrowRight(editor),
-      ArrowUp: ({ editor }) => handleArrowUp(editor),
-      ArrowDown: ({ editor }) => handleArrowDown(editor),
+      // CRITICAL: Always consume vertical navigation to prevent ProseMirror fallback
+      ArrowUp: ({ editor }) => handleArrowUp(editor) || true,
+      ArrowDown: ({ editor }) => handleArrowDown(editor) || true,
       
       // Shift+Enter: Insert line break (soft break)
       'Shift-Enter': createShiftEnterHandler('listBlock'),
