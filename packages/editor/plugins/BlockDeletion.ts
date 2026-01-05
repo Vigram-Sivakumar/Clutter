@@ -7,7 +7,7 @@
 
 import { Extension } from '@tiptap/core';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
-import { NodeSelection } from '@tiptap/pm/state';
+import { NodeSelection, TextSelection } from '@tiptap/pm/state';
 import { isMultiBlockSelection, getSelectedBlocks } from '../utils/multiSelection';
 
 /**
@@ -49,6 +49,12 @@ export const BlockDeletion = Extension.create({
                 tr = tr.delete(block.pos, block.pos + block.nodeSize);
               }
               
+              // 🎯 FIX: Force TextSelection after delete (prevents sticky halo)
+              const pos = Math.min(tr.doc.content.size - 1, tr.selection.from);
+              if (pos >= 0) {
+                tr = tr.setSelection(TextSelection.create(tr.doc, pos));
+              }
+              
               // Dispatch transaction (this will trigger onUpdate with docChanged=true)
               view.dispatch(tr);
               return true; // Prevent default behavior
@@ -61,7 +67,14 @@ export const BlockDeletion = Extension.create({
               
               if (node) {
                 // Delete the block and trigger onUpdate
-                const tr = state.tr.delete(pos, pos + node.nodeSize);
+                let tr = state.tr.delete(pos, pos + node.nodeSize);
+                
+                // 🎯 FIX: Force TextSelection after delete (prevents sticky halo)
+                const cursorPos = Math.min(tr.doc.content.size - 1, pos);
+                if (cursorPos >= 0) {
+                  tr = tr.setSelection(TextSelection.create(tr.doc, cursorPos));
+                }
+                
                 view.dispatch(tr);
                 return true; // Prevent default behavior
               }

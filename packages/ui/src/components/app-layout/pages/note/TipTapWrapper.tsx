@@ -115,6 +115,19 @@ function extractTagsFromContent(content: any): string[] {
   return uniqueTags;
 }
 
+// 🎯 CANONICAL EMPTY DOCUMENT
+// TipTap must NEVER receive null - always a valid ProseMirror document
+const EMPTY_DOC = {
+  type: 'doc',
+  content: [
+    {
+      type: 'paragraph',
+      attrs: { id: 'empty-paragraph' },
+      content: [],
+    },
+  ],
+};
+
 export const TipTapWrapper = forwardRef<TipTapWrapperHandle, TipTapWrapperProps>(({
   value,
   onChange,
@@ -146,15 +159,18 @@ export const TipTapWrapper = forwardRef<TipTapWrapperHandle, TipTapWrapperProps>
   // Parse value into content object (simple, deterministic)
   // Editor mounts once - documents flow through it
   const content = useMemo(() => {
+    // 🎯 FIX: NEVER return null - TipTap must always receive valid document
     if (!value) {
-      console.warn('[EDITOR] ❌ No document provided');
-      return null;
+      if (import.meta.env.DEV) {
+        console.log('[EDITOR] Using EMPTY_DOC (no value provided)');
+      }
+      return EMPTY_DOC;
     }
     
     // Don't re-parse if this came from our own onChange
     if (isUpdatingFromEditor.current) {
       isUpdatingFromEditor.current = false;
-      return null; // Keep current editor content
+      return null; // Keep current editor content (don't re-initialize)
     }
     
     try {
@@ -165,8 +181,8 @@ export const TipTapWrapper = forwardRef<TipTapWrapperHandle, TipTapWrapperProps>
         // Fallback to HTML parsing (legacy format)
         return generateJSON(value, htmlExtensions);
       } catch (htmlError) {
-        console.error('❌ TipTapWrapper: Failed to parse document', htmlError);
-        return null;
+        console.error('❌ TipTapWrapper: Failed to parse document, using EMPTY_DOC', htmlError);
+        return EMPTY_DOC;
       }
     }
   }, [value]);
