@@ -24,13 +24,58 @@ import type { EditorDocument } from '../../../packages/editor/types';
  * - Loading a note into the editor
  * - Hydrating editor state
  * 
+ * Handles edge cases:
+ * - Empty content (new notes)
+ * - Malformed JSON (corruption/sync issues)
+ * - Legacy notes without version
+ * 
  * @param note - Domain note from persistence
  * @returns EditorDocument ready for editing
  */
 export function noteToEditorDocument(note: Note): EditorDocument {
-  // TODO: Implement in Phase 2
-  // Will parse note.content (stringified JSON) into EditorDocument
-  throw new Error('noteToEditorDocument: Not implemented');
+  // Edge case 1: Empty content (new notes start with '')
+  if (!note.content || note.content.trim() === '') {
+    return {
+      version: 1,
+      content: {
+        type: 'doc',
+        content: [{ type: 'paragraph' }],
+      },
+    };
+  }
+
+  // Edge case 2: Malformed JSON (rare, but handle gracefully)
+  try {
+    const parsed = JSON.parse(note.content);
+    
+    // Validate it looks like TipTap JSON
+    if (!parsed.type || parsed.type !== 'doc') {
+      console.warn('Invalid TipTap JSON structure, falling back to empty doc', parsed);
+      return {
+        version: 1,
+        content: {
+          type: 'doc',
+          content: [{ type: 'paragraph' }],
+        },
+      };
+    }
+
+    // Wrap parsed content with version
+    // Note: Legacy notes don't have version field, all implicitly v1
+    return {
+      version: 1,
+      content: parsed,
+    };
+  } catch (error) {
+    console.error('Failed to parse note content, falling back to empty doc', error);
+    return {
+      version: 1,
+      content: {
+        type: 'doc',
+        content: [{ type: 'paragraph' }],
+      },
+    };
+  }
 }
 
 /**
@@ -40,6 +85,9 @@ export function noteToEditorDocument(note: Note): EditorDocument {
  * - Saving editor content
  * - Syncing changes
  * 
+ * Critical: Preserves all note metadata (id, timestamps, folder, etc.)
+ * Only updates: content, updatedAt
+ * 
  * @param note - Original note (for metadata preservation)
  * @param doc - Editor document with updated content
  * @returns Updated note ready for persistence
@@ -48,8 +96,16 @@ export function editorDocumentToNote(
   note: Note,
   doc: EditorDocument
 ): Note {
-  // TODO: Implement in Phase 2
-  // Will stringify EditorDocument and merge with note metadata
-  throw new Error('editorDocumentToNote: Not implemented');
+  // Stringify TipTap JSON for persistence
+  // Note: We store bare TipTap JSON (without version wrapper) for now
+  // Future: May store version with content when migrations are needed
+  const serializedContent = JSON.stringify(doc.content);
+
+  // Merge content with existing note, preserve all metadata
+  return {
+    ...note,
+    content: serializedContent,
+    updatedAt: new Date().toISOString(),
+  };
 }
 

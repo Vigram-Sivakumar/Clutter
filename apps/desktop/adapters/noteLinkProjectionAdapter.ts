@@ -22,7 +22,7 @@ import type { EditorLinkedNote } from '../../../packages/editor/types';
  * 
  * Keeps only:
  * - id (for linking)
- * - title (for display)
+ * - title (for display, may be empty string)
  * 
  * @param note - Domain note or note metadata
  * @returns EditorLinkedNote projection
@@ -30,19 +30,26 @@ import type { EditorLinkedNote } from '../../../packages/editor/types';
 export function noteToEditorLinkedNote(
   note: Note | NoteMetadata
 ): EditorLinkedNote {
-  // TODO: Implement in Phase 2
-  throw new Error('noteToEditorLinkedNote: Not implemented');
+  return {
+    id: note.id,
+    title: note.title,  // May be empty string, UI handles "Untitled"
+  };
 }
 
 /**
  * Project multiple domain Notes → EditorLinkedNotes
  * 
+ * Filters out deleted notes (deletedAt !== null).
+ * Editor should never see deleted notes in autocomplete/links.
+ * 
  * @param notes - Array of domain notes or metadata
- * @returns Array of editor linked note projections
+ * @returns Array of editor linked note projections (excluding deleted)
  */
 export function notesToEditorLinkedNotes(
   notes: (Note | NoteMetadata)[]
 ): EditorLinkedNote[] {
-  return notes.map(noteToEditorLinkedNote);
+  return notes
+    .filter(note => note.deletedAt === null)  // Exclude deleted notes
+    .map(noteToEditorLinkedNote);
 }
 
