@@ -123,3 +123,29 @@ export function getNextBlock(ctx: KeyboardContext): { pos: number; node: PMNode 
   return { pos: nextPos, node: nextNode };
 }
 
+/**
+ * Get visual column position (for preserving horizontal position)
+ * 
+ * Simple version: returns character offset within block.
+ * TODO: Account for wrapped lines in future.
+ */
+export function getVisualColumn(ctx: KeyboardContext): number {
+  return ctx.cursorOffset;
+}
+
+/**
+ * Is cursor at the visual start of block?
+ * (For now, same as start - will refine for wrapped lines)
+ */
+export function isAtVisualStartOfBlock(ctx: KeyboardContext): boolean {
+  return isAtStartOfBlock(ctx);
+}
+
+/**
+ * Is cursor at the visual end of block?
+ * (For now, same as end - will refine for wrapped lines)
+ */
+export function isAtVisualEndOfBlock(ctx: KeyboardContext): boolean {
+  return isAtEndOfBlock(ctx);
+}
+

@@ -7,7 +7,6 @@
 
 export * from './moveToPreviousBlock';
 export * from './moveToNextBlock';
-// TODO: Add Up/Down rules when ready
-// export * from './moveToPreviousLine';
-// export * from './moveToNextLine';
+export * from './moveToPreviousLine';
+export * from './moveToNextLine';
 

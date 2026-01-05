@@ -24,7 +24,7 @@ import type { ListType, ListBlockAttrs } from '../../types';
 import { ListBlock as ListBlockComponent } from '../../components/ListBlock';
 import { createShiftEnterHandler, createSiblingAttrs, findAncestorNode, handleEmptyBlockInToggle, indentBlock, outdentBlock } from '../../utils/keyboardHelpers';
 import { EnterRules, BackspaceRules } from '../../utils/keyboardRules';
-import { handleEnter, handleArrowLeft, handleArrowRight } from '../../plugins/keyboard'; // NEW: Use rule engine
+import { handleEnter, handleArrowLeft, handleArrowRight, handleArrowUp, handleArrowDown } from '../../plugins/keyboard'; // NEW: Use rule engine
 
 declare module '@tiptap/core' {
   interface Commands<ReturnType> {
@@ -189,6 +189,8 @@ export const ListBlock = Node.create({
       // Arrow navigation (cross-block)
       ArrowLeft: ({ editor }) => handleArrowLeft(editor),
       ArrowRight: ({ editor }) => handleArrowRight(editor),
+      ArrowUp: ({ editor }) => handleArrowUp(editor),
+      ArrowDown: ({ editor }) => handleArrowDown(editor),
       
       // Shift+Enter: Insert line break (soft break)
       'Shift-Enter': createShiftEnterHandler('listBlock'),

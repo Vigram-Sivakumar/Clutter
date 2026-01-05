@@ -26,7 +26,7 @@ export { defineRule } from './types/KeyboardRule';
 export { KeyboardEngine, createKeyboardEngine } from './engine/KeyboardEngine';
 
 // Keymaps (recommended public API)
-export { handleBackspace, handleEnter, handleArrowLeft, handleArrowRight } from './keymaps';
+export { handleBackspace, handleEnter, handleArrowLeft, handleArrowRight, handleArrowUp, handleArrowDown } from './keymaps';
 
 // Rules (for advanced usage / testing)
 export * from './rules/enter';
