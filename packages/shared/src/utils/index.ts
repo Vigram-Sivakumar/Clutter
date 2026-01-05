@@ -8,7 +8,7 @@ export const generateId = (): string => {
 };
 
 // Theme utilities
-import type { ThemeMode } from '../types';
+import type { ThemeMode } from '@clutter/domain';
 
 export const getThemeColors = <T extends Record<ThemeMode, any>>(
   colors: T,

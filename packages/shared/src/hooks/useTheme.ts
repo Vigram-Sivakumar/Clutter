@@ -5,7 +5,7 @@
 
 import { useThemeStore } from '../stores/theme';
 import { getThemeColors } from '../utils';
-import type { ThemeMode } from '../types';
+import type { ThemeMode } from '@clutter/domain';
 
 export const useTheme = <T extends Record<ThemeMode, any>>(colors: T) => {
   const mode = useThemeStore((state) => state.mode);
