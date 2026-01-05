@@ -99,7 +99,7 @@ export const TagsList = ({
   return (
     <>
       {tags.map((tag) => (
-        <Tag
+        <TagPill
           key={tag}
           label={tag}
           onRemove={() => onRemoveTag(tag)}
