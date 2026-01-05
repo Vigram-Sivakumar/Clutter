@@ -4,7 +4,7 @@ import { SidebarItemTag } from '../items/TagItem';
 import { SidebarEmptyState } from '../sections/EmptyState';
 import { sidebarLayout } from '../../../../../tokens/sidebar';
 import { useTagsStore, useFoldersStore } from '@clutter/state';
-import { useAllTags } from '@clutter/shared';
+import { useAllTags } from '@clutter/state';
 import { useNotesStore } from '@clutter/state';
 import { GlobalSelection } from '../types';
 

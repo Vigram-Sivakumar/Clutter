@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNotesStore, useFoldersStore } from '@clutter/state';
-import { useAllTags } from '@clutter/shared';
+import { useAllTags } from '@clutter/state';
 import { PageTitleSection } from '../../shared/content-header';
 import { ListViewLayout } from '../../shared/list-view-layout';
 import { TagsListView } from '../../shared/tags-list';

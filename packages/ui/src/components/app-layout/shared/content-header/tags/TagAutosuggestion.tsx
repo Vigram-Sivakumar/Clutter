@@ -6,7 +6,7 @@
 
 import { useMemo } from 'react';
 import { useNotesStore } from '@clutter/state';
-import { useAllTags } from '@clutter/shared';
+import { useAllTags } from '@clutter/state';
 import { AutocompleteDropdown } from '../../../../ui-primitives/AutocompleteDropdown';
 import { DropdownItem } from '../../../../ui-primitives/dropdown';
 import { Tag } from './Tag';

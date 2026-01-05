@@ -15,7 +15,7 @@ import { useMultiSelect } from '../../../../hooks/useMultiSelect';
 import { useSidebarResize } from '../../../../hooks/useSidebarResize';
 import { CLUTTERED_FOLDER_ID, DAILY_NOTES_FOLDER_ID } from '@clutter/domain';
 import { useNotesStore, useFoldersStore, useOrderingStore, useTagsStore } from '@clutter/state';
-import { useAllTags, sortByOrder, useUIStateStore } from '@clutter/shared';
+import { useAllTags, sortByOrder, useUIStateStore } from '@clutter/state';
 import { Note, Folder } from '@clutter/domain';
 import { getTagColor } from '../../../../utils/tagColors';
 import { getFolderIcon, getNoteIcon, ALL_TASKS_FOLDER_ID } from '../../../../utils/itemIcons';
