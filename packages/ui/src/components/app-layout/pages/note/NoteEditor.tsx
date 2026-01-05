@@ -1546,6 +1546,7 @@ export const NoteEditor = ({
           {/* Editor */}
           <PageContent>
             <TipTapWrapper
+              key={currentNoteId}
               ref={editorRef}
               value={editorState.status === 'ready' ? editorState.document : undefined}
               isFrozen={!isHydrated}
