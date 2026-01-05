@@ -1687,13 +1687,14 @@ export const AppSidebar = ({
       if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'D') {
         e.preventDefault();
         const today = new Date();
-        onDateSelect?.(today);
+        today.setHours(0, 0, 0, 0); // Normalize to start of day
+        handleDateSelect(today); // Use handleDateSelect to update both local state and call parent
       }
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [onDateSelect]);
+  }, [handleDateSelect]);
 
   // Keyboard shortcuts for switching sidebar tabs (Cmd+1, Cmd+2, Cmd+3, Cmd+4)
   useEffect(() => {
