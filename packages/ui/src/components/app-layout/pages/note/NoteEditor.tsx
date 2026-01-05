@@ -415,13 +415,29 @@ export const NoteEditor = ({
       uiOwner: editorStateOwnerRef.current,
     });
 
-    // 🚨 Flush previous note immediately on switch (prevents content bleed)
+    // 🚨 CRITICAL: Flush previous note's draft on navigation boundary
+    // Navigation is a transaction boundary - must commit before switching
     if (
       activeEditorNoteIdRef.current &&
-      activeEditorNoteIdRef.current !== currentNote.id
+      activeEditorNoteIdRef.current !== currentNote.id &&
+      editorState.status === 'ready'
     ) {
-      console.log('💾 Flushing previous note before switch:', activeEditorNoteIdRef.current);
+      const previousNoteId = activeEditorNoteIdRef.current;
+      const draft = editorState.document;
+      
+      dbg('FLUSH:on note switch', {
+        from: previousNoteId,
+        to: currentNote.id,
+        draftLength: draft.length,
+      });
+      
+      console.log('💾 Flushing previous note draft before switch:', previousNoteId);
+      
+      // Cancel debounced save
       cancelDebouncedSave();
+      
+      // Immediately save current draft (bypass debounce)
+      updateNoteContent(previousNoteId, draft);
     }
 
     // 🚨 CRITICAL: Cancel pending UI state updates from previous note
