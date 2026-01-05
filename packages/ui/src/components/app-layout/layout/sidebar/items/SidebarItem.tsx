@@ -148,6 +148,9 @@ export const SidebarItem = ({
   taskNoteId,
   onTaskNavigate,
 }: SidebarItemProps) => {
+  // #region agent log
+  fetch('http://127.0.0.1:7244/ingest/a7f9fa0e-3f72-4ff3-8c3a-792215d634cd',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SidebarItem.tsx:151',message:'SidebarItem RENDER',data:{variant,id,draggable,reorderable,isDragging,isDropTarget,dropPosition},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'G'})}).catch(()=>{});
+  // #endregion
   const { colors } = useTheme();
   const [editValue, setEditValue] = useState(label);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -186,7 +189,13 @@ export const SidebarItem = ({
 
   // Cleanup expand timeout on unmount (for headers)
   useEffect(() => {
+    // #region agent log
+    fetch('http://127.0.0.1:7244/ingest/a7f9fa0e-3f72-4ff3-8c3a-792215d634cd',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SidebarItem.tsx:188',message:'SidebarItem MOUNTED',data:{variant,id,draggable,reorderable},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'G'})}).catch(()=>{});
+    // #endregion
     return () => {
+      // #region agent log
+      fetch('http://127.0.0.1:7244/ingest/a7f9fa0e-3f72-4ff3-8c3a-792215d634cd',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SidebarItem.tsx:193',message:'SidebarItem UNMOUNTING',data:{variant,id},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'G'})}).catch(()=>{});
+      // #endregion
       if (expandTimeoutRef.current) {
         clearTimeout(expandTimeoutRef.current);
       }
@@ -197,7 +206,13 @@ export const SidebarItem = ({
   // Drag handlers
   const handleDragStart = (e: React.DragEvent) => {
     if (!draggable || !onDragStart || isEditing) return;
+    // #region agent log
+    fetch('http://127.0.0.1:7244/ingest/a7f9fa0e-3f72-4ff3-8c3a-792215d634cd',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SidebarItem.tsx:198',message:'handleDragStart BEFORE setting effectAllowed',data:{variant,id,effectAllowedBefore:e.dataTransfer.effectAllowed},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
+    // #endregion
     e.dataTransfer.effectAllowed = 'move';
+    // #region agent log
+    fetch('http://127.0.0.1:7244/ingest/a7f9fa0e-3f72-4ff3-8c3a-792215d634cd',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SidebarItem.tsx:200',message:'handleDragStart AFTER setting effectAllowed',data:{variant,id,effectAllowedAfter:e.dataTransfer.effectAllowed},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
+    // #endregion
     
     // Create a custom drag preview with more opacity
     if (itemRef.current) {
@@ -236,6 +251,9 @@ export const SidebarItem = ({
   };
 
   const handleDragEnd = () => {
+    // #region agent log
+    fetch('http://127.0.0.1:7244/ingest/a7f9fa0e-3f72-4ff3-8c3a-792215d634cd',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SidebarItem.tsx:238',message:'handleDragEnd called',data:{variant,id},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
+    // #endregion
     // Clear all reorder indicators when drag ends
     if (onClearAllReorderIndicators) {
       onClearAllReorderIndicators();
@@ -245,6 +263,9 @@ export const SidebarItem = ({
   };
 
   const handleDragEnter = (e: React.DragEvent) => {
+    // #region agent log
+    fetch('http://127.0.0.1:7244/ingest/a7f9fa0e-3f72-4ff3-8c3a-792215d634cd',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SidebarItem.tsx:256',message:'handleDragEnter ENTRY',data:{variant,id,reorderable,hasOnDragOver:!!onDragOver,hasOnDragOverForReorder:!!onDragOverForReorder,effectAllowed:e.dataTransfer.effectAllowed},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'F'})}).catch(()=>{});
+    // #endregion
     // Header-specific: Auto-expand on drag
     if (variant === 'header' && enableAutoExpandHeader) {
       e.preventDefault();
@@ -262,9 +283,17 @@ export const SidebarItem = ({
       }
     }
     
+    // For HTML5 drag & drop to work, we must call preventDefault on dragenter
+    // This is required for BOTH drop targets (folders) AND reorderable items (notes/folders)
+    if (reorderable || onDragOver) {
+      e.preventDefault();
+      // #region agent log
+      fetch('http://127.0.0.1:7244/ingest/a7f9fa0e-3f72-4ff3-8c3a-792215d634cd',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SidebarItem.tsx:277',message:'dragEnter preventDefault called',data:{id,variant,reorderable,hasOnDragOver:!!onDragOver},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'F'})}).catch(()=>{});
+      // #endregion
+    }
+    
     // Regular drag enter for items (folders)
     if (onDragOver) {
-      e.preventDefault();
       e.stopPropagation();
       
       // Clear all reorder indicators when entering a drop zone
@@ -277,6 +306,9 @@ export const SidebarItem = ({
   };
 
   const handleDragOver = (e: React.DragEvent) => {
+    // #region agent log
+    fetch('http://127.0.0.1:7244/ingest/a7f9fa0e-3f72-4ff3-8c3a-792215d634cd',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SidebarItem.tsx:279',message:'handleDragOver ENTRY',data:{variant,id,reorderable,hasOnDragOver:!!onDragOver,hasOnDragOverForReorder:!!onDragOverForReorder,effectAllowed:e.dataTransfer.effectAllowed},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
+    // #endregion
     // Header-specific: Auto-expand on drag
     if (variant === 'header' && enableAutoExpandHeader) {
       e.preventDefault();
@@ -290,8 +322,11 @@ export const SidebarItem = ({
     // Handle drag over with zone-based logic
     if (itemRef.current && (reorderable || onDragOver)) {
       e.preventDefault();
-      e.stopPropagation();
+      // NOTE: Don't call e.stopPropagation() here - it prevents the drop event from firing!
       e.dataTransfer.dropEffect = 'move';
+      // #region agent log
+      fetch('http://127.0.0.1:7244/ingest/a7f9fa0e-3f72-4ff3-8c3a-792215d634cd',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SidebarItem.tsx:297',message:'preventDefault called, dropEffect set',data:{id,dropEffect:e.dataTransfer.dropEffect,effectAllowed:e.dataTransfer.effectAllowed},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
+      // #endregion
       
       const rect = itemRef.current.getBoundingClientRect();
       const relativeY = e.clientY - rect.top;
@@ -303,6 +338,10 @@ export const SidebarItem = ({
       const isBottomEdge = relativePos > 0.8; // Bottom 20%
       // Center zone (middle 60%) is implicit: !isTopEdge && !isBottomEdge
       
+      // #region agent log
+      fetch('http://127.0.0.1:7244/ingest/a7f9fa0e-3f72-4ff3-8c3a-792215d634cd',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SidebarItem.tsx:301',message:'zone calculation',data:{variant,id,relativePos,isTopEdge,isBottomEdge,reorderable,hasOnDragOver:!!onDragOver,hasOnDragOverForReorder:!!onDragOverForReorder},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C,D'})}).catch(()=>{});
+      // #endregion
+      
       // ZONE-BASED LOGIC (folders only - they can be drop targets AND reorderable)
       // Notes are only reorderable, so they always show reorder indicator
       
@@ -311,14 +350,23 @@ export const SidebarItem = ({
         if (isTopEdge || isBottomEdge) {
           // Edge zones: Show reorder line only
           const position: 'before' | 'after' = isTopEdge ? 'before' : 'after';
+          // #region agent log
+          fetch('http://127.0.0.1:7244/ingest/a7f9fa0e-3f72-4ff3-8c3a-792215d634cd',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SidebarItem.tsx:314',message:'calling onDragOverForReorder (edge zone)',data:{id,position,context},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+          // #endregion
           onDragOverForReorder(id, position);
         } else {
           // Center zone: Show folder drop highlight only
+          // #region agent log
+          fetch('http://127.0.0.1:7244/ingest/a7f9fa0e-3f72-4ff3-8c3a-792215d634cd',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SidebarItem.tsx:317',message:'calling onDragOver (center zone)',data:{id},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+          // #endregion
           onDragOver(id);
         }
       } else if (reorderable && onDragOverForReorder) {
         // NOTE or other reorderable item: Always show reorder indicator
         const position: 'before' | 'after' = relativePos < 0.5 ? 'before' : 'after';
+        // #region agent log
+        fetch('http://127.0.0.1:7244/ingest/a7f9fa0e-3f72-4ff3-8c3a-792215d634cd',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SidebarItem.tsx:332',message:'calling onDragOverForReorder (note/simple)',data:{id,position,context,variant},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+        // #endregion
         onDragOverForReorder(id, position);
       } else if (onDragOver) {
         // Non-reorderable drop target: Always show drop highlight
@@ -353,6 +401,9 @@ export const SidebarItem = ({
   };
 
   const handleDrop = (e: React.DragEvent) => {
+    // #region agent log
+    fetch('http://127.0.0.1:7244/ingest/a7f9fa0e-3f72-4ff3-8c3a-792215d634cd',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SidebarItem.tsx:365',message:'handleDrop called',data:{variant,id,reorderable,hasOnDrop:!!onDrop,hasOnDropForReorder:!!onDropForReorder},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
+    // #endregion
     // Header-specific: Clear drag state
     if (variant === 'header' && enableAutoExpandHeader) {
       e.preventDefault();
@@ -367,7 +418,7 @@ export const SidebarItem = ({
     // Handle drop with zone-based logic (matching dragOver)
     if (itemRef.current && (reorderable || onDrop)) {
       e.preventDefault();
-      e.stopPropagation();
+      e.stopPropagation(); // OK to stopPropagation on drop (after it's fired)
       
       const rect = itemRef.current.getBoundingClientRect();
       const relativeY = e.clientY - rect.top;
@@ -378,15 +429,25 @@ export const SidebarItem = ({
       const isTopEdge = relativePos < 0.2; // Top 20%
       const isBottomEdge = relativePos > 0.8; // Bottom 20%
       
+      // #region agent log
+      fetch('http://127.0.0.1:7244/ingest/a7f9fa0e-3f72-4ff3-8c3a-792215d634cd',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SidebarItem.tsx:390',message:'drop zone calculation',data:{relativePos,isTopEdge,isBottomEdge,variant,hasOnDrop:!!onDrop,hasOnDropForReorder:!!onDropForReorder,reorderable},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
+      // #endregion
+      
       // ZONE-BASED DROP (matching dragOver logic)
       if (variant === 'folder' && onDrop && onDropForReorder && reorderable) {
         // FOLDER: Zone-based mutually exclusive drop
         if (isTopEdge || isBottomEdge) {
           // Edge zones: Reorder drop
           const position: 'before' | 'after' = isTopEdge ? 'before' : 'after';
+          // #region agent log
+          fetch('http://127.0.0.1:7244/ingest/a7f9fa0e-3f72-4ff3-8c3a-792215d634cd',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SidebarItem.tsx:397',message:'calling onDropForReorder',data:{id,position,context},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
+          // #endregion
           onDropForReorder(id, position);
         } else {
           // Center zone: Folder drop
+          // #region agent log
+          fetch('http://127.0.0.1:7244/ingest/a7f9fa0e-3f72-4ff3-8c3a-792215d634cd',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SidebarItem.tsx:400',message:'calling onDrop',data:{id},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
+          // #endregion
           onDrop(id);
         }
         
@@ -1146,7 +1207,12 @@ export const SidebarItem = ({
           onDragEnter={handleDragEnter}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
+          onDrop={(e) => {
+            // #region agent log
+            fetch('http://127.0.0.1:7244/ingest/a7f9fa0e-3f72-4ff3-8c3a-792215d634cd',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SidebarItem.tsx:1172',message:'NATIVE onDrop event fired',data:{variant,id,draggable:draggable&&!isEditing,reorderable,hasHandleDrop:!!handleDrop},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
+            // #endregion
+            handleDrop(e);
+          }}
           onMouseUp={handleMouseUp}
           onClick={isEditing ? undefined : (variant === 'group' ? undefined : (e) => onClick(e))}
           style={{
@@ -1158,6 +1224,7 @@ export const SidebarItem = ({
             paddingRight: DESIGN.spacing.paddingX,
             boxSizing: 'border-box',
             cursor: isDragging ? 'grabbing' : (variant === 'group' ? 'default' : 'pointer'),
+            opacity: isDragging ? 0.4 : 1,
             backgroundColor: variant === 'group' 
               ? 'transparent'
               : (isSelected || hasOpenContextMenu

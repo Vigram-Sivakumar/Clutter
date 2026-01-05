@@ -6,8 +6,8 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { useTheme } from '../../hooks/useTheme';
-import { spacing } from '../../tokens/spacing';
+import { useTheme } from '@clutter/ui';
+import { spacing } from '@clutter/ui';
 
 interface MentionPillProps {
   icon: React.ReactNode;

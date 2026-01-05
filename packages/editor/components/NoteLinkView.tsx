@@ -5,7 +5,7 @@
 
 import { NodeViewWrapper } from '@tiptap/react';
 import type { NodeViewProps } from '@tiptap/react';
-import { CalendarBlank, Note, Folder } from '../../icons';
+import { CalendarBlank, Note, Folder } from '@clutter/ui';
 import { MentionPill } from './MentionPill';
 
 export function NoteLinkView({ node, editor }: NodeViewProps) {

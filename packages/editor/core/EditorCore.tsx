@@ -61,15 +61,15 @@ import { UndoBoundaries } from '../plugins/UndoBoundaries';
 // import { FocusFade } from '../plugins/FocusFade'; // Disabled for now
 
 // Components
-import { SlashCommandMenu } from './SlashCommandMenu';
-import { AtMentionMenu } from './AtMentionMenu';
+import { SlashCommandMenu } from '../components/SlashCommandMenu';
+import { AtMentionMenu } from '../components/AtMentionMenu';
 
 // Shared Components for inline styling
-import { FloatingToolbar } from '../../components/ui-primitives';
+import { FloatingToolbar } from '@clutter/ui';
 
 // Tokens
 import { spacing, typography, placeholders } from '../tokens';
-import { useTheme } from '../../hooks/useTheme';
+import { useTheme } from '@clutter/ui';
 
 // History extension for undo/redo
 import History from '@tiptap/extension-history';

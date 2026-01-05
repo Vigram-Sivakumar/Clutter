@@ -14,8 +14,7 @@ import { Bold, Italic, Strikethrough, Code, Underline, Link, Check, X, ChevronDo
 import { colors as colorTokens } from '../../tokens/colors';
 import { Button } from '../ui-buttons/Button';
 import { Input } from './Input';
-import { addTagToBlock } from '../../editor/utils/tagUtils';
-import { isMultiBlockSelection } from '../../editor/utils/multiSelection';
+import { addTagToBlock, isMultiBlockSelection } from '@clutter/editor';
 
 interface FloatingToolbarProps {
   editor: ReturnType<typeof useEditor>;

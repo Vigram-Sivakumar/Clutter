@@ -10,7 +10,7 @@
     "build": "turbo run build",
     "build:web": "turbo run build --filter=@clutter/web",
     "build:desktop": "turbo run build --filter=@clutter/desktop && turbo run tauri:build --filter=@clutter/desktop",
-    "build:packages": "turbo run build --filter=@clutter/shared --filter=@clutter/ui",
+    "build:packages": "turbo run build --filter=@clutter/shared --filter=@clutter/editor --filter=@clutter/ui",
     "dev": "turbo run dev",
     "dev:web": "turbo run dev --filter=@clutter/web",
     "dev:desktop": "turbo run tauri:dev --filter=@clutter/desktop",

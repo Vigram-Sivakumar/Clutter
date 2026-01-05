@@ -9,7 +9,7 @@
 import { Mark, mergeAttributes } from '@tiptap/core';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { getWaveStyles, patterns } from '../../tokens';
-import { colors } from '../../../tokens/colors';
+import { colors } from '@clutter/ui';
 
 declare module '@tiptap/core' {
   interface Commands<ReturnType> {

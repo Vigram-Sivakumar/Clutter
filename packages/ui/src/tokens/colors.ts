@@ -151,7 +151,7 @@ export const colors = {
 
     // Text colors - Notion-inspired hierarchy
     text: {
-      default: neutral[100],     // #d5d5d5 (primary text)
+      default: neutral[50],     // #d5d5d5 (primary text)
       secondary: neutral[300],  // #868686 (secondary text)
       tertiary: neutral[500],   // #4d4d4d (subtle text)
       subtle: neutral[400],   // #4d4d4d (subtle text)

@@ -12,7 +12,7 @@ import { NodeViewWrapper, NodeViewContent } from '@tiptap/react';
 import type { NodeViewProps } from '@tiptap/react';
 import { spacing, sizing, typography } from '../tokens';
 import type { ToggleHeaderAttrs } from '../extensions/nodes/ToggleHeader';
-import { useTheme } from '../../hooks/useTheme';
+import { useTheme } from '@clutter/ui';
 import { usePlaceholder } from '../hooks/usePlaceholder';
 import { useBlockSelection } from '../hooks/useBlockSelection';
 // import { Placeholder } from './Placeholder'; // No longer used - CSS handles placeholders

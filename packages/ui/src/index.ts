@@ -19,3 +19,7 @@ export * from './icons';
 // Reusable components
 export * from './components';
 
+// Utils
+export * from './utils/tagOperations';
+export * from './utils/tagColors';
+

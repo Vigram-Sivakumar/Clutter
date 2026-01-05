@@ -10,10 +10,10 @@ import { useState } from 'react';
 import { NodeViewWrapper } from '@tiptap/react';
 import type { NodeViewProps } from '@tiptap/react';
 import { patterns } from '../tokens';
-import { useTheme } from '../../hooks/useTheme';
+import { useTheme } from '@clutter/ui';
 import { useBlockSelection } from '../hooks/useBlockSelection';
-import { FoldHorizontal, UnfoldHorizontal } from '../../icons';
-import { sizing } from '../../tokens/sizing';
+import { FoldHorizontal, UnfoldHorizontal } from '@clutter/ui';
+import { sizing } from '@clutter/ui';
 import { BlockSelectionHalo } from './BlockSelectionHalo';
 import { BlockHandle } from './BlockHandle';
 

@@ -9,9 +9,9 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { NodeViewWrapper, NodeViewContent } from '@tiptap/react';
 import type { NodeViewProps } from '@tiptap/react';
-import { useTheme } from '../../hooks/useTheme';
+import { useTheme } from '@clutter/ui';
 import { placeholders, spacing } from '../tokens';
-import { Code as CodeIcon } from '../../icons/Code';
+import { Code as CodeIcon } from '@clutter/ui';
 import { usePlaceholder } from '../hooks/usePlaceholder';
 import { useBlockSelection } from '../hooks/useBlockSelection';
 // import { Placeholder } from './Placeholder'; // No longer used - CSS handles placeholders

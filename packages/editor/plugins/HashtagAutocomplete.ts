@@ -7,7 +7,7 @@
 import { Extension } from '@tiptap/core';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { useTagsStore } from '@clutter/shared';
-import { HASHTAG_REGEX, insertTag } from '../../utils/tagOperations';
+import { HASHTAG_REGEX, insertTag } from '@clutter/ui';
 
 export interface HashtagAutocompleteOptions {
   getColors: () => any;

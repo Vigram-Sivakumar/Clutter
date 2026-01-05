@@ -17,8 +17,8 @@ import { NodeViewWrapper, NodeViewContent } from '@tiptap/react';
 import type { NodeViewProps } from '@tiptap/react';
 import { spacing, sizing, typography } from '../tokens';
 import type { ListBlockAttrs } from '../types';
-import { useTheme } from '../../hooks/useTheme';
-import { sizing as globalSizing } from '../../tokens/sizing';
+import { useTheme } from '@clutter/ui';
+import { sizing as globalSizing } from '@clutter/ui';
 import { usePlaceholder } from '../hooks/usePlaceholder';
 import { useBlockSelection } from '../hooks/useBlockSelection';
 // import { Placeholder } from './Placeholder'; // No longer used - CSS handles placeholders
@@ -27,7 +27,7 @@ import { BlockHandle } from './BlockHandle';
 import { BlockSelectionHalo } from './BlockSelectionHalo';
 import { isHiddenByCollapsedToggle } from '../utils/collapseHelpers';
 import { TaskPriorityIndicator } from './TaskPriorityIndicator';
-import { Checkbox } from '../../components/ui-checkbox';
+import { Checkbox } from '@clutter/ui';
 
 // Props are provided by TipTap's ReactNodeViewRenderer
 type ListBlockProps = NodeViewProps;

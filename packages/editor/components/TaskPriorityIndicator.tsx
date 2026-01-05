@@ -8,9 +8,9 @@
  */
 
 import { useState } from 'react';
-import { useTheme } from '../../hooks/useTheme';
-import { radius } from '../../tokens/radius';
-import { DismissButton } from '../../components/ui-buttons';
+import { useTheme } from '@clutter/ui';
+import { radius } from '@clutter/ui';
+import { DismissButton } from '@clutter/ui';
 
 interface TaskPriorityIndicatorProps {
   committedPriority: number;

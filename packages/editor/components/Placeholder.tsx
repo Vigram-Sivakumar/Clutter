@@ -9,7 +9,7 @@
 
 import React from 'react';
 import { placeholders } from '../tokens';
-import { useTheme } from '../../hooks/useTheme';
+import { useTheme } from '@clutter/ui';
 
 interface PlaceholderProps {
   /** Custom placeholder text (defaults to "Type '/' for commands") */

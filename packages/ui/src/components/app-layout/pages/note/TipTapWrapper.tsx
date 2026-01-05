@@ -9,32 +9,33 @@
  */
 
 import { useEffect, useState, useCallback, useRef, forwardRef, useImperativeHandle } from 'react';
-import { EditorCore, EditorCoreHandle } from '../../../../editor/components/EditorCore';
-import { placeholders } from '../../../../editor/tokens';
 import { generateHTML, generateJSON } from '@tiptap/core';
 
-// Extensions for HTML parsing/generation (must match what EditorCore uses)
-import { Document } from '../../../../editor/extensions/nodes/Document';
-import { Text } from '../../../../editor/extensions/nodes/Text';
-import { Paragraph } from '../../../../editor/extensions/nodes/Paragraph';
-import { Heading } from '../../../../editor/extensions/nodes/Heading';
-import { ListBlock } from '../../../../editor/extensions/nodes/ListBlock';
-import { Blockquote } from '../../../../editor/extensions/nodes/Blockquote';
-import { CodeBlock } from '../../../../editor/extensions/nodes/CodeBlock';
-import { HorizontalRule } from '../../../../editor/extensions/nodes/HorizontalRule';
-import { Link } from '../../../../editor/extensions/marks/Link';
-import { Callout } from '../../../../editor/extensions/nodes/Callout';
-import { ToggleHeader } from '../../../../editor/extensions/nodes/ToggleHeader';
-
-// V2 Marks
-import { Bold } from '../../../../editor/extensions/marks/Bold';
-import { Italic } from '../../../../editor/extensions/marks/Italic';
-import { Underline } from '../../../../editor/extensions/marks/Underline';
-import { Strike } from '../../../../editor/extensions/marks/Strike';
-import { Code } from '../../../../editor/extensions/marks/Code';
-import { WavyUnderline } from '../../../../editor/extensions/marks/WavyUnderline';
-import { CustomHighlight } from '../../../../editor/extensions/marks/Highlight';
-import { TextColor } from '../../../../editor/extensions/marks/TextColor';
+// Editor imports from @clutter/editor package
+import { 
+  EditorCore, 
+  EditorCoreHandle,
+  Document,
+  Text,
+  Paragraph,
+  Heading,
+  ListBlock,
+  Blockquote,
+  CodeBlock,
+  HorizontalRule,
+  ToggleHeader,
+  Bold,
+  Italic,
+  Underline,
+  Strike,
+  Code as CodeMark,
+  WavyUnderline,
+  Link,
+} from '@clutter/editor';
+import { placeholders } from '@clutter/editor';
+import { CustomHighlight } from '@clutter/editor';
+import { TextColor } from '@clutter/editor';
+import { Callout } from '@clutter/editor';
 
 // HardBreak for line breaks (Shift+Enter)
 import HardBreak from '@tiptap/extension-hard-break';

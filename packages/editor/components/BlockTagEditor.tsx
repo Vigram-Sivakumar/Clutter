@@ -15,14 +15,14 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { useFloating, autoUpdate, offset, flip, shift } from '@floating-ui/react';
 import { createPortal } from 'react-dom';
-import { Tag } from '../../components/app-layout/shared/content-header/tags/Tag';
-import { TagContextContent } from '../../components/app-layout/shared/content-header/tags/TagContextContent';
+import { Tag } from '@clutter/ui';
+import { TagContextContent } from '@clutter/ui';
 import { useTagsStore } from '@clutter/shared';
-import { getTagColor } from '../../utils/tagColors';
-import { sizing } from '../../tokens/sizing';
-import { spacing } from '../../tokens/spacing';
-import { useTheme } from '../../hooks/useTheme';
-import { Trash2 } from '../../icons';
+import { getTagColor } from '@clutter/ui';
+import { sizing } from '@clutter/ui';
+import { spacing } from '@clutter/ui';
+import { useTheme } from '@clutter/ui';
+import { Trash2 } from '@clutter/ui';
 
 interface BlockTagEditorProps {
   tags: string[];

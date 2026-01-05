@@ -5,7 +5,7 @@
 
 import { NodeViewWrapper } from '@tiptap/react';
 import type { NodeViewProps } from '@tiptap/react';
-import { At } from '../../icons';
+import { At } from '@clutter/ui';
 import { MentionPill } from './MentionPill';
 
 export function DateMentionView({ node }: NodeViewProps) {

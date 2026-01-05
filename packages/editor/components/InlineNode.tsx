@@ -6,10 +6,10 @@
  */
 
 import React from 'react';
-import { spacing } from '../../tokens/spacing';
-import { sizing } from '../../tokens/sizing';
-import { typography } from '../../tokens/typography';
-import { animations } from '../../tokens/animations';
+import { spacing } from '@clutter/ui';
+import { sizing } from '@clutter/ui';
+import { typography } from '@clutter/ui';
+import { animations } from '@clutter/ui';
 import { getWaveStyles, patterns } from '../tokens';
 
 interface InlineNodeProps {

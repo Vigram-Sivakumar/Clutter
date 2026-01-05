@@ -11,7 +11,7 @@ import { ReactNodeViewRenderer } from '@tiptap/react';
 import { TextSelection } from '@tiptap/pm/state';
 import { ParagraphBlock } from '../../components/ParagraphBlock';
 import { createSiblingAttrs, findAncestorNode, handleEmptyBlockInToggle, indentBlock, outdentBlock } from '../../utils/keyboardHelpers';
-import { HASHTAG_REGEX, tagExists, insertTag } from '../../../utils/tagOperations';
+import { HASHTAG_REGEX, tagExists, insertTag } from '@clutter/ui';
 import { BackspaceRules } from '../../utils/keyboardRules';
 
 declare module '@tiptap/core' {

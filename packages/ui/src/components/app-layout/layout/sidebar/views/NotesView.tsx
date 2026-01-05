@@ -193,12 +193,16 @@ export const NotesView = ({
           isDropTarget={dropTargetId === folder.id}
           isSelected={selection.type === 'folder' && selection.multiSelectIds?.has(folder.id) && selection.context === folderContext}
           context={folderContext}
+          reorderable={Boolean(onFolderDragOverForReorder)}
           onClearAllReorderIndicators={() => {
             // Clear both note and folder reorder indicators when hovering over folder
             onNoteDragLeaveForReorder?.();
             onFolderDragLeaveForReorder?.();
           }}
           onDragOverForReorder={(id, pos) => {
+            // #region agent log
+            fetch('http://127.0.0.1:7244/ingest/a7f9fa0e-3f72-4ff3-8c3a-792215d634cd',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'NotesView.tsx:201',message:'folder onDragOverForReorder wrapper',data:{folderId:id,position:pos,folderContext},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
+            // #endregion
             onFolderDragOverForReorder?.(id, pos, folderContext);
           }}
           onDragLeaveForReorder={onFolderDragLeaveForReorder}
@@ -262,6 +266,7 @@ export const NotesView = ({
                       onDragEnd={onDragEnd}
                       isDragging={draggedItemId?.includes(note.id) || false}
                       context={notesContext}
+                      reorderable={Boolean(onNoteDragOverForReorder)}
                       onDragOverForReorder={(id, pos) => onNoteDragOverForReorder?.(id, pos, notesContext)}
                       onDragLeaveForReorder={onNoteDragLeaveForReorder}
                       onDropForReorder={(id, pos) => {
@@ -484,6 +489,7 @@ export const NotesView = ({
                       onDragEnd={onDragEnd}
                       isDragging={draggedItemId?.includes(note.id) || false}
                       context="cluttered"
+                      reorderable={Boolean(onNoteDragOverForReorder)}
                       onDragOverForReorder={(id, pos) => onNoteDragOverForReorder?.(id, pos, CLUTTERED_FOLDER_ID)}
                       onDragLeaveForReorder={onNoteDragLeaveForReorder}
                       onDropForReorder={(id, pos) => {

@@ -5,12 +5,11 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import type { Editor } from '@tiptap/core';
-import { AutocompleteDropdown, DropdownItem, DropdownHeader, DropdownSeparator } from '../../components/ui-primitives';
-import { At, CalendarBlank, Note, Folder } from '../../icons';
+import { AutocompleteDropdown, DropdownItem, DropdownHeader, DropdownSeparator } from '@clutter/ui';
+import { At, CalendarBlank, Note, Folder } from '@clutter/ui';
 import { filterDateSuggestions, type DateSuggestion } from '../utils/dateParser';
 import { searchEntities, type EntitySuggestion } from '../utils/entitySearch';
-import { useNotesStore } from '../../../../shared/src/stores/notes';
-import { useFoldersStore } from '../../../../shared/src/stores/folders';
+import { useNotesStore, useFoldersStore } from '@clutter/shared';
 
 interface AtMentionMenuProps {
   editor: Editor | null;

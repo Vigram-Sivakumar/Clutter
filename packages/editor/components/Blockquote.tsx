@@ -1,76 +1,25 @@
 /**
- * Callout - React node view for callout boxes
+ * Blockquote - React node view for blockquotes
  * 
  * PHASE 3 REFACTOR: Uses shared hooks and components.
- * Styled callout boxes for info, warning, error, success messages.
- * Uses the editor token system and patterns.
+ * Uses uniform block structure with marker area (border line).
+ * No margin - parent handles spacing via gap.
  */
 
 import React, { useMemo, useState, useEffect } from 'react';
 import { NodeViewWrapper, NodeViewContent } from '@tiptap/react';
 import type { NodeViewProps } from '@tiptap/react';
-import { Info, AlertTriangle, XCircle, CheckCircle } from '../../icons';
-import { sizing, typography, spacing } from '../tokens';
-import { useTheme } from '../../hooks/useTheme';
+import { spacing, sizing, typography } from '../tokens';
+import { useTheme } from '@clutter/ui';
 import { usePlaceholder } from '../hooks/usePlaceholder';
 import { useBlockSelection } from '../hooks/useBlockSelection';
 // import { Placeholder } from './Placeholder'; // No longer used - CSS handles placeholders
+import { BlockHandle } from './BlockHandle';
 import { BlockSelectionHalo } from './BlockSelectionHalo';
 import { isHiddenByCollapsedToggle } from '../utils/collapseHelpers';
 
-type CalloutType = 'info' | 'warning' | 'error' | 'success';
-
-const getCalloutStyles = (type: CalloutType, colors: ReturnType<typeof useTheme>['colors']) => {
-  const styles = {
-    info: {
-      borderColor: colors.semantic.info+ '75',
-      backgroundColor: colors.semantic.info + '08',
-      iconColor: colors.semantic.info,
-      iconBackground: colors.semantic.info + '15',
-    },
-    warning: {
-      borderColor: colors.semantic.warning + '75',
-      backgroundColor: colors.semantic.warning + '08',
-      iconColor: colors.semantic.warning,
-      iconBackground: colors.semantic.warning + '15',
-    },
-    error: {
-      borderColor: colors.semantic.error + '75',
-      backgroundColor: colors.semantic.error + '08',
-      iconColor: colors.semantic.error,
-      iconBackground: colors.semantic.error + '15',
-    },
-    success: {
-      borderColor: colors.semantic.success + '75',
-      backgroundColor: colors.semantic.success + '08',
-      iconColor: colors.semantic.success,
-      iconBackground: colors.semantic.success + '15',
-    },
-  };
-  return styles[type] || styles.info;
-};
-
-const getIcon = (type: CalloutType, color: string, size: number) => {
-  const iconProps = { size, color, style: { flexShrink: 0 } as React.CSSProperties };
-  
-  switch (type) {
-    case 'info':
-      return <Info {...iconProps} />;
-    case 'warning':
-      return <AlertTriangle {...iconProps} />;
-    case 'error':
-      return <XCircle {...iconProps} />;
-    case 'success':
-      return <CheckCircle {...iconProps} />;
-    default:
-      return <Info {...iconProps} />;
-  }
-};
-
-export function Callout({ node, editor, getPos }: NodeViewProps) {
+export function Blockquote({ node, editor, getPos }: NodeViewProps) {
   const { colors } = useTheme();
-  const type = (node.attrs.type as CalloutType) || 'info';
-  const styles = getCalloutStyles(type, colors);
   const parentToggleId = node.attrs.parentToggleId || null;
   const level = node.attrs.level || 0;
   
@@ -100,72 +49,122 @@ export function Callout({ node, editor, getPos }: NodeViewProps) {
     };
   }, [editor]);
 
-  // Check if this callout should be hidden by a collapsed toggle
+  // Check if this blockquote should be hidden by a collapsed toggle
   const isHidden = useMemo(() => {
     const pos = getPos();
     if (pos === undefined || !parentToggleId) return false;
     return isHiddenByCollapsedToggle(editor.state.doc, pos, parentToggleId);
   }, [editor, editor.state.doc, getPos, parentToggleId]);
 
+  // Check if next sibling is also a blockquote (for connector rendering)
+  const hasNextBlockquote = useMemo(() => {
+    const pos = getPos();
+    if (pos === undefined) return false;
+    
+    try {
+      const nextPos = pos + node.nodeSize;
+      const nextNode = editor.state.doc.nodeAt(nextPos);
+      return nextNode?.type.name === 'blockquote';
+    } catch {
+      return false;
+    }
+  }, [editor.state.doc, getPos, node.nodeSize]);
+
   // Calculate indent based on level (hierarchy + toggle grouping)
   const hierarchyIndent = level * spacing.indent;
   const toggleIndent = parentToggleId ? spacing.toggleIndent : 0;
   const indent = hierarchyIndent + toggleIndent;
-
+  
   return (
     <NodeViewWrapper
       as="div"
-      data-type="callout"
-      data-callout-type={type}
+      data-type="blockquote"
       data-parent-toggle-id={parentToggleId}
       data-level={level}
       data-hidden={isHidden}
-      className="callout-block"
+      className="block-handle-wrapper"
       style={{
         display: isHidden ? 'none' : 'flex',
-        alignItems: 'flex-start',
-        gap: 8,
-        padding: spacing['16'],
-        backgroundColor: styles.backgroundColor,
-        border: `1px solid ${styles.borderColor}`,
-        borderRadius: 4,
+        alignItems: 'stretch',
+        gap: spacing.inline,
         fontFamily: typography.fontFamily,
         fontSize: typography.body,
         lineHeight: typography.lineHeightRatio,
-        marginLeft: indent,
+        position: 'relative',
+        paddingLeft: indent,
+        // No margin - parent uses gap for spacing
       }}
     >
-      {/* Icon container - rounded with background */}
+      {/* Invisible hover bridge - covers gap between handle and content */}
       <div
         style={{
-          width: '24px',
-          height: '24px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
+          position: 'absolute',
+          left: indent - 32,
+          top: 0,
+          width: 32,
+          height: '100%',
+          pointerEvents: 'auto',
+        }}
+      />
+      
+      {/* Block handle (⋮⋮) - shows on hover */}
+      <BlockHandle editor={editor} getPos={getPos} indent={indent} />
+
+      {/* Marker area - 3px border line in 24px container */}
+      <div
+        style={{
+          width: sizing.markerContainer,
           flexShrink: 0,
-          backgroundColor: styles.iconBackground,
-          borderRadius: 4,
-          marginTop: '1px',
+          display: 'flex',
+          justifyContent: 'center',
         }}
       >
-        {getIcon(type, styles.iconColor, 14)}
+        <div
+          className="blockquote-line"
+          style={{
+            width: 4,
+            backgroundColor: colors.semantic.orange,
+            borderRadius: 2,
+          }}
+        />
       </div>
-      
       {/* Content area with placeholder */}
-      <div style={{ flex: 1, minWidth: 0, position: 'relative', paddingTop: '2px' }}>
+      <div style={{ flex: 1, minWidth: 0, position: 'relative' }}>
         <NodeViewContent
+          as="div"
           data-placeholder={placeholderText || undefined}
           style={{
-            color: colors.text.default,
+            color: colors.text.secondary,
             position: 'relative', // For CSS ::before placeholder
           }}
         />
         {/* Placeholder now handled by CSS via data-placeholder attribute */}
       </div>
 
+      {/* Craft-style connector: bridge gap to next blockquote */}
+      {hasNextBlockquote && (
+        <div
+          style={{
+            position: 'absolute',
+            left: indent + (sizing.markerContainer / 2) - 2, // Center of marker area (4px / 2)
+            bottom: -spacing.gap - 2, // Extend 2px up to overlap
+            width: 4,
+            height: spacing.gap + 4, // Extend 2px up and 2px down
+            backgroundColor: colors.semantic.orange,
+          }}
+        />
+      )}
+
       {/* Block selection halo */}
       <BlockSelectionHalo isSelected={isSelected} indent={indent} />
+
+      {/* CSS to show handle on hover or when menu is open (but not while typing or in multi-selection) */}
+      <style>{`
+        .block-handle-wrapper:hover .block-handle:not([data-is-typing="true"]):not([data-in-multi-selection="true"]),
+        .block-handle[data-menu-open="true"] {
+          opacity: 1 !important;
+        }
+      `}</style>
     </NodeViewWrapper>
   );
 }

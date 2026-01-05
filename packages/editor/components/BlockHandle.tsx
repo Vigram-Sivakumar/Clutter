@@ -9,8 +9,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Editor } from '@tiptap/react';
 import { NodeSelection, TextSelection } from '@tiptap/pm/state';
-import { DragHandle, Trash2, Copy, ChevronUp, ChevronDown, Type } from '../../icons';
-import { useTheme } from '../../hooks/useTheme';
+import { DragHandle, Trash2, Copy, ChevronUp, ChevronDown, Type } from '@clutter/ui';
+import { useTheme } from '@clutter/ui';
 import { isMultiBlockSelection, getSelectedBlocks, executeOnSelectedBlocks, getSelectedBlockCount } from '../utils/multiSelection';
 
 export interface BlockHandleProps {

@@ -6,8 +6,8 @@
  */
 
 import React from 'react';
-import { useTheme } from '../../hooks/useTheme';
-import { radius } from '../../tokens/radius';
+import { useTheme } from '@clutter/ui';
+import { radius } from '@clutter/ui';
 
 interface BlockSelectionHaloProps {
   isSelected: boolean;

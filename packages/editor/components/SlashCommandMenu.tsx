@@ -5,10 +5,10 @@
 
 import { useState, useEffect, useRef } from 'react';
 import type { Editor } from '@tiptap/core';
-import { useTheme } from '../../hooks/useTheme';
-import { sizing } from '../../tokens/sizing';
-import { spacing } from '../../tokens/spacing';
-import * as Icons from '../../icons';
+import { useTheme } from '@clutter/ui';
+import { sizing } from '@clutter/ui';
+import { spacing } from '@clutter/ui';
+import * as Icons from '@clutter/ui';
 import { filterSlashCommands, type SlashCommand, type CommandGroup } from '../plugins/SlashCommands';
 
 interface SlashCommandMenuProps {

@@ -905,6 +905,9 @@ export const AppSidebar = ({
 
   // Drag and drop handlers
   const handleDragStart = useCallback((type: 'note' | 'folder', id: string, context: string) => {
+    // #region agent log
+    fetch('http://127.0.0.1:7244/ingest/a7f9fa0e-3f72-4ff3-8c3a-792215d634cd',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AppSidebar.tsx:907',message:'handleDragStart called',data:{type,id,context},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
     let itemsToDrag: string[] = [id];
     
     if (type === 'note' && selectedNoteIds.has(id)) {
@@ -920,6 +923,9 @@ export const AppSidebar = ({
     }
     
     setDraggedItem({ type, id, ids: itemsToDrag, context });
+    // #region agent log
+    fetch('http://127.0.0.1:7244/ingest/a7f9fa0e-3f72-4ff3-8c3a-792215d634cd',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AppSidebar.tsx:922',message:'draggedItem state set',data:{type,id,ids:itemsToDrag,context},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
   }, [selectedNoteIds, selectedFolderIds, clearNoteSelection, clearFolderSelection]);
 
   const handleDragOver = useCallback((type: 'folder' | 'cluttered', id: string | null) => {
@@ -1024,6 +1030,9 @@ export const AppSidebar = ({
 
   // Reordering handlers
   const handleDragOverForReorder = useCallback((type: 'note' | 'folder', id: string, position: 'before' | 'after', context: string) => {
+    // #region agent log
+    fetch('http://127.0.0.1:7244/ingest/a7f9fa0e-3f72-4ff3-8c3a-792215d634cd',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AppSidebar.tsx:1032',message:'handleDragOverForReorder called',data:{type,id,position,context,draggedItem},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
     // Cancel any pending hide from dragLeave (prevents flicker)
     if (dragLeaveTimeoutRef.current) {
       clearTimeout(dragLeaveTimeoutRef.current);
@@ -1031,7 +1040,15 @@ export const AppSidebar = ({
     }
     
     if (!draggedItem || draggedItem.type !== type) {
+      // #region agent log
+      fetch('http://127.0.0.1:7244/ingest/a7f9fa0e-3f72-4ff3-8c3a-792215d634cd',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AppSidebar.tsx:1039',message:'early return - type mismatch or no draggedItem',data:{draggedItem,typeMatch:draggedItem?.type===type},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
       return; // Types don't match
+    }
+    
+    // Don't show reorder indicator when hovering over ourselves
+    if (draggedItem.id === id) {
+      return;
     }
 
     // Check if we should show reorder indicator
@@ -1069,6 +1086,10 @@ export const AppSidebar = ({
       return false;
     })();
     
+    // #region agent log
+    fetch('http://127.0.0.1:7244/ingest/a7f9fa0e-3f72-4ff3-8c3a-792215d634cd',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AppSidebar.tsx:1078',message:'validation result',data:{shouldShowIndicator,draggedContext:draggedItem.context,targetContext:context,typesMatch:draggedItem.type===type},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
+    
     if (shouldShowIndicator) {
       setReorderDropTarget({ id, position, type });
       // Clear folder drop highlight when showing reorder indicator
@@ -1091,6 +1112,9 @@ export const AppSidebar = ({
   }, []);
 
   const handleDropForReorder = useCallback((type: 'note' | 'folder', targetId: string, position: 'before' | 'after', context: string) => {
+    // #region agent log
+    fetch('http://127.0.0.1:7244/ingest/a7f9fa0e-3f72-4ff3-8c3a-792215d634cd',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AppSidebar.tsx:1099',message:'handleDropForReorder called',data:{type,targetId,position,context,draggedItem},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
+    // #endregion
     if (!draggedItem || draggedItem.type !== type) {
       return;
     }

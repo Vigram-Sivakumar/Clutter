@@ -1,13 +1,13 @@
 import { defineConfig } from 'tsup';
 
 export default defineConfig({
-  entry: ['src/index.ts'],
+  entry: ['index.ts'],
   format: ['cjs', 'esm'],
   dts: false,
   splitting: true,
   sourcemap: true,
   clean: true,
-  external: ['lucide-react', '@clutter/shared', '@clutter/editor', 'react', 'react-dom', '@emoji-mart/react', '@emoji-mart/data'],
+  external: ['@clutter/shared', '@clutter/ui', 'react', 'react-dom', '@tiptap/react', '@tiptap/core', '@tiptap/pm'],
   tsconfig: './tsconfig.json',
 });
 
