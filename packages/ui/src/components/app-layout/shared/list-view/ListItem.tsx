@@ -243,7 +243,7 @@ const NoteContent = ({ data, onTagClick, onRemoveTag, onEmojiClick, isHovered }:
             onClick={(e) => e.stopPropagation()}
           >
             {data.tags.slice(0, 3).map((tag) => (
-              <Tag
+              <TagPill
                 key={tag}
                 label={tag}
                 onClick={onTagClick ? () => onTagClick(tag) : undefined}
