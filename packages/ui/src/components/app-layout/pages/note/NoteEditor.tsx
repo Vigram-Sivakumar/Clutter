@@ -1467,11 +1467,10 @@ export const NoteEditor = ({
 
           {/* Editor */}
           <PageContent>
-            {editorState.status === 'loading' ? null : (
-              <TipTapWrapper
-                ref={editorRef}
-                value={editorState.document}
-                onChange={(value) => {
+            <TipTapWrapper
+              ref={editorRef}
+              value={editorState.status === 'ready' ? editorState.document : undefined}
+              onChange={(value) => {
                   // Single guard: block during hydration
                   if (isHydratingRef.current) return;
                   
@@ -1530,7 +1529,6 @@ export const NoteEditor = ({
               }}
               editorContext={editorContext}
             />
-            )}
           </PageContent>
           </>
         )}
