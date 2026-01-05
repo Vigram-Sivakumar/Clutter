@@ -132,7 +132,6 @@ export const TipTapWrapper = forwardRef<TipTapWrapperHandle, TipTapWrapperProps>
   const editorCoreRef = useRef<EditorCoreHandle>(null);
   const isUpdatingFromEditor = useRef(false);
   const isInitializing = useRef(true); // Explicit initialization phase (hard gate)
-  const hasInitialized = useRef(false); // Single-shot initialization flag
 
   // Expose methods to parent
   useImperativeHandle(ref, () => ({
@@ -152,22 +151,7 @@ export const TipTapWrapper = forwardRef<TipTapWrapperHandle, TipTapWrapperProps>
       previousLength: previousValue.current?.length || 0,
       isUpdatingFromEditor: isUpdatingFromEditor.current,
       valuesEqual: value === previousValue.current,
-      hasInitialized: hasInitialized.current
     });
-    
-    // 🔄 Detect document change (e.g., note switch) - reset initialization
-    if (hasInitialized.current && value !== previousValue.current) {
-      console.log('🔄 Document changed, resetting initialization for new note');
-      hasInitialized.current = false;
-      previousValue.current = undefined; // Clear previous to force re-init
-    }
-    
-    // 🛡️ CRITICAL: Editor only mounts once per document
-    // After initial mount, editor owns its state
-    if (hasInitialized.current) {
-      console.log('⏭️ Skipping: Editor already initialized (single-shot)');
-      return;
-    }
     
     // 🛡️ CRITICAL: Do nothing until real content arrives
     // Parent must provide valid document (never undefined, never "")
@@ -177,14 +161,20 @@ export const TipTapWrapper = forwardRef<TipTapWrapperHandle, TipTapWrapperProps>
       return;
     }
     
-    // Don't update if this value change came from our own onChange (prevents circular updates that strip trailing spaces)
+    // Don't update if this value change came from our own onChange (prevents circular updates)
     if (isUpdatingFromEditor.current) {
       isUpdatingFromEditor.current = false; // Clear flag for next external update
       console.log('⏭️ Skipping: isUpdatingFromEditor=true');
       return;
     }
     
-    // Initialize with the new document
+    // Don't re-apply the same value
+    if (value === previousValue.current) {
+      console.log('⏭️ Skipping: value unchanged');
+      return;
+    }
+    
+    // Update with the new document
     previousValue.current = value;
     
     try {
@@ -196,7 +186,6 @@ export const TipTapWrapper = forwardRef<TipTapWrapperHandle, TipTapWrapperProps>
         
         const json = JSON.parse(value);
         setContent(json);
-        hasInitialized.current = true;
         console.log('✅ TipTapWrapper: Editor initialized (atomic)');
         
         // 🔓 Exit initialization phase after React + ProseMirror settle
@@ -216,7 +205,6 @@ export const TipTapWrapper = forwardRef<TipTapWrapperHandle, TipTapWrapperProps>
           isInitializing.current = true;
           const json = generateJSON(value, htmlExtensions);
           setContent(json);
-          hasInitialized.current = true;
           console.log('✅ TipTapWrapper: Editor initialized (HTML fallback)');
           // Double rAF: ensures ProseMirror normalization completes before unlocking
           requestAnimationFrame(() => {
