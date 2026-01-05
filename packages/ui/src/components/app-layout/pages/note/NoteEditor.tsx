@@ -1496,6 +1496,7 @@ export const NoteEditor = ({
             <TipTapWrapper
               ref={editorRef}
               value={editorState.status === 'ready' ? editorState.document : undefined}
+              isFrozen={!isHydrated}
               onChange={(value) => {
                   // 🔒 Hard-gate: ignore ALL updates during hydration
                   if (isHydratingRef.current) {

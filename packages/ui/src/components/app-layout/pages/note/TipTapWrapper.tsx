@@ -53,6 +53,7 @@ interface TipTapWrapperProps {
   isHydrating?: boolean; // Pass hydration state to prevent onChange during initial load
   onContentApplied?: () => void; // Callback when content has been loaded and applied
   editorContext: EditorContextValue; // REQUIRED: Editor context provided by app
+  isFrozen?: boolean; // 🔒 Physically freeze editor DOM during note switches
 }
 
 export interface TipTapWrapperHandle {
@@ -123,6 +124,7 @@ export const TipTapWrapper = forwardRef<TipTapWrapperHandle, TipTapWrapperProps>
   isHydrating = false,
   onContentApplied,
   editorContext,
+  isFrozen = false,
 }, ref) => {
   const [content, setContent] = useState<object | null>(null);
   const previousValue = useRef<string | undefined>(undefined);
@@ -285,7 +287,7 @@ export const TipTapWrapper = forwardRef<TipTapWrapperHandle, TipTapWrapperProps>
         onTagClick={onTagClick}
         onNavigate={onNavigate}
         placeholder={placeholders.default}
-        editable={true}
+        editable={!isFrozen}
       />
     </EditorProvider>
   );
