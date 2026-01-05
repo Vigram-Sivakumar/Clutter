@@ -8,7 +8,7 @@ import React, { useEffect, useCallback, forwardRef, useImperativeHandle, useRef 
 import { useEditor, EditorContent } from '@tiptap/react';
 import { Editor } from '@tiptap/core';
 import { NodeSelection } from '@tiptap/pm/state';
-import { logSelectionPair, logSelectionTypeChange } from '../utils/selectionDebug';
+import { logSelectionTypeChange } from '../utils/selectionDebug';
 
 export interface EditorCoreHandle {
   focus: () => void;
@@ -203,7 +203,7 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(({
       },
     },
     onUpdate: ({ editor, transaction }) => {
-      // 🔬 FORENSIC: Track selection type changes
+      // Sync DOM selection when PM selection type changes (fixes sticky halo bug)
       logSelectionTypeChange(editor);
       
       // Only fire onChange if document actually changed (not just selection)
@@ -218,7 +218,7 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(({
       }
     },
     onSelectionUpdate: ({ editor }) => {
-      // 🔬 FORENSIC: Track selection type changes on selection-only updates
+      // Sync DOM selection when PM selection type changes (fixes sticky halo bug)
       logSelectionTypeChange(editor);
     },
   });
@@ -332,21 +332,6 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(({
   }, [editable, editor]);
 
   // 🔬 FORENSIC: Log selection on focus events
-  useEffect(() => {
-    if (!editor) return;
-    
-    const handleFocus = () => {
-      setTimeout(() => {
-        logSelectionPair('on-focus', editor);
-      }, 0);
-    };
-    
-    editor.view.dom.addEventListener('focus', handleFocus);
-    
-    return () => {
-      editor.view.dom.removeEventListener('focus', handleFocus);
-    };
-  }, [editor]);
 
   // Handle click on empty space to focus editor
   const handleWrapperClick = useCallback(

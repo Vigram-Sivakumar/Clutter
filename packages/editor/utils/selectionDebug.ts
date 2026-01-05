@@ -71,19 +71,62 @@ export function logSelectionPair(label: string, editor: Editor): void {
 
 /**
  * Track selection type changes (TextSelection → NodeSelection)
+ * AND sync DOM selection when transitioning from Node → Text
  */
 let lastSelType: string | null = null;
 
-export function logSelectionTypeChange(editor: Editor): void {
+export function syncSelectionOnTypeChange(editor: Editor): void {
   const type = editor.state.selection.constructor.name;
+  const prevType = lastSelType;
+  
   if (type !== lastSelType) {
-    console.log('[SEL][PM][TYPE-CHANGE]', {
-      from: lastSelType,
-      to: type,
-      pos: editor.state.selection.from,
-    });
     lastSelType = type;
+    
+    // 🔥 FIX: When leaving NodeSelection → TextSelection, sync DOM
+    if (prevType === '_NodeSelection' && type === '_TextSelection') {
+      syncDomSelectionToProseMirror(editor);
+    }
   }
+}
+
+/**
+ * Force DOM selection to match ProseMirror's current selection
+ * This is needed when PM transitions from NodeSelection → TextSelection
+ * but the browser's DOM selection stays anchored to the block DIV
+ */
+function syncDomSelectionToProseMirror(editor: Editor): void {
+  const { state, view } = editor;
+  const { selection } = state;
+  
+  try {
+    // Get PM's anchor and head positions
+    const anchor = view.domAtPos(selection.anchor);
+    const head = view.domAtPos(selection.head);
+    
+    // Create a new DOM range
+    const domSelection = window.getSelection();
+    if (!domSelection) return;
+    
+    const range = document.createRange();
+    
+    // Set range to match PM's selection
+    range.setStart(anchor.node, anchor.offset);
+    range.setEnd(head.node, head.offset);
+    
+    // Apply to DOM
+    domSelection.removeAllRanges();
+    domSelection.addRange(range);
+  } catch (err) {
+    // Silently fail - selection sync is best-effort
+    // console.warn('⚠️ [SEL][SYNC] Failed to sync DOM selection:', err);
+  }
+}
+
+/**
+ * Legacy logging function (kept for backwards compatibility)
+ */
+export function logSelectionTypeChange(editor: Editor): void {
+  syncSelectionOnTypeChange(editor);
 }
 
 /**

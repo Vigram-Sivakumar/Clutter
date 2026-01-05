@@ -182,23 +182,6 @@ export const NoteEditor = ({
   // 🎯 Subscribe UI to EditorEngine (React becomes passive viewer)
   useEffect(() => {
     return editorEngine.onChange((event: { document: string; noteId: string; source: 'user' | 'programmatic' }) => {
-      // 🔬 FORENSIC: Log what UI is receiving from engine
-      try {
-        const parsed = JSON.parse(event.document);
-        console.log('[UI] render from engine', {
-          noteId: event.noteId,
-          blockCount: parsed?.content?.length ?? null,
-          source: event.source,
-        });
-      } catch {
-        console.log('[UI] render from engine', {
-          noteId: event.noteId,
-          blockCount: null,
-          source: event.source,
-          error: 'Invalid JSON',
-        });
-      }
-
       // Update React state (UI mirror)
       setEditorState({
         status: 'ready',
@@ -419,23 +402,6 @@ export const NoteEditor = ({
     const document = currentNote.content && currentNote.content.trim() !== '' 
       ? currentNote.content 
       : EMPTY_DOC;
-    
-    // 🔬 FORENSIC: Log what's being sent to engine
-    try {
-      const parsed = JSON.parse(document);
-      console.log('[NOTEEDITOR] hydrate → engine', {
-        noteId: currentNote.id,
-        hasContent: !!currentNote.content,
-        blockCount: parsed?.content?.length ?? null,
-      });
-    } catch {
-      console.log('[NOTEEDITOR] hydrate → engine', {
-        noteId: currentNote.id,
-        hasContent: !!currentNote.content,
-        blockCount: null,
-        error: 'Invalid JSON',
-      });
-    }
     
     editorEngine.setDocument(document, currentNote.id);
 

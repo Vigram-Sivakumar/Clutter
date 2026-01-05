@@ -24,7 +24,7 @@ export { EditorCore } from './core/EditorCore';
 export type { EditorCoreHandle } from './core/EditorCore';
 
 // Editor state engine (pure state machine)
-export { EditorEngine, editorEngine } from './src/engine/EditorEngine';
+export { EditorEngine } from './src/engine/EditorEngine';
 export type { EditorDocument, EditorChangeEvent, EditorChangeListener } from './src/engine/EditorEngine';
 
 // Extensions: Nodes
