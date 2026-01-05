@@ -173,7 +173,8 @@ export const NoteEditor = ({
   const lastHydratedNoteIdRef = useRef<string | null>(null); // Track which note was last hydrated
   
   // 🚨 CRITICAL: Track which note owns the editor (prevents cross-note bleed)
-  const activeEditorNoteIdRef = useRef<string | null>(null);
+  const activeEditorNoteIdRef = useRef<string | null>(null); // Persistence ownership
+  const editorStateOwnerRef = useRef<string | null>(null); // UI state ownership
   
   // Debug: Log component mount
   useEffect(() => {
@@ -403,6 +404,9 @@ export const NoteEditor = ({
       cancelDebouncedSave();
     }
 
+    // 🚨 CRITICAL: Cancel pending UI state updates from previous note
+    editorStateOwnerRef.current = null;
+
     // Track which note we're hydrating
     lastHydratedNoteIdRef.current = currentNote.id;
 
@@ -445,13 +449,17 @@ export const NoteEditor = ({
       setShowDescriptionInput(!!currentNote.description);
       
       // 🔥 BIND EDITOR OWNERSHIP (prevents cross-note bleed)
-      activeEditorNoteIdRef.current = currentNote.id;
+      activeEditorNoteIdRef.current = currentNote.id; // Persistence ownership
+      editorStateOwnerRef.current = currentNote.id; // UI state ownership
       
       // 🔓 Second rAF: Let ProseMirror internal state flush
       requestAnimationFrame(() => {
         isHydratingRef.current = false;
         setIsHydrated(true);
-        console.log('🔓 Hydration complete');
+        console.log('🔓 Hydration complete, ownership:', {
+          persistence: activeEditorNoteIdRef.current,
+          uiState: editorStateOwnerRef.current,
+        });
       });
     });
   }, [currentNote, currentNoteId, cancelDebouncedSave, editorState.status]); // ✅ Runs on mount + note changes
@@ -1502,30 +1510,40 @@ export const NoteEditor = ({
                     return;
                   }
                   
-                  // ⬆️ Editor → State: Update local state
+                  // 🚨 ABSOLUTE SAFETY: Hard-guard UI state ownership (prevents visual bleed)
+                  const uiOwner = editorStateOwnerRef.current;
+                  if (!uiOwner || uiOwner !== currentNoteId) {
+                    console.warn('🚫 Ignored late UI state update from previous note', {
+                      uiOwner,
+                      currentNoteId,
+                    });
+                    return;
+                  }
+                  
+                  // ⬆️ Editor → State: Update local state (now safe)
                   setEditorState({
                     status: 'ready',
                     document: value,
                   });
                   
-                  // 🚨 ABSOLUTE SAFETY: Hard-guard against cross-note bleed
-                  const activeNoteId = activeEditorNoteIdRef.current;
-                  if (!activeNoteId) {
+                  // 🚨 ABSOLUTE SAFETY: Hard-guard persistence ownership (prevents DB bleed)
+                  const persistenceOwner = activeEditorNoteIdRef.current;
+                  if (!persistenceOwner) {
                     console.warn('🚫 No active note ID - ignoring onChange');
                     return;
                   }
                   
                   // 🚨 CRITICAL: Ignore stale editor emissions from previous notes
-                  if (activeNoteId !== currentNoteId) {
-                    console.warn('🚫 Ignored stale editor update (cross-note bleed prevented)', {
-                      activeNoteId,
+                  if (persistenceOwner !== currentNoteId) {
+                    console.warn('🚫 Ignored stale persistence update (cross-note bleed prevented)', {
+                      persistenceOwner,
                       currentNoteId,
                     });
                     return;
                   }
                   
                   // ⬆️ State → DB: Schedule debounced save (now safe)
-                  updateNoteContent(activeNoteId, value);
+                  updateNoteContent(persistenceOwner, value);
                 }}
                 onTagClick={handleShowTagFilter}
                 onNavigate={handleNavigate}
