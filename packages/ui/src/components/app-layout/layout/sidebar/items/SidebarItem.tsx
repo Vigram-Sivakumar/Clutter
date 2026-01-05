@@ -5,7 +5,7 @@ import { TertiaryButton } from '../../../../ui-buttons';
 import { DropIndicator } from '../internal/DropIndicator';
 import { sidebarLayout } from '../../../../../tokens/sidebar';
 import { sizing as globalSizing } from '../../../../../tokens/sizing';
-import { Tag } from '../../../shared/content-header/tags/Tag';
+import { TagPill } from '../../../shared/content-header/tags/Tag';
 import { getNoteIcon, getFolderIcon, ALL_TASKS_FOLDER_ID } from '../../../../../utils/itemIcons';
 import { CLUTTERED_FOLDER_ID, DAILY_NOTES_FOLDER_ID } from '@clutter/shared';
 import { sidebarStyles } from '../config/sidebarConfig';

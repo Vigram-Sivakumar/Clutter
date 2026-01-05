@@ -129,7 +129,7 @@ export const TagAutosuggestion = ({
           compact={true}
           count={count}
         >
-          <Tag label={tag} />
+          <TagPill label={tag} />
         </DropdownItem>
       ))}
     </AutocompleteDropdown>

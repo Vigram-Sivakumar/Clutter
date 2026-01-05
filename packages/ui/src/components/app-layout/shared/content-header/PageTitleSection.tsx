@@ -3,7 +3,7 @@ import { TitleInput, TitleInputHandle } from './title/TitleInput';
 import { MetadataActions } from './MetadataActions';
 import { Description } from './description/Description';
 import { Tags } from './tags/Tags';
-import { Tag } from './tags/Tag';
+import { TagPill } from './tags/Tag';
 import { ColorTray } from './tags/ColorTray';
 import { Folder, Note, HashStraight, ArrowUpDown, Filter, ChevronDown } from '../../../../icons';
 import { Button } from '../../../ui-buttons';

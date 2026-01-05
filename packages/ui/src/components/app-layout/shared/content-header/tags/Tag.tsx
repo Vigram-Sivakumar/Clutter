@@ -5,7 +5,7 @@ import { getTagColor } from '../../../../../utils/tagColors';
 import { useTagsStore } from '@clutter/shared';
 import { radius } from '../../../../../tokens/radius';
 
-interface TagProps {
+interface TagPillProps {
   label: string;
   onRemove?: () => void;
   onClick?: (tag: string) => void; // Direct click for navigation (prioritized over onEdit)
@@ -14,7 +14,7 @@ interface TagProps {
   maxWidth?: string;
 }
 
-export const Tag = ({ label, onRemove, onClick, onEdit, onScheduleClose, maxWidth = '200px' }: TagProps) => {
+export const TagPill = ({ label, onRemove, onClick, onEdit, onScheduleClose, maxWidth = '200px' }: TagPillProps) => {
   const { colors } = useTheme();
   const tagMetadata = useTagsStore((state) => state.getTagMetadata(label));
   const [isHovered, setIsHovered] = useState(false);

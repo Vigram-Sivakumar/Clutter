@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, memo } from 'react';
 import { useTheme } from '../../../../../hooks/useTheme';
 import { sidebarLayout } from '../../../../../tokens/sidebar';
-import { Tag } from '../../../shared/content-header/tags/Tag';
+import { TagPill } from '../../../shared/content-header/tags/Tag';
 
 /**
  * SidebarItemLabel
@@ -164,7 +164,7 @@ export const SidebarItemLabel = memo(({
           alignItems: 'center',
         }}
       >
-        <Tag label={label} />
+        <TagPill label={label} />
       </div>
     );
   }

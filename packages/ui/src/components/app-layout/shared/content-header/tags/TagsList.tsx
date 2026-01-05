@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { Tag } from './Tag';
+import { TagPill } from './Tag';
 import { FloatingContextMenu } from './FloatingContextMenu';
 import { TagContextContent } from './TagContextContent';
 import { useTagsStore } from '@clutter/shared';

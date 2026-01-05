@@ -6,7 +6,7 @@ import { sizing } from '../../../../tokens/sizing';
 import { radius } from '../../../../tokens/radius';
 import { getTagColor } from '../../../../utils/tagColors';
 import { CountBadge } from '../../../ui-primitives';
-import { Tag } from '../content-header/tags';
+import { TagPill } from '../content-header/tags';
 import { TertiaryButton } from '../../../ui-buttons';
 import { HashStraight as TagIcon, Folder as FolderIcon } from '../../../../icons';
 import { getNoteIcon, getFolderIcon } from '../../../../utils/itemIcons';
