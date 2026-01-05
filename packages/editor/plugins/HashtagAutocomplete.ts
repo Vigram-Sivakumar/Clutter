@@ -6,11 +6,12 @@
 
 import { Extension } from '@tiptap/core';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
-import { useTagsStore } from '@clutter/shared';
 import { HASHTAG_REGEX, insertTag } from '@clutter/ui';
+import type { EditorTag } from '../types';
 
 export interface HashtagAutocompleteOptions {
   getColors: () => any;
+  getTags: () => EditorTag[];
 }
 
 export const HashtagAutocomplete = Extension.create<HashtagAutocompleteOptions>({
@@ -20,6 +21,7 @@ export const HashtagAutocomplete = Extension.create<HashtagAutocompleteOptions>(
   addOptions() {
     return {
       getColors: () => ({}),
+      getTags: () => [],
     };
   },
 
@@ -28,8 +30,9 @@ export const HashtagAutocomplete = Extension.create<HashtagAutocompleteOptions>(
     let dropdown: HTMLElement | null = null;
     let currentSuggestions: string[] = [];
     
-    // Store getColors function
+    // Store functions from options
     const getColors = this.options.getColors;
+    const getTags = this.options.getTags;
 
     // Function to handle tag selection (shared by click and keyboard)
     const selectTag = (view: any, selectedTag: string, queryLength: number) => {
@@ -155,8 +158,9 @@ export const HashtagAutocomplete = Extension.create<HashtagAutocompleteOptions>(
             if (match) {
               const query = match[1];
               
-              // Get cached tags from tags store (no need to loop through all notes!)
-              const allTags = useTagsStore.getState().allTagsCache;
+              // Get tags from editor context
+              const availableTags = getTags();
+              const allTags = availableTags.map(t => t.label);
               
               // Filter tags by query
               const suggestions = allTags

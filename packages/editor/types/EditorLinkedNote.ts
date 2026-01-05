@@ -26,5 +26,11 @@ export interface EditorLinkedNote {
   
   /** Display title for links/autocomplete */
   title: string;
+  
+  /** Optional emoji for display */
+  emoji?: string | null;
+  
+  /** Is this a daily note? (affects icon/grouping in autocomplete) */
+  isDailyNote?: boolean;
 }
 

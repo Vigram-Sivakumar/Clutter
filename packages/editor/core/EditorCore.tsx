@@ -71,6 +71,9 @@ import { FloatingToolbar } from '@clutter/ui';
 import { spacing, typography, placeholders } from '../tokens';
 import { useTheme } from '@clutter/ui';
 
+// Editor Context
+import { useEditorContext } from '../context/EditorContext';
+
 // History extension for undo/redo
 import History from '@tiptap/extension-history';
 
@@ -101,6 +104,7 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(({
   style,
 }, ref) => {
   const { colors } = useTheme();
+  const { availableTags } = useEditorContext();
   
   // Track if we're updating from the editor (to prevent clearing history)
   const isInternalUpdate = useRef(false);
@@ -155,6 +159,7 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(({
       HashtagDetection, // Simple #tag detection (moves to metadata)
       HashtagAutocomplete.configure({
         getColors: () => colors,
+        getTags: () => availableTags,
       }),
       AtMention.configure({
         getColors: () => colors,

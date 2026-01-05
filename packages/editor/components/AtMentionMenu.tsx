@@ -9,7 +9,7 @@ import { AutocompleteDropdown, DropdownItem, DropdownHeader, DropdownSeparator }
 import { At, CalendarBlank, Note, Folder } from '@clutter/ui';
 import { filterDateSuggestions, type DateSuggestion } from '../utils/dateParser';
 import { searchEntities, type EntitySuggestion } from '../utils/entitySearch';
-import { useNotesStore, useFoldersStore } from '@clutter/shared';
+import { useEditorContext } from '../context/EditorContext';
 
 interface AtMentionMenuProps {
   editor: Editor | null;
@@ -33,13 +33,15 @@ export function AtMentionMenu({ editor, onNavigate }: AtMentionMenuProps) {
   const menuItemsRef = useRef<MenuItem[]>([]);
   const handleItemClickRef = useRef<((item: MenuItem) => void) | null>(null);
 
-  // Get stores
-  const notes = useNotesStore(state => state.notes);
-  const folders = useFoldersStore(state => state.folders);
-  const createNote = useNotesStore(state => state.createNote);
-  const createFolder = useFoldersStore(state => state.createFolder);
-  const findDailyNoteByDate = useNotesStore(state => state.findDailyNoteByDate);
-  const createDailyNote = useNotesStore(state => state.createDailyNote);
+  // Get context
+  const {
+    availableNotes,
+    availableFolders,
+    onCreateNote,
+    onCreateFolder,
+    onFindDailyNote,
+    onCreateDailyNote,
+  } = useEditorContext();
 
   // Get date suggestions
   const dateSuggestions = useMemo(() => {
@@ -48,8 +50,8 @@ export function AtMentionMenu({ editor, onNavigate }: AtMentionMenuProps) {
 
   // Get entity suggestions
   const entityResults = useMemo(() => {
-    return searchEntities(query, notes, folders);
-  }, [query, notes, folders]);
+    return searchEntities(query, availableNotes, availableFolders);
+  }, [query, availableNotes, availableFolders]);
 
   // Build complete menu items list
   const menuItems = useMemo((): MenuItem[] => {
@@ -61,7 +63,7 @@ export function AtMentionMenu({ editor, onNavigate }: AtMentionMenuProps) {
       const dateStr = dateSuggestions[0].date; // ISO format YYYY-MM-DD
       const [year, month, day] = dateStr.split('-').map(Number);
       const targetDate = new Date(year, month - 1, day);
-      existingDailyNote = findDailyNoteByDate(targetDate);
+      existingDailyNote = onFindDailyNote(targetDate);
     }
 
     // 1. DATE section - pure date mention
@@ -151,8 +153,8 @@ export function AtMentionMenu({ editor, onNavigate }: AtMentionMenuProps) {
         const targetDate = new Date(year, month - 1, day);
 
         // Check if daily note already exists
-        const existingNote = findDailyNoteByDate(targetDate);
-        const dailyNote = existingNote || createDailyNote(targetDate, false); // Don't navigate
+        const existingNote = onFindDailyNote(targetDate);
+        const dailyNote = existingNote || onCreateDailyNote(targetDate, false); // Don't navigate
 
         // Insert link to daily note (NO @ - NodeView will render icon)
         editor.chain()
@@ -191,7 +193,7 @@ export function AtMentionMenu({ editor, onNavigate }: AtMentionMenuProps) {
 
       case 'createNote': {
         // Create new note and link to it (NO @ - NodeView will render icon)
-        const newNote = createNote({ title: item.query }, false); // Don't navigate
+        const newNote = onCreateNote({ title: item.query }, false); // Don't navigate
 
         editor.chain()
           .focus()
@@ -211,7 +213,7 @@ export function AtMentionMenu({ editor, onNavigate }: AtMentionMenuProps) {
 
       case 'createFolder': {
         // Create new folder and link to it (NO @ - NodeView will render icon)
-        const newFolderId = createFolder(item.query);
+        const newFolderId = onCreateFolder(item.query);
         if (newFolderId) {
           editor.chain()
             .focus()

@@ -17,7 +17,7 @@ import { useFloating, autoUpdate, offset, flip, shift } from '@floating-ui/react
 import { createPortal } from 'react-dom';
 import { Tag } from '@clutter/ui';
 import { TagContextContent } from '@clutter/ui';
-import { useTagsStore } from '@clutter/shared';
+import { useEditorContext } from '../context/EditorContext';
 import { getTagColor } from '@clutter/ui';
 import { sizing } from '@clutter/ui';
 import { spacing } from '@clutter/ui';
@@ -31,7 +31,7 @@ interface BlockTagEditorProps {
 }
 
 export function BlockTagEditor({ tags, onUpdate, onTagClick }: BlockTagEditorProps) {
-  const { getTagMetadata, updateTagMetadata, upsertTagMetadata, renameTag } = useTagsStore();
+  const { getTagMetadata, onUpdateTagMetadata, onUpsertTagMetadata, onRenameTag } = useEditorContext();
   const { colors } = useTheme();
 
   const [editingTag, setEditingTag] = useState<string | null>(null);
@@ -83,15 +83,15 @@ export function BlockTagEditor({ tags, onUpdate, onTagClick }: BlockTagEditorPro
       // Save the current hash-based color so it's preserved after rename
       const currentVisualColor = getTagColor(oldTag);
       if (metadata) {
-        updateTagMetadata(oldTag, { color: currentVisualColor });
+        onUpdateTagMetadata(oldTag, { color: currentVisualColor });
       } else {
-        upsertTagMetadata(oldTag, '', true, false, currentVisualColor);
+        onUpsertTagMetadata(oldTag, '', true, false, currentVisualColor);
       }
     }
     
     // IMPORTANT: Call renameTag to update metadata globally
     // This removes the old tag from all notes' metadata before the sync happens
-    renameTag(oldTag, newTag);
+    onRenameTag(oldTag, newTag);
     
     // Then update the local block tags
     // Use requestAnimationFrame to ensure renameTag completes first
@@ -101,16 +101,16 @@ export function BlockTagEditor({ tags, onUpdate, onTagClick }: BlockTagEditorPro
     });
     
     handleCloseEditor();
-  }, [tags, renameTag, onUpdate, handleCloseEditor, getTagMetadata, getTagColor, updateTagMetadata, upsertTagMetadata]);
+  }, [tags, onRenameTag, onUpdate, handleCloseEditor, getTagMetadata, onUpdateTagMetadata, onUpsertTagMetadata]);
 
   const handleColorChange = useCallback((tag: string, color: string) => {
     const existing = getTagMetadata(tag);
     if (existing) {
-      updateTagMetadata(tag, { color });
+      onUpdateTagMetadata(tag, { color });
     } else {
-      upsertTagMetadata(tag, '', true, false, color);
+      onUpsertTagMetadata(tag, '', true, false, color);
     }
-  }, [getTagMetadata, updateTagMetadata, upsertTagMetadata]);
+  }, [getTagMetadata, onUpdateTagMetadata, onUpsertTagMetadata]);
 
   const handleScheduleClose = useCallback(() => {
     if (isEditingName) return;

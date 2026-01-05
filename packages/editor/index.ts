@@ -14,6 +14,11 @@ export * from './types';
 // Editor-specific tokens (semantic)
 export * from './tokens';
 
+// Context and Provider (Dependency Injection)
+export { EditorProvider } from './context/EditorProvider';
+export { useEditorContext } from './context/EditorContext';
+export type { EditorContextValue, EditorTagMetadata } from './context/EditorContext';
+
 // Core editor component
 export { EditorCore } from './core/EditorCore';
 export type { EditorCoreHandle } from './core/EditorCore';

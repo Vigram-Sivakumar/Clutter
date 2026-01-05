@@ -6,6 +6,7 @@ import { PageTitleSection } from '../../shared/content-header';
 import { PageContent } from '../../shared/page-content';
 import { TitleInputHandle } from '../../shared/content-header/title';
 import { TipTapWrapper, TipTapWrapperHandle } from './TipTapWrapper';
+import { useEditorContext } from './useEditorContext';
 import { EmojiTray } from '../../shared/emoji';
 import { MarkdownShortcuts } from '../../../ui-modals';
 import { TagFilteredNotesView, AllTagsListView, FavouriteTagsListView } from '../tag';
@@ -331,6 +332,7 @@ export const NoteEditor = ({
   const isSidebarCollapsed = preferences.sidebarCollapsed;
   
   const { colors, toggleMode } = useTheme();
+  const editorContext = useEditorContext();
   const noteBackgroundColor = colors.background.default; // Change this one line to update everywhere
   const keyboardButtonRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<TipTapWrapperHandle>(null);
@@ -1499,6 +1501,7 @@ export const NoteEditor = ({
                   return deduped;
                 });
               }}
+              editorContext={editorContext}
             />
           </PageContent>
           </>

@@ -3,7 +3,13 @@
  * Used by @ mention menu to suggest notes/folders
  */
 
-import { type Note, type Folder } from '@clutter/shared';
+import type { EditorLinkedNote } from '../types';
+
+export interface EditorFolder {
+  id: string;
+  name: string;
+  emoji: string | null;
+}
 
 export interface EntitySuggestion {
   type: 'note' | 'folder';
@@ -25,8 +31,8 @@ export interface EntitySearchResult {
  */
 export function searchEntities(
   query: string,
-  allNotes: Note[],
-  allFolders: Folder[],
+  allNotes: EditorLinkedNote[],
+  allFolders: EditorFolder[],
   maxResults: number = 6
 ): EntitySearchResult {
   if (!query || query.trim() === '') {
@@ -42,32 +48,23 @@ export function searchEntities(
   const matches: EntitySuggestion[] = [];
 
   // Search notes (including daily notes)
+  // Note: EditorLinkedNote only has id, title, emoji, isDailyNote
+  // App is responsible for filtering out deleted notes before passing to editor
   const noteMatches = allNotes
-    .filter(note => {
-      if (note.deletedAt) return false;
-      return (
-        note.title.toLowerCase().includes(normalizedQuery) ||
-        note.description.toLowerCase().includes(normalizedQuery) ||
-        note.tags.some((tag: string) => tag.toLowerCase().includes(normalizedQuery))
-      );
-    })
+    .filter(note => note.title.toLowerCase().includes(normalizedQuery))
     .map(note => ({
       type: 'note' as const,
       id: note.id,
       title: note.title,
-      emoji: note.emoji,
-      isDailyNote: !!note.dailyNoteDate,
+      emoji: note.emoji || null,
+      isDailyNote: note.isDailyNote || false,
     }));
 
   // Search folders
+  // Note: EditorFolder only has id, name, emoji
+  // App is responsible for filtering out deleted folders before passing to editor
   const folderMatches = allFolders
-    .filter(folder => {
-      return (
-        folder.name.toLowerCase().includes(normalizedQuery) ||
-        folder.description.toLowerCase().includes(normalizedQuery) ||
-        folder.tags.some((tag: string) => tag.toLowerCase().includes(normalizedQuery))
-      );
-    })
+    .filter(folder => folder.name.toLowerCase().includes(normalizedQuery))
     .map(folder => ({
       type: 'folder' as const,
       id: folder.id,

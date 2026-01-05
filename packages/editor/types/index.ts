@@ -15,4 +15,5 @@ export type {
 
 export type { EditorTag } from './EditorTag';
 export type { EditorLinkedNote } from './EditorLinkedNote';
+export type { EditorFolder } from '../utils/entitySearch';
 

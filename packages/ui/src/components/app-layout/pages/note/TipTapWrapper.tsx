@@ -15,6 +15,8 @@ import { generateHTML, generateJSON } from '@tiptap/core';
 import { 
   EditorCore, 
   EditorCoreHandle,
+  EditorProvider,
+  EditorContextValue,
   Document,
   Text,
   Paragraph,
@@ -50,6 +52,7 @@ interface TipTapWrapperProps {
   autoFocus?: boolean;
   isHydrating?: boolean; // Pass hydration state to prevent onChange during initial load
   onContentApplied?: () => void; // Callback when content has been loaded and applied
+  editorContext: EditorContextValue; // REQUIRED: Editor context provided by app
 }
 
 export interface TipTapWrapperHandle {
@@ -119,6 +122,7 @@ export const TipTapWrapper = forwardRef<TipTapWrapperHandle, TipTapWrapperProps>
   autoFocus = false,
   isHydrating = false,
   onContentApplied,
+  editorContext,
 }, ref) => {
   const [content, setContent] = useState<object | null>(null);
   const previousValue = useRef<string | undefined>(undefined);
@@ -318,15 +322,17 @@ export const TipTapWrapper = forwardRef<TipTapWrapperHandle, TipTapWrapperProps>
   }, [onChange, onTagsChange, isHydrating]);
 
   return (
-    <EditorCore
-      ref={editorCoreRef}
-      content={content}
-      onChange={handleChange}
-      onTagClick={onTagClick}
-      onNavigate={onNavigate}
-      placeholder={placeholders.default}
-      editable={true}
-    />
+    <EditorProvider value={editorContext}>
+      <EditorCore
+        ref={editorCoreRef}
+        content={content}
+        onChange={handleChange}
+        onTagClick={onTagClick}
+        onNavigate={onNavigate}
+        placeholder={placeholders.default}
+        editable={true}
+      />
+    </EditorProvider>
   );
 });
 
