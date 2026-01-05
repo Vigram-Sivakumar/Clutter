@@ -35,7 +35,7 @@ const createEmptyNote = (initialValues?: Partial<Note>): Note => {
   };
 };
 
-// Helper to get relative date prefix ("Today", "Yesterday", "Tomorrow", or empty)
+// Internal helper: Get relative date prefix ("Today", "Yesterday", "Tomorrow", or empty)
 const getRelativeDatePrefix = (date: Date): string => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -51,7 +51,7 @@ const getRelativeDatePrefix = (date: Date): string => {
   return '';
 };
 
-// Helper to format daily note title: "Today, 3 Jan 2026" or "3 Jan 2026"
+// Internal helper: Format daily note title ("Today, 3 Jan 2026" or "3 Jan 2026")
 const formatDailyNoteTitle = (date: Date): string => {
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   
@@ -114,9 +114,6 @@ export const setStorageHandlers = (handlers: typeof storageHandlers) => {
 
 // Export for use by other stores (e.g., folders need to save notes during cascade delete)
 export const getStorageHandlers = () => storageHandlers;
-
-// Export helper for external use (e.g., TitleInput component)
-export { formatDailyNoteTitle, getRelativeDatePrefix };
 
 // Create initial notes (empty by default)
 const createInitialNotes = (): Note[] => {

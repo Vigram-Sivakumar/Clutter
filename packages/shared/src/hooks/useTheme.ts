@@ -4,8 +4,15 @@
  */
 
 import { useThemeStore } from '@clutter/state';
-import { getThemeColors } from '../utils';
 import type { ThemeMode } from '@clutter/domain';
+
+// Internal helper for theme color selection
+const getThemeColors = <T extends Record<ThemeMode, any>>(
+  colors: T,
+  mode: ThemeMode
+): T[ThemeMode] => {
+  return colors[mode];
+};
 
 export const useTheme = <T extends Record<ThemeMode, any>>(colors: T) => {
   const mode = useThemeStore((state) => state.mode);

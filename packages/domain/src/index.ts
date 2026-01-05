@@ -8,7 +8,7 @@
  */
 
 // Types
-export type { Note, Folder, Tag, NoteMetadata, User, ThemeMode } from './types';
+export type { Note, Folder, Tag, ThemeMode } from './types';
 
 // Constants
 export { CLUTTERED_FOLDER_ID, DAILY_NOTES_FOLDER_ID } from './types';

@@ -4,35 +4,20 @@
  * Pure utilities and React hooks that are reusable across platforms.
  * Dependencies: @clutter/domain, @clutter/state
  * 
- * Public API: All utilities and hooks are public.
+ * Public API: Only exports what is consumed by >1 package.
  */
 
-// Utils: ID generation
-export { generateId } from './utils';
-
-// Utils: Theme
-export { getThemeColors } from './utils';
-
-// Utils: Date formatting
-export { formatDate } from './utils';
+// Utils: Date formatting (used by UI components)
 export {
   getTodayDateString,
-  getTomorrowDateString,
-  dateToYYYYMMDD,
   formatTaskDateLabel,
   compareDates,
-  isSameDay,
-  addDays,
-  groupByDate,
-  DAY_NAMES,
-  MONTH_NAMES,
-  MONTH_NAMES_FULL,
 } from './utils/dateFormatting';
 
-// Utils: Sorting
+// Utils: Sorting (used by UI components)
 export { sortByOrder } from './utils/sorting';
 
-// Hooks
+// Hooks (used by UI components)
 export { useTheme } from './hooks/useTheme';
 export { useConfirmation } from './hooks/useConfirmation';
 

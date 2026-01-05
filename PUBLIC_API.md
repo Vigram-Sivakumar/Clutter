@@ -16,8 +16,6 @@ import type {
   Note,
   Folder,
   Tag,
-  NoteMetadata,
-  User,
   ThemeMode,
 } from '@clutter/domain';
 ```

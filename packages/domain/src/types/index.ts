@@ -49,23 +49,6 @@ export interface Tag {
   deletedAt: string | null; // Soft delete for sync
 }
 
-// Note metadata for index file (lightweight)
-export interface NoteMetadata {
-  id: string;
-  title: string;
-  emoji: string | null;
-  isFavorite: boolean;
-  createdAt: string;
-  updatedAt: string;
-  deletedAt: string | null;
-}
-
-export interface User {
-  id: string;
-  email: string;
-  name: string;
-}
-
 // Theme types
 export type ThemeMode = 'light' | 'dark';
 

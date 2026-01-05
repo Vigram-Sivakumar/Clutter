@@ -645,43 +645,4 @@ export const useTagSuggestions = (query: string, excludeTags: string[] = []): st
   }, [allTags, query, excludeTags]);
 };
 
-/**
- * Utility function to get suggestions (non-hook version for callbacks)
- * @param notes - Array of notes
- * @param query - The search query
- * @param excludeTags - Tags to exclude from suggestions
- */
-export const getTagSuggestions = (
-  notes: { tags: string[]; deletedAt: string | null }[],
-  query: string,
-  excludeTags: string[] = []
-): string[] => {
-  const normalizedQuery = query.trim().toLowerCase();
-  const excludeSet = new Set(excludeTags.map((t) => t.toLowerCase()));
-
-  if (!normalizedQuery) {
-    return [];
-  }
-
-  // Derive all tags from notes, preserving original capitalization
-  const tagsMap = new Map<string, string>();
-  notes.forEach((note) => {
-    if (!note.deletedAt) {
-      note.tags.forEach((tag) => {
-        const lowerTag = tag.toLowerCase();
-        if (!tagsMap.has(lowerTag)) {
-          tagsMap.set(lowerTag, tag); // Store original capitalization
-        }
-      });
-    }
-  });
-
-  return Array.from(tagsMap.values())
-    .filter((tag) => {
-      // Case-insensitive matching
-      return tag.toLowerCase().startsWith(normalizedQuery) && !excludeSet.has(tag.toLowerCase());
-    })
-    .sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()))
-    .slice(0, 5);
-};
 
