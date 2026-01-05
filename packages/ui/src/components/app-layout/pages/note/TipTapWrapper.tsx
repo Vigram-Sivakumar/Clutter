@@ -48,6 +48,7 @@ interface TipTapWrapperProps {
   onTagsChange?: (tags: string[]) => void; // NEW: Callback when tags in content change
   onTagClick?: (tag: string) => void; // Callback when a tag is clicked for navigation
   onNavigate?: (linkType: 'note' | 'folder', targetId: string) => void; // Callback when a note/folder link is clicked
+  onFocus?: () => void;
   onBlur?: () => void;
   autoFocus?: boolean;
   isHydrating?: boolean; // Pass hydration state to prevent onChange during initial load
@@ -120,6 +121,8 @@ export const TipTapWrapper = forwardRef<TipTapWrapperHandle, TipTapWrapperProps>
   onTagsChange,
   onTagClick,
   onNavigate,
+  onFocus,
+  onBlur,
   autoFocus = false,
   isHydrating = false,
   onContentApplied,
@@ -210,6 +213,8 @@ export const TipTapWrapper = forwardRef<TipTapWrapperHandle, TipTapWrapperProps>
         onChange={handleChange}
         onTagClick={onTagClick}
         onNavigate={onNavigate}
+        onFocus={onFocus}
+        onBlur={onBlur}
         placeholder={placeholders.default}
         editable={!isFrozen}
       />

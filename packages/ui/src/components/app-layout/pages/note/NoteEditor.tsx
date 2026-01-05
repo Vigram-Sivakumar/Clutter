@@ -362,6 +362,7 @@ export const NoteEditor = ({
   const emojiButtonRef = useRef<HTMLButtonElement>(null);
   const addEmojiButtonRef = useRef<HTMLButtonElement>(null);
   const previousNoteIdRef = useRef<string | null>(null); // Track note switches for transition
+  const editorHadFocusRef = useRef(false); // Track if editor had focus (for smart focus restoration)
   
   // 🎨 UX: Detect note switching for Apple Notes-style micro transition
   const isSwitchingNote = currentNoteId !== previousNoteIdRef.current && previousNoteIdRef.current !== null;
@@ -419,6 +420,12 @@ export const NoteEditor = ({
       // 🔓 Second rAF: Let ProseMirror internal state flush
       requestAnimationFrame(() => {
         setIsHydrated(true);
+        
+        // 🎯 Focus restoration: Only restore focus if editor had it before note switch
+        // This prevents cursor jumps and unexpected caret flashes
+        if (editorHadFocusRef.current) {
+          editorRef.current?.focus();
+        }
         
         // 🎨 Update previous note ID for transition tracking
         previousNoteIdRef.current = currentNote.id;
@@ -1477,6 +1484,12 @@ export const NoteEditor = ({
               }}
               onTagClick={handleShowTagFilter}
               onNavigate={handleNavigate}
+              onFocus={() => {
+                editorHadFocusRef.current = true;
+              }}
+              onBlur={() => {
+                editorHadFocusRef.current = false;
+              }}
               onTagsChange={(extractedTags) => {
               // Merge extracted tags from editor with existing metadata tags
               setTags((prevTags) => {

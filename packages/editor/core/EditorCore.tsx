@@ -84,6 +84,8 @@ interface EditorCoreProps {
   onChange?: (content: object) => void;
   onTagClick?: (tag: string) => void; // Callback when a tag is clicked for navigation
   onNavigate?: (linkType: 'note' | 'folder', targetId: string) => void; // Callback when a note/folder link is clicked
+  onFocus?: () => void;
+  onBlur?: () => void;
   placeholder?: string;
   editable?: boolean;
   className?: string;
@@ -95,6 +97,8 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(({
   onChange,
   onTagClick,
   onNavigate,
+  onFocus,
+  onBlur,
   // placeholder prop kept for API compatibility but not used
   // (placeholders are handled by individual React components)
   placeholder: _placeholder = placeholders.default,
@@ -182,6 +186,21 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(({
       content: [{ type: 'paragraph' }],
     },
     editable,
+    editorProps: {
+      attributes: {
+        class: 'editor-content',
+      },
+      handleDOMEvents: {
+        focus: () => {
+          onFocus?.();
+          return false; // Allow default focus behavior
+        },
+        blur: () => {
+          onBlur?.();
+          return false; // Allow default blur behavior
+        },
+      },
+    },
     onUpdate: ({ editor, transaction }) => {
       // Only fire onChange if document actually changed (not just selection)
       if (onChange && transaction.docChanged) {
