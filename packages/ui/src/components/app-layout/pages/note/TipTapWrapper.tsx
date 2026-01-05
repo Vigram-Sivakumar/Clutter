@@ -128,6 +128,31 @@ const EMPTY_DOC = {
   ],
 };
 
+/**
+ * Force DOM selection to collapse to a valid text position
+ * This prevents "sticky halo" bugs where browser selection stays anchored to DIV
+ * even after ProseMirror transitions from NodeSelection → TextSelection
+ */
+function normalizeDomSelection(): void {
+  try {
+    const selection = window.getSelection();
+    if (!selection) return;
+    
+    // If selection is already collapsed to a text node, no action needed
+    if (selection.isCollapsed && selection.anchorNode?.nodeType === Node.TEXT_NODE) {
+      return;
+    }
+    
+    // Collapse to start (removes any block-level selection)
+    selection.removeAllRanges();
+    
+    // Browser will place cursor at the start of the first editable position
+    // ProseMirror will then take over and manage it properly
+  } catch (err) {
+    // Silently fail - selection normalization is best-effort
+  }
+}
+
 export const TipTapWrapper = forwardRef<TipTapWrapperHandle, TipTapWrapperProps>(({
   value,
   onChange,
@@ -145,6 +170,7 @@ export const TipTapWrapper = forwardRef<TipTapWrapperHandle, TipTapWrapperProps>
   const previousTags = useRef<string[]>([]);
   const editorCoreRef = useRef<EditorCoreHandle>(null);
   const isUpdatingFromEditor = useRef(false);
+  const hasUserEditedSinceNormalization = useRef(false);
 
   // Expose methods to parent
   useImperativeHandle(ref, () => ({
@@ -164,14 +190,22 @@ export const TipTapWrapper = forwardRef<TipTapWrapperHandle, TipTapWrapperProps>
       if (import.meta.env.DEV) {
         console.log('[EDITOR] Using EMPTY_DOC (no value provided)');
       }
+      // 🔧 Normalize selection when injecting empty doc (prevents sticky halo)
+      normalizeDomSelection();
+      hasUserEditedSinceNormalization.current = false; // Reset flag for next user edit
       return EMPTY_DOC;
     }
     
     // Don't re-parse if this came from our own onChange
     if (isUpdatingFromEditor.current) {
       isUpdatingFromEditor.current = false;
+      // 🔧 Normalize selection even when keeping current content (fixes cross-update bleed)
+      normalizeDomSelection();
       return null; // Keep current editor content (don't re-initialize)
     }
+    
+    // 🔄 External content update (note switch, hydration) - reset normalization flag
+    hasUserEditedSinceNormalization.current = false;
     
     try {
       // Try to parse as JSON first (new format)
@@ -182,6 +216,8 @@ export const TipTapWrapper = forwardRef<TipTapWrapperHandle, TipTapWrapperProps>
         return generateJSON(value, htmlExtensions);
       } catch (htmlError) {
         console.error('❌ TipTapWrapper: Failed to parse document, using EMPTY_DOC', htmlError);
+        // 🔧 Normalize selection on parse failure
+        normalizeDomSelection();
         return EMPTY_DOC;
       }
     }
@@ -192,6 +228,13 @@ export const TipTapWrapper = forwardRef<TipTapWrapperHandle, TipTapWrapperProps>
     // 🛡️ Block onChange during parent hydration
     if (isHydrating) {
       return;
+    }
+    
+    // 🔧 On first user edit after programmatic update, normalize selection
+    // This catches any stale block-level selections that survived the update
+    if (!hasUserEditedSinceNormalization.current) {
+      normalizeDomSelection();
+      hasUserEditedSinceNormalization.current = true;
     }
     
     // Extract tags from content
