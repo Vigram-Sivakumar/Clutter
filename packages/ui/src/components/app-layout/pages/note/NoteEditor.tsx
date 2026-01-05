@@ -26,6 +26,18 @@ import { sizing } from '../../../../tokens/sizing';
 import { getTagColor } from '../../../../utils/tagColors';
 import { FilledButton } from '../../../ui-buttons';
 
+// 🔍 DEBUG HELPER (temporary - for forensic analysis)
+const dbg = (label: string, data: Record<string, any> = {}) => {
+  console.log(
+    `%c[EDITOR DEBUG] ${label}`,
+    'color:#ff6b00;font-weight:bold;',
+    {
+      t: Math.round(performance.now()),
+      ...data,
+    }
+  );
+};
+
 // Main view type
 type MainView = 
   | { type: 'editor'; source?: 'deletedItems' | 'default' }
@@ -395,6 +407,14 @@ export const NoteEditor = ({
       return;
     }
 
+    // 🔍 LOG: Start of hydration
+    dbg('HYDRATE:start', {
+      currentNoteId,
+      lastHydrated: lastHydratedNoteIdRef.current,
+      activeEditorOwner: activeEditorNoteIdRef.current,
+      uiOwner: editorStateOwnerRef.current,
+    });
+
     // 🚨 Flush previous note immediately on switch (prevents content bleed)
     if (
       activeEditorNoteIdRef.current &&
@@ -406,6 +426,10 @@ export const NoteEditor = ({
 
     // 🚨 CRITICAL: Cancel pending UI state updates from previous note
     editorStateOwnerRef.current = null;
+    activeEditorNoteIdRef.current = null;
+    
+    // 🔍 LOG: Ownership cleared
+    dbg('OWNERSHIP:cleared');
 
     // Track which note we're hydrating
     lastHydratedNoteIdRef.current = currentNote.id;
@@ -452,10 +476,22 @@ export const NoteEditor = ({
       activeEditorNoteIdRef.current = currentNote.id; // Persistence ownership
       editorStateOwnerRef.current = currentNote.id; // UI state ownership
       
+      // 🔍 LOG: Ownership claimed
+      dbg('OWNERSHIP:claimed', {
+        owner: currentNote.id,
+      });
+      
       // 🔓 Second rAF: Let ProseMirror internal state flush
       requestAnimationFrame(() => {
         isHydratingRef.current = false;
         setIsHydrated(true);
+        
+        // 🔍 LOG: Hydration complete
+        dbg('HYDRATE:complete', {
+          owner: currentNote.id,
+          isHydrating: isHydratingRef.current,
+        });
+        
         console.log('🔓 Hydration complete, ownership:', {
           persistence: activeEditorNoteIdRef.current,
           uiState: editorStateOwnerRef.current,
@@ -1498,8 +1534,18 @@ export const NoteEditor = ({
               value={editorState.status === 'ready' ? editorState.document : undefined}
               isFrozen={!isHydrated}
               onChange={(value) => {
+                  // 🔍 LOG: onChange fired (FIRST - before any logic)
+                  dbg('EDITOR:onChange fired', {
+                    currentNoteId,
+                    uiOwner: editorStateOwnerRef.current,
+                    persistenceOwner: activeEditorNoteIdRef.current,
+                    isHydrating: isHydratingRef.current,
+                    valueLength: value.length,
+                  });
+                  
                   // 🔒 Hard-gate: ignore ALL updates during hydration
                   if (isHydratingRef.current) {
+                    dbg('BLOCK:onChange hydration');
                     console.log('🔒 Blocked onChange: hydration in progress');
                     return;
                   }
@@ -1507,6 +1553,7 @@ export const NoteEditor = ({
                   // 🛡️ Validate BEFORE setting state
                   // Block TipTap boot transactions (≤200 chars, no text nodes)
                   if (value.length <= 200 && !value.includes('"text"')) {
+                    dbg('BLOCK:onChange boot transaction', { valueLength: value.length });
                     console.warn('🚫 Blocked TipTap boot transaction in onChange');
                     return;
                   }
@@ -1514,6 +1561,10 @@ export const NoteEditor = ({
                   // 🚨 ABSOLUTE SAFETY: Hard-guard UI state ownership (prevents visual bleed)
                   const uiOwner = editorStateOwnerRef.current;
                   if (!uiOwner || uiOwner !== currentNoteId) {
+                    dbg('BLOCK:onChange UI ownership', {
+                      uiOwner,
+                      currentNoteId,
+                    });
                     console.warn('🚫 Ignored late UI state update from previous note', {
                       uiOwner,
                       currentNoteId,
@@ -1530,18 +1581,29 @@ export const NoteEditor = ({
                   // 🚨 ABSOLUTE SAFETY: Hard-guard persistence ownership (prevents DB bleed)
                   const persistenceOwner = activeEditorNoteIdRef.current;
                   if (!persistenceOwner) {
+                    dbg('BLOCK:onChange no persistence owner');
                     console.warn('🚫 No active note ID - ignoring onChange');
                     return;
                   }
                   
                   // 🚨 CRITICAL: Ignore stale editor emissions from previous notes
                   if (persistenceOwner !== currentNoteId) {
+                    dbg('BLOCK:onChange persistence ownership', {
+                      persistenceOwner,
+                      currentNoteId,
+                    });
                     console.warn('🚫 Ignored stale persistence update (cross-note bleed prevented)', {
                       persistenceOwner,
                       currentNoteId,
                     });
                     return;
                   }
+                  
+                  // 🔍 LOG: Content save scheduled
+                  dbg('SAVE:content scheduled', {
+                    noteId: persistenceOwner,
+                    length: value.length,
+                  });
                   
                   // ⬆️ State → DB: Schedule debounced save (now safe)
                   updateNoteContent(persistenceOwner, value);

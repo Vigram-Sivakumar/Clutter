@@ -17,6 +17,18 @@ import { useEffect, useRef } from 'react';
 import { useNotesStore } from '@clutter/state';
 import { saveNoteToDatabase } from '../lib/database';
 
+// 🔍 DEBUG HELPER (temporary - for forensic analysis)
+const dbg = (label: string, data: Record<string, any> = {}) => {
+  console.log(
+    `%c[EDITOR DEBUG] ${label}`,
+    'color:#ff6b00;font-weight:bold;',
+    {
+      t: Math.round(performance.now()),
+      ...data,
+    }
+  );
+};
+
 // Local type to avoid import issues
 type Note = {
   id: string;
@@ -69,8 +81,15 @@ export function useAutoSave(isEnabled: boolean = true, isHydrated: boolean = fal
   const flushSaveImmediately = async () => {
     if (!isEnabled || !isHydrated || isInitialLoadRef.current) return;
     
+    // 🔍 LOG: Flush called
+    dbg('DEBOUNCE:flush called', {
+      currentNoteId,
+      hasPending: !!saveTimeoutRef.current,
+    });
+    
     // Cancel pending debounced save
     if (saveTimeoutRef.current) {
+      dbg('DEBOUNCE:cleared for flush');
       clearTimeout(saveTimeoutRef.current);
     }
     
@@ -171,9 +190,24 @@ export function useAutoSave(isEnabled: boolean = true, isHydrated: boolean = fal
     }
 
     console.log(`⏰ Auto-save: ${changedNotes.length} note(s) changed, will save in 2s...`);
+    
+    // 🔍 LOG: Debounce scheduled
+    dbg('DEBOUNCE:scheduled', {
+      delay: 2000,
+      changedNotesCount: changedNotes.length,
+      changedNoteIds: changedNotes.map(n => n.id),
+      currentNoteId,
+    });
 
     // Debounce: Save after 2 seconds of no changes
     saveTimeoutRef.current = setTimeout(async () => {
+      // 🔍 LOG: Debounce fired
+      dbg('DEBOUNCE:fire', {
+        changedNotesCount: changedNotes.length,
+        changedNoteIds: changedNotes.map((n: Note) => n.id),
+        currentNoteId,
+      });
+      
       console.log(`💾 Auto-save: Saving ${changedNotes.length} note(s)...`);
       
       // Save all changed notes in parallel for better performance
