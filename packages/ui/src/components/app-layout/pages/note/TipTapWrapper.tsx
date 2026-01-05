@@ -8,7 +8,7 @@
  * Supports loading legacy HTML content with automatic fallback.
  */
 
-import { useEffect, useState, useCallback, useRef, forwardRef, useImperativeHandle } from 'react';
+import { useMemo, useCallback, useRef, forwardRef, useImperativeHandle } from 'react';
 import { generateJSON } from '@tiptap/core';
 
 // Editor imports from @clutter/editor package
@@ -126,12 +126,9 @@ export const TipTapWrapper = forwardRef<TipTapWrapperHandle, TipTapWrapperProps>
   editorContext,
   isFrozen = false,
 }, ref) => {
-  const [content, setContent] = useState<object | null>(null);
-  const previousValue = useRef<string | undefined>(undefined);
   const previousTags = useRef<string[]>([]);
   const editorCoreRef = useRef<EditorCoreHandle>(null);
   const isUpdatingFromEditor = useRef(false);
-  const isInitializing = useRef(true); // Explicit initialization phase (hard gate)
 
   // Expose methods to parent
   useImperativeHandle(ref, () => ({
@@ -143,95 +140,36 @@ export const TipTapWrapper = forwardRef<TipTapWrapperHandle, TipTapWrapperProps>
     },
   }));
 
-  // Parse JSON string to content object when value changes (single-shot initialization)
-  useEffect(() => {
-    console.log('🔄 TipTapWrapper useEffect triggered:', {
-      hasValue: !!value,
-      valueLength: value?.length || 0,
-      previousLength: previousValue.current?.length || 0,
-      isUpdatingFromEditor: isUpdatingFromEditor.current,
-      valuesEqual: value === previousValue.current,
-    });
-    
-    // 🛡️ CRITICAL: Do nothing until real content arrives
-    // Parent must provide valid document (never undefined, never "")
+  // Parse value into content object (simple, deterministic)
+  // Editor mounts once - documents flow through it
+  const content = useMemo(() => {
     if (!value) {
-      console.warn('[EDITOR] ❌ Blocked init: missing document - THIS SHOULD NOT HAPPEN');
-      console.warn('[EDITOR] Parent should gate TipTapWrapper rendering until document exists');
-      return;
+      console.warn('[EDITOR] ❌ No document provided');
+      return null;
     }
     
-    // Don't update if this value change came from our own onChange (prevents circular updates)
+    // Don't re-parse if this came from our own onChange
     if (isUpdatingFromEditor.current) {
-      isUpdatingFromEditor.current = false; // Clear flag for next external update
-      console.log('⏭️ Skipping: isUpdatingFromEditor=true');
-      return;
+      isUpdatingFromEditor.current = false;
+      return null; // Keep current editor content
     }
-    
-    // Don't re-apply the same value
-    if (value === previousValue.current) {
-      console.log('⏭️ Skipping: value unchanged');
-      return;
-    }
-    
-    // Update with the new document
-    previousValue.current = value;
     
     try {
-        // Try to parse as JSON first (new format)
-        console.log('🔧 TipTapWrapper: Initializing editor atomically');
-        
-        // 🔒 Enter initialization phase (hard gate)
-        isInitializing.current = true;
-        
-        const json = JSON.parse(value);
-        setContent(json);
-        console.log('✅ TipTapWrapper: Editor initialized (atomic)');
-        
-        // 🔓 Exit initialization phase after React + ProseMirror settle
-        // Double rAF: ensures ProseMirror normalization completes before unlocking
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            isInitializing.current = false;
-            console.log('🔓 TipTapWrapper: Initialization complete, editor unlocked');
-            if (onContentApplied) {
-              onContentApplied();
-            }
-          });
-        });
-      } catch (error) {
-        // Fallback: try to parse as HTML (legacy format)
-        try {
-          isInitializing.current = true;
-          const json = generateJSON(value, htmlExtensions);
-          setContent(json);
-          console.log('✅ TipTapWrapper: Editor initialized (HTML fallback)');
-          // Double rAF: ensures ProseMirror normalization completes before unlocking
-          requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-              isInitializing.current = false;
-              if (onContentApplied) {
-                onContentApplied();
-              }
-            });
-          });
-        } catch (htmlError) {
-          console.error('❌ TipTapWrapper: Failed to parse document', htmlError);
-          // If we can't parse, we can't initialize - parent must provide valid document
-        }
+      // Try to parse as JSON first (new format)
+      return JSON.parse(value);
+    } catch (jsonError) {
+      try {
+        // Fallback to HTML parsing (legacy format)
+        return generateJSON(value, htmlExtensions);
+      } catch (htmlError) {
+        console.error('❌ TipTapWrapper: Failed to parse document', htmlError);
+        return null;
       }
-  }, [value, onContentApplied]);
+    }
+  }, [value]);
 
   // Handle content changes - save as JSON string (not HTML)
   const handleChange = useCallback((newContent: object) => {
-    setContent(newContent);
-    
-    // 🛡️ ATOMIC GATE: Hard-block onChange during initialization phase
-    // This prevents ProseMirror normalization transactions from escaping
-    if (isInitializing.current) {
-      return; // Hard stop - no logging, no processing, no side effects
-    }
-    
     // 🛡️ Block onChange during parent hydration
     if (isHydrating) {
       return;
@@ -256,9 +194,8 @@ export const TipTapWrapper = forwardRef<TipTapWrapperHandle, TipTapWrapperProps>
       try {
         // Save as JSON string for task counting and better performance
         const jsonString = JSON.stringify(newContent);
-        previousValue.current = jsonString; // Update previous value to prevent sync loop
         
-        // Set flag before calling onChange to prevent circular update in useEffect
+        // Set flag before calling onChange to prevent circular update in useMemo
         isUpdatingFromEditor.current = true;
         onChange(jsonString);
       } catch (error) {
