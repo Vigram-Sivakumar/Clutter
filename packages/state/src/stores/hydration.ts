@@ -13,12 +13,10 @@ export const getHydrationState = () => ({
 
 export const setHydrating = (hydrating: boolean) => {
   isHydrating = hydrating;
-  console.log(`🔄 Hydration state: ${hydrating ? 'HYDRATING' : 'COMPLETE'}`);
 };
 
 export const setInitialized = (initialized: boolean) => {
   isInitialized = initialized;
-  console.log(`🔧 Database initialized: ${initialized}`);
 };
 
 /**

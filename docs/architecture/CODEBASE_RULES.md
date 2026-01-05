@@ -112,6 +112,25 @@ These rules exist to keep the codebase **honest, refactorable, and scalable**.
 - User trusts the editor is always there
 - Hydration is a data concern, not a render concern
 
+#### Silence & Trust
+
+**Core Principle:** The app never narrates its internal work.
+
+**Rules:**
+- No "Initializing database..." messages
+- No "Hydration complete" logs
+- No "Saving..." notifications
+- No "Editor ready" indicators
+- No loading spinners for normal operations
+
+**Why:**
+- Apple/Notion don't narrate - they just work
+- User logs should be actionable, not informative
+- Silence builds trust
+- Narration creates anxiety
+
+**Exception:** Error messages and warnings about actual problems (e.g., save failures, integrity issues) should always be shown.
+
 ---
 
 ## 3. Export Rules (Strict)

@@ -919,7 +919,7 @@ export const SidebarItem = ({
             alignItems: 'center',
           }}
         >
-          <Tag
+          <TagPill
             label={label}
             // No onRemove - user can't dismiss from sidebar
             // No onClick - user clicks the sidebar item itself

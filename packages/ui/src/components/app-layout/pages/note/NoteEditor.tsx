@@ -25,19 +25,6 @@ import { useUIPreferences } from '../../../../hooks/useUIPreferences';
 import { sizing } from '../../../../tokens/sizing';
 import { getTagColor } from '../../../../utils/tagColors';
 import { FilledButton } from '../../../ui-buttons';
-
-// 🔍 DEBUG HELPER (temporary - for forensic analysis)
-const dbg = (label: string, data: Record<string, any> = {}) => {
-  console.log(
-    `%c[EDITOR DEBUG] ${label}`,
-    'color:#ff6b00;font-weight:bold;',
-    {
-      t: Math.round(performance.now()),
-      ...data,
-    }
-  );
-};
-
 // Main view type
 type MainView = 
   | { type: 'editor'; source?: 'deletedItems' | 'default' }
@@ -135,13 +122,6 @@ export const NoteEditor = ({
   // Get current note or create one
   const currentNote = useMemo(() => {
     const note = notes.find(n => n.id === currentNoteId && !n.deletedAt) || null;
-    console.log('🔍 CurrentNote computed:', {
-      currentNoteId,
-      found: !!note,
-      title: note?.title,
-      hasContent: !!note?.content,
-      contentLength: note?.content?.length || 0
-    });
     return note;
   }, [notes, currentNoteId]);
 
@@ -188,16 +168,6 @@ export const NoteEditor = ({
   const activeEditorNoteIdRef = useRef<string | null>(null); // Persistence ownership
   const editorStateOwnerRef = useRef<string | null>(null); // UI state ownership
   
-  // Debug: Log component mount
-  useEffect(() => {
-    console.log('🏁 NoteEditor mounted:', {
-      isInitialized,
-      currentNoteId,
-      notesCount: notes.length,
-      hasCurrentNote: !!currentNote
-    });
-  }, []);
-
   // Report hydration state to parent (for auto-save gating)
   useEffect(() => {
     if (onHydrationChange) {
@@ -397,7 +367,6 @@ export const NoteEditor = ({
   // This effect runs on initial mount AND when switching notes
   useEffect(() => {
     if (!currentNote) {
-      console.log('🔍 Hydration skipped: no currentNote');
       return;
     }
 
@@ -406,17 +375,8 @@ export const NoteEditor = ({
       lastHydratedNoteIdRef.current === currentNote.id &&
       editorState.status === 'ready'
     ) {
-      console.log('🔍 Hydration skipped: note already hydrated', currentNote.id);
       return;
     }
-
-    // 🔍 LOG: Start of hydration
-    dbg('HYDRATE:start', {
-      currentNoteId,
-      lastHydrated: lastHydratedNoteIdRef.current,
-      activeEditorOwner: activeEditorNoteIdRef.current,
-      uiOwner: editorStateOwnerRef.current,
-    });
 
     // 🚨 CRITICAL: Flush previous note's draft on navigation boundary
     // Navigation is a transaction boundary - must commit before switching
@@ -428,14 +388,6 @@ export const NoteEditor = ({
       const previousNoteId = activeEditorNoteIdRef.current;
       const draft = editorState.document;
       
-      dbg('FLUSH:on note switch', {
-        from: previousNoteId,
-        to: currentNote.id,
-        draftLength: draft.length,
-      });
-      
-      console.log('💾 Flushing previous note draft before switch:', previousNoteId);
-      
       // Cancel debounced save
       cancelDebouncedSave();
       
@@ -446,20 +398,9 @@ export const NoteEditor = ({
     // 🚨 CRITICAL: Cancel pending UI state updates from previous note
     editorStateOwnerRef.current = null;
     activeEditorNoteIdRef.current = null;
-    
-    // 🔍 LOG: Ownership cleared
-    dbg('OWNERSHIP:cleared');
 
     // Track which note we're hydrating
     lastHydratedNoteIdRef.current = currentNote.id;
-
-    console.log('🔄 Hydrating note:', {
-      id: currentNote.id,
-      title: currentNote.title,
-      hasContent: !!currentNote.content,
-      contentLength: currentNote.content?.length || 0,
-      contentPreview: currentNote.content?.substring(0, 100)
-    });
 
     // 🔒 Lock editor during hydration
     isHydratingRef.current = true;
@@ -477,7 +418,6 @@ export const NoteEditor = ({
       status: 'ready',
       document,
     });
-    console.log('📝 Set editorState to ready:', document.substring(0, 100));
 
     // Wait for React + ProseMirror to fully settle before mounting editor
     requestAnimationFrame(() => {
@@ -495,26 +435,10 @@ export const NoteEditor = ({
       activeEditorNoteIdRef.current = currentNote.id; // Persistence ownership
       editorStateOwnerRef.current = currentNote.id; // UI state ownership
       
-      // 🔍 LOG: Ownership claimed
-      dbg('OWNERSHIP:claimed', {
-        owner: currentNote.id,
-      });
-      
       // 🔓 Second rAF: Let ProseMirror internal state flush
       requestAnimationFrame(() => {
         isHydratingRef.current = false;
         setIsHydrated(true);
-        
-        // 🔍 LOG: Hydration complete
-        dbg('HYDRATE:complete', {
-          owner: currentNote.id,
-          isHydrating: isHydratingRef.current,
-        });
-        
-        console.log('🔓 Hydration complete, ownership:', {
-          persistence: activeEditorNoteIdRef.current,
-          uiState: editorStateOwnerRef.current,
-        });
         
         // 🎨 Update previous note ID for transition tracking
         previousNoteIdRef.current = currentNote.id;
@@ -1568,41 +1492,20 @@ export const NoteEditor = ({
                   value={editorState.document}
                   autoFocus={false}
                   onChange={(value) => {
-                  // 🔍 LOG: onChange fired (FIRST - before any logic)
-                  dbg('EDITOR:onChange fired', {
-                    currentNoteId,
-                    uiOwner: editorStateOwnerRef.current,
-                    persistenceOwner: activeEditorNoteIdRef.current,
-                    isHydrating: isHydratingRef.current,
-                    valueLength: value.length,
-                  });
-                  
                   // 🔒 Hard-gate: ignore ALL updates during hydration
                   if (isHydratingRef.current) {
-                    dbg('BLOCK:onChange hydration');
-                    console.log('🔒 Blocked onChange: hydration in progress');
                     return;
                   }
                   
                   // 🛡️ Validate BEFORE setting state
                   // Block TipTap boot transactions (≤200 chars, no text nodes)
                   if (value.length <= 200 && !value.includes('"text"')) {
-                    dbg('BLOCK:onChange boot transaction', { valueLength: value.length });
-                    console.warn('🚫 Blocked TipTap boot transaction in onChange');
                     return;
                   }
                   
                   // 🚨 ABSOLUTE SAFETY: Hard-guard UI state ownership (prevents visual bleed)
                   const uiOwner = editorStateOwnerRef.current;
                   if (!uiOwner || uiOwner !== currentNoteId) {
-                    dbg('BLOCK:onChange UI ownership', {
-                      uiOwner,
-                      currentNoteId,
-                    });
-                    console.warn('🚫 Ignored late UI state update from previous note', {
-                      uiOwner,
-                      currentNoteId,
-                    });
                     return;
                   }
                   
@@ -1615,29 +1518,13 @@ export const NoteEditor = ({
                   // 🚨 ABSOLUTE SAFETY: Hard-guard persistence ownership (prevents DB bleed)
                   const persistenceOwner = activeEditorNoteIdRef.current;
                   if (!persistenceOwner) {
-                    dbg('BLOCK:onChange no persistence owner');
-                    console.warn('🚫 No active note ID - ignoring onChange');
                     return;
                   }
                   
                   // 🚨 CRITICAL: Ignore stale editor emissions from previous notes
                   if (persistenceOwner !== currentNoteId) {
-                    dbg('BLOCK:onChange persistence ownership', {
-                      persistenceOwner,
-                      currentNoteId,
-                    });
-                    console.warn('🚫 Ignored stale persistence update (cross-note bleed prevented)', {
-                      persistenceOwner,
-                      currentNoteId,
-                    });
                     return;
                   }
-                  
-                  // 🔍 LOG: Content save scheduled
-                  dbg('SAVE:content scheduled', {
-                    noteId: persistenceOwner,
-                    length: value.length,
-                  });
                   
                   // ⬆️ State → DB: Schedule debounced save (now safe)
                   updateNoteContent(persistenceOwner, value);

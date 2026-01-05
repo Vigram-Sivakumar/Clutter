@@ -17,18 +17,6 @@ import { useEffect, useRef } from 'react';
 import { useNotesStore } from '@clutter/state';
 import { saveNoteToDatabase } from '../lib/database';
 
-// 🔍 DEBUG HELPER (temporary - for forensic analysis)
-const dbg = (label: string, data: Record<string, any> = {}) => {
-  console.log(
-    `%c[EDITOR DEBUG] ${label}`,
-    'color:#ff6b00;font-weight:bold;',
-    {
-      t: Math.round(performance.now()),
-      ...data,
-    }
-  );
-};
-
 // Local type to avoid import issues
 type Note = {
   id: string;
@@ -81,15 +69,8 @@ export function useAutoSave(isEnabled: boolean = true, isHydrated: boolean = fal
   const flushSaveImmediately = async () => {
     if (!isEnabled || !isHydrated || isInitialLoadRef.current) return;
     
-    // 🔍 LOG: Flush called
-    dbg('DEBOUNCE:flush called', {
-      currentNoteId,
-      hasPending: !!saveTimeoutRef.current,
-    });
-    
     // Cancel pending debounced save
     if (saveTimeoutRef.current) {
-      dbg('DEBOUNCE:cleared for flush');
       clearTimeout(saveTimeoutRef.current);
     }
     
@@ -109,15 +90,12 @@ export function useAutoSave(isEnabled: boolean = true, isHydrated: boolean = fal
     
     if (changedNotes.length === 0) return;
     
-    console.log(`💾 Flush: Saving ${changedNotes.length} note(s) immediately...`);
-    
     // Save all changed notes synchronously (critical for unload)
     await Promise.allSettled(
       changedNotes.map(async (note: Note) => {
         try {
           await saveNoteToDatabase(note);
           lastSavedHashRef.current.set(note.id, hashContent(note.content));
-          console.log(`✅ Flushed: ${note.title || 'Untitled'}`);
         } catch (error) {
           console.error(`❌ Flush failed for ${note.id}:`, error);
         }
@@ -130,12 +108,10 @@ export function useAutoSave(isEnabled: boolean = true, isHydrated: boolean = fal
   useEffect(() => {
     if (isInitialLoadRef.current && isEnabled && isHydrated) {
       if (notesForSeeding.length > 0) {
-        console.log(`🌱 Auto-save: Seeding hashes for ${notesForSeeding.length} notes after hydration`);
         notesForSeeding.forEach((note: Note) => {
           lastSavedHashRef.current.set(note.id, hashContent(note.content));
         });
         isInitialLoadRef.current = false;
-        console.log(`✅ Auto-save: Ready! Will save changes after 2s idle time`);
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -189,26 +165,8 @@ export function useAutoSave(isEnabled: boolean = true, isHydrated: boolean = fal
       return; // No changes to save
     }
 
-    console.log(`⏰ Auto-save: ${changedNotes.length} note(s) changed, will save in 2s...`);
-    
-    // 🔍 LOG: Debounce scheduled
-    dbg('DEBOUNCE:scheduled', {
-      delay: 2000,
-      changedNotesCount: changedNotes.length,
-      changedNoteIds: changedNotes.map(n => n.id),
-      currentNoteId,
-    });
-
     // Debounce: Save after 2 seconds of no changes
     saveTimeoutRef.current = setTimeout(async () => {
-      // 🔍 LOG: Debounce fired
-      dbg('DEBOUNCE:fire', {
-        changedNotesCount: changedNotes.length,
-        changedNoteIds: changedNotes.map((n: Note) => n.id),
-        currentNoteId,
-      });
-      
-      console.log(`💾 Auto-save: Saving ${changedNotes.length} note(s)...`);
       
       // Save all changed notes in parallel for better performance
       await Promise.allSettled(
@@ -217,7 +175,6 @@ export function useAutoSave(isEnabled: boolean = true, isHydrated: boolean = fal
             await saveNoteToDatabase(note);
             // Update last saved hash
             lastSavedHashRef.current.set(note.id, hashContent(note.content));
-            console.log(`✅ Saved: ${note.title || 'Untitled'} (${note.content.length} chars)`);
           } catch (error) {
             console.error(`❌ Auto-save failed for ${note.id}:`, error);
           }

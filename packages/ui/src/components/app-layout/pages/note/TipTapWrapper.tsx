@@ -175,8 +175,6 @@ export const TipTapWrapper = forwardRef<TipTapWrapperHandle, TipTapWrapperProps>
       return;
     }
     
-    console.log('✍️ TipTapWrapper: User edit detected, calling onChange');
-    
     // Extract tags from content
     const extractedTags = extractTagsFromContent(newContent);
     
