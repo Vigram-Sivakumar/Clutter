@@ -371,7 +371,10 @@ export const NoteEditor = ({
   const titleInputRef = useRef<TitleInputHandle>(null);
   const emojiButtonRef = useRef<HTMLButtonElement>(null);
   const addEmojiButtonRef = useRef<HTMLButtonElement>(null);
-
+  const previousNoteIdRef = useRef<string | null>(null); // Track note switches for transition
+  
+  // 🎨 UX: Detect note switching for Apple Notes-style micro transition
+  const isSwitchingNote = currentNoteId !== previousNoteIdRef.current && previousNoteIdRef.current !== null;
 
   // Auto-save with debounce (defined early so it can be used in effects)
   const [debouncedSave, cancelDebouncedSave] = useDebounce((updates: Partial<Note>) => {
@@ -512,6 +515,9 @@ export const NoteEditor = ({
           persistence: activeEditorNoteIdRef.current,
           uiState: editorStateOwnerRef.current,
         });
+        
+        // 🎨 Update previous note ID for transition tracking
+        previousNoteIdRef.current = currentNote.id;
       });
     });
   }, [currentNote, currentNoteId, cancelDebouncedSave, editorState.status]); // ✅ Runs on mount + note changes
@@ -1545,25 +1551,22 @@ export const NoteEditor = ({
 
           {/* Editor */}
           <PageContent>
-            {/* 🎯 UX: Editor stays mounted always (like Apple Notes / Notion) */}
-            {/* Hydration controls editability, not existence */}
-            <div style={{ position: 'relative', minHeight: '200px' }}>
-              {/* 🔍 ASSERTION: Log what we're rendering */}
-              {(() => {
-                console.log('[EDITOR ASSERT] Rendering editor:', {
-                  noteId: currentNoteId,
-                  hasDocument: !!editorState.document,
-                  documentLength: editorState.document?.length || 0,
-                  isHydrated,
-                });
-                return null;
-              })()}
-              
+            {/* 🎯 Apple Notes UX: Editor never disappears, only content changes */}
+            <div 
+              className="editor-shell"
+              style={{
+                position: 'relative',
+                minHeight: '200px',
+                transition: 'opacity 120ms ease',
+                opacity: isSwitchingNote ? 0.92 : 1,
+              }}
+            >
               {editorState.status === 'ready' && editorState.document ? (
                 <TipTapWrapper
                   key={currentNoteId}
                   ref={editorRef}
                   value={editorState.document}
+                  autoFocus={false}
                   onChange={(value) => {
                   // 🔍 LOG: onChange fired (FIRST - before any logic)
                   dbg('EDITOR:onChange fired', {
@@ -1676,25 +1679,10 @@ export const NoteEditor = ({
                   return deduped;
                 });
               }}
+              isFrozen={isSwitchingNote}
               editorContext={editorContext}
                 />
               ) : null}
-              
-              {/* 🎨 Subtle transition overlay during hydration (Apple Notes / Notion style) */}
-              {!isHydrated && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    inset: 0,
-                    pointerEvents: 'none',
-                    background: `linear-gradient(to bottom, ${colors.background}80, ${colors.background}CC)`,
-                    backdropFilter: 'blur(2px)',
-                    opacity: 1,
-                    transition: 'opacity 120ms ease-out',
-                  }}
-                  aria-hidden="true"
-                />
-              )}
             </div>
           </PageContent>
           </>

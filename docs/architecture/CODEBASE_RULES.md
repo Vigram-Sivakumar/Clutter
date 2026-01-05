@@ -94,6 +94,24 @@ These rules exist to keep the codebase **honest, refactorable, and scalable**.
 
 **Editor is a leaf, not a hub.**
 
+#### Editor UX Invariants
+
+**Core Principle:** The editor never disappears. Only the document changes.
+
+**Implementation:**
+- Editor instance lifetime = note lifetime (enforced via `key={currentNoteId}`)
+- Editor mounts once per note, documents flow through it
+- No "Loading editor" spinners or blank states
+- Smooth 120ms opacity transition during note switches (0.92 opacity)
+- Editor is non-editable during transition (`isFrozen={isSwitchingNote}`)
+- No auto-focus on note switch to prevent cursor jump
+
+**Why:**
+- Feels like Apple Notes / Notion
+- No jarring unmount/remount flashes
+- User trusts the editor is always there
+- Hydration is a data concern, not a render concern
+
 ---
 
 ## 3. Export Rules (Strict)
