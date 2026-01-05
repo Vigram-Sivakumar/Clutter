@@ -197,28 +197,30 @@ export function findClosestPosInBlock(
 /**
  * Is cursor at the visual start of block?
  * 
- * INTERIM: Returns true for collapsed selections to fully own vertical navigation.
- * This prevents ProseMirror's fallback behavior.
+ * INTERIM: Always returns true for collapsed selections to fully own vertical navigation.
+ * This prevents ProseMirror's fallback behavior and ensures ArrowUp always fires.
  * 
  * TODO: Implement true visual-line detection for wrapped text.
+ * Future: Only return true when cursor is on first visual line of block.
  */
 export function isAtVisualStartOfBlock(ctx: KeyboardContext): boolean {
-  // Interim: always intercept when selection is collapsed
-  // This allows rules to fire and handle cross-block movement
-  return ctx.isEmpty && isAtStartOfBlock(ctx);
+  // Interim: always intercept vertical navigation
+  // This is correct until we implement visual-line detection
+  return ctx.isEmpty;
 }
 
 /**
  * Is cursor at the visual end of block?
  * 
- * INTERIM: Returns true for collapsed selections to fully own vertical navigation.
- * This prevents ProseMirror's fallback behavior.
+ * INTERIM: Always returns true for collapsed selections to fully own vertical navigation.
+ * This prevents ProseMirror's fallback behavior and ensures ArrowDown always fires.
  * 
  * TODO: Implement true visual-line detection for wrapped text.
+ * Future: Only return true when cursor is on last visual line of block.
  */
 export function isAtVisualEndOfBlock(ctx: KeyboardContext): boolean {
-  // Interim: always intercept when selection is collapsed
-  // This allows rules to fire and handle cross-block movement
-  return ctx.isEmpty && isAtEndOfBlock(ctx);
+  // Interim: always intercept vertical navigation
+  // This is correct until we implement visual-line detection
+  return ctx.isEmpty;
 }
 
