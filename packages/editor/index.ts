@@ -23,6 +23,10 @@ export type { EditorContextValue, EditorTagMetadata } from './context/EditorCont
 export { EditorCore } from './core/EditorCore';
 export type { EditorCoreHandle } from './core/EditorCore';
 
+// Editor state engine (pure state machine)
+export { EditorEngine, editorEngine } from './src/engine/EditorEngine';
+export type { EditorDocument, EditorChangeEvent, EditorChangeListener } from './src/engine/EditorEngine';
+
 // Extensions: Nodes
 export { Document } from './extensions/nodes/Document';
 export { Text } from './extensions/nodes/Text';
