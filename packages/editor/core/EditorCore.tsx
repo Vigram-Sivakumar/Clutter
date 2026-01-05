@@ -192,6 +192,12 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(({
         class: 'editor-content',
       },
       handleDOMEvents: {
+        mousedown: (_view, event) => {
+          // 🛡️ Prevent browser from creating DIV-level selection
+          // ProseMirror manages selection, not the browser
+          event.preventDefault();
+          return false;
+        },
         focus: () => {
           onFocus?.();
           return false; // Allow default focus behavior
@@ -377,6 +383,11 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(({
         ...style,
       }}
       onClick={handleWrapperClick}
+      onMouseDown={(e) => {
+        // 🛡️ Prevent browser from creating DIV-level selection
+        // ProseMirror manages all selection, browser should not interfere
+        e.preventDefault();
+      }}
     >
       {/* Editor styles */}
       <style>{`
