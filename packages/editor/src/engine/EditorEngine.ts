@@ -79,6 +79,25 @@ export class EditorEngine {
    * This is the ONLY way to update document from outside
    */
   setDocument(document: EditorDocument, noteId: string): void {
+    // 🔬 FORENSIC: Log document received at boundary
+    try {
+      const parsed = JSON.parse(document);
+      console.log('[ENGINE] setDocument', {
+        noteId,
+        hasDoc: !!document,
+        blockCount: parsed?.content?.length ?? null,
+        isHydrating: this.isHydrating,
+      });
+    } catch {
+      console.log('[ENGINE] setDocument', {
+        noteId,
+        hasDoc: !!document,
+        blockCount: null,
+        isHydrating: this.isHydrating,
+        error: 'Invalid JSON',
+      });
+    }
+
     // Start hydration phase
     this.isHydrating = true;
     this.noteId = noteId;
@@ -105,26 +124,48 @@ export class EditorEngine {
   applyEdit(document: EditorDocument, sourceNoteId: string): boolean {
     // 🔒 GUARD: Block during hydration
     if (this.isHydrating) {
+      console.warn('[ENGINE] edit rejected (hydrating)', { noteId: sourceNoteId });
       return false;
     }
 
     // 🔒 GUARD: Block if no active note
     if (!this.noteId) {
+      console.warn('[ENGINE] edit rejected (no owner)', { noteId: sourceNoteId });
       return false;
     }
 
     // 🔒 GUARD: Block stale updates from previous notes
     if (sourceNoteId !== this.noteId) {
+      console.warn('[ENGINE] edit rejected (wrong owner)', {
+        noteId: sourceNoteId,
+        currentOwner: this.noteId,
+      });
       return false;
     }
 
     // 🔒 GUARD: Validate document structure (not content)
     // Empty content is valid - user may have deleted everything
     if (!isValidDocument(document)) {
+      console.warn('[ENGINE] edit rejected (invalid structure)', { noteId: sourceNoteId });
       return false;
     }
 
     // ✅ Accept update
+    // 🔬 FORENSIC: Log accepted edit
+    try {
+      const parsed = JSON.parse(document);
+      console.log('[ENGINE] edit accepted', {
+        noteId: sourceNoteId,
+        blockCount: parsed?.content?.length ?? null,
+      });
+    } catch {
+      console.log('[ENGINE] edit accepted', {
+        noteId: sourceNoteId,
+        blockCount: null,
+        error: 'Invalid JSON (but passed validation?)',
+      });
+    }
+
     this.document = document;
 
     // Emit user change
@@ -169,6 +210,23 @@ export class EditorEngine {
    * Emit change to all listeners
    */
   private emit(event: EditorChangeEvent): void {
+    // 🔬 FORENSIC: Log what engine is emitting to UI
+    try {
+      const parsed = JSON.parse(event.document);
+      console.log('[ENGINE] emit', {
+        noteId: event.noteId,
+        blockCount: parsed?.content?.length ?? null,
+        source: event.source,
+      });
+    } catch {
+      console.log('[ENGINE] emit', {
+        noteId: event.noteId,
+        blockCount: null,
+        source: event.source,
+        error: 'Invalid JSON',
+      });
+    }
+
     this.listeners.forEach(listener => {
       try {
         listener(event);
