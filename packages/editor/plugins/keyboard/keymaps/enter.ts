@@ -17,6 +17,7 @@
 import type { Editor } from '@tiptap/core';
 import { createKeyboardEngine } from '../engine/KeyboardEngine';
 import {
+  splitListItem,
   exitEmptyListInWrapper,
   outdentEmptyList,
   exitEmptyHeading,
@@ -26,6 +27,7 @@ import {
 
 // Create engine with all Enter rules
 const enterEngine = createKeyboardEngine([
+  splitListItem, // Priority 110 - split list items before exiting
   exitEmptyListInWrapper,
   outdentEmptyList,
   exitEmptyHeading,

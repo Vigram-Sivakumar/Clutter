@@ -24,6 +24,7 @@ import type { ListType, ListBlockAttrs } from '../../types';
 import { ListBlock as ListBlockComponent } from '../../components/ListBlock';
 import { createShiftEnterHandler, createSiblingAttrs, findAncestorNode, handleEmptyBlockInToggle, indentBlock, outdentBlock } from '../../utils/keyboardHelpers';
 import { EnterRules, BackspaceRules } from '../../utils/keyboardRules';
+import { handleEnter } from '../../plugins/keyboard'; // NEW: Use rule engine for Enter
 
 declare module '@tiptap/core' {
   interface Commands<ReturnType> {
@@ -218,65 +219,20 @@ export const ListBlock = Node.create({
       },
 
       Enter: ({ editor }) => {
-        const { state } = editor;
+        // NEW: Use rule engine for Enter behavior
+        // This handles:
+        // - splitListItem (priority 110) - splits at cursor position
+        // - exitEmptyListInWrapper (priority 100)
+        // - outdentEmptyList (priority 90)
+        // All other exit/split behaviors
+        const handled = handleEnter(editor);
         
-        // PHASE 1 REFACTOR: Use detector for empty listBlock
-        const listBlockContext = EnterRules.getEmptyListBlockContext(editor);
+        if (handled) {
+          return true;
+        }
         
-        if (!listBlockContext.isEmpty) {
-          // Not empty - create new list item (handled below)
-          // Continue to non-empty logic
-        } else {
-          // Empty list item detected - use shared handler
-          const listBlock = listBlockContext.listBlock!;
-          const listBlockPos = listBlock.pos;
-          const listBlockNode = listBlock.node;
-          
-          return handleEmptyBlockInToggle(editor, listBlockPos, listBlockNode, 'listBlock');
-        }
-
-        // Non-empty: create new list item after
-        // Need to get listBlock info for non-empty case
-        const { $from } = state.selection;
-        let listBlockPos: number | null = null;
-        let listBlockNode = null;
-        
-        for (let d = $from.depth; d >= 1; d--) {
-          const pos = $from.before(d);
-          const node = state.doc.nodeAt(pos);
-          if (node && node.type.name === this.name) {
-            listBlockPos = pos;
-            listBlockNode = node;
-            break;
-          }
-        }
-
-        if (listBlockPos === null || !listBlockNode) {
-          return false;
-        }
-
-        const attrs = listBlockNode.attrs as ListBlockAttrs;
-
-        // Non-empty: create new list item after
-        const endPos = listBlockPos + listBlockNode.nodeSize;
-
-        // CRITICAL: Copy structural context to create proper sibling
-        const siblingAttrs = createSiblingAttrs(attrs);
-
-        return editor.chain()
-          .insertContentAt(endPos, {
-            type: this.name,
-            attrs: {
-              blockId: crypto.randomUUID(),  // Generate blockId immediately (prevent BlockIdGenerator loop)
-              listType: attrs.listType,
-              checked: attrs.listType === 'task' ? false : null,
-              level: attrs.level || 0,  // Copy current level (BlockIdGenerator will correct if needed)
-              ...siblingAttrs,  // ✅ Enforce invariant: copy parentBlockId + parentToggleId
-            },
-            // ListBlock now has inline* content (no nested paragraph)
-          })
-          .setTextSelection(endPos + 1) // Position cursor in new list item
-          .run();
+        // Fallback: default TipTap behavior (shouldn't reach here for lists)
+        return false;
       },
 
       Backspace: ({ editor }) => {
