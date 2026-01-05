@@ -1461,8 +1461,10 @@ export const NoteEditor = ({
               style={{
                 position: 'relative',
                 minHeight: '200px',
-                transition: 'opacity 120ms ease',
-                opacity: isSwitchingNote ? 0.92 : 1,
+                transition: 'opacity 120ms ease, transform 120ms ease, filter 120ms ease',
+                opacity: isSwitchingNote ? 0.94 : 1,
+                transform: isSwitchingNote ? 'translateY(1px)' : 'translateY(0)',
+                filter: isSwitchingNote ? 'blur(0.2px)' : 'none',
               }}
             >
               <TipTapWrapper
