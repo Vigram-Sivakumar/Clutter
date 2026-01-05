@@ -248,7 +248,7 @@ export const AppSidebar = ({
   const isFoldersCollapsed = useUIStateStore(state => state.foldersCollapsed);
   const setFoldersCollapsed = useUIStateStore(state => state.setFoldersCollapsed);
   
-  const openFolderIds = useUIStateStore(state => state.openFolderIds);
+  const openFolderIds = useUIStateStore(state => state.openFolderIds) || new Set<string>();
   const setOpenFolderIds = useUIStateStore(state => state.setOpenFolderIds);
   const toggleFolderOpen = useUIStateStore(state => state.toggleFolderOpen);
   
