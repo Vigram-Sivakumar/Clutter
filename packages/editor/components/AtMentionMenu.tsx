@@ -114,7 +114,7 @@ export function AtMentionMenu({ editor, onNavigate }: AtMentionMenuProps) {
     }
 
     return items;
-  }, [dateSuggestions, entityResults, query, findDailyNoteByDate]);
+  }, [dateSuggestions, entityResults, query, onFindDailyNote]);
 
   const handleClose = useCallback(() => {
     if (editor) {
@@ -233,7 +233,7 @@ export function AtMentionMenu({ editor, onNavigate }: AtMentionMenuProps) {
     }
 
     handleClose();
-  }, [editor, handleClose, createNote, createFolder, findDailyNoteByDate, createDailyNote, onNavigate]);
+  }, [editor, handleClose, onCreateNote, onCreateFolder, onFindDailyNote, onCreateDailyNote, onNavigate]);
 
   // Keep refs in sync with latest values
   useEffect(() => {
