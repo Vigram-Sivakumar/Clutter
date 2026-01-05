@@ -69,3 +69,36 @@ export function logSelectionPair(label: string, editor: Editor): void {
   logPmSelection(label, editor);
 }
 
+/**
+ * Track selection type changes (TextSelection → NodeSelection)
+ */
+let lastSelType: string | null = null;
+
+export function logSelectionTypeChange(editor: Editor): void {
+  const type = editor.state.selection.constructor.name;
+  if (type !== lastSelType) {
+    console.log('[SEL][PM][TYPE-CHANGE]', {
+      from: lastSelType,
+      to: type,
+      pos: editor.state.selection.from,
+    });
+    lastSelType = type;
+  }
+}
+
+/**
+ * Log when NodeSelection is detected (helps find who creates it)
+ */
+export function logIfNodeSelection(editor: Editor, label: string): void {
+  const sel = editor.state.selection;
+
+  if (sel.constructor.name === '_NodeSelection') {
+    console.warn('[SEL][PM][NODE-SELECTION]', {
+      label,
+      from: sel.from,
+      to: sel.to,
+      parent: sel.$from.parent.type.name,
+    });
+  }
+}
+

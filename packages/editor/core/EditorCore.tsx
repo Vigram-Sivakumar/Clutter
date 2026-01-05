@@ -8,7 +8,7 @@ import React, { useEffect, useCallback, forwardRef, useImperativeHandle, useRef 
 import { useEditor, EditorContent } from '@tiptap/react';
 import { Editor } from '@tiptap/core';
 import { NodeSelection } from '@tiptap/pm/state';
-import { logSelectionPair } from '../utils/selectionDebug';
+import { logSelectionPair, logSelectionTypeChange } from '../utils/selectionDebug';
 
 export interface EditorCoreHandle {
   focus: () => void;
@@ -203,6 +203,9 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(({
       },
     },
     onUpdate: ({ editor, transaction }) => {
+      // 🔬 FORENSIC: Track selection type changes
+      logSelectionTypeChange(editor);
+      
       // Only fire onChange if document actually changed (not just selection)
       if (onChange && transaction.docChanged) {
         // Mark that this update is coming from the editor (internal)
@@ -213,6 +216,10 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(({
           isInternalUpdate.current = false;
         }, 0);
       }
+    },
+    onSelectionUpdate: ({ editor }) => {
+      // 🔬 FORENSIC: Track selection type changes on selection-only updates
+      logSelectionTypeChange(editor);
     },
   });
 

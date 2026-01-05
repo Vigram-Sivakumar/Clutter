@@ -88,6 +88,15 @@ export function BlockWrapper({
       data-level={level}
       data-toggle={parentToggleId || undefined}
       className={className}
+      onMouseDown={(e) => {
+        // 🔬 FORENSIC: Track mouse interactions on blocks
+        if (import.meta.env.DEV) {
+          console.log('[UI] block mouseDown', {
+            target: (e.target as HTMLElement).tagName,
+            dataType,
+          });
+        }
+      }}
       style={{
         display: 'flex',
         alignItems: 'flex-start',

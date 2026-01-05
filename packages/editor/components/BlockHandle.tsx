@@ -12,6 +12,7 @@ import { NodeSelection, TextSelection } from '@tiptap/pm/state';
 import { DragHandle, Trash2, Copy, ChevronUp, ChevronDown, Type } from '@clutter/ui';
 import { useTheme } from '@clutter/ui';
 import { isMultiBlockSelection, getSelectedBlocks, executeOnSelectedBlocks, getSelectedBlockCount } from '../utils/multiSelection';
+import { logIfNodeSelection } from '../utils/selectionDebug';
 
 export interface BlockHandleProps {
   editor: Editor;
@@ -208,6 +209,14 @@ export function BlockHandle({ editor, getPos, indent = 0 }: BlockHandleProps) {
   }, [showMenu]);
   // Select the block when clicking the handle
   const handleClick = (e?: React.MouseEvent) => {
+    // 🔬 FORENSIC: Track block handle clicks
+    if (import.meta.env.DEV) {
+      console.log('[UI] block handle click', {
+        shift: e?.shiftKey,
+        button: e?.button,
+      });
+    }
+    
     const pos = getPos();
     if (pos === undefined) return;
 
@@ -271,6 +280,11 @@ export function BlockHandle({ editor, getPos, indent = 0 }: BlockHandleProps) {
     } else {
       // Non-empty or container block: select the whole block
       editor.chain().focus().setNodeSelection(pos).run();
+      
+      // 🔬 FORENSIC: Log when NodeSelection is created
+      setTimeout(() => {
+        logIfNodeSelection(editor, 'after-block-handle-click');
+      }, 0);
     }
   };
 
