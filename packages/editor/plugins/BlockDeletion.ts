@@ -11,35 +11,26 @@ import { NodeSelection, TextSelection } from '@tiptap/pm/state';
 import { isMultiBlockSelection, getSelectedBlocks } from '../utils/multiSelection';
 
 /**
- * Clear native browser selection to prevent visual artifacts
- * after bulk delete operations (especially Ctrl+A → Delete)
- * 
- * Why: Browser Selection API can hold stale ranges across DOM mutations,
- * causing empty paragraphs to show blue highlight even when ProseMirror
- * state has a collapsed cursor.
- */
-function clearBrowserSelection() {
-  // eslint-disable-next-line no-undef
-  if (typeof requestAnimationFrame === 'undefined' || typeof window === 'undefined') return;
-  
-  // eslint-disable-next-line no-undef
-  requestAnimationFrame(() => {
-    // eslint-disable-next-line no-undef
-    const selection = window.getSelection?.();
-    if (!selection) return;
-    
-    if (selection.rangeCount > 0) {
-      selection.removeAllRanges();
-    }
-  });
-}
-
-/**
  * Check if selection is a NodeSelection on a single block
  */
 function isNodeSelected(state: any): boolean {
   const { selection } = state;
   return selection instanceof NodeSelection;
+}
+
+/**
+ * Clear native browser selection to prevent visual artifacts
+ * (especially after Ctrl+A → Delete which leaves browser selection range)
+ */
+function clearBrowserSelection(): void {
+  // eslint-disable-next-line no-undef
+  const sel = typeof window !== 'undefined' ? window.getSelection?.() : null;
+  if (!sel) return;
+  
+  // Only clear if there's an active range selection (not a collapsed cursor)
+  if (sel.rangeCount > 0 && sel.type === 'Range') {
+    sel.removeAllRanges();
+  }
 }
 
 export const BlockDeletion = Extension.create({
@@ -73,16 +64,17 @@ export const BlockDeletion = Extension.create({
                 tr = tr.delete(block.pos, block.pos + block.nodeSize);
               }
               
-              // 🎯 FIX: Create COLLAPSED cursor (prevents browser range highlight)
-              // Position 1 = inside first paragraph (canonical "start typing" position)
-              const pos = 1;
-              const $pos = tr.doc.resolve(pos);
-              tr = tr.setSelection(TextSelection.create(tr.doc, $pos.pos, $pos.pos));
+              // 🎯 FIX: Force TextSelection after delete (prevents sticky halo)
+              const pos = Math.min(tr.doc.content.size - 1, tr.selection.from);
+              if (pos >= 0) {
+                tr = tr.setSelection(TextSelection.create(tr.doc, pos));
+              }
               
               // Dispatch transaction (this will trigger onUpdate with docChanged=true)
               view.dispatch(tr);
               
-              // Clear native browser selection to prevent visual artifacts
+              // 🔥 FIX: Clear native browser selection (prevents blue highlight on empty paragraph)
+              // This is especially important after Ctrl+A → Delete
               clearBrowserSelection();
               
               return true; // Prevent default behavior
@@ -97,14 +89,15 @@ export const BlockDeletion = Extension.create({
                 // Delete the block and trigger onUpdate
                 let tr = state.tr.delete(pos, pos + node.nodeSize);
                 
-                // 🎯 FIX: Create COLLAPSED cursor (prevents browser range highlight)
-                const cursorPos = 1;
-                const $cursorPos = tr.doc.resolve(cursorPos);
-                tr = tr.setSelection(TextSelection.create(tr.doc, $cursorPos.pos, $cursorPos.pos));
+                // 🎯 FIX: Force TextSelection after delete (prevents sticky halo)
+                const cursorPos = Math.min(tr.doc.content.size - 1, pos);
+                if (cursorPos >= 0) {
+                  tr = tr.setSelection(TextSelection.create(tr.doc, cursorPos));
+                }
                 
                 view.dispatch(tr);
                 
-                // Clear native browser selection to prevent visual artifacts
+                // 🔥 FIX: Clear native browser selection (prevents blue highlight on empty paragraph)
                 clearBrowserSelection();
                 
                 return true; // Prevent default behavior
