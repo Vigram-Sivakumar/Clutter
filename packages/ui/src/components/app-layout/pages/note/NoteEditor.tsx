@@ -1545,19 +1545,21 @@ export const NoteEditor = ({
 
           {/* Editor */}
           <PageContent>
-            {/* 🚨 CRITICAL: Editor must not exist until hydration is COMPLETE */}
-            {editorState.status === 'ready' && editorState.document && isHydrated ? (
-              <>
-                {/* 🔍 ASSERTION: Log what we're about to mount */}
-                {(() => {
-                  console.log('[EDITOR ASSERT] Rendering editor:', {
-                    noteId: currentNoteId,
-                    hasDocument: !!editorState.document,
-                    documentLength: editorState.document.length,
-                    isHydrated,
-                  });
-                  return null;
-                })()}
+            {/* 🎯 UX: Editor stays mounted always (like Apple Notes / Notion) */}
+            {/* Hydration controls editability, not existence */}
+            <div style={{ position: 'relative', minHeight: '200px' }}>
+              {/* 🔍 ASSERTION: Log what we're rendering */}
+              {(() => {
+                console.log('[EDITOR ASSERT] Rendering editor:', {
+                  noteId: currentNoteId,
+                  hasDocument: !!editorState.document,
+                  documentLength: editorState.document?.length || 0,
+                  isHydrated,
+                });
+                return null;
+              })()}
+              
+              {editorState.status === 'ready' && editorState.document ? (
                 <TipTapWrapper
                   key={currentNoteId}
                   ref={editorRef}
@@ -1676,13 +1678,24 @@ export const NoteEditor = ({
               }}
               editorContext={editorContext}
                 />
-              </>
-            ) : (
-              /* Loading state - editor will mount when document is ready */
-              <div style={{ padding: '20px', color: '#666' }}>
-                Loading editor...
-              </div>
-            )}
+              ) : null}
+              
+              {/* 🎨 Subtle transition overlay during hydration (Apple Notes / Notion style) */}
+              {!isHydrated && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    pointerEvents: 'none',
+                    background: `linear-gradient(to bottom, ${colors.background}80, ${colors.background}CC)`,
+                    backdropFilter: 'blur(2px)',
+                    opacity: 1,
+                    transition: 'opacity 120ms ease-out',
+                  }}
+                  aria-hidden="true"
+                />
+              )}
+            </div>
           </PageContent>
           </>
         )}
