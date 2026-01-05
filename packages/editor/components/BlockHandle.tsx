@@ -261,7 +261,17 @@ export function BlockHandle({ editor, getPos, indent = 0 }: BlockHandleProps) {
     // Normal single-block selection (or clicking non-first block in multi-selection)
     // Reset anchor and select just this block
     anchorBlockPos = pos;
-    editor.chain().focus().setNodeSelection(pos).run();
+    
+    // 🎯 FIX: For empty text blocks, place cursor inside (TextSelection)
+    // This prevents "halo lock" and allows immediate typing
+    const node = editor.state.doc.nodeAt(pos);
+    if (node && node.isTextblock && node.content.size === 0) {
+      // Empty block: place cursor inside
+      editor.chain().focus().setTextSelection(pos + 1).run();
+    } else {
+      // Non-empty or container block: select the whole block
+      editor.chain().focus().setNodeSelection(pos).run();
+    }
   };
 
   const handleDelete = () => {
@@ -277,8 +287,15 @@ export function BlockHandle({ editor, getPos, indent = 0 }: BlockHandleProps) {
         tr = tr.delete(block.pos, block.pos + block.nodeSize);
       }
       
+      // After deletion, place cursor inside the remaining content
+      // This prevents "sticky halo" and allows immediate typing
+      const pos = Math.min(tr.doc.content.size - 1, tr.selection.from);
+      if (pos >= 0) {
+        tr.setSelection(TextSelection.create(tr.doc, pos));
+      }
+      
       editor.view.dispatch(tr);
-      editor.commands.focus();
+      editor.view.focus();
       setShowMenu(false);
       return;
     }
@@ -290,7 +307,18 @@ export function BlockHandle({ editor, getPos, indent = 0 }: BlockHandleProps) {
     const node = editor.state.doc.nodeAt(pos);
     if (!node) return;
     
-    editor.chain().focus().deleteRange({ from: pos, to: pos + node.nodeSize }).run();
+    // Delete the block
+    const tr = editor.state.tr.deleteRange(pos, pos + node.nodeSize);
+    
+    // After deletion, place cursor inside the remaining content
+    // This prevents "sticky halo" and allows immediate typing
+    const cursorPos = Math.min(tr.doc.content.size - 1, pos);
+    if (cursorPos >= 0) {
+      tr.setSelection(TextSelection.create(tr.doc, cursorPos));
+    }
+    
+    editor.view.dispatch(tr);
+    editor.view.focus();
     setShowMenu(false);
   };
 
