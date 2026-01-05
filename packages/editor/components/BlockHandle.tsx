@@ -11,7 +11,7 @@ import { Editor } from '@tiptap/react';
 import { NodeSelection, TextSelection } from '@tiptap/pm/state';
 import { DragHandle, Trash2, Copy, ChevronUp, ChevronDown, Type } from '@clutter/ui';
 import { useTheme } from '@clutter/ui';
-import { isMultiBlockSelection, getSelectedBlocks, executeOnSelectedBlocks, getSelectedBlockCount } from '../utils/multiSelection';
+import { isMultiBlockSelection, getSelectedBlocks } from '../utils/multiSelection';
 
 export interface BlockHandleProps {
   editor: Editor;
@@ -21,6 +21,26 @@ export interface BlockHandleProps {
 
 // Shared anchor position for Shift+Click range selection (Finder-style)
 let anchorBlockPos: number | null = null;
+
+/**
+ * Clear native browser selection to prevent visual artifacts
+ * after bulk delete operations (especially Ctrl+A → Delete)
+ */
+function clearBrowserSelection() {
+  // eslint-disable-next-line no-undef
+  if (typeof requestAnimationFrame === 'undefined' || typeof window === 'undefined') return;
+  
+  // eslint-disable-next-line no-undef
+  requestAnimationFrame(() => {
+    // eslint-disable-next-line no-undef
+    const selection = window.getSelection?.();
+    if (!selection) return;
+    
+    if (selection.rangeCount > 0) {
+      selection.removeAllRanges();
+    }
+  });
+}
 
 export function BlockHandle({ editor, getPos, indent = 0 }: BlockHandleProps) {
   const { colors } = useTheme();
@@ -287,15 +307,17 @@ export function BlockHandle({ editor, getPos, indent = 0 }: BlockHandleProps) {
         tr = tr.delete(block.pos, block.pos + block.nodeSize);
       }
       
-      // After deletion, place cursor inside the remaining content
-      // This prevents "sticky halo" and allows immediate typing
-      const pos = Math.min(tr.doc.content.size - 1, tr.selection.from);
-      if (pos >= 0) {
-        tr.setSelection(TextSelection.create(tr.doc, pos));
-      }
+      // 🎯 FIX: Create COLLAPSED cursor (prevents browser range highlight)
+      const pos = 1;
+      const $pos = tr.doc.resolve(pos);
+      tr.setSelection(TextSelection.create(tr.doc, $pos.pos, $pos.pos));
       
       editor.view.dispatch(tr);
       editor.view.focus();
+      
+      // Clear native browser selection to prevent visual artifacts
+      clearBrowserSelection();
+      
       setShowMenu(false);
       return;
     }
@@ -310,15 +332,17 @@ export function BlockHandle({ editor, getPos, indent = 0 }: BlockHandleProps) {
     // Delete the block
     const tr = editor.state.tr.deleteRange(pos, pos + node.nodeSize);
     
-    // After deletion, place cursor inside the remaining content
-    // This prevents "sticky halo" and allows immediate typing
-    const cursorPos = Math.min(tr.doc.content.size - 1, pos);
-    if (cursorPos >= 0) {
-      tr.setSelection(TextSelection.create(tr.doc, cursorPos));
-    }
+    // 🎯 FIX: Create COLLAPSED cursor (prevents browser range highlight)
+    const cursorPos = 1;
+    const $cursorPos = tr.doc.resolve(cursorPos);
+    tr.setSelection(TextSelection.create(tr.doc, $cursorPos.pos, $cursorPos.pos));
     
     editor.view.dispatch(tr);
     editor.view.focus();
+    
+    // Clear native browser selection to prevent visual artifacts
+    clearBrowserSelection();
+    
     setShowMenu(false);
   };
 
