@@ -1,6 +1,8 @@
 import { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import { useTheme } from '../../../../hooks/useTheme';
-import { useNotesStore, useFoldersStore, useUIStateStore, useCurrentDateStore, CLUTTERED_FOLDER_ID, DAILY_NOTES_FOLDER_ID } from '@clutter/shared';
+import { CLUTTERED_FOLDER_ID, DAILY_NOTES_FOLDER_ID } from '@clutter/domain';
+import { useNotesStore, useFoldersStore, useCurrentDateStore } from '@clutter/state';
+import { useUIStateStore } from '@clutter/shared';
 import { NotesListView } from '../../shared/notes-list';
 import { PageTitleSection } from '../../shared/content-header';
 import { ListViewLayout } from '../../shared/list-view-layout';

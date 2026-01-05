@@ -5,7 +5,7 @@
  */
 
 import { invoke } from '@tauri-apps/api/tauri';
-import type { Note, Folder, Tag } from '@clutter/shared';
+import { Note, Folder, Tag } from '@clutter/domain';
 
 const STORAGE_FOLDER_KEY = 'clutter-storage-folder';
 

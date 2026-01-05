@@ -1,6 +1,6 @@
 import { ReactNode, useState } from 'react';
 import { useTheme } from '../../../../hooks/useTheme';
-import { useTagsStore } from '@clutter/shared';
+import { useTagsStore } from '@clutter/state';
 import { spacing } from '../../../../tokens/spacing';
 import { sizing } from '../../../../tokens/sizing';
 import { radius } from '../../../../tokens/radius';

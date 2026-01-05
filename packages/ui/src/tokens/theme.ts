@@ -3,7 +3,7 @@
  */
 
 import { colors } from './colors';
-import type { ThemeMode } from '@clutter/shared';
+import { ThemeMode } from '@clutter/domain';
 
 export const getThemeColors = (mode: ThemeMode) => {
   return colors[mode];

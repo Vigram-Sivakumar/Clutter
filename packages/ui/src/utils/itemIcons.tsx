@@ -4,7 +4,7 @@
  */
 
 import { ReactNode } from 'react';
-import { CLUTTERED_FOLDER_ID, DAILY_NOTES_FOLDER_ID } from '@clutter/shared';
+import { CLUTTERED_FOLDER_ID, DAILY_NOTES_FOLDER_ID } from '@clutter/domain';
 import { Tray, Calendar, CalendarDot, CalendarBlank, Note, NoteBlank, Folder, FolderOpen, CheckSquare } from '../icons';
 
 // System folder IDs

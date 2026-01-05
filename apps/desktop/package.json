@@ -15,6 +15,8 @@
     "clean": "rm -rf dist src-tauri/target node_modules/.vite"
   },
   "dependencies": {
+    "@clutter/domain": "*",
+    "@clutter/state": "*",
     "@clutter/shared": "*",
     "@clutter/ui": "*",
     "@emoji-mart/data": "^1.2.1",

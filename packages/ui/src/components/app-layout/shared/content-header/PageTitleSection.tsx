@@ -14,7 +14,7 @@ import { typography } from '../../../../tokens/typography';
 import { sizing } from '../../../../tokens/sizing';
 import { useTheme } from '../../../../hooks/useTheme';
 import { getTagColor } from '../../../../utils/tagColors';
-import { useTagsStore } from '@clutter/shared';
+import { useTagsStore } from '@clutter/state';
 import { getNoteIcon, getFolderIcon } from '../../../../utils/itemIcons';
 
 // Global page title margin - change once to affect all variants

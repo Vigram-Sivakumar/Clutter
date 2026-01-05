@@ -1,6 +1,6 @@
 import { useMemo, useState, useCallback } from 'react';
 import { useTheme } from '../../../../hooks/useTheme';
-import { useNotesStore, useFoldersStore } from '@clutter/shared';
+import { useNotesStore, useFoldersStore } from '@clutter/state';
 import { PageTitleSection } from '../../shared/content-header';
 import { ListViewLayout } from '../../shared/list-view-layout';
 import { NotesListView } from '../../shared/notes-list/NotesListView';

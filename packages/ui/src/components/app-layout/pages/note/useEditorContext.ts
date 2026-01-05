@@ -9,7 +9,7 @@
  */
 
 import { useMemo } from 'react';
-import { useTagsStore, useNotesStore, useFoldersStore } from '@clutter/shared';
+import { useTagsStore, useNotesStore, useFoldersStore } from '@clutter/state';
 import { EditorContextValue, EditorTag, EditorLinkedNote, EditorFolder } from '@clutter/editor';
 
 /**

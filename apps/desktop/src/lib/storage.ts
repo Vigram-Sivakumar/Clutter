@@ -14,7 +14,7 @@ import {
   exists, 
   readDir
 } from '@tauri-apps/api/fs';
-import type { Note } from '@clutter/shared';
+import { Note } from '@clutter/domain';
 
 const STORAGE_FOLDER_KEY = 'clutter-storage-folder';
 

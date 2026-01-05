@@ -1,5 +1,5 @@
 import { ReactNode, useState } from 'react';
-import { useTagsStore } from '@clutter/shared';
+import { useTagsStore } from '@clutter/state';
 import { ListView, ListItem, TagListItemData } from '../list-view';
 import { ColorTray } from '../content-header/tags/ColorTray';
 import { getTagColor } from '../../../../utils/tagColors';

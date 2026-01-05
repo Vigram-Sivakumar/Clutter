@@ -11,7 +11,7 @@
  * This is a one-way projection (domain → editor only).
  */
 
-import type { Note, NoteMetadata } from '@clutter/shared';
+import type { Note, NoteMetadata } from '@clutter/domain';
 import type { EditorLinkedNote } from '../../../packages/editor/types';
 
 /**

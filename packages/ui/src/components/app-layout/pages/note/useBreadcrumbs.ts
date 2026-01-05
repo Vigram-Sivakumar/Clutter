@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
-import { useFoldersStore, CLUTTERED_FOLDER_ID, DAILY_NOTES_FOLDER_ID } from '@clutter/shared';
-import type { Note } from '@clutter/shared';
+import { CLUTTERED_FOLDER_ID, DAILY_NOTES_FOLDER_ID } from '@clutter/domain';
+import { useFoldersStore } from '@clutter/state';
+import { Note } from '@clutter/domain';
 
 /**
  * Breadcrumb configuration for different view types

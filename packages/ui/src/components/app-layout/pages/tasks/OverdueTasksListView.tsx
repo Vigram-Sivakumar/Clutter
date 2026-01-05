@@ -1,11 +1,12 @@
 import { useMemo } from 'react';
-import { useNotesStore, getTodayDateString, formatTaskDateLabel } from '@clutter/shared';
+import { useNotesStore } from '@clutter/state';
+import { getTodayDateString, formatTaskDateLabel } from '@clutter/shared';
 import { ListView, ListItem, TaskListItemData } from '../../shared/list-view';
 import { PageTitleSection } from '../../shared/content-header';
 import { ListViewLayout } from '../../shared/list-view-layout';
 import { CheckSquare } from '../../../../icons';
 import { sizing } from '../../../../tokens/sizing';
-import type { Note } from '@clutter/shared';
+import { Note } from '@clutter/domain';
 
 interface OverdueTasksListViewProps {
   onTaskClick: (noteId: string, taskId: string) => void;

@@ -14,7 +14,7 @@
  * This is the border crossing.
  */
 
-import type { Note } from '@clutter/shared';
+import type { Note } from '@clutter/domain';
 import type { EditorDocument } from '../../../packages/editor/types';
 
 /**

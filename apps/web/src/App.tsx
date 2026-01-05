@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { ThemeProvider, NotesContainer, RightClickContextMenuProvider, ConfirmationDialog, FormDialog } from '@clutter/ui';
-import { useTagsStore, useNotesStore } from '@clutter/shared';
+import { useTagsStore, useNotesStore } from '@clutter/state';
 
 function App() {
   const updateDailyNoteTitles = useNotesStore(state => state.updateDailyNoteTitles);

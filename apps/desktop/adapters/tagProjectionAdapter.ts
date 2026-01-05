@@ -11,7 +11,7 @@
  * This is a one-way projection (domain → editor only).
  */
 
-import type { Tag } from '@clutter/shared';
+import type { Tag } from '@clutter/domain';
 import type { EditorTag } from '../../../packages/editor/types';
 
 /**

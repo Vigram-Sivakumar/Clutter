@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useTheme } from '../../hooks/useTheme';
-import { useConfirmationStore } from '@clutter/shared';
+import { useConfirmationStore } from '@clutter/state';
 import { radius } from '../../tokens/radius';
 import { spacing } from '../../tokens/spacing';
 import { typography } from '../../tokens/typography';

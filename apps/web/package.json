@@ -13,6 +13,8 @@
     "clean": "rm -rf dist node_modules/.vite"
   },
   "dependencies": {
+    "@clutter/domain": "*",
+    "@clutter/state": "*",
     "@clutter/shared": "*",
     "@clutter/ui": "*",
     "@emoji-mart/react": "^1.1.1",

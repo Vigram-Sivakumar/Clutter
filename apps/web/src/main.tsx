@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import './index.css';
-import { useTagsStore, useFoldersStore, useNotesStore } from '@clutter/shared';
+import { useTagsStore, useFoldersStore, useNotesStore } from '@clutter/state';
 
 // Expose dev helper functions to window for console access
 if (typeof window !== 'undefined') {

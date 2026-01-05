@@ -1,12 +1,14 @@
 import { useMemo, ReactNode } from 'react';
-import { useNotesStore, useUIStateStore, DAILY_NOTES_FOLDER_ID, getTodayDateString, formatTaskDateLabel, compareDates } from '@clutter/shared';
+import { DAILY_NOTES_FOLDER_ID } from '@clutter/domain';
+import { useNotesStore } from '@clutter/state';
+import { useUIStateStore, getTodayDateString, formatTaskDateLabel, compareDates } from '@clutter/shared';
 import { useTheme } from '../../../../../hooks/useTheme';
 import { SidebarSection } from '../sections/Section';
 import { SidebarItemTask } from '../items/TaskItem';
 import { SidebarItem } from '../items/SidebarItem';
 import { SidebarEmptyState } from '../sections/EmptyState';
 import { sidebarLayout } from '../../../../../tokens/sidebar';
-import type { Note } from '@clutter/shared';
+import { Note } from '@clutter/domain';
 import { GlobalSelection } from '../types';
 
 export interface TaskWithDate {

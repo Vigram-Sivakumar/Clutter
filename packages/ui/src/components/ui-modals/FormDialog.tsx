@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useTheme } from '../../hooks/useTheme';
-import { useFormDialogStore } from '@clutter/shared';
+import { useFormDialogStore } from '@clutter/state';
 import { radius } from '../../tokens/radius';
 import { spacing } from '../../tokens/spacing';
 import { typography } from '../../tokens/typography';

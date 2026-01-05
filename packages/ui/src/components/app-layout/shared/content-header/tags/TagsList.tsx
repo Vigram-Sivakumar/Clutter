@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { TagPill } from './Tag';
 import { FloatingContextMenu } from './FloatingContextMenu';
 import { TagContextContent } from './TagContextContent';
-import { useTagsStore } from '@clutter/shared';
+import { useTagsStore } from '@clutter/state';
 import { getTagColor } from '../../../../../utils/tagColors';
 
 interface TagsListProps {

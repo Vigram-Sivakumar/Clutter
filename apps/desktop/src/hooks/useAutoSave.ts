@@ -14,7 +14,7 @@
  */
 
 import { useEffect, useRef } from 'react';
-import { useNotesStore } from '@clutter/shared';
+import { useNotesStore } from '@clutter/state';
 import { saveNoteToDatabase } from '../lib/database';
 
 // Local type to avoid import issues

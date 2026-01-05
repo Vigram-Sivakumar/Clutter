@@ -1,5 +1,7 @@
 import { useMemo, useState, useEffect, ReactNode } from 'react';
-import { useNotesStore, useUIStateStore, useCurrentDateStore, DAILY_NOTES_FOLDER_ID } from '@clutter/shared';
+import { DAILY_NOTES_FOLDER_ID } from '@clutter/domain';
+import { useNotesStore, useCurrentDateStore } from '@clutter/state';
+import { useUIStateStore } from '@clutter/shared';
 import { useTheme } from '../../../../../hooks/useTheme';
 import { SidebarEmptyState } from '../sections/EmptyState';
 import { SidebarSection } from '../sections/Section';
@@ -9,7 +11,7 @@ import { SidebarItemTask } from '../items/TaskItem';
 import { sizing as globalSizing } from '../../../../../tokens/sizing';
 import { sidebarLayout } from '../../../../../tokens/sidebar';
 import { transitions } from '../../../../../tokens/transitions';
-import type { Note } from '@clutter/shared';
+import { Note } from '@clutter/domain';
 import { SidebarNote, GlobalSelection } from '../types';
 import { ALL_TASKS_FOLDER_ID } from '../../../../../utils/itemIcons';
 import {

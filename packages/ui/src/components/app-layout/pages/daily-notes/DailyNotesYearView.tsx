@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useTheme } from '../../../../hooks/useTheme';
-import { useNotesStore, useCurrentDateStore, DAILY_NOTES_FOLDER_ID } from '@clutter/shared';
+import { DAILY_NOTES_FOLDER_ID } from '@clutter/domain';
+import { useNotesStore, useCurrentDateStore } from '@clutter/state';
 import { PageSkeleton } from '../../shared/page-skeleton';
 import { PageTitleSection } from '../../shared/content-header';
 import { SectionTitle } from '../../shared/section-title';

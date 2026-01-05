@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useTheme } from '../../../../../hooks/useTheme';
 import { DismissButton } from '../../../../ui-buttons';
 import { getTagColor } from '../../../../../utils/tagColors';
-import { useTagsStore } from '@clutter/shared';
+import { useTagsStore } from '@clutter/state';
 import { radius } from '../../../../../tokens/radius';
 
 interface TagPillProps {

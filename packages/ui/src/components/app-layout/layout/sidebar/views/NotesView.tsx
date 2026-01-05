@@ -1,5 +1,5 @@
 import { ReactNode } from 'react';
-import { CLUTTERED_FOLDER_ID, DAILY_NOTES_FOLDER_ID } from '@clutter/shared';
+import { CLUTTERED_FOLDER_ID, DAILY_NOTES_FOLDER_ID } from '@clutter/domain';
 import { SidebarSection } from '../sections/Section';
 import { SidebarItemNote } from '../items/NoteItem';
 import { SidebarItemFolder } from '../items/FolderItem';
