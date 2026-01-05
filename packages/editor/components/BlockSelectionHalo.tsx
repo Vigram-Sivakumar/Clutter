@@ -29,7 +29,7 @@ export function BlockSelectionHalo({ isSelected, indent = 0 }: BlockSelectionHal
         background: 'rgba(35, 131, 226, 0.14)',
         borderRadius: radius['3'],
         opacity: isSelected ? 1 : 0,
-        transition: 'opacity 200ms ease',
+        transition: 'opacity 50ms ease', // Faster fade to reduce flash
         zIndex: 81,
       }}
       data-block-selected={isSelected || undefined}

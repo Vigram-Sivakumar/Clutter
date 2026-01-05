@@ -34,6 +34,17 @@ export function useBlockSelection({ editor, getPos, nodeSize }: UseBlockSelectio
       const { selection } = editor.state;
       const blockStart = pos;
       const blockEnd = pos + nodeSize;
+      
+      // 🎯 DEFENSIVE: Never show halo on single empty paragraph
+      // (prevents flash after Ctrl+A → Delete)
+      const doc = editor.state.doc;
+      if (doc.content.size <= 4 && doc.content.childCount === 1) {
+        const firstChild = doc.content.firstChild;
+        if (firstChild && firstChild.type.name === 'paragraph' && firstChild.content.size === 0) {
+          setIsSelected(false);
+          return;
+        }
+      }
 
       // Case 1: NodeSelection (clicking handle) → show halo
       if (selection instanceof NodeSelection) {
