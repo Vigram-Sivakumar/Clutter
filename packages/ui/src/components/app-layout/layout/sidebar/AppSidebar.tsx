@@ -145,8 +145,17 @@ export const AppSidebar = ({
   // Get all tags (needed for unique tag name generation)
   const allTags = useAllTags();
   
-  // Tab state - simple conditional rendering
-  const [contentType, setContentType] = useState<'notes' | 'tasks' | 'tags' | 'task'>('task');
+  // Tab state - read from persisted store
+  const sidebarTab = useUIStateStore(state => state.sidebarTab);
+  const setSidebarTab = useUIStateStore(state => state.setSidebarTab);
+  
+  // Local state for contentType (synced with store)
+  const [contentType, setContentType] = useState<'notes' | 'tasks' | 'tags' | 'task'>(sidebarTab);
+  
+  // Sync local state with store on mount
+  useEffect(() => {
+    setContentType(sidebarTab);
+  }, [sidebarTab]);
   
   // Global selection state - unified selection tracking for all sidebar items
   const [selection, setSelection] = useState<GlobalSelection>({
@@ -1703,22 +1712,26 @@ export const AppSidebar = ({
         if (e.key === '1') {
           e.preventDefault();
           setContentType('notes');
+          setSidebarTab('notes');
         } else if (e.key === '2') {
           e.preventDefault();
           setContentType('tasks');
+          setSidebarTab('tasks');
         } else if (e.key === '3') {
           e.preventDefault();
           setContentType('task');
+          setSidebarTab('task');
         } else if (e.key === '4') {
           e.preventDefault();
           setContentType('tags');
+          setSidebarTab('tags');
         }
       }
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [setSidebarTab]);
 
   // Global logic: Sync tag selection with currentView (single source of truth)
   useEffect(() => {
@@ -1771,7 +1784,11 @@ export const AppSidebar = ({
       <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
           <SidebarContainer
             contentType={contentType}
-            onContentTypeChange={(type) => setContentType(type as 'notes' | 'tasks' | 'tags' | 'task')}
+            onContentTypeChange={(type) => {
+              const tab = type as 'notes' | 'tasks' | 'tags' | 'task';
+              setContentType(tab);
+              setSidebarTab(tab); // Persist to store
+            }}
             onCreateNote={handleCreateNote}
             onSearch={() => {}}
             createButtonShortcut="⌘ N"
