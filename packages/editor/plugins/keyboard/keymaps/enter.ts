@@ -17,6 +17,7 @@
 import type { Editor } from '@tiptap/core';
 import { createKeyboardEngine } from '../engine/KeyboardEngine';
 import {
+  exitEmptyBlockInToggle,
   splitListItem,
   exitEmptyListInWrapper,
   outdentEmptyList,
@@ -26,9 +27,10 @@ import {
   createParagraphAfterHeading,
 } from '../rules/enter';
 
-// Create engine with all Enter rules
+// Create engine with all Enter rules (ordered by priority)
 const enterEngine = createKeyboardEngine([
-  splitListItem, // Priority 110 - split list items before exiting
+  exitEmptyBlockInToggle, // Priority 115 - exit nested/toggle blocks FIRST
+  splitListItem, // Priority 110 - split list items
   exitEmptyListInWrapper, // Priority 100
   outdentEmptyList, // Priority 90
   exitEmptyList, // Priority 85 - convert empty list at level 0 to paragraph

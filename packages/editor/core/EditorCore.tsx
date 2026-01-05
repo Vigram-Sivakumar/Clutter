@@ -47,7 +47,6 @@ import { MarkdownShortcuts } from '../plugins/MarkdownShortcuts';
 import { SlashCommands } from '../plugins/SlashCommands';
 import { TaskPriority } from '../plugins/TaskPriority';
 import { BackspaceHandler } from '../plugins/BackspaceHandler';
-import { EnterHandler } from '../plugins/EnterHandler';
 import { TabHandler } from '../plugins/TabHandler';
 import { EscapeMarks } from '../plugins/EscapeMarks';
 import { DoubleSpaceEscape } from '../plugins/DoubleSpaceEscape';
@@ -150,7 +149,6 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(({
       SlashCommands,
       TaskPriority, // Highlight priority indicators (!, !!, !!!) in tasks
       BackspaceHandler,
-      EnterHandler, // Global Enter handler for empty indented blocks
       TabHandler, // Global Tab handler - prevents focus navigation
       EscapeMarks,
       DoubleSpaceEscape,
