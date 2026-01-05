@@ -126,9 +126,8 @@ export const Paragraph = Node.create({
       // Arrow navigation (cross-block)
       ArrowLeft: ({ editor }) => handleArrowLeft(editor),
       ArrowRight: ({ editor }) => handleArrowRight(editor),
-      // CRITICAL: Always consume vertical navigation to prevent ProseMirror fallback
-      ArrowUp: ({ editor }) => handleArrowUp(editor) || true,
-      ArrowDown: ({ editor }) => handleArrowDown(editor) || true,
+      ArrowUp: ({ editor }) => handleArrowUp(editor),
+      ArrowDown: ({ editor }) => handleArrowDown(editor),
       
       // Cmd/Ctrl+Alt+0 to convert to paragraph
       'Mod-Alt-0': () => this.editor.commands.setParagraph(),

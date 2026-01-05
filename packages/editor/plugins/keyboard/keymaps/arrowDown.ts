@@ -16,10 +16,14 @@ const arrowDownEngine = createKeyboardEngine([
 /**
  * Handle ArrowDown key press
  * 
+ * Arrow keys are control keys. We always consume the event to prevent
+ * ProseMirror fallback and ensure deterministic navigation via the rule engine.
+ * 
  * @param editor - TipTap editor instance
- * @returns true if handled, false to allow default behavior
+ * @returns always true (event is consumed)
  */
 export function handleArrowDown(editor: Editor): boolean {
-  return arrowDownEngine.handle(editor, 'ArrowDown');
+  arrowDownEngine.handle(editor, 'ArrowDown');
+  return true;
 }
 
