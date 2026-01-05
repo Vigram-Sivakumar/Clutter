@@ -78,7 +78,7 @@ const htmlExtensions = [
   Italic,
   Underline,
   Strike,
-  Code,
+  CodeMark,
   WavyUnderline,
   CustomHighlight,
   TextColor,
