@@ -129,25 +129,35 @@ const EMPTY_DOC = {
 };
 
 /**
- * Force DOM selection to collapse to a valid text position
- * This prevents "sticky halo" bugs where browser selection stays anchored to DIV
- * even after ProseMirror transitions from NodeSelection → TextSelection
+ * 🔧 DOM Selection Normalizer
+ * 
+ * PROBLEM:
+ * When ProseMirror transitions from NodeSelection (block mode) to TextSelection (text mode),
+ * the browser's DOM selection doesn't automatically follow. This leaves stale block-level
+ * selections active, causing the "sticky blue halo" bug.
+ * 
+ * SOLUTION:
+ * Explicitly collapse DOM selection to ensure it's in a valid state for text editing.
+ * This must be called at all recovery points where content changes programmatically.
+ * 
+ * WHEN TO CALL:
+ * - When EMPTY_DOC is injected
+ * - When content === null (editor-origin updates)
+ * - On first user keystroke after block selection
  */
 function normalizeDomSelection(): void {
   try {
     const selection = window.getSelection();
     if (!selection) return;
     
-    // If selection is already collapsed to a text node, no action needed
-    if (selection.isCollapsed && selection.anchorNode?.nodeType === Node.TEXT_NODE) {
-      return;
+    // If selection is anchored to an element (not text), collapse it
+    if (selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+      if (range.startContainer.nodeType !== Node.TEXT_NODE) {
+        // Collapse selection to remove any block-level highlighting
+        selection.removeAllRanges();
+      }
     }
-    
-    // Collapse to start (removes any block-level selection)
-    selection.removeAllRanges();
-    
-    // Browser will place cursor at the start of the first editable position
-    // ProseMirror will then take over and manage it properly
   } catch (err) {
     // Silently fail - selection normalization is best-effort
   }
@@ -170,7 +180,6 @@ export const TipTapWrapper = forwardRef<TipTapWrapperHandle, TipTapWrapperProps>
   const previousTags = useRef<string[]>([]);
   const editorCoreRef = useRef<EditorCoreHandle>(null);
   const isUpdatingFromEditor = useRef(false);
-  const hasUserEditedSinceNormalization = useRef(false);
 
   // Expose methods to parent
   useImperativeHandle(ref, () => ({
@@ -190,22 +199,19 @@ export const TipTapWrapper = forwardRef<TipTapWrapperHandle, TipTapWrapperProps>
       if (import.meta.env.DEV) {
         console.log('[EDITOR] Using EMPTY_DOC (no value provided)');
       }
-      // 🔧 Normalize selection when injecting empty doc (prevents sticky halo)
+      // 🔧 Normalize DOM selection when injecting empty doc
       normalizeDomSelection();
-      hasUserEditedSinceNormalization.current = false; // Reset flag for next user edit
       return EMPTY_DOC;
     }
     
     // Don't re-parse if this came from our own onChange
     if (isUpdatingFromEditor.current) {
       isUpdatingFromEditor.current = false;
-      // 🔧 Normalize selection even when keeping current content (fixes cross-update bleed)
+      // 🔧 Normalize DOM selection even when keeping current content
+      // This prevents stale block selections from persisting
       normalizeDomSelection();
       return null; // Keep current editor content (don't re-initialize)
     }
-    
-    // 🔄 External content update (note switch, hydration) - reset normalization flag
-    hasUserEditedSinceNormalization.current = false;
     
     try {
       // Try to parse as JSON first (new format)
@@ -216,7 +222,7 @@ export const TipTapWrapper = forwardRef<TipTapWrapperHandle, TipTapWrapperProps>
         return generateJSON(value, htmlExtensions);
       } catch (htmlError) {
         console.error('❌ TipTapWrapper: Failed to parse document, using EMPTY_DOC', htmlError);
-        // 🔧 Normalize selection on parse failure
+        // 🔧 Normalize DOM selection when falling back to empty doc
         normalizeDomSelection();
         return EMPTY_DOC;
       }
@@ -230,12 +236,9 @@ export const TipTapWrapper = forwardRef<TipTapWrapperHandle, TipTapWrapperProps>
       return;
     }
     
-    // 🔧 On first user edit after programmatic update, normalize selection
-    // This catches any stale block-level selections that survived the update
-    if (!hasUserEditedSinceNormalization.current) {
-      normalizeDomSelection();
-      hasUserEditedSinceNormalization.current = true;
-    }
+    // 🔧 Normalize DOM selection on first user edit
+    // This ensures typing after block selection works correctly
+    normalizeDomSelection();
     
     // Extract tags from content
     const extractedTags = extractTagsFromContent(newContent);
