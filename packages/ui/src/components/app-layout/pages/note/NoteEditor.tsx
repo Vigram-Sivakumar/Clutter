@@ -7,6 +7,7 @@ import { PageContent } from '../../shared/page-content';
 import { TitleInputHandle } from '../../shared/content-header/title';
 import { TipTapWrapper, TipTapWrapperHandle } from './TipTapWrapper';
 import { useEditorContext } from './useEditorContext';
+import { EditorEngine } from '@clutter/editor';
 import { EmojiTray } from '../../shared/emoji';
 import { MarkdownShortcuts } from '../../../ui-modals';
 import { TagFilteredNotesView, AllTagsListView, FavouriteTagsListView } from '../tag';
@@ -161,12 +162,15 @@ export const NoteEditor = ({
   
   // 🛡️ Hydration lifecycle (production-grade fix for empty content bug)
   const [isHydrated, setIsHydrated] = useState(false);
-  const isHydratingRef = useRef(true); // ✅ Starts locked to block onChange during hydration
   const lastHydratedNoteIdRef = useRef<string | null>(null); // Track which note was last hydrated
   
-  // 🚨 CRITICAL: Track which note owns the editor (prevents cross-note bleed)
-  const activeEditorNoteIdRef = useRef<string | null>(null); // Persistence ownership
-  const editorStateOwnerRef = useRef<string | null>(null); // UI state ownership
+  // 🎯 EditorEngine - Single source of truth for editor state
+  // Instantiated once, survives note switches
+  const editorEngineRef = useRef<InstanceType<typeof EditorEngine> | null>(null);
+  if (!editorEngineRef.current) {
+    editorEngineRef.current = new EditorEngine();
+  }
+  const editorEngine = editorEngineRef.current;
   
   // Report hydration state to parent (for auto-save gating)
   useEffect(() => {
@@ -174,6 +178,22 @@ export const NoteEditor = ({
       onHydrationChange(isHydrated);
     }
   }, [isHydrated, onHydrationChange]);
+  
+  // 🎯 Subscribe UI to EditorEngine (React becomes passive viewer)
+  useEffect(() => {
+    return editorEngine.onChange((event: { document: string; noteId: string; source: 'user' | 'programmatic' }) => {
+      // Update React state (UI mirror)
+      setEditorState({
+        status: 'ready',
+        document: event.document,
+      });
+      
+      // Persist user edits to database
+      if (event.source === 'user') {
+        updateNoteContent(event.noteId, event.document);
+      }
+    });
+  }, [editorEngine, updateNoteContent]);
   
   // Main view state
   const [mainView, setMainView] = useState<MainView>({ type: 'editor' });
@@ -348,15 +368,6 @@ export const NoteEditor = ({
 
   // Auto-save with debounce (defined early so it can be used in effects)
   const [debouncedSave, cancelDebouncedSave] = useDebounce((updates: Partial<Note>) => {
-    // 🛡️ CRITICAL: Block all Zustand writes during hydration
-    if (isHydratingRef.current) {
-      // 🚨 DEV-ONLY: Crash if content write attempted during hydration
-      if (process.env.NODE_ENV === 'development' && 'content' in updates) {
-        throw new Error('❌ INVARIANT VIOLATION: Content write during hydration! This indicates a multi-writer race condition.');
-      }
-      return;
-    }
-    
     if (currentNoteId) {
       // ✅ Use updateNoteMeta - debouncedSave is only for metadata, never content
       updateNoteMeta(currentNoteId, updates);
@@ -378,46 +389,20 @@ export const NoteEditor = ({
       return;
     }
 
-    // 🚨 CRITICAL: Flush previous note's draft on navigation boundary
-    // Navigation is a transaction boundary - must commit before switching
-    if (
-      activeEditorNoteIdRef.current &&
-      activeEditorNoteIdRef.current !== currentNote.id &&
-      editorState.status === 'ready'
-    ) {
-      const previousNoteId = activeEditorNoteIdRef.current;
-      const draft = editorState.document;
-      
-      // Cancel debounced save
-      cancelDebouncedSave();
-      
-      // Immediately save current draft (bypass debounce)
-      updateNoteContent(previousNoteId, draft);
-    }
-
-    // 🚨 CRITICAL: Cancel pending UI state updates from previous note
-    editorStateOwnerRef.current = null;
-    activeEditorNoteIdRef.current = null;
-
     // Track which note we're hydrating
     lastHydratedNoteIdRef.current = currentNote.id;
-
-    // 🔒 Lock editor during hydration
-    isHydratingRef.current = true;
+    
     setIsHydrated(false);
     
     // 🛡️ CRITICAL: Cancel any pending debounced saves from previous note
     cancelDebouncedSave();
 
-    // ⬇️ DB → Editor: Load content into state
+    // ⬇️ DB → Editor: Load content into engine
     const document = currentNote.content && currentNote.content.trim() !== '' 
       ? currentNote.content 
       : EMPTY_DOC;
     
-    setEditorState({
-      status: 'ready',
-      document,
-    });
+    editorEngine.setDocument(document, currentNote.id);
 
     // Wait for React + ProseMirror to fully settle before mounting editor
     requestAnimationFrame(() => {
@@ -431,13 +416,8 @@ export const NoteEditor = ({
       setIsFavorite(currentNote.isFavorite);
       setShowDescriptionInput(!!currentNote.description);
       
-      // 🔥 BIND EDITOR OWNERSHIP (prevents cross-note bleed)
-      activeEditorNoteIdRef.current = currentNote.id; // Persistence ownership
-      editorStateOwnerRef.current = currentNote.id; // UI state ownership
-      
       // 🔓 Second rAF: Let ProseMirror internal state flush
       requestAnimationFrame(() => {
-        isHydratingRef.current = false;
         setIsHydrated(true);
         
         // 🎨 Update previous note ID for transition tracking
@@ -779,7 +759,7 @@ export const NoteEditor = ({
   // Tag view handlers
   const handleShowTagFilter = useCallback((tag: string, source: 'all' | 'favorites' = 'all') => {
     // Save metadata (NOT content - content is owned by editor autosave)
-    if (currentNoteId && !isHydratingRef.current) {
+    if (currentNoteId) {
       // Read fresh tags from store to avoid overwriting tag renames
       const freshNotes = useNotesStore.getState().notes;
       const currentNote = freshNotes.find(n => n.id === currentNoteId);
@@ -894,7 +874,7 @@ export const NoteEditor = ({
   // Handler for navigating from @ mention links (note/folder links in editor)
   const handleNavigate = useCallback((linkType: 'note' | 'folder', targetId: string) => {
     // Save current note metadata before navigating
-    if (currentNoteId && !isHydratingRef.current) {
+    if (currentNoteId) {
       updateNoteMeta(currentNoteId, {
         title,
         description,
@@ -961,7 +941,7 @@ export const NoteEditor = ({
 
   const handleFolderClick = useCallback((folderId: string) => {
     // Save metadata (NOT content - content is owned by editor autosave)
-    if (currentNoteId && !isHydratingRef.current) {
+    if (currentNoteId) {
       // ✅ Save metadata only - never write content from navigation
       updateNoteMeta(currentNoteId, {
         title,
@@ -1485,91 +1465,54 @@ export const NoteEditor = ({
                 opacity: isSwitchingNote ? 0.92 : 1,
               }}
             >
-              {editorState.status === 'ready' && editorState.document ? (
-                <TipTapWrapper
-                  key={currentNoteId}
-                  ref={editorRef}
-                  value={editorState.document}
-                  autoFocus={false}
-                  onChange={(value) => {
-                  // 🔒 Hard-gate: ignore ALL updates during hydration
-                  if (isHydratingRef.current) {
-                    return;
-                  }
-                  
-                  // 🛡️ Validate BEFORE setting state
-                  // Block TipTap boot transactions (≤200 chars, no text nodes)
-                  if (value.length <= 200 && !value.includes('"text"')) {
-                    return;
-                  }
-                  
-                  // 🚨 ABSOLUTE SAFETY: Hard-guard UI state ownership (prevents visual bleed)
-                  const uiOwner = editorStateOwnerRef.current;
-                  if (!uiOwner || uiOwner !== currentNoteId) {
-                    return;
-                  }
-                  
-                  // ⬆️ Editor → State: Update local state (now safe)
-                  setEditorState({
-                    status: 'ready',
-                    document: value,
-                  });
-                  
-                  // 🚨 ABSOLUTE SAFETY: Hard-guard persistence ownership (prevents DB bleed)
-                  const persistenceOwner = activeEditorNoteIdRef.current;
-                  if (!persistenceOwner) {
-                    return;
-                  }
-                  
-                  // 🚨 CRITICAL: Ignore stale editor emissions from previous notes
-                  if (persistenceOwner !== currentNoteId) {
-                    return;
-                  }
-                  
-                  // ⬆️ State → DB: Schedule debounced save (now safe)
-                  updateNoteContent(persistenceOwner, value);
-                }}
-                onTagClick={handleShowTagFilter}
-                onNavigate={handleNavigate}
-                onTagsChange={(extractedTags) => {
-                // Merge extracted tags from editor with existing metadata tags
-                setTags((prevTags) => {
-                  // Create a map of extracted tags (from editor) - case insensitive
-                  const extractedLowerMap = new Map(
-                    extractedTags.map(tag => [tag.toLowerCase(), tag])
-                  );
-                  
-                  // Find tags that were added via "+ Add tag" button (not in editor)
-                  const metadataOnlyTags = prevTags.filter(
-                    tag => !extractedLowerMap.has(tag.toLowerCase())
-                  );
-                  
-                  // Merge: extracted tags from editor + metadata-only tags
-                  const mergedTags = [...extractedTags, ...metadataOnlyTags];
-                  
-                  // Deduplicate (case-insensitive) - keep first occurrence
-                  const deduped: string[] = [];
-                  const seenLower = new Set<string>();
-                  for (const tag of mergedTags) {
-                    const lowerTag = tag.toLowerCase();
-                    if (!seenLower.has(lowerTag)) {
-                      seenLower.add(lowerTag);
-                      deduped.push(tag);
-                    }
-                  }
-                  
-                  // Update store immediately so sidebar updates instantly
-                  if (currentNoteId) {
-                    updateNoteMeta(currentNoteId, { tags: deduped });
-                  }
-                  
-                  return deduped;
-                });
+              <TipTapWrapper
+                key={currentNoteId}
+                ref={editorRef}
+                value={editorState.status === 'ready' ? editorState.document : undefined}
+                autoFocus={false}
+                onChange={(value) => {
+                editorEngine.applyEdit(value, currentNoteId);
               }}
-              isFrozen={isSwitchingNote}
-              editorContext={editorContext}
-                />
-              ) : null}
+              onTagClick={handleShowTagFilter}
+              onNavigate={handleNavigate}
+              onTagsChange={(extractedTags) => {
+              // Merge extracted tags from editor with existing metadata tags
+              setTags((prevTags) => {
+                // Create a map of extracted tags (from editor) - case insensitive
+                const extractedLowerMap = new Map(
+                  extractedTags.map(tag => [tag.toLowerCase(), tag])
+                );
+                
+                // Find tags that were added via "+ Add tag" button (not in editor)
+                const metadataOnlyTags = prevTags.filter(
+                  tag => !extractedLowerMap.has(tag.toLowerCase())
+                );
+                
+                // Merge: extracted tags from editor + metadata-only tags
+                const mergedTags = [...extractedTags, ...metadataOnlyTags];
+                
+                // Deduplicate (case-insensitive) - keep first occurrence
+                const deduped: string[] = [];
+                const seenLower = new Set<string>();
+                for (const tag of mergedTags) {
+                  const lowerTag = tag.toLowerCase();
+                  if (!seenLower.has(lowerTag)) {
+                    seenLower.add(lowerTag);
+                    deduped.push(tag);
+                  }
+                }
+                
+                // Update store immediately so sidebar updates instantly
+                if (currentNoteId) {
+                  updateNoteMeta(currentNoteId, { tags: deduped });
+                }
+                
+                return deduped;
+              });
+            }}
+            isFrozen={isSwitchingNote}
+            editorContext={editorContext}
+              />
             </div>
           </PageContent>
           </>
