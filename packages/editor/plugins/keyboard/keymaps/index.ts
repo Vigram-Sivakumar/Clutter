@@ -8,4 +8,6 @@
 
 export { handleBackspace } from './backspace';
 export { handleEnter } from './enter';
+export { handleArrowLeft } from './arrowLeft';
+export { handleArrowRight } from './arrowRight';
 

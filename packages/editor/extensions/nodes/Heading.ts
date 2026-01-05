@@ -17,6 +17,7 @@ import { Heading as HeadingComponent } from '../../components/Heading';
 import type { HeadingLevel } from '../../types';
 import { convertEmptyBlockToParagraph, insertParagraphAfterBlock, handleEmptyBlockInToggle, indentBlock, outdentBlock } from '../../utils/keyboardHelpers';
 import { EnterRules, BackspaceRules } from '../../utils/keyboardRules';
+import { handleArrowLeft, handleArrowRight } from '../../plugins/keyboard';
 
 declare module '@tiptap/core' {
   interface Commands<ReturnType> {
@@ -135,6 +136,10 @@ export const Heading = Node.create({
   // Keyboard shortcuts
   addKeyboardShortcuts() {
     return {
+      // Arrow navigation (cross-block)
+      ArrowLeft: ({ editor }) => handleArrowLeft(editor),
+      ArrowRight: ({ editor }) => handleArrowRight(editor),
+      
       // Cmd/Ctrl+Alt+1/2/3 for headings
       'Mod-Alt-1': () => this.editor.commands.toggleHeading({ headingLevel: 1 }),
       'Mod-Alt-2': () => this.editor.commands.toggleHeading({ headingLevel: 2 }),

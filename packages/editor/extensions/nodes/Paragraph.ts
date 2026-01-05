@@ -13,6 +13,7 @@ import { ParagraphBlock } from '../../components/ParagraphBlock';
 import { createSiblingAttrs, findAncestorNode, handleEmptyBlockInToggle, indentBlock, outdentBlock } from '../../utils/keyboardHelpers';
 import { HASHTAG_REGEX, tagExists, insertTag } from '@clutter/ui';
 import { BackspaceRules } from '../../utils/keyboardRules';
+import { handleArrowLeft, handleArrowRight } from '../../plugins/keyboard';
 
 declare module '@tiptap/core' {
   interface Commands<ReturnType> {
@@ -122,6 +123,10 @@ export const Paragraph = Node.create({
   // Keyboard shortcuts
   addKeyboardShortcuts() {
     return {
+      // Arrow navigation (cross-block)
+      ArrowLeft: ({ editor }) => handleArrowLeft(editor),
+      ArrowRight: ({ editor }) => handleArrowRight(editor),
+      
       // Cmd/Ctrl+Alt+0 to convert to paragraph
       'Mod-Alt-0': () => this.editor.commands.setParagraph(),
 

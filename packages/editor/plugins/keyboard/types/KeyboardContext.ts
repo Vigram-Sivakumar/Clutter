@@ -37,7 +37,7 @@ export interface KeyboardContext {
   readonly isEmpty: boolean;
   
   /** Key that triggered this (for context) */
-  readonly key: 'Enter' | 'Backspace' | 'Tab' | 'Delete';
+  readonly key: 'Enter' | 'Backspace' | 'Tab' | 'Delete' | 'ArrowLeft' | 'ArrowRight' | 'ArrowUp' | 'ArrowDown';
 }
 
 /**
@@ -61,5 +61,65 @@ export function createKeyboardContext(
     isEmpty: empty,
     key,
   };
+}
+
+/**
+ * Navigation helpers for KeyboardContext
+ */
+
+/**
+ * Is cursor at the start of the current block?
+ */
+export function isAtStartOfBlock(ctx: KeyboardContext): boolean {
+  return ctx.cursorOffset === 0;
+}
+
+/**
+ * Is cursor at the end of the current block?
+ */
+export function isAtEndOfBlock(ctx: KeyboardContext): boolean {
+  return ctx.cursorOffset === ctx.currentNode.content.size;
+}
+
+/**
+ * Get the previous block node (if any)
+ */
+export function getPreviousBlock(ctx: KeyboardContext): { pos: number; node: PMNode } | null {
+  const { $from } = ctx;
+  
+  // Get parent and index
+  const parentDepth = $from.depth - 1;
+  if (parentDepth < 0) return null;
+  
+  const parent = $from.node(parentDepth);
+  const index = $from.index(parentDepth);
+  
+  if (index === 0) return null; // No previous sibling
+  
+  const prevNode = parent.child(index - 1);
+  const prevPos = $from.before($from.depth) - prevNode.nodeSize;
+  
+  return { pos: prevPos, node: prevNode };
+}
+
+/**
+ * Get the next block node (if any)
+ */
+export function getNextBlock(ctx: KeyboardContext): { pos: number; node: PMNode } | null {
+  const { $from } = ctx;
+  
+  // Get parent and index
+  const parentDepth = $from.depth - 1;
+  if (parentDepth < 0) return null;
+  
+  const parent = $from.node(parentDepth);
+  const index = $from.index(parentDepth);
+  
+  if (index >= parent.childCount - 1) return null; // No next sibling
+  
+  const nextNode = parent.child(index + 1);
+  const nextPos = $from.after($from.depth);
+  
+  return { pos: nextPos, node: nextNode };
 }
 
