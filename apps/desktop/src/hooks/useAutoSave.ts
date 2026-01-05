@@ -64,6 +64,47 @@ export function useAutoSave(isEnabled: boolean = true, isHydrated: boolean = fal
   const saveTimeoutRef = useRef<NodeJS.Timeout>();
   const lastSavedHashRef = useRef<Map<string, string>>(new Map());
   const isInitialLoadRef = useRef(true);
+  
+  // 🛡️ Immediate flush function (bypasses debounce)
+  const flushSaveImmediately = async () => {
+    if (!isEnabled || !isHydrated || isInitialLoadRef.current) return;
+    
+    // Cancel pending debounced save
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+    
+    const notes: Note[] = notesForSeeding;
+    
+    // Find notes that have changed
+    const changedNotes = notes.filter((note: Note) => {
+      if (isBootEmptyTipTap(note.content)) {
+        lastSavedHashRef.current.set(note.id, hashContent(note.content));
+        return false;
+      }
+      
+      const lastSavedHash = lastSavedHashRef.current.get(note.id);
+      const currentHash = hashContent(note.content);
+      return lastSavedHash !== currentHash;
+    });
+    
+    if (changedNotes.length === 0) return;
+    
+    console.log(`💾 Flush: Saving ${changedNotes.length} note(s) immediately...`);
+    
+    // Save all changed notes synchronously (critical for unload)
+    await Promise.allSettled(
+      changedNotes.map(async (note: Note) => {
+        try {
+          await saveNoteToDatabase(note);
+          lastSavedHashRef.current.set(note.id, hashContent(note.content));
+          console.log(`✅ Flushed: ${note.title || 'Untitled'}`);
+        } catch (error) {
+          console.error(`❌ Flush failed for ${note.id}:`, error);
+        }
+      })
+    );
+  };
 
   // Initialize lastSavedHashRef AFTER hydration completes
   // 🛡️ CRITICAL: Must wait for isHydrated to avoid false diffs during startup
@@ -78,6 +119,20 @@ export function useAutoSave(isEnabled: boolean = true, isHydrated: boolean = fal
         console.log(`✅ Auto-save: Ready! Will save changes after 2s idle time`);
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEnabled, isHydrated]);
+  
+  // 🚨 CRITICAL: Save on window unload/reload (prevents data loss)
+  useEffect(() => {
+    if (!isEnabled || !isHydrated) return;
+    
+    const handleBeforeUnload = () => {
+      // Must be synchronous for beforeunload
+      flushSaveImmediately();
+    };
+    
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isEnabled, isHydrated]);
 
@@ -143,37 +198,14 @@ export function useAutoSave(isEnabled: boolean = true, isHydrated: boolean = fal
     };
   }, [notesForSeeding, currentNoteId, isEnabled, isHydrated]); // ✅ Must depend on notes to detect content changes!
 
-  // Save immediately when switching notes
+  // Save immediately when switching notes (flush on note boundary)
   useEffect(() => {
-    // 🛡️ Hard gates
     if (!isEnabled || !isHydrated || isInitialLoadRef.current) {
       return;
     }
     
-    const notes: Note[] = notesForSeeding;
-    const currentNote = notes.find((n: Note) => n.id === currentNoteId);
-    if (!currentNote) return;
-
-    // 🛡️ Never save TipTap boot state
-    if (isBootEmptyTipTap(currentNote.content)) {
-      // Update hash so we don't keep checking
-      lastSavedHashRef.current.set(currentNote.id, hashContent(currentNote.content));
-      return;
-    }
-
-    const lastSavedHash = lastSavedHashRef.current.get(currentNote.id);
-    const currentHash = hashContent(currentNote.content);
-    
-    // If note has unsaved changes, save immediately
-    if (lastSavedHash !== undefined && lastSavedHash !== currentHash) {
-      saveNoteToDatabase(currentNote)
-        .then(() => {
-          lastSavedHashRef.current.set(currentNote.id, currentHash);
-        })
-        .catch(error => {
-          console.error('❌ Save failed:', error);
-        });
-    }
+    // Flush any unsaved changes before switching
+    flushSaveImmediately();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentNoteId, isEnabled, isHydrated]);
 }
