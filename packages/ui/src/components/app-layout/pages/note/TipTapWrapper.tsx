@@ -9,7 +9,7 @@
  */
 
 import { useEffect, useState, useCallback, useRef, forwardRef, useImperativeHandle } from 'react';
-import { generateHTML, generateJSON } from '@tiptap/core';
+import { generateJSON } from '@tiptap/core';
 
 // Editor imports from @clutter/editor package
 import { 
@@ -129,8 +129,7 @@ export const TipTapWrapper = forwardRef<TipTapWrapperHandle, TipTapWrapperProps>
   const previousTags = useRef<string[]>([]);
   const editorCoreRef = useRef<EditorCoreHandle>(null);
   const isUpdatingFromEditor = useRef(false);
-  const isProgrammaticUpdate = useRef(true); // Start locked to block editor boot output
-  const ignoreNextUpdate = useRef(true); // Ignore first synthetic transaction after mount
+  const isInitializing = useRef(true); // Explicit initialization phase (hard gate)
   const hasInitialized = useRef(false); // Single-shot initialization flag
 
   // Expose methods to parent
@@ -182,46 +181,25 @@ export const TipTapWrapper = forwardRef<TipTapWrapperHandle, TipTapWrapperProps>
       return;
     }
     
-    // Only update if the value has actually changed
-    if (value !== previousValue.current) {
-      // Semantic comparison - parse both and compare
-      let valueJson, previousJson;
-      try {
-        valueJson = value ? JSON.parse(value) : null;
-        previousJson = previousValue.current ? JSON.parse(previousValue.current) : null;
-        
-        // If content is semantically the same, don't update (prevents history clearing)
-        // ✅ FIX: Don't skip on initial mount (previousValue.current === undefined)
-        // This ensures we always unlock isProgrammaticUpdate on first load
-        if (previousValue.current !== undefined && JSON.stringify(valueJson) === JSON.stringify(previousJson)) {
-          console.log('⏭️ Skipping: Content semantically equal');
-          previousValue.current = value; // Update ref to prevent repeated checks
-          return;
-        }
-      } catch {
-        // If parsing fails, fall through to string comparison
-      }
-      
-      console.log('📖 TipTapWrapper: Loading new content:', {
-        hasValue: !!value,
-        valueLength: value?.length || 0,
-        valuePreview: value?.substring(0, 100),
-        previousLength: previousValue.current?.length || 0
-      });
-      
-      console.log('✅ Passed all checks, will load content into editor');
-      previousValue.current = value;
-      
-      try {
+    // Initialize with the new document
+    previousValue.current = value;
+    
+    try {
         // Try to parse as JSON first (new format)
-        isProgrammaticUpdate.current = true;
-        ignoreNextUpdate.current = true;
+        console.log('🔧 TipTapWrapper: Initializing editor atomically');
+        
+        // 🔒 Enter initialization phase (hard gate)
+        isInitializing.current = true;
+        
         const json = JSON.parse(value);
         setContent(json);
-        hasInitialized.current = true; // ✅ Mark as initialized (single-shot)
-        console.log('✅ TipTapWrapper: Content parsed as JSON, editor initialized');
+        hasInitialized.current = true;
+        console.log('✅ TipTapWrapper: Editor initialized (atomic)');
+        
+        // 🔓 Exit initialization phase after React + ProseMirror settle
         requestAnimationFrame(() => {
-          isProgrammaticUpdate.current = false;
+          isInitializing.current = false;
+          console.log('🔓 TipTapWrapper: Initialization complete, editor unlocked');
           if (onContentApplied) {
             onContentApplied();
           }
@@ -229,14 +207,13 @@ export const TipTapWrapper = forwardRef<TipTapWrapperHandle, TipTapWrapperProps>
       } catch (error) {
         // Fallback: try to parse as HTML (legacy format)
         try {
-          isProgrammaticUpdate.current = true;
-          ignoreNextUpdate.current = true;
+          isInitializing.current = true;
           const json = generateJSON(value, htmlExtensions);
           setContent(json);
-          hasInitialized.current = true; // ✅ Mark as initialized (single-shot)
-          console.log('✅ TipTapWrapper: Content parsed as HTML, editor initialized');
+          hasInitialized.current = true;
+          console.log('✅ TipTapWrapper: Editor initialized (HTML fallback)');
           requestAnimationFrame(() => {
-            isProgrammaticUpdate.current = false;
+            isInitializing.current = false;
             if (onContentApplied) {
               onContentApplied();
             }
@@ -246,43 +223,20 @@ export const TipTapWrapper = forwardRef<TipTapWrapperHandle, TipTapWrapperProps>
           // If we can't parse, we can't initialize - parent must provide valid document
         }
       }
-    } else {
-      console.log('⏭️ Skipping: value === previousValue.current');
-    }
-  }, [value]);
+  }, [value, onContentApplied]);
 
   // Handle content changes - save as JSON string (not HTML)
   const handleChange = useCallback((newContent: object) => {
     setContent(newContent);
     
-    // 🛡️ CRITICAL: Ignore editor boot / programmatic updates
-    if (isProgrammaticUpdate.current) {
-      console.log('🚫 TipTapWrapper: Ignoring change (isProgrammaticUpdate=true)');
-      return;
+    // 🛡️ ATOMIC GATE: Hard-block onChange during initialization phase
+    // This prevents ProseMirror normalization transactions from escaping
+    if (isInitializing.current) {
+      return; // Hard stop - no logging, no processing, no side effects
     }
     
-    // 🛡️ Ignore first synthetic transaction after mount/content load
-    // BUT: Don't ignore if content has significantly changed (user deletion)
-    if (ignoreNextUpdate.current) {
-      const newContentStr = JSON.stringify(newContent);
-      const prevContentStr = previousValue.current || '';
-      const lengthDiff = Math.abs(newContentStr.length - prevContentStr.length);
-      
-      // If content changed by more than 50 chars, it's a real user edit (deletion)
-      if (lengthDiff > 50) {
-        ignoreNextUpdate.current = false;
-        // Continue processing
-      } else {
-        ignoreNextUpdate.current = false;
-        console.log('🚫 TipTapWrapper: Ignoring first synthetic update (ProseMirror normalization)');
-        return;
-      }
-    }
-    
-    // 🛡️ CRITICAL: Block onChange during hydration (prevents empty boot state from overwriting real content)
-    console.log('🔍 isHydrating check:', isHydrating);
+    // 🛡️ Block onChange during parent hydration
     if (isHydrating) {
-      console.log('🚫 TipTapWrapper: Ignoring change (isHydrating=true)');
       return;
     }
     

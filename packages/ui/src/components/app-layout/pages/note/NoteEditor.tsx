@@ -1037,7 +1037,7 @@ export const NoteEditor = ({
       // Active folder -> open in normal context
       setMainView({ type: 'folderView', folderId });
     }
-  }, [currentNoteId, updateNote, title, description, tags, noteContent, selectedEmoji, isFavorite, descriptionVisible, tagsVisible, setMainView, folders]);
+  }, [currentNoteId, updateNoteMeta, title, description, tags, selectedEmoji, isFavorite, descriptionVisible, tagsVisible, setMainView, folders]);
 
   const handleCreateNoteInFolder = useCallback((folderId: string) => {
     // Handle special "cluttered" folder (no folder assigned)
