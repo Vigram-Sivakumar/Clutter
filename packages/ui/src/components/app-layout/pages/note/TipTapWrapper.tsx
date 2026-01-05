@@ -172,7 +172,8 @@ export const TipTapWrapper = forwardRef<TipTapWrapperHandle, TipTapWrapperProps>
     // 🛡️ CRITICAL: Do nothing until real content arrives
     // Parent must provide valid document (never undefined, never "")
     if (!value) {
-      console.log('⏭️ Skipping: No document provided');
+      console.warn('[EDITOR] ❌ Blocked init: missing document - THIS SHOULD NOT HAPPEN');
+      console.warn('[EDITOR] Parent should gate TipTapWrapper rendering until document exists');
       return;
     }
     

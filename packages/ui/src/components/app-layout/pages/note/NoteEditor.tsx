@@ -1545,12 +1545,25 @@ export const NoteEditor = ({
 
           {/* Editor */}
           <PageContent>
-            <TipTapWrapper
-              key={currentNoteId}
-              ref={editorRef}
-              value={editorState.status === 'ready' ? editorState.document : undefined}
-              isFrozen={!isHydrated}
-              onChange={(value) => {
+            {/* 🚨 CRITICAL: Never render editor without a document (prevents empty init on reload) */}
+            {editorState.status === 'ready' && editorState.document ? (
+              <>
+                {/* 🔍 ASSERTION: Log what we're about to mount */}
+                {(() => {
+                  console.log('[EDITOR ASSERT] Rendering editor:', {
+                    noteId: currentNoteId,
+                    hasDocument: !!editorState.document,
+                    documentLength: editorState.document.length,
+                    isHydrated,
+                  });
+                  return null;
+                })()}
+                <TipTapWrapper
+                  key={currentNoteId}
+                  ref={editorRef}
+                  value={editorState.document}
+                  isFrozen={!isHydrated}
+                  onChange={(value) => {
                   // 🔍 LOG: onChange fired (FIRST - before any logic)
                   dbg('EDITOR:onChange fired', {
                     currentNoteId,
@@ -1663,7 +1676,14 @@ export const NoteEditor = ({
                 });
               }}
               editorContext={editorContext}
-            />
+                />
+              </>
+            ) : (
+              /* Loading state - editor will mount when document is ready */
+              <div style={{ padding: '20px', color: '#666' }}>
+                Loading editor...
+              </div>
+            )}
           </PageContent>
           </>
         )}
