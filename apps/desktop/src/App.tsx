@@ -2,8 +2,7 @@ import { Routes, Route } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { ThemeProvider, NotesContainer, ConfirmationDialog, FormDialog } from '@clutter/ui';
 import { type Folder } from '@clutter/domain';
-import { useNotesStore, useFoldersStore, useTagsStore, setStorageHandlers, setSaveFolderHandler, setDeleteFolderHandler, setSaveTagHandler, setDeleteTagHandler, setHydrating, initializeMidnightUpdater, cleanupMidnightUpdater } from '@clutter/state';
-import { setInitialized as setHydrationInitialized } from '@clutter/shared';
+import { useNotesStore, useFoldersStore, useTagsStore, setStorageHandlers, setSaveFolderHandler, setDeleteFolderHandler, setSaveTagHandler, setDeleteTagHandler, setHydrating, setInitialized as setHydrationInitialized, initializeMidnightUpdater, cleanupMidnightUpdater } from '@clutter/state';
 import { selectStorageFolder, getStorageFolder } from './lib/storage';
 import { 
   initDatabase, 
