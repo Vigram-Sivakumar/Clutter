@@ -45,15 +45,21 @@ function hashContent(content: string): string {
   return hash.toString(36);
 }
 
-// 🛡️ Check if content is pure boot state (completely empty, no structure)
-// Allow structured empty content (intentional deletions)
-function isBootEmptyTipTap(content: string): boolean {
-  return (
-    !content ||
-    content.trim() === '' ||
-    content === '""' ||
-    content === '{}'
-  );
+// 🛡️ Validate document structure (matches EditorEngine validation)
+// Empty content array is VALID - it means user deleted everything
+// Only reject truly malformed content (not valid JSON or missing structure)
+function isValidDocument(content: string): boolean {
+  if (!content || content.trim() === '') return false;
+  if (content === '""' || content === '{}') return false;
+  
+  try {
+    const parsed = JSON.parse(content);
+    if (parsed.type !== 'doc') return false;
+    if (!Array.isArray(parsed.content)) return false;
+    return true; // Empty content array is valid
+  } catch {
+    return false; // Invalid JSON
+  }
 }
 
 export function useAutoSave(isEnabled: boolean = true, isHydrated: boolean = false) {
@@ -78,8 +84,9 @@ export function useAutoSave(isEnabled: boolean = true, isHydrated: boolean = fal
     
     // Find notes that have changed
     const changedNotes = notes.filter((note: Note) => {
-      if (isBootEmptyTipTap(note.content)) {
-        lastSavedHashRef.current.set(note.id, hashContent(note.content));
+      // Skip invalid documents (malformed JSON, missing structure)
+      // But ALLOW empty documents - they're valid user intent
+      if (!isValidDocument(note.content)) {
         return false;
       }
       
@@ -147,10 +154,9 @@ export function useAutoSave(isEnabled: boolean = true, isHydrated: boolean = fal
 
     // Find notes that have changed (hash-based detection)
     const changedNotes = notes.filter((note: Note) => {
-      // 🛡️ NEVER autosave TipTap boot state (not user intent)
-      if (isBootEmptyTipTap(note.content)) {
-        // Update hash so we don't keep checking this
-        lastSavedHashRef.current.set(note.id, hashContent(note.content));
+      // Skip invalid documents (malformed JSON, missing structure)
+      // But ALLOW empty documents - they're valid user intent
+      if (!isValidDocument(note.content)) {
         return false;
       }
       

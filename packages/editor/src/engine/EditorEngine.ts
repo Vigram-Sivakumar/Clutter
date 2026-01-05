@@ -30,6 +30,23 @@ export type EditorChangeEvent = {
 
 export type EditorChangeListener = (event: EditorChangeEvent) => void;
 
+/**
+ * Validate document structure (not content)
+ * Empty content is VALID - it means the user deleted everything
+ */
+function isValidDocument(doc: string | null): boolean {
+  if (!doc) return false;
+  
+  try {
+    const parsed = JSON.parse(doc);
+    if (parsed.type !== 'doc') return false;
+    if (!Array.isArray(parsed.content)) return false;
+    return true; // Empty content array is valid
+  } catch {
+    return false; // Invalid JSON
+  }
+}
+
 export class EditorEngine {
   private document: EditorDocument | null = null;
   private noteId: string | null = null;
@@ -101,8 +118,9 @@ export class EditorEngine {
       return false;
     }
 
-    // 🔒 GUARD: Block TipTap boot transactions (empty or trivial content)
-    if (document.length <= 200 && !document.includes('"text"')) {
+    // 🔒 GUARD: Validate document structure (not content)
+    // Empty content is valid - user may have deleted everything
+    if (!isValidDocument(document)) {
       return false;
     }
 
