@@ -197,12 +197,15 @@ export const TipTapWrapper = forwardRef<TipTapWrapperHandle, TipTapWrapperProps>
         console.log('✅ TipTapWrapper: Editor initialized (atomic)');
         
         // 🔓 Exit initialization phase after React + ProseMirror settle
+        // Double rAF: ensures ProseMirror normalization completes before unlocking
         requestAnimationFrame(() => {
-          isInitializing.current = false;
-          console.log('🔓 TipTapWrapper: Initialization complete, editor unlocked');
-          if (onContentApplied) {
-            onContentApplied();
-          }
+          requestAnimationFrame(() => {
+            isInitializing.current = false;
+            console.log('🔓 TipTapWrapper: Initialization complete, editor unlocked');
+            if (onContentApplied) {
+              onContentApplied();
+            }
+          });
         });
       } catch (error) {
         // Fallback: try to parse as HTML (legacy format)
@@ -212,11 +215,14 @@ export const TipTapWrapper = forwardRef<TipTapWrapperHandle, TipTapWrapperProps>
           setContent(json);
           hasInitialized.current = true;
           console.log('✅ TipTapWrapper: Editor initialized (HTML fallback)');
+          // Double rAF: ensures ProseMirror normalization completes before unlocking
           requestAnimationFrame(() => {
-            isInitializing.current = false;
-            if (onContentApplied) {
-              onContentApplied();
-            }
+            requestAnimationFrame(() => {
+              isInitializing.current = false;
+              if (onContentApplied) {
+                onContentApplied();
+              }
+            });
           });
         } catch (htmlError) {
           console.error('❌ TipTapWrapper: Failed to parse document', htmlError);
