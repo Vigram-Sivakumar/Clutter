@@ -354,6 +354,7 @@ export const TaskView = ({
                     label={label}
                     onClick={() => {}}
                     sticky
+                    stickyTop={28}
                   />
                 </div>
 

@@ -78,6 +78,7 @@ interface SidebarItemProps {
   isToday?: boolean; // For notes - whether this is today's daily note (for showing dot indicator)
   folderId?: string; // For folders - the folder ID (used to identify system folders)
   sticky?: boolean; // Whether this item should stick to the top when scrolling
+  stickyTop?: number; // Custom top position for sticky items (in pixels)
 
   // Interactions
   onClick: (_event?: React.MouseEvent) => void;
@@ -129,6 +130,7 @@ export const SidebarItem = ({
   labelColor: _labelColor,
   isOpen = false,
   sticky = false,
+  stickyTop,
   isSelected = false,
   hasOpenContextMenu = false,
   isDragging = false,
@@ -1214,7 +1216,7 @@ export const SidebarItem = ({
           width: '100%',
           paddingLeft: `${paddingLeft}px`,
           position: sticky ? 'sticky' : 'relative',
-          top: sticky ? 0 : undefined,
+          top: sticky ? (stickyTop !== undefined ? stickyTop : 0) : undefined,
           zIndex: sticky ? 10 : undefined,
           backgroundColor: sticky ? colors.background.secondary : undefined,
           overflow: 'visible',
