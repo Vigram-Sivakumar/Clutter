@@ -1217,7 +1217,7 @@ export const SidebarItem = ({
           paddingLeft: `${paddingLeft}px`,
           position: sticky ? 'sticky' : 'relative',
           top: sticky ? (stickyTop !== undefined ? stickyTop : 0) : undefined,
-          zIndex: sticky ? 10 : undefined,
+          zIndex: sticky ? (stickyTop !== undefined ? 9 : 10) : undefined,
           backgroundColor: sticky ? colors.background.secondary : undefined,
           overflow: 'visible',
           boxSizing: 'border-box',
