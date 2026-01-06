@@ -588,7 +588,9 @@ export const SidebarItem = ({
                             color:
                               isSelected || isOpen
                                 ? colors.text.default
-                                : colors.text.secondary,
+                                : id === 'completed-tasks' && !isOpen
+                                  ? colors.text.tertiary
+                                  : colors.text.secondary,
                           } as any
                         )
                       : icon
@@ -598,10 +600,13 @@ export const SidebarItem = ({
                         isOpen,
                         size: 16,
                         // Don't use accent color on icon - only on label
+                        // Completed section uses tertiary color when collapsed
                         color:
                           isSelected || isOpen
                             ? colors.text.default
-                            : colors.text.secondary,
+                            : id === 'completed-tasks' && !isOpen
+                              ? colors.text.tertiary
+                              : colors.text.secondary,
                       })
                 }
                 onClick={(e) => {
@@ -967,6 +972,10 @@ export const SidebarItem = ({
     }
 
     // Note and folder variants - plain text
+    // Completed section uses tertiary color when collapsed
+    const isCompletedSection = id === 'completed-tasks';
+    const shouldUseSubtleColor = isCompletedSection && !isOpen;
+
     return (
       <span
         style={
@@ -976,7 +985,9 @@ export const SidebarItem = ({
             color:
               isSelected || (variant === 'folder' && isOpen)
                 ? colors.text.default
-                : colors.text.secondary,
+                : shouldUseSubtleColor
+                  ? colors.text.tertiary
+                  : colors.text.secondary,
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',
