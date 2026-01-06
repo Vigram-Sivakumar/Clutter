@@ -35,6 +35,8 @@ export const SidebarListGroup = ({
         display: 'flex',
         flexDirection: 'column',
         gap: sidebarLayout.itemGap,
+        width: '100%',
+        minWidth: 0, // Allow shrinking below content size
       }}
     >
       {/* Group header - can be sticky */}
@@ -47,7 +49,13 @@ export const SidebarListGroup = ({
       />
 
       {/* Group content with optional connector line */}
-      <div style={{ position: 'relative' }}>
+      <div
+        style={{
+          position: 'relative',
+          width: '100%',
+          minWidth: 0, // Allow shrinking below content size
+        }}
+      >
         {showConnector && connectorColor && (
           <div
             style={{
@@ -69,6 +77,8 @@ export const SidebarListGroup = ({
             flexDirection: 'column',
             gap: sidebarLayout.itemGap,
             overflow: 'hidden', // Enable collapse animations for items
+            width: '100%',
+            minWidth: 0, // Allow shrinking below content size
           }}
         >
           {children}

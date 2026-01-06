@@ -67,6 +67,7 @@ export const SidebarSection = ({
           flexDirection: 'column',
           gap: sidebarLayout.itemGap,
           width: '100%',
+          minWidth: 0, // Allow shrinking below content size
           paddingTop: '2px',
           paddingBottom: '2px',
         }}
@@ -141,6 +142,7 @@ export const SidebarSection = ({
       {...dragHandlers}
       style={{
         width: '100%',
+        minWidth: 0, // Allow shrinking below content size
         display: 'flex',
         flexDirection: 'column',
         gap: sidebarLayout.headerToItemsGap,
@@ -172,11 +174,14 @@ export const SidebarSection = ({
           gridTemplateRows: isCollapsed ? '0fr' : '1fr',
           transition: transitions.collapse.height,
           overflow: 'visible', // Allow sticky children to work
+          width: '100%',
+          minWidth: 0, // Allow shrinking below content size
         }}
       >
         <div
           style={{
             minHeight: 0,
+            minWidth: 0, // Allow shrinking below content size
             overflow: 'visible', // Changed to visible - ListGroup handles item overflow
             opacity: isCollapsed ? 0 : 1,
             transition: transitions.collapse.content,

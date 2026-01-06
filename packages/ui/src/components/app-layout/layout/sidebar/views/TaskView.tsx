@@ -312,6 +312,8 @@ export const TaskView = ({
           display: 'flex',
           flexDirection: 'column',
           gap: sidebarLayout.itemGap,
+          width: '100%',
+          minWidth: 0, // Allow shrinking below content size
         }}
       >
         {Array.from(groupedTasks.entries()).map(([date, tasks]) => {
@@ -425,6 +427,8 @@ export const TaskView = ({
               gap: sidebarLayout.itemGap,
               paddingTop: '2px',
               paddingBottom: '2px',
+              width: '100%',
+              minWidth: 0, // Allow shrinking below content size
             }}
           >
             {unplannedTasks.map((task) => {
@@ -484,6 +488,8 @@ export const TaskView = ({
               gap: sidebarLayout.itemGap,
               paddingTop: '2px',
               paddingBottom: '2px',
+              width: '100%',
+              minWidth: 0, // Allow shrinking below content size
             }}
           >
             {renderGroupedTasks(groupedTodayTasks, 'today')}
@@ -514,6 +520,8 @@ export const TaskView = ({
               gap: sidebarLayout.itemGap,
               paddingTop: '2px',
               paddingBottom: '2px',
+              width: '100%',
+              minWidth: 0, // Allow shrinking below content size
             }}
           >
             {renderGroupedTasks(groupedUpcomingTasks, 'upcoming')}
@@ -545,6 +553,8 @@ export const TaskView = ({
               gap: sidebarLayout.itemGap,
               paddingTop: '2px',
               paddingBottom: '2px',
+              width: '100%',
+              minWidth: 0, // Allow shrinking below content size
             }}
           >
             {renderGroupedTasks(groupedCompletedTasks, 'completed')}
