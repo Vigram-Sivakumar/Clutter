@@ -1263,6 +1263,7 @@ export const SidebarItem = ({
               display: 'flex',
               alignItems: 'center',
               width: '100%',
+              maxWidth: '100%',
               height: DESIGN.sizing.height,
               paddingLeft: DESIGN.spacing.paddingX,
               paddingRight: DESIGN.spacing.paddingX,
