@@ -32,6 +32,9 @@ export const BlockDeletion = Extension.create({
       new Plugin({
         key: new PluginKey('blockDeletion'),
         props: {
+          handleClick(_view, _pos, _event) {
+            return false; // Let normal click handling proceed
+          },
           handleKeyDown(view, event) {
             // Only handle DELETE and Backspace
             if (event.key !== 'Delete' && event.key !== 'Backspace') {
@@ -65,28 +68,39 @@ export const BlockDeletion = Extension.create({
               // Dispatch transaction (this will trigger onUpdate with docChanged=true)
               view.dispatch(tr);
 
-              // Force browser DOM selection to sync with ProseMirror's internal selection
-              // Without this, the DOM selection stays at an invalid position causing sticky highlight
-              setTimeout(() => {
-                view.focus();
+              // CRITICAL FIX: Prevent blue highlight on empty paragraphs after multi-block deletion
+              // When deleting all blocks, ProseMirror may place DOM selection on the wrapper div,
+              // causing an unwanted blue highlight. We detect and correct this.
+              requestAnimationFrame(() => {
+                // Force React components to re-check their isSelected state
+                editor.emit('selectionUpdate', {
+                  editor,
+                  transaction: view.state.tr,
+                });
 
-                // Manually sync browser selection using ProseMirror's domAtPos
-                const $pos = view.state.selection.$from;
-                const domAtPos = view.domAtPos($pos.pos);
-                const range = document.createRange();
+                // Check if DOM selection is on a wrapper div (causes blue highlight)
                 const sel = window.getSelection();
+                let clearedSelection = false;
+                if (sel && sel.rangeCount > 0 && sel.isCollapsed) {
+                  const anchorNode = sel.anchorNode;
+                  const isOnWrapperDiv =
+                    anchorNode?.nodeType === Node.ELEMENT_NODE &&
+                    (anchorNode as Element).hasAttribute?.(
+                      'data-node-view-wrapper'
+                    );
 
-                if (sel && domAtPos.node) {
-                  try {
-                    range.setStart(domAtPos.node, domAtPos.offset);
-                    range.collapse(true);
+                  if (isOnWrapperDiv) {
+                    // Clear the problematic selection on wrapper div
                     sel.removeAllRanges();
-                    sel.addRange(range);
-                  } catch (_e) {
-                    // Selection sync failed, but view.focus() should handle most cases
+                    clearedSelection = true;
                   }
                 }
-              }, 0);
+
+                // If we cleared the selection, force ProseMirror to restore it correctly
+                if (clearedSelection) {
+                  view.focus();
+                }
+              });
 
               return true; // Prevent default behavior
             }

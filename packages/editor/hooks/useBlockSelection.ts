@@ -1,10 +1,10 @@
 /**
  * useBlockSelection - Hook to detect if current block is selected
- * 
+ *
  * Returns true when:
  * - Block is in a NodeSelection (handle click)
  * - Block is part of a multi-block TextSelection (Shift+Click, Cmd+A)
- * 
+ *
  * Returns false when:
  * - Single block TextSelection (triple-click, normal text selection)
  */
@@ -20,7 +20,11 @@ interface UseBlockSelectionProps {
   nodeSize: number;
 }
 
-export function useBlockSelection({ editor, getPos, nodeSize }: UseBlockSelectionProps): boolean {
+export function useBlockSelection({
+  editor,
+  getPos,
+  nodeSize,
+}: UseBlockSelectionProps): boolean {
   const [isSelected, setIsSelected] = useState(false);
 
   useEffect(() => {
@@ -43,14 +47,16 @@ export function useBlockSelection({ editor, getPos, nodeSize }: UseBlockSelectio
       }
 
       // Case 2: Multi-block TextSelection (Shift+Click, Cmd+A) → show halo
-      if (isMultiBlockSelection(editor)) {
+      const isMultiBlock = isMultiBlockSelection(editor);
+      if (isMultiBlock) {
         const { from, to } = selection;
         const contentStart = blockStart + 1;
         const contentEnd = blockEnd - 1;
-        
+
         // Check if this block is covered by the selection
         const isFullyCovered = from <= contentStart && to >= contentEnd;
-        setIsSelected(isFullyCovered && from !== to);
+        const finalSelected = isFullyCovered && from !== to;
+        setIsSelected(finalSelected);
         return;
       }
 
@@ -60,7 +66,7 @@ export function useBlockSelection({ editor, getPos, nodeSize }: UseBlockSelectio
 
     editor.on('selectionUpdate', checkSelection);
     editor.on('focus', checkSelection);
-    
+
     // Initial check
     checkSelection();
 
@@ -72,4 +78,3 @@ export function useBlockSelection({ editor, getPos, nodeSize }: UseBlockSelectio
 
   return isSelected;
 }
-

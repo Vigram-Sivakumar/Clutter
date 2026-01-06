@@ -14,7 +14,6 @@ import React, {
 import { useEditor, EditorContent } from '@tiptap/react';
 import { Editor } from '@tiptap/core';
 import { NodeSelection } from '@tiptap/pm/state';
-import { logSelectionTypeChange } from '../utils/selectionDebug';
 
 export interface EditorCoreHandle {
   focus: () => void;
@@ -216,12 +215,8 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
         },
       },
       onUpdate: ({ editor, transaction }) => {
-        // Sync DOM selection when PM selection type changes (fixes sticky halo bug)
-        logSelectionTypeChange(editor);
-
         // Only fire onChange if document actually changed (not just selection)
         if (onChange && transaction.docChanged) {
-          console.log('📝 [EditorCore] Document changed - firing onChange');
           // Mark that this update is coming from the editor (internal)
           isInternalUpdate.current = true;
           onChange(editor.getJSON());
@@ -231,9 +226,8 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
           }, 0);
         }
       },
-      onSelectionUpdate: ({ editor }) => {
-        // Sync DOM selection when PM selection type changes (fixes sticky halo bug)
-        logSelectionTypeChange(editor);
+      onSelectionUpdate: ({ editor: _editor, transaction: _transaction }) => {
+        // Selection update callback (can be used for future selection tracking)
       },
     });
 
@@ -341,16 +335,9 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
         const newContent = JSON.stringify(content);
 
         if (currentContent !== newContent) {
-          console.log(
-            '🔄 [EditorCore] Content prop changed - calling setContent() [WIPES SELECTION]'
-          );
           // Note: setContent clears history, so only call when content truly changed externally
           // (e.g., loading a different note or external sync)
           editor.commands.setContent(content, false);
-        } else {
-          console.log(
-            '✅ [EditorCore] Content prop changed but content is same - skipping'
-          );
         }
       }
     }, [content, editor]);
@@ -485,6 +472,16 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
         /* Hide text selection when block is selected (has halo) */
         .ProseMirror :has([data-block-selected="true"]) ::selection {
           background-color: transparent;
+        }
+
+        /* CRITICAL FIX: Prevent selection highlight on empty wrapper divs */
+        .ProseMirror [data-node-view-wrapper]::selection {
+          background-color: transparent !important;
+        }
+        
+        /* Also prevent selection on br placeholders */
+        .ProseMirror br.ProseMirror-trailingBreak::selection {
+          background-color: transparent !important;
         }
 
         /* Horizontal Rule selection */

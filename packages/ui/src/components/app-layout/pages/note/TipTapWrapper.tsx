@@ -209,9 +209,6 @@ export const TipTapWrapper = forwardRef<
     const content = useMemo(() => {
       // 🎯 FIX: NEVER return null - TipTap must always receive valid document
       if (!value) {
-        if (import.meta.env.DEV) {
-          console.log('[EDITOR] Using EMPTY_DOC (no value provided)');
-        }
         return EMPTY_DOC;
       }
 
@@ -241,14 +238,8 @@ export const TipTapWrapper = forwardRef<
     // Handle content changes - save as JSON string (not HTML)
     const handleChange = useCallback(
       (newContent: object) => {
-        console.log('🎹 [TipTapWrapper] handleChange called', {
-          isHydrating,
-          isUpdatingFlag: isUpdatingFromEditor.current,
-        });
-
         // 🛡️ Block onChange during parent hydration
         if (isHydrating) {
-          console.log('⛔ [TipTapWrapper] Blocked - isHydrating');
           return;
         }
 
@@ -276,10 +267,6 @@ export const TipTapWrapper = forwardRef<
           try {
             // Save as JSON string for task counting and better performance
             const jsonString = JSON.stringify(newContent);
-
-            console.log(
-              '📤 [TipTapWrapper] Calling onChange (going to EditorEngine.applyEdit)'
-            );
             // Set flag before calling onChange to prevent circular update in useMemo
             isUpdatingFromEditor.current = true;
             onChange(jsonString);
