@@ -218,9 +218,11 @@ export const NotesView = ({
         key={folder.id}
         style={{
           width: '100%',
+          maxWidth: '100%',
           display: 'flex',
           flexDirection: 'column',
           gap: sidebarLayout.itemGap,
+          overflow: 'hidden',
         }}
       >
         <SidebarItemFolder
@@ -391,9 +393,11 @@ export const NotesView = ({
       }}
       style={{
         width: '100%',
+        maxWidth: '100%',
         display: 'flex',
         flexDirection: 'column',
         gap: sidebarLayout.sectionGap,
+        overflow: 'hidden',
       }}
     >
       {/* Favourites Section - Always visible */}
