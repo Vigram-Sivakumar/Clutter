@@ -63,9 +63,9 @@ export const SidebarContainer = ({
   isCollapsed = false,
   disableScroll = false,
 }: SidebarContainerProps) => {
-  const { colors } = useTheme();
+  const { colors: _colors } = useTheme();
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [isScrolled, setIsScrolled] = useState(false);
+  const [_isScrolled, setIsScrolled] = useState(false);
 
   const tabOptions = Object.values(SIDEBAR_TABS).map((tab) => ({
     value: tab.id,
@@ -207,9 +207,6 @@ export const SidebarContainer = ({
               overflowY: disableScroll ? 'hidden' : 'auto',
               overflowX: 'hidden',
               padding: `0px ${DESIGN.spacing.paddingBase}`,
-              borderTop: isScrolled
-                ? `1px solid ${colors.border.subtle}`
-                : 'none',
             }}
           >
             {children}
