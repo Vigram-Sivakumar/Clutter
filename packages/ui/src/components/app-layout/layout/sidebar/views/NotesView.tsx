@@ -283,7 +283,7 @@ export const NotesView = ({
           <div
             style={{
               minHeight: 0,
-              overflow: 'hidden',
+              overflow: 'visible',
               opacity: folder.isOpen ? 1 : 0,
               transition: transitions.collapse.content,
             }}
@@ -552,7 +552,7 @@ export const NotesView = ({
               <div
                 style={{
                   minHeight: 0,
-                  overflow: 'hidden',
+                  overflow: 'visible',
                   opacity: !isClutteredCollapsed ? 1 : 0,
                   transition: transitions.collapse.content,
                 }}
