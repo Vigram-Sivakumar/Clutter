@@ -1216,12 +1216,8 @@ export const SidebarItem = ({
           width: '100%',
           paddingLeft: `${paddingLeft}px`,
           position: sticky ? 'sticky' : 'relative',
-          top: sticky
-            ? variant === 'header'
-              ? 0
-              : sidebarLayout.itemHeight // Stick right below section header
-            : undefined,
-          zIndex: sticky ? (variant === 'header' ? 20 : 10) : undefined,
+          top: sticky ? 0 : undefined, // All sticky items stick at top
+          zIndex: sticky ? 10 : undefined, // Single z-index level
           backgroundColor: sticky ? colors.background.secondary : undefined,
           overflow: 'visible',
           boxSizing: 'border-box',

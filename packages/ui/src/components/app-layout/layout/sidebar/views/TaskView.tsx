@@ -414,7 +414,6 @@ export const TaskView = ({
             ? unplannedTasks.length.toString()
             : undefined
         }
-        sticky
       >
         {unplannedTasks.length === 0 ? (
           <SidebarEmptyState message={SECTIONS.inbox.emptyMessage} />
@@ -474,7 +473,6 @@ export const TaskView = ({
         onToggle={() => setTaskTodayCollapsed(!taskTodayCollapsed)}
         onHeaderClick={onTodayHeaderClick}
         badge={todayTasks.length > 0 ? todayTasks.length.toString() : undefined}
-        sticky
       >
         {todayTasks.length === 0 ? (
           <SidebarEmptyState message={SECTIONS.today.emptyMessage} />
@@ -504,7 +502,6 @@ export const TaskView = ({
         badge={
           upcomingTasks.length > 0 ? upcomingTasks.length.toString() : undefined
         }
-        sticky
       >
         {upcomingTasks.length === 0 ? (
           <SidebarEmptyState message={SECTIONS.upcoming.emptyMessage} />
@@ -536,7 +533,6 @@ export const TaskView = ({
             ? completedTasks.length.toString()
             : undefined
         }
-        sticky
       >
         {completedTasks.length === 0 ? (
           <SidebarEmptyState message={SECTIONS.completed.emptyMessage} />
