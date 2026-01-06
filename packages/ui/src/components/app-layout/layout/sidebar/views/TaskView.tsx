@@ -1,166 +1,60 @@
 import { useMemo, ReactNode } from 'react';
-import { DAILY_NOTES_FOLDER_ID } from '@clutter/domain';
 import { useNotesStore, useUIStateStore } from '@clutter/state';
-import { getTodayDateString, formatTaskDateLabel, compareDates } from '@clutter/shared';
+import {
+  getTodayDateString,
+  formatTaskDateLabel,
+  compareDates,
+  extractTasksFromNote,
+  toggleTaskInNote,
+  categorizeTasks,
+  sortTasksByDateAndCreation,
+  sortTasksByCreation,
+  type Task,
+} from '@clutter/shared';
 import { useTheme } from '../../../../../hooks/useTheme';
-import { SidebarSection } from '../sections/Section';
+import { SidebarItemFolder } from '../items/FolderItem';
 import { SidebarItemTask } from '../items/TaskItem';
 import { SidebarItem } from '../items/SidebarItem';
 import { SidebarEmptyState } from '../sections/EmptyState';
 import { sidebarLayout } from '../../../../../tokens/sidebar';
+import { transitions } from '../../../../../tokens/transitions';
 import { Note } from '@clutter/domain';
 import { GlobalSelection } from '../types';
+import { SECTIONS, renderIcon } from '../../../../../config/sidebarConfig';
 
-export interface TaskWithDate {
-  id: string;
-  text: string;
-  checked: boolean;
-  noteId: string;
-  noteTitle: string;
-  noteEmoji: string | null;
-  date?: string; // YYYY-MM-DD from @date mention
-  dailyNoteDate?: string; // YYYY-MM-DD from parent note
-  createdAt: string; // For sorting
-}
+// Use shared Task type
+export type TaskWithDate = Task;
 
 interface TaskViewProps {
-  onTaskClick?: (noteId: string, taskId: string) => void;
-  
+  onTaskClick?: (_noteId: string, _taskId: string) => void;
+
   // Selection
   selection: GlobalSelection;
   openContextMenuId?: string | null;
   onClearSelection?: () => void;
-  
+
   // Actions
-  getTaskActions?: (taskId: string, noteId: string) => ReactNode[];
-  
+  getTaskActions?: (_taskId: string, _noteId: string) => ReactNode[];
+
   // Multi-select
   selectedTaskIds?: Set<string>;
-  onTaskMultiSelect?: (taskId: string, event?: React.MouseEvent) => void;
-  
+  onTaskMultiSelect?: (_taskId: string, _event?: React.MouseEvent) => void;
+
   // Header click handlers for navigation to full page views
   onTodayHeaderClick?: () => void;
-  onOverdueHeaderClick?: () => void;
   onUpcomingHeaderClick?: () => void;
   onUnplannedHeaderClick?: () => void;
   onCompletedHeaderClick?: () => void;
 }
 
-// Helper to extract tasks from note content with date information
-const extractTasksFromNote = (note: Note): TaskWithDate[] => {
-  try {
-    const parsed = JSON.parse(note.content);
-    const tasks: TaskWithDate[] = [];
-    
-    const traverseNodes = (node: any, parentDate?: string) => {
-      if (node.type === 'listBlock' && node.attrs?.listType === 'task') {
-        // Extract text content and date mentions from the task
-        let text = '';
-        let taskDate: string | undefined = parentDate;
-        
-        if (node.content && Array.isArray(node.content)) {
-          node.content.forEach((child: any) => {
-            if (child.type === 'text') {
-              text += child.text || '';
-            } else if (child.type === 'dateMention' && child.attrs?.date) {
-              // Extract date from @mention
-              taskDate = child.attrs.date; // YYYY-MM-DD format
-              // Don't include the date mention in the text display
-            }
-          });
-        }
-        
-        // Only add tasks with text content
-        if (text.trim()) {
-          tasks.push({
-            id: node.attrs.blockId || crypto.randomUUID(),
-            text: text.trim(),
-            checked: node.attrs.checked || false,
-            noteId: note.id,
-            noteTitle: note.title || 'Untitled',
-            noteEmoji: note.emoji,
-            date: taskDate,
-            dailyNoteDate: note.dailyNoteDate || undefined,
-            createdAt: note.createdAt,
-          });
-        }
-      }
-      
-      // Recursively traverse child nodes
-      if (node.content && Array.isArray(node.content)) {
-        node.content.forEach((child: any) => traverseNodes(child, parentDate));
-      }
-    };
-    
-    if (parsed.type === 'doc' && parsed.content) {
-      parsed.content.forEach((child: any) => traverseNodes(child));
-    }
-    
-    return tasks;
-  } catch {
-    return [];
-  }
-};
-
-// Helper to toggle task checked state in note content
-const toggleTaskInNote = (note: Note, taskId: string): string => {
-  try {
-    const parsed = JSON.parse(note.content);
-    
-    const traverseAndToggle = (node: any): boolean => {
-      if (node.type === 'listBlock' && 
-          node.attrs?.listType === 'task' && 
-          node.attrs?.blockId === taskId) {
-        node.attrs.checked = !node.attrs.checked;
-        return true;
-      }
-      
-      if (node.content && Array.isArray(node.content)) {
-        for (const child of node.content) {
-          if (traverseAndToggle(child)) {
-            return true;
-          }
-        }
-      }
-      
-      return false;
-    };
-    
-    if (parsed.type === 'doc' && parsed.content) {
-      parsed.content.forEach(traverseAndToggle);
-    }
-    
-    return JSON.stringify(parsed);
-  } catch {
-    return note.content;
-  }
-};
-
-// Helper to group tasks by date
-const groupTasksByDate = (tasks: TaskWithDate[]): Map<string, TaskWithDate[]> => {
-  const grouped = new Map<string, TaskWithDate[]>();
-  
-  tasks.forEach(task => {
-    const effectiveDate = task.date || task.dailyNoteDate || '';
-    if (!grouped.has(effectiveDate)) {
-      grouped.set(effectiveDate, []);
-    }
-    grouped.get(effectiveDate)!.push(task);
-  });
-  
-  return grouped;
-};
-
 export const TaskView = ({
   onTaskClick,
-  selection,
   openContextMenuId,
   onClearSelection,
   getTaskActions,
   selectedTaskIds,
   onTaskMultiSelect,
   onTodayHeaderClick,
-  onOverdueHeaderClick,
   onUpcomingHeaderClick,
   onUnplannedHeaderClick,
   onCompletedHeaderClick,
@@ -168,336 +62,529 @@ export const TaskView = ({
   const notes = useNotesStore((state) => state.notes);
   const updateNoteContent = useNotesStore((state) => state.updateNoteContent);
   const { colors } = useTheme();
-  
+
   // Get collapse states from UI state store
   const {
     taskTodayCollapsed,
-    taskOverdueCollapsed,
     taskUpcomingCollapsed,
     taskUnplannedCollapsed,
     taskCompletedCollapsed,
     setTaskTodayCollapsed,
-    setTaskOverdueCollapsed,
     setTaskUpcomingCollapsed,
     setTaskUnplannedCollapsed,
     setTaskCompletedCollapsed,
   } = useUIStateStore();
-  
+
   const todayDateString = useMemo(() => getTodayDateString(), []);
-  
+
   // Extract all tasks from all active notes
   const allTasks = useMemo(() => {
     const activeNotes = notes.filter((n: Note) => !n.deletedAt);
-    const tasks: TaskWithDate[] = [];
-    
-    activeNotes.forEach(note => {
+    const tasks: Task[] = [];
+
+    activeNotes.forEach((note) => {
       const noteTasks = extractTasksFromNote(note);
       tasks.push(...noteTasks);
     });
-    
+
     return tasks;
   }, [notes]);
-  
-  // Categorize tasks into sections
-  const { todayTasks, overdueTasks, upcomingTasks, unplannedTasks, completedTasks } = useMemo(() => {
-    const today: TaskWithDate[] = [];
-    const overdue: TaskWithDate[] = [];
-    const upcoming: TaskWithDate[] = [];
-    const unplanned: TaskWithDate[] = [];
-    const completed: TaskWithDate[] = [];
-    
-    allTasks.forEach(task => {
-      // Completed tasks go to completed section only
-      if (task.checked) {
-        completed.push(task);
-        return;
-      }
-      
-      // Determine the effective date for the task
+
+  // Categorize tasks into sections using centralized logic
+  const { todayTasks, upcomingTasks, unplannedTasks, completedTasks } =
+    useMemo(() => {
+      // Use centralized categorization (SINGLE SOURCE OF TRUTH)
+      const categorized = categorizeTasks(allTasks, todayDateString);
+
+      return {
+        todayTasks: sortTasksByDateAndCreation(categorized.today),
+        upcomingTasks: sortTasksByDateAndCreation(categorized.upcoming),
+        unplannedTasks: sortTasksByCreation(categorized.inbox),
+        completedTasks: sortTasksByCreation(categorized.completed),
+      };
+    }, [allTasks, todayDateString]);
+
+  // Group today tasks by date with "Overdue" grouping
+  const groupedTodayTasks = useMemo(() => {
+    const overdueGroup: Task[] = [];
+    const todayGroup: Task[] = [];
+
+    todayTasks.forEach((task) => {
       const effectiveDate = task.date || task.dailyNoteDate;
-      
-      if (!effectiveDate) {
-        // No date = unplanned
-        unplanned.push(task);
-      } else if (effectiveDate === todayDateString) {
-        // Today's date = today section
-        today.push(task);
-      } else if (compareDates(effectiveDate, todayDateString) < 0) {
-        // Past date = overdue
-        overdue.push(task);
+      if (effectiveDate && compareDates(effectiveDate, todayDateString) < 0) {
+        overdueGroup.push(task);
       } else {
-        // Future date = upcoming
-        upcoming.push(task);
+        todayGroup.push(task);
       }
     });
-    
-    // Sort by creation date (oldest first)
-    const sortByCreation = (a: TaskWithDate, b: TaskWithDate) => {
-      return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-    };
-    
-    today.sort(sortByCreation);
-    overdue.sort(sortByCreation);
-    
-    // Sort upcoming by date first, then by creation
-    upcoming.sort((a, b) => {
+
+    // Sort overdue tasks by date (oldest to newest)
+    overdueGroup.sort((a, b) => {
       const dateA = a.date || a.dailyNoteDate || '';
       const dateB = b.date || b.dailyNoteDate || '';
       const dateComparison = compareDates(dateA, dateB);
       if (dateComparison !== 0) return dateComparison;
       return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
     });
-    
-    unplanned.sort(sortByCreation);
-    completed.sort(sortByCreation);
-    
-    return {
-      todayTasks: today,
-      overdueTasks: overdue,
-      upcomingTasks: upcoming,
-      unplannedTasks: unplanned,
-      completedTasks: completed,
-    };
-  }, [allTasks, todayDateString]);
-  
-  // Group upcoming tasks by date
+
+    const grouped = new Map<string, Task[]>();
+    if (overdueGroup.length > 0) {
+      grouped.set('__overdue__', overdueGroup);
+    }
+    if (todayGroup.length > 0) {
+      grouped.set(todayDateString, todayGroup);
+    }
+
+    return grouped;
+  }, [todayTasks, todayDateString]);
+
+  // Group upcoming tasks by date with "Overdue" grouping
   const groupedUpcomingTasks = useMemo(() => {
-    const grouped = groupTasksByDate(upcomingTasks);
-    // Sort by date
-    return new Map([...grouped.entries()].sort((a, b) => compareDates(a[0], b[0])));
-  }, [upcomingTasks]);
-  
-  // Group overdue tasks by date
-  const groupedOverdueTasks = useMemo(() => {
-    const grouped = groupTasksByDate(overdueTasks);
-    // Sort by date (most recent first for overdue)
-    return new Map([...grouped.entries()].sort((a, b) => compareDates(b[0], a[0])));
-  }, [overdueTasks]);
-  
+    const overdueGroup: Task[] = [];
+    const dateGroups = new Map<string, Task[]>();
+
+    upcomingTasks.forEach((task) => {
+      const effectiveDate = task.date || task.dailyNoteDate;
+      if (effectiveDate) {
+        if (compareDates(effectiveDate, todayDateString) < 0) {
+          overdueGroup.push(task);
+        } else {
+          if (!dateGroups.has(effectiveDate)) {
+            dateGroups.set(effectiveDate, []);
+          }
+          dateGroups.get(effectiveDate)!.push(task);
+        }
+      }
+    });
+
+    // Sort overdue tasks by date (oldest to newest)
+    overdueGroup.sort((a, b) => {
+      const dateA = a.date || a.dailyNoteDate || '';
+      const dateB = b.date || b.dailyNoteDate || '';
+      const dateComparison = compareDates(dateA, dateB);
+      if (dateComparison !== 0) return dateComparison;
+      return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+    });
+
+    // Build final map with overdue first, then sorted dates
+    const grouped = new Map<string, Task[]>();
+    if (overdueGroup.length > 0) {
+      grouped.set('__overdue__', overdueGroup);
+    }
+
+    // Add other dates sorted
+    const sortedDates = Array.from(dateGroups.entries()).sort((a, b) =>
+      compareDates(a[0], b[0])
+    );
+    sortedDates.forEach(([date, tasks]) => {
+      grouped.set(date, tasks);
+    });
+
+    return grouped;
+  }, [upcomingTasks, todayDateString]);
+
   // Handle checkbox toggle
   const handleToggleTask = (taskId: string) => {
-    const task = allTasks.find(t => t.id === taskId);
+    const task = allTasks.find((t) => t.id === taskId);
     if (!task) return;
-    
-    const note = notes.find(n => n.id === task.noteId);
+
+    const note = notes.find((n) => n.id === task.noteId);
     if (!note) return;
-    
+
     const updatedContent = toggleTaskInNote(note, taskId);
     updateNoteContent(note.id, updatedContent);
   };
-  
+
   // Handle task navigation
   const handleTaskNavigate = (noteId: string, blockId: string) => {
     onTaskClick?.(noteId, blockId);
   };
-  
+
   // Handle task selection
   const handleTaskClick = (taskId: string, event?: React.MouseEvent) => {
     if (onTaskMultiSelect) {
       onTaskMultiSelect(taskId, event);
     }
   };
-  
+
   // Render grouped tasks with timeline connectors
   const renderGroupedTasks = (
-    groupedTasks: Map<string, TaskWithDate[]>,
+    groupedTasks: Map<string, Task[]>,
     sectionPrefix: string
   ) => {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: sidebarLayout.itemGap }}>
-        {Array.from(groupedTasks.entries()).map(([date, tasks], groupIndex, groupsArray) => {
-          const isLastGroup = groupIndex === groupsArray.length - 1;
-          
-          return (
-            <div 
-              key={date} 
-              style={{ 
-                display: 'flex', 
-                flexDirection: 'column', 
-                gap: sidebarLayout.itemGap,
-                position: 'relative',
-              }}
-            >
-              {/* Date group header */}
-              <SidebarItem
-                variant="group"
-                id={`group-${sectionPrefix}-${date}`}
-                label={formatTaskDateLabel(date, todayDateString)}
-                onClick={() => {}}
-              />
-              
-              {/* Tasks container with connecting line */}
-              <div style={{ position: 'relative' }}>
-                {/* Connecting vertical line */}
-                <div
-                  style={{
-                    position: 'absolute',
-                    left: '10.5px',
-                    top: 0,
-                    bottom: isLastGroup ? 0 : `-${sidebarLayout.itemGap}`,
-                    width: '3px',
-                    backgroundColor: colors.connector.tertiary,
-                    borderRadius: '3px',
-                  }}
-                />
-                
-                {/* Tasks indented */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: sidebarLayout.itemGap }}>
-                  {tasks.map(task => (
-                    <div key={task.id} style={{ paddingLeft: sidebarLayout.indentPerLevel }}>
-                      <SidebarItemTask
-                        id={task.id}
-                        noteId={task.noteId}
-                        noteTitle={task.noteTitle}
-                        text={task.text}
-                        checked={task.checked}
-                        isSelected={selectedTaskIds?.has(task.id)}
-                        hasOpenContextMenu={openContextMenuId === task.id}
-                        onClick={(e) => handleTaskClick(task.id, e)}
-                        onToggle={handleToggleTask}
-                        onNavigate={handleTaskNavigate}
-                        actions={getTaskActions?.(task.id, task.noteId)}
-                      />
-                    </div>
-                  ))}
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: sidebarLayout.itemGap,
+        }}
+      >
+        {Array.from(groupedTasks.entries()).map(
+          ([date, tasks], groupIndex, groupsArray) => {
+            const isLastGroup = groupIndex === groupsArray.length - 1;
+            const isOverdue = date === '__overdue__';
+            const isToday = date === todayDateString;
+
+            // Determine label and connector color
+            const label = isOverdue
+              ? 'Overdue'
+              : formatTaskDateLabel(date, todayDateString);
+            const connectorColor = isToday
+              ? colors.semantic.calendarAccent
+              : colors.border.default;
+
+            return (
+              <div
+                key={date}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: sidebarLayout.itemGap,
+                  position: 'relative',
+                }}
+              >
+                {/* Date group header - aligned with indented tasks */}
+                <div style={{ paddingLeft: '3px' }}>
+                  <SidebarItem
+                    variant="group"
+                    id={`group-${sectionPrefix}-${date}`}
+                    label={label}
+                    onClick={() => {}}
+                  />
+                </div>
+
+                {/* Tasks container with connecting line */}
+                <div style={{ position: 'relative' }}>
+                  {/* Connecting vertical line - accent color for today */}
+                  <div
+                    style={{
+                      position: 'absolute',
+                      left: '12.5px', // Center of 3px line aligned with folder icon center: itemPaddingX (4px) + iconButtonSize/2 (10px) - lineWidth/2 (1.5px)
+                      top: 0,
+                      bottom: isLastGroup ? 0 : `-${sidebarLayout.itemGap}`,
+                      width: '3px',
+                      backgroundColor: connectorColor,
+                      borderRadius: '3px',
+                    }}
+                  />
+
+                  {/* Tasks indented */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: sidebarLayout.itemGap,
+                    }}
+                  >
+                    {tasks.map((task) => {
+                      // Show date badge for overdue tasks only
+                      const taskDate = task.date || task.dailyNoteDate;
+                      const badge =
+                        isOverdue && taskDate
+                          ? formatTaskDateLabel(taskDate, todayDateString)
+                          : undefined;
+
+                      return (
+                        <div
+                          key={task.id}
+                          style={{ paddingLeft: sidebarLayout.indentPerLevel }}
+                        >
+                          <SidebarItemTask
+                            id={task.id}
+                            noteId={task.noteId}
+                            noteTitle={task.noteTitle}
+                            text={task.text}
+                            checked={task.checked}
+                            badge={badge}
+                            isSelected={selectedTaskIds?.has(task.id)}
+                            hasOpenContextMenu={openContextMenuId === task.id}
+                            onClick={(e) => handleTaskClick(task.id, e)}
+                            onToggle={handleToggleTask}
+                            onNavigate={handleTaskNavigate}
+                            actions={getTaskActions?.(task.id, task.noteId)}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          }
+        )}
       </div>
     );
   };
-  
+
   return (
-    <div 
+    <div
       onClick={onClearSelection}
-      style={{ 
-        display: 'flex', 
-        flexDirection: 'column', 
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
         gap: sidebarLayout.sectionGap,
       }}
     >
+      {/* Inbox Section */}
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: sidebarLayout.itemGap,
+        }}
+      >
+        <SidebarItemFolder
+          id={SECTIONS.inbox.id}
+          label={SECTIONS.inbox.label}
+          emoji={renderIcon(SECTIONS.inbox.iconName, 16)}
+          isOpen={!taskUnplannedCollapsed}
+          onToggle={() => setTaskUnplannedCollapsed(!taskUnplannedCollapsed)}
+          onClick={onUnplannedHeaderClick}
+          badge={
+            unplannedTasks.length > 0
+              ? unplannedTasks.length.toString()
+              : undefined
+          }
+          level={0}
+          context="task-sections"
+        />
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateRows: taskUnplannedCollapsed ? '0fr' : '1fr',
+            transition: transitions.collapse.height,
+            overflow: 'visible',
+          }}
+        >
+          <div
+            style={{
+              minHeight: 0,
+              overflow: 'hidden',
+              opacity: taskUnplannedCollapsed ? 0 : 1,
+              transition: transitions.collapse.content,
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: sidebarLayout.itemGap,
+                paddingTop: '2px',
+                paddingBottom: '2px',
+              }}
+            >
+              {unplannedTasks.length === 0 ? (
+                <SidebarEmptyState message={SECTIONS.inbox.emptyMessage} />
+              ) : (
+                unplannedTasks.map((task) => (
+                  <SidebarItemTask
+                    key={task.id}
+                    id={task.id}
+                    noteId={task.noteId}
+                    noteTitle={task.noteTitle}
+                    text={task.text}
+                    checked={task.checked}
+                    isSelected={selectedTaskIds?.has(task.id)}
+                    hasOpenContextMenu={openContextMenuId === task.id}
+                    onClick={(e) => handleTaskClick(task.id, e)}
+                    onToggle={handleToggleTask}
+                    onNavigate={handleTaskNavigate}
+                    actions={getTaskActions?.(task.id, task.noteId)}
+                  />
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Today Section */}
-      <SidebarSection
-        title="Today"
-        isCollapsed={taskTodayCollapsed}
-        onToggle={() => setTaskTodayCollapsed(!taskTodayCollapsed)}
-        onHeaderClick={onTodayHeaderClick}
-        badge={todayTasks.length > 0 ? todayTasks.length.toString() : undefined}
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: sidebarLayout.itemGap,
+        }}
       >
-        {todayTasks.length === 0 ? (
-          <SidebarEmptyState message="No tasks for today" />
-        ) : (
-          todayTasks.map(task => (
-            <SidebarItemTask
-              key={task.id}
-              id={task.id}
-              noteId={task.noteId}
-              noteTitle={task.noteTitle}
-              text={task.text}
-              checked={task.checked}
-              isSelected={selectedTaskIds?.has(task.id)}
-              hasOpenContextMenu={openContextMenuId === task.id}
-              onClick={(e) => handleTaskClick(task.id, e)}
-              onToggle={handleToggleTask}
-              onNavigate={handleTaskNavigate}
-              actions={getTaskActions?.(task.id, task.noteId)}
-            />
-          ))
-        )}
-      </SidebarSection>
-      
-      {/* Overdue Section */}
-      <SidebarSection
-        title="Overdue"
-        isCollapsed={taskOverdueCollapsed}
-        onToggle={() => setTaskOverdueCollapsed(!taskOverdueCollapsed)}
-        onHeaderClick={onOverdueHeaderClick}
-        badge={overdueTasks.length > 0 ? overdueTasks.length.toString() : undefined}
-      >
-        {overdueTasks.length === 0 ? (
-          <SidebarEmptyState message="No overdue tasks" />
-        ) : (
-          renderGroupedTasks(groupedOverdueTasks, 'overdue')
-        )}
-      </SidebarSection>
-      
+        <SidebarItemFolder
+          id={SECTIONS.today.id}
+          label={SECTIONS.today.label}
+          emoji={renderIcon(SECTIONS.today.iconName, 16)}
+          isOpen={!taskTodayCollapsed}
+          onToggle={() => setTaskTodayCollapsed(!taskTodayCollapsed)}
+          onClick={onTodayHeaderClick}
+          badge={
+            todayTasks.length > 0 ? todayTasks.length.toString() : undefined
+          }
+          level={0}
+          context="task-sections"
+        />
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateRows: taskTodayCollapsed ? '0fr' : '1fr',
+            transition: transitions.collapse.height,
+            overflow: 'visible',
+          }}
+        >
+          <div
+            style={{
+              minHeight: 0,
+              overflow: 'hidden',
+              opacity: taskTodayCollapsed ? 0 : 1,
+              transition: transitions.collapse.content,
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: sidebarLayout.itemGap,
+                paddingTop: '2px',
+                paddingBottom: '2px',
+              }}
+            >
+              {todayTasks.length === 0 ? (
+                <SidebarEmptyState message={SECTIONS.today.emptyMessage} />
+              ) : (
+                renderGroupedTasks(groupedTodayTasks, 'today')
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Upcoming Section */}
-      <SidebarSection
-        title="Upcoming"
-        isCollapsed={taskUpcomingCollapsed}
-        onToggle={() => setTaskUpcomingCollapsed(!taskUpcomingCollapsed)}
-        onHeaderClick={onUpcomingHeaderClick}
-        badge={upcomingTasks.length > 0 ? upcomingTasks.length.toString() : undefined}
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: sidebarLayout.itemGap,
+        }}
       >
-        {upcomingTasks.length === 0 ? (
-          <SidebarEmptyState message="No upcoming tasks" />
-        ) : (
-          renderGroupedTasks(groupedUpcomingTasks, 'upcoming')
-        )}
-      </SidebarSection>
-      
-      {/* Unplanned Section */}
-      <SidebarSection
-        title="Unplanned"
-        isCollapsed={taskUnplannedCollapsed}
-        onToggle={() => setTaskUnplannedCollapsed(!taskUnplannedCollapsed)}
-        onHeaderClick={onUnplannedHeaderClick}
-        badge={unplannedTasks.length > 0 ? unplannedTasks.length.toString() : undefined}
-      >
-        {unplannedTasks.length === 0 ? (
-          <SidebarEmptyState message="No unplanned tasks" />
-        ) : (
-          unplannedTasks.map(task => (
-            <SidebarItemTask
-              key={task.id}
-              id={task.id}
-              noteId={task.noteId}
-              noteTitle={task.noteTitle}
-              text={task.text}
-              checked={task.checked}
-              isSelected={selectedTaskIds?.has(task.id)}
-              hasOpenContextMenu={openContextMenuId === task.id}
-              onClick={(e) => handleTaskClick(task.id, e)}
-              onToggle={handleToggleTask}
-              onNavigate={handleTaskNavigate}
-              actions={getTaskActions?.(task.id, task.noteId)}
-            />
-          ))
-        )}
-      </SidebarSection>
-      
+        <SidebarItemFolder
+          id={SECTIONS.upcoming.id}
+          label={SECTIONS.upcoming.label}
+          emoji={renderIcon(SECTIONS.upcoming.iconName, 16)}
+          isOpen={!taskUpcomingCollapsed}
+          onToggle={() => setTaskUpcomingCollapsed(!taskUpcomingCollapsed)}
+          onClick={onUpcomingHeaderClick}
+          badge={
+            upcomingTasks.length > 0
+              ? upcomingTasks.length.toString()
+              : undefined
+          }
+          level={0}
+          context="task-sections"
+        />
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateRows: taskUpcomingCollapsed ? '0fr' : '1fr',
+            transition: transitions.collapse.height,
+            overflow: 'visible',
+          }}
+        >
+          <div
+            style={{
+              minHeight: 0,
+              overflow: 'hidden',
+              opacity: taskUpcomingCollapsed ? 0 : 1,
+              transition: transitions.collapse.content,
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: sidebarLayout.itemGap,
+                paddingTop: '2px',
+                paddingBottom: '2px',
+              }}
+            >
+              {upcomingTasks.length === 0 ? (
+                <SidebarEmptyState message={SECTIONS.upcoming.emptyMessage} />
+              ) : (
+                renderGroupedTasks(groupedUpcomingTasks, 'upcoming')
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Completed Section */}
-      <SidebarSection
-        title="Completed"
-        isCollapsed={taskCompletedCollapsed}
-        onToggle={() => setTaskCompletedCollapsed(!taskCompletedCollapsed)}
-        onHeaderClick={onCompletedHeaderClick}
-        badge={completedTasks.length > 0 ? completedTasks.length.toString() : undefined}
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: sidebarLayout.itemGap,
+        }}
       >
-        {completedTasks.length === 0 ? (
-          <SidebarEmptyState message="No completed tasks" />
-        ) : (
-          completedTasks.map(task => (
-            <SidebarItemTask
-              key={task.id}
-              id={task.id}
-              noteId={task.noteId}
-              noteTitle={task.noteTitle}
-              text={task.text}
-              checked={task.checked}
-              isSelected={selectedTaskIds?.has(task.id)}
-              hasOpenContextMenu={openContextMenuId === task.id}
-              onClick={(e) => handleTaskClick(task.id, e)}
-              onToggle={handleToggleTask}
-              onNavigate={handleTaskNavigate}
-              actions={getTaskActions?.(task.id, task.noteId)}
-            />
-          ))
-        )}
-      </SidebarSection>
+        <SidebarItemFolder
+          id={SECTIONS.completed.id}
+          label={SECTIONS.completed.label}
+          emoji={renderIcon(SECTIONS.completed.iconName, 16)}
+          isOpen={!taskCompletedCollapsed}
+          onToggle={() => setTaskCompletedCollapsed(!taskCompletedCollapsed)}
+          onClick={onCompletedHeaderClick}
+          badge={
+            completedTasks.length > 0
+              ? completedTasks.length.toString()
+              : undefined
+          }
+          level={0}
+          context="task-sections"
+        />
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateRows: taskCompletedCollapsed ? '0fr' : '1fr',
+            transition: transitions.collapse.height,
+            overflow: 'visible',
+          }}
+        >
+          <div
+            style={{
+              minHeight: 0,
+              overflow: 'hidden',
+              opacity: taskCompletedCollapsed ? 0 : 1,
+              transition: transitions.collapse.content,
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: sidebarLayout.itemGap,
+                paddingTop: '2px',
+                paddingBottom: '2px',
+              }}
+            >
+              {completedTasks.length === 0 ? (
+                <SidebarEmptyState message={SECTIONS.completed.emptyMessage} />
+              ) : (
+                completedTasks.map((task) => (
+                  <SidebarItemTask
+                    key={task.id}
+                    id={task.id}
+                    noteId={task.noteId}
+                    noteTitle={task.noteTitle}
+                    text={task.text}
+                    checked={task.checked}
+                    isSelected={selectedTaskIds?.has(task.id)}
+                    hasOpenContextMenu={openContextMenuId === task.id}
+                    onClick={(e) => handleTaskClick(task.id, e)}
+                    onToggle={handleToggleTask}
+                    onNavigate={handleTaskNavigate}
+                    actions={getTaskActions?.(task.id, task.noteId)}
+                  />
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
-

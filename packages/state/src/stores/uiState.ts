@@ -10,10 +10,14 @@ import { persist } from 'zustand/middleware';
 /**
  * Main view type for navigation
  */
-export type MainView = 
+export type MainView =
   | { type: 'editor'; source?: 'deletedItems' | 'default' }
   | { type: 'tagFilter'; tag: string; source: 'all' | 'favorites' }
-  | { type: 'folderView'; folderId: string; source?: 'deletedItems' | 'default' }
+  | {
+      type: 'folderView';
+      folderId: string;
+      source?: 'deletedItems' | 'default';
+    }
   | { type: 'allFoldersView' }
   | { type: 'favouritesView' }
   | { type: 'allTagsView' }
@@ -33,113 +37,109 @@ interface UIStateStore {
   sidebarCollapsed: boolean;
   sidebarWidth: number;
   sidebarTab: 'notes' | 'tasks' | 'tags' | 'task';
-  
+
   // Notes tab - section collapse states
   clutteredCollapsed: boolean;
   dailyNotesCollapsed: boolean;
   favouritesCollapsed: boolean;
   foldersCollapsed: boolean;
-  
+
   // Notes tab - folder expansion
   openFolderIds: Set<string>;
-  
+
   // Daily Notes - year/month group collapse states (main list view)
   // Stores keys like "2026" for years or "2026-January" for months
   collapsedDailyNoteGroups: Set<string>;
-  
+
   // Daily Notes - year/month group collapse states (sidebar)
   // Independent from main list view collapse states
   sidebarCollapsedDailyNoteGroups: Set<string>;
-  
+
   // Notes tab - manual toggle tracking
   hasManuallyToggledCluttered: boolean;
   hasManuallyToggledDailyNotes: boolean;
   hasManuallyToggledFavourites: boolean;
   hasManuallyToggledFolders: boolean;
-  
-  // Tasks tab (calendar view)
-  allTasksCollapsed: boolean;
-  
+
   // Task tab (new organized view) - section collapse states
   taskTodayCollapsed: boolean;
   taskOverdueCollapsed: boolean;
   taskUpcomingCollapsed: boolean;
   taskUnplannedCollapsed: boolean;
   taskCompletedCollapsed: boolean;
-  
+
   // Tags tab
   allTagsCollapsed: boolean;
   favouriteTagsCollapsed: boolean;
-  
+
   // Calendar
   calendarWeekStart: string; // ISO date string
-  
+
   // Navigation
   mainView: MainView;
   lastNoteId: string | null;
-  
+
   // Editor
   editorFullWidth: boolean;
-  
+
   // Per-view collapse states
   folderViewSubfoldersCollapsed: boolean;
   folderViewNotesCollapsed: boolean;
   deletedItemsFoldersCollapsed: boolean;
   deletedItemsNotesCollapsed: boolean;
-  
+
   // Actions
-  setSidebarCollapsed: (collapsed: boolean) => void;
-  setSidebarWidth: (width: number) => void;
-  setSidebarTab: (tab: 'notes' | 'tasks' | 'tags' | 'task') => void;
-  
-  setClutteredCollapsed: (collapsed: boolean) => void;
-  setDailyNotesCollapsed: (collapsed: boolean) => void;
-  setFavouritesCollapsed: (collapsed: boolean) => void;
-  setFoldersCollapsed: (collapsed: boolean) => void;
-  
-  setOpenFolderIds: (ids: Set<string>) => void;
-  toggleFolderOpen: (folderId: string) => void;
-  
-  setCollapsedDailyNoteGroups: (groups: Set<string>) => void;
-  toggleDailyNoteGroupCollapsed: (groupKey: string) => void;
-  isDailyNoteGroupCollapsed: (groupKey: string) => boolean;
-  
-  setSidebarCollapsedDailyNoteGroups: (groups: Set<string>) => void;
-  toggleSidebarDailyNoteGroupCollapsed: (groupKey: string) => void;
-  isSidebarDailyNoteGroupCollapsed: (groupKey: string) => boolean;
-  
-  setHasManuallyToggledCluttered: (toggled: boolean) => void;
-  setHasManuallyToggledDailyNotes: (toggled: boolean) => void;
-  setHasManuallyToggledFavourites: (toggled: boolean) => void;
-  setHasManuallyToggledFolders: (toggled: boolean) => void;
-  
-  setAllTasksCollapsed: (collapsed: boolean) => void;
-  
-  setTaskTodayCollapsed: (collapsed: boolean) => void;
-  setTaskOverdueCollapsed: (collapsed: boolean) => void;
-  setTaskUpcomingCollapsed: (collapsed: boolean) => void;
-  setTaskUnplannedCollapsed: (collapsed: boolean) => void;
-  setTaskCompletedCollapsed: (collapsed: boolean) => void;
-  
-  setAllTagsCollapsed: (collapsed: boolean) => void;
-  setFavouriteTagsCollapsed: (collapsed: boolean) => void;
-  
-  setCalendarWeekStart: (date: string) => void;
-  
-  setMainView: (view: MainView) => void;
-  setLastNoteId: (noteId: string | null) => void;
-  
-  setEditorFullWidth: (fullWidth: boolean) => void;
-  
-  setFolderViewSubfoldersCollapsed: (collapsed: boolean) => void;
-  setFolderViewNotesCollapsed: (collapsed: boolean) => void;
-  setDeletedItemsFoldersCollapsed: (collapsed: boolean) => void;
-  setDeletedItemsNotesCollapsed: (collapsed: boolean) => void;
+  setSidebarCollapsed: (_collapsed: boolean) => void;
+  setSidebarWidth: (_width: number) => void;
+  setSidebarTab: (_tab: 'notes' | 'tasks' | 'tags' | 'task') => void;
+
+  setClutteredCollapsed: (_collapsed: boolean) => void;
+  setDailyNotesCollapsed: (_collapsed: boolean) => void;
+  setFavouritesCollapsed: (_collapsed: boolean) => void;
+  setFoldersCollapsed: (_collapsed: boolean) => void;
+
+  setOpenFolderIds: (_ids: Set<string>) => void;
+  toggleFolderOpen: (_folderId: string) => void;
+
+  setCollapsedDailyNoteGroups: (_groups: Set<string>) => void;
+  toggleDailyNoteGroupCollapsed: (_groupKey: string) => void;
+  isDailyNoteGroupCollapsed: (_groupKey: string) => boolean;
+
+  setSidebarCollapsedDailyNoteGroups: (_groups: Set<string>) => void;
+  toggleSidebarDailyNoteGroupCollapsed: (_groupKey: string) => void;
+  isSidebarDailyNoteGroupCollapsed: (_groupKey: string) => boolean;
+
+  setHasManuallyToggledCluttered: (_toggled: boolean) => void;
+  setHasManuallyToggledDailyNotes: (_toggled: boolean) => void;
+  setHasManuallyToggledFavourites: (_toggled: boolean) => void;
+  setHasManuallyToggledFolders: (_toggled: boolean) => void;
+
+  setTaskTodayCollapsed: (_collapsed: boolean) => void;
+  setTaskOverdueCollapsed: (_collapsed: boolean) => void;
+  setTaskUpcomingCollapsed: (_collapsed: boolean) => void;
+  setTaskUnplannedCollapsed: (_collapsed: boolean) => void;
+  setTaskCompletedCollapsed: (_collapsed: boolean) => void;
+
+  setAllTagsCollapsed: (_collapsed: boolean) => void;
+  setFavouriteTagsCollapsed: (_collapsed: boolean) => void;
+
+  setCalendarWeekStart: (_date: string) => void;
+
+  setMainView: (_view: MainView) => void;
+  setLastNoteId: (_noteId: string | null) => void;
+
+  setEditorFullWidth: (_fullWidth: boolean) => void;
+
+  setFolderViewSubfoldersCollapsed: (_collapsed: boolean) => void;
+  setFolderViewNotesCollapsed: (_collapsed: boolean) => void;
+  setDeletedItemsFoldersCollapsed: (_collapsed: boolean) => void;
+  setDeletedItemsNotesCollapsed: (_collapsed: boolean) => void;
 }
 
 // Safe localStorage wrapper
 const getLocalStorage = () => {
   try {
+    // eslint-disable-next-line no-undef
     return typeof window !== 'undefined' ? window.localStorage : null;
   } catch {
     return null;
@@ -195,123 +195,141 @@ export const useUIStateStore = create<UIStateStore>()(
       sidebarCollapsed: false,
       sidebarWidth: 256,
       sidebarTab: 'task',
-      
+
       clutteredCollapsed: true,
       dailyNotesCollapsed: true,
       favouritesCollapsed: true,
       foldersCollapsed: false,
-      
+
       openFolderIds: new Set<string>(),
-      
+
       collapsedDailyNoteGroups: new Set<string>(),
       sidebarCollapsedDailyNoteGroups: new Set<string>(),
-      
+
       hasManuallyToggledCluttered: false,
       hasManuallyToggledDailyNotes: false,
       hasManuallyToggledFavourites: false,
       hasManuallyToggledFolders: false,
-      
-      allTasksCollapsed: true,
-      
+
       taskTodayCollapsed: false,
       taskOverdueCollapsed: false,
       taskUpcomingCollapsed: false,
       taskUnplannedCollapsed: false,
       taskCompletedCollapsed: true,
-      
+
       allTagsCollapsed: false,
       favouriteTagsCollapsed: true,
-      
+
       calendarWeekStart: getTodayWeekStart(),
-      
+
       mainView: { type: 'editor' },
       lastNoteId: null,
-      
+
       editorFullWidth: false,
-      
+
       folderViewSubfoldersCollapsed: false,
       folderViewNotesCollapsed: false,
       deletedItemsFoldersCollapsed: false,
       deletedItemsNotesCollapsed: false,
-      
+
       // Actions
       setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
       setSidebarWidth: (width) => set({ sidebarWidth: width }),
       setSidebarTab: (tab) => set({ sidebarTab: tab }),
-      
-      setClutteredCollapsed: (collapsed) => set({ clutteredCollapsed: collapsed }),
-      setDailyNotesCollapsed: (collapsed) => set({ dailyNotesCollapsed: collapsed }),
-      setFavouritesCollapsed: (collapsed) => set({ favouritesCollapsed: collapsed }),
+
+      setClutteredCollapsed: (collapsed) =>
+        set({ clutteredCollapsed: collapsed }),
+      setDailyNotesCollapsed: (collapsed) =>
+        set({ dailyNotesCollapsed: collapsed }),
+      setFavouritesCollapsed: (collapsed) =>
+        set({ favouritesCollapsed: collapsed }),
       setFoldersCollapsed: (collapsed) => set({ foldersCollapsed: collapsed }),
-      
+
       setOpenFolderIds: (ids) => set({ openFolderIds: ids }),
-      toggleFolderOpen: (folderId) => set((state) => {
-        const newSet = new Set(state.openFolderIds);
-        if (newSet.has(folderId)) {
-          newSet.delete(folderId);
-        } else {
-          newSet.add(folderId);
-        }
-        return { openFolderIds: newSet };
-      }),
-      
-      setCollapsedDailyNoteGroups: (groups) => set({ collapsedDailyNoteGroups: groups }),
-      toggleDailyNoteGroupCollapsed: (groupKey) => set((state) => {
-        const newSet = new Set(state.collapsedDailyNoteGroups);
-        if (newSet.has(groupKey)) {
-          newSet.delete(groupKey);
-        } else {
-          newSet.add(groupKey);
-        }
-        return { collapsedDailyNoteGroups: newSet };
-      }),
+      toggleFolderOpen: (folderId) =>
+        set((state) => {
+          const newSet = new Set(state.openFolderIds);
+          if (newSet.has(folderId)) {
+            newSet.delete(folderId);
+          } else {
+            newSet.add(folderId);
+          }
+          return { openFolderIds: newSet };
+        }),
+
+      setCollapsedDailyNoteGroups: (groups) =>
+        set({ collapsedDailyNoteGroups: groups }),
+      toggleDailyNoteGroupCollapsed: (groupKey) =>
+        set((state) => {
+          const newSet = new Set(state.collapsedDailyNoteGroups);
+          if (newSet.has(groupKey)) {
+            newSet.delete(groupKey);
+          } else {
+            newSet.add(groupKey);
+          }
+          return { collapsedDailyNoteGroups: newSet };
+        }),
       isDailyNoteGroupCollapsed: (groupKey) => {
         const state = get();
         return state.collapsedDailyNoteGroups.has(groupKey);
       },
-      
-      setSidebarCollapsedDailyNoteGroups: (groups) => set({ sidebarCollapsedDailyNoteGroups: groups }),
-      toggleSidebarDailyNoteGroupCollapsed: (groupKey) => set((state) => {
-        const newSet = new Set(state.sidebarCollapsedDailyNoteGroups);
-        if (newSet.has(groupKey)) {
-          newSet.delete(groupKey);
-        } else {
-          newSet.add(groupKey);
-        }
-        return { sidebarCollapsedDailyNoteGroups: newSet };
-      }),
+
+      setSidebarCollapsedDailyNoteGroups: (groups) =>
+        set({ sidebarCollapsedDailyNoteGroups: groups }),
+      toggleSidebarDailyNoteGroupCollapsed: (groupKey) =>
+        set((state) => {
+          const newSet = new Set(state.sidebarCollapsedDailyNoteGroups);
+          if (newSet.has(groupKey)) {
+            newSet.delete(groupKey);
+          } else {
+            newSet.add(groupKey);
+          }
+          return { sidebarCollapsedDailyNoteGroups: newSet };
+        }),
       isSidebarDailyNoteGroupCollapsed: (groupKey) => {
         const state = get();
         return state.sidebarCollapsedDailyNoteGroups.has(groupKey);
       },
-      
-      setHasManuallyToggledCluttered: (toggled) => set({ hasManuallyToggledCluttered: toggled }),
-      setHasManuallyToggledDailyNotes: (toggled) => set({ hasManuallyToggledDailyNotes: toggled }),
-      setHasManuallyToggledFavourites: (toggled) => set({ hasManuallyToggledFavourites: toggled }),
-      setHasManuallyToggledFolders: (toggled) => set({ hasManuallyToggledFolders: toggled }),
-      
-      setAllTasksCollapsed: (collapsed) => set({ allTasksCollapsed: collapsed }),
-      
-      setTaskTodayCollapsed: (collapsed) => set({ taskTodayCollapsed: collapsed }),
-      setTaskOverdueCollapsed: (collapsed) => set({ taskOverdueCollapsed: collapsed }),
-      setTaskUpcomingCollapsed: (collapsed) => set({ taskUpcomingCollapsed: collapsed }),
-      setTaskUnplannedCollapsed: (collapsed) => set({ taskUnplannedCollapsed: collapsed }),
-      setTaskCompletedCollapsed: (collapsed) => set({ taskCompletedCollapsed: collapsed }),
-      
+
+      setHasManuallyToggledCluttered: (toggled) =>
+        set({ hasManuallyToggledCluttered: toggled }),
+      setHasManuallyToggledDailyNotes: (toggled) =>
+        set({ hasManuallyToggledDailyNotes: toggled }),
+      setHasManuallyToggledFavourites: (toggled) =>
+        set({ hasManuallyToggledFavourites: toggled }),
+      setHasManuallyToggledFolders: (toggled) =>
+        set({ hasManuallyToggledFolders: toggled }),
+
+      setTaskTodayCollapsed: (collapsed) =>
+        set({ taskTodayCollapsed: collapsed }),
+      setTaskOverdueCollapsed: (collapsed) =>
+        set({ taskOverdueCollapsed: collapsed }),
+      setTaskUpcomingCollapsed: (collapsed) =>
+        set({ taskUpcomingCollapsed: collapsed }),
+      setTaskUnplannedCollapsed: (collapsed) =>
+        set({ taskUnplannedCollapsed: collapsed }),
+      setTaskCompletedCollapsed: (collapsed) =>
+        set({ taskCompletedCollapsed: collapsed }),
+
       setAllTagsCollapsed: (collapsed) => set({ allTagsCollapsed: collapsed }),
-      setFavouriteTagsCollapsed: (collapsed) => set({ favouriteTagsCollapsed: collapsed }),
-      
+      setFavouriteTagsCollapsed: (collapsed) =>
+        set({ favouriteTagsCollapsed: collapsed }),
+
       setCalendarWeekStart: (date) => set({ calendarWeekStart: date }),
-      
+
       setMainView: (view) => set({ mainView: view }),
       setLastNoteId: (noteId) => set({ lastNoteId: noteId }),
-      
+
       setEditorFullWidth: (fullWidth) => set({ editorFullWidth: fullWidth }),
-      
-      setFolderViewSubfoldersCollapsed: (collapsed) => set({ folderViewSubfoldersCollapsed: collapsed }),
-      setFolderViewNotesCollapsed: (collapsed) => set({ folderViewNotesCollapsed: collapsed }),
-      setDeletedItemsFoldersCollapsed: (collapsed) => set({ deletedItemsFoldersCollapsed: collapsed }),
-      setDeletedItemsNotesCollapsed: (collapsed) => set({ deletedItemsNotesCollapsed: collapsed }),
+
+      setFolderViewSubfoldersCollapsed: (collapsed) =>
+        set({ folderViewSubfoldersCollapsed: collapsed }),
+      setFolderViewNotesCollapsed: (collapsed) =>
+        set({ folderViewNotesCollapsed: collapsed }),
+      setDeletedItemsFoldersCollapsed: (collapsed) =>
+        set({ deletedItemsFoldersCollapsed: collapsed }),
+      setDeletedItemsNotesCollapsed: (collapsed) =>
+        set({ deletedItemsNotesCollapsed: collapsed }),
     }),
     {
       name: 'clutter-ui-state',
@@ -325,12 +343,22 @@ export const useUIStateStore = create<UIStateStore>()(
             parsed.state.openFolderIds = new Set(parsed.state.openFolderIds);
           }
           // Convert collapsedDailyNoteGroups array back to Set
-          if (parsed.state && Array.isArray(parsed.state.collapsedDailyNoteGroups)) {
-            parsed.state.collapsedDailyNoteGroups = new Set(parsed.state.collapsedDailyNoteGroups);
+          if (
+            parsed.state &&
+            Array.isArray(parsed.state.collapsedDailyNoteGroups)
+          ) {
+            parsed.state.collapsedDailyNoteGroups = new Set(
+              parsed.state.collapsedDailyNoteGroups
+            );
           }
           // Convert sidebarCollapsedDailyNoteGroups array back to Set
-          if (parsed.state && Array.isArray(parsed.state.sidebarCollapsedDailyNoteGroups)) {
-            parsed.state.sidebarCollapsedDailyNoteGroups = new Set(parsed.state.sidebarCollapsedDailyNoteGroups);
+          if (
+            parsed.state &&
+            Array.isArray(parsed.state.sidebarCollapsedDailyNoteGroups)
+          ) {
+            parsed.state.sidebarCollapsedDailyNoteGroups = new Set(
+              parsed.state.sidebarCollapsedDailyNoteGroups
+            );
           }
           return parsed;
         },
@@ -341,8 +369,12 @@ export const useUIStateStore = create<UIStateStore>()(
             state: {
               ...value.state,
               openFolderIds: Array.from(value.state.openFolderIds || []),
-              collapsedDailyNoteGroups: Array.from(value.state.collapsedDailyNoteGroups || []),
-              sidebarCollapsedDailyNoteGroups: Array.from(value.state.sidebarCollapsedDailyNoteGroups || []),
+              collapsedDailyNoteGroups: Array.from(
+                value.state.collapsedDailyNoteGroups || []
+              ),
+              sidebarCollapsedDailyNoteGroups: Array.from(
+                value.state.sidebarCollapsedDailyNoteGroups || []
+              ),
             },
           };
           safeStorage.setItem(name, JSON.stringify(toStore));
@@ -352,4 +384,3 @@ export const useUIStateStore = create<UIStateStore>()(
     }
   )
 );
-

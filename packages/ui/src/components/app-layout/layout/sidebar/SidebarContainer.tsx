@@ -5,7 +5,7 @@ import { SidebarTabs } from './sections/Tabs';
 import { SidebarActionBar } from './sections/ActionBar';
 import { WindowControls } from './internal/WindowControls';
 import { CalendarMonthHeader, CalendarDateGrid } from './internal';
-import { Folder, Calendar, Tag, CheckSquare } from '../../../../icons';
+import { SIDEBAR_TABS, renderIcon } from '../../../../config/sidebarConfig';
 
 const DESIGN = {
   spacing: {
@@ -16,16 +16,16 @@ const DESIGN = {
 interface SidebarContainerProps {
   // Header
   contentType: 'notes' | 'tasks' | 'tags' | 'task';
-  onContentTypeChange: (type: string) => void;
+  onContentTypeChange: (_type: string) => void;
   onCreateNote: () => void;
   onSearch: () => void;
   createButtonShortcut?: string;
 
   // Calendar (for tasks tab)
   currentWeekStart?: Date;
-  onWeekChange?: (newWeekStart: Date) => void;
+  onWeekChange?: (_newWeekStart: Date) => void;
   selectedDate?: Date;
-  onDateSelect?: (date: Date) => void;
+  onDateSelect?: (_date: Date) => void;
 
   // Dynamic content
   children: ReactNode;
@@ -33,14 +33,14 @@ interface SidebarContainerProps {
   // Styling
   width?: string;
   height?: string;
-  
+
   // Testing
   showWindowControls?: boolean; // Force show window controls for testing
-  
+
   // Collapse
   onToggleSidebar?: () => void;
   isCollapsed?: boolean;
-  
+
   // Scroll control
   disableScroll?: boolean; // Disable scrolling when context menu or other overlay is open
 }
@@ -67,12 +67,10 @@ export const SidebarContainer = ({
   const scrollRef = useRef<HTMLDivElement>(null);
   const [isScrolled, setIsScrolled] = useState(false);
 
-  const tabOptions = [
-    { value: 'notes', icon: <Folder size={16} /> },
-    { value: 'tasks', icon: <Calendar size={16} /> },
-    { value: 'task', icon: <CheckSquare size={16} /> },
-    { value: 'tags', icon: <Tag size={16} /> },
-  ];
+  const tabOptions = Object.values(SIDEBAR_TABS).map((tab) => ({
+    value: tab.id,
+    icon: renderIcon(tab.iconName),
+  }));
 
   // Check if running in Tauri (native app)
   const isTauri = typeof window !== 'undefined' && '__TAURI__' in window;
@@ -107,9 +105,9 @@ export const SidebarContainer = ({
     >
       {/* System Layer: Window Controls (macOS only) */}
       <div style={{ flexShrink: 0 }}>
-        <WindowControls 
-        variant="sidebar"
-        showToggleButton 
+        <WindowControls
+          variant="sidebar"
+          showToggleButton
           forceShow={showWindowControls}
           onToggleSidebar={onToggleSidebar}
           isCollapsed={isCollapsed}
@@ -128,30 +126,48 @@ export const SidebarContainer = ({
         }}
       >
         {/* Tab Toggle */}
-      <div style={{ paddingLeft: DESIGN.spacing.paddingBase, paddingRight: DESIGN.spacing.paddingBase, flexShrink: 0 }}>
-        <SidebarTabs
-          value={contentType}
-          onChange={onContentTypeChange}
-          options={tabOptions}
-          size="medium"
-        />
-      </div>
+        <div
+          style={{
+            paddingLeft: DESIGN.spacing.paddingBase,
+            paddingRight: DESIGN.spacing.paddingBase,
+            flexShrink: 0,
+          }}
+        >
+          <SidebarTabs
+            value={contentType}
+            onChange={onContentTypeChange}
+            options={tabOptions}
+            size="medium"
+          />
+        </div>
 
         {/* Tab-specific Action Area */}
         {contentType === 'notes' && (
-      <div style={{ paddingLeft: DESIGN.spacing.paddingBase, paddingRight: DESIGN.spacing.paddingBase, flexShrink: 0 }}>
-        <SidebarActionBar
-          onCreateNote={onCreateNote}
-          onSearch={onSearch}
-          createButtonShortcut={createButtonShortcut}
-        />
-      </div>
+          <div
+            style={{
+              paddingLeft: DESIGN.spacing.paddingBase,
+              paddingRight: DESIGN.spacing.paddingBase,
+              flexShrink: 0,
+            }}
+          >
+            <SidebarActionBar
+              onCreateNote={onCreateNote}
+              onSearch={onSearch}
+              createButtonShortcut={createButtonShortcut}
+            />
+          </div>
         )}
 
         {contentType === 'tasks' && currentWeekStart && onWeekChange && (
-          <div style={{ paddingLeft: DESIGN.spacing.paddingBase, paddingRight: DESIGN.spacing.paddingBase, flexShrink: 0 }}>
+          <div
+            style={{
+              paddingLeft: DESIGN.spacing.paddingBase,
+              paddingRight: DESIGN.spacing.paddingBase,
+              flexShrink: 0,
+            }}
+          >
             <div style={{ marginBottom: '6px' }}>
-              <CalendarMonthHeader 
+              <CalendarMonthHeader
                 currentWeekStart={currentWeekStart}
                 onWeekChange={onWeekChange}
                 onDateSelect={onDateSelect}
@@ -166,41 +182,40 @@ export const SidebarContainer = ({
           </div>
         )}
 
-        {contentType === 'tags' && (
+        {contentType === 'tags' &&
           // Tags tab: no action area (or could add search later)
-          null
-        )}
+          null}
 
-        {contentType === 'task' && (
+        {contentType === 'task' &&
           // Task tab: no action area for now
-          null
-        )}
+          null}
 
         {/* Scrollable Content Area */}
-      <div 
-        style={{ 
-          flex: 1, 
-          overflow: 'hidden', 
-          minHeight: 0,
-          display: 'flex',
-          flexDirection: 'column',
-        }}
-      >
-        <div 
-          ref={scrollRef}
-          style={{ 
-              flex: 1,
-              overflowY: disableScroll ? 'hidden' : 'auto', 
-            overflowX: 'hidden',
-            padding: `0px ${DESIGN.spacing.paddingBase}`, 
-              borderTop: isScrolled ? `1px solid ${colors.border.subtle}` : 'none',
+        <div
+          style={{
+            flex: 1,
+            overflow: 'hidden',
+            minHeight: 0,
+            display: 'flex',
+            flexDirection: 'column',
           }}
         >
-          {children}
+          <div
+            ref={scrollRef}
+            style={{
+              flex: 1,
+              overflowY: disableScroll ? 'hidden' : 'auto',
+              overflowX: 'hidden',
+              padding: `0px ${DESIGN.spacing.paddingBase}`,
+              borderTop: isScrolled
+                ? `1px solid ${colors.border.subtle}`
+                : 'none',
+            }}
+          >
+            {children}
           </div>
         </div>
       </div>
     </div>
   );
 };
-

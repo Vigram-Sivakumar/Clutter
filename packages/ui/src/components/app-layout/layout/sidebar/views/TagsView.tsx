@@ -1,4 +1,5 @@
 import { useMemo, ReactNode } from 'react';
+import { useTheme } from '../../../../../hooks/useTheme';
 import { SidebarSection } from '../sections/Section';
 import { SidebarItemTag } from '../items/TagItem';
 import { SidebarEmptyState } from '../sections/EmptyState';
@@ -7,6 +8,7 @@ import { useTagsStore, useFoldersStore } from '@clutter/state';
 import { useAllTags } from '@clutter/state';
 import { useNotesStore } from '@clutter/state';
 import { GlobalSelection } from '../types';
+import { SECTIONS } from '../../../../../config/sidebarConfig';
 
 interface SidebarTagsViewProps {
   selection: GlobalSelection;
@@ -19,14 +21,18 @@ interface SidebarTagsViewProps {
   onFavouritesToggle: () => void;
   onFavouritesHeaderClick?: () => void;
   allTagsHeaderActions?: ReactNode[];
-  getTagActions?: (tag: string) => ReactNode[];
+  getTagActions?: (_tag: string) => ReactNode[];
   // Inline editing
   editingTag?: string | null;
-  onTagRenameComplete?: (oldTag: string, newTag: string) => void;
+  onTagRenameComplete?: (_oldTag: string, _newTag: string) => void;
   onTagRenameCancel?: () => void;
   // Multi-select
   selectedTagIds?: Set<string>;
-  onTagMultiSelect?: (tagId: string, event?: React.MouseEvent, context?: string) => void;
+  onTagMultiSelect?: (
+    _tagId: string,
+    _event?: React.MouseEvent,
+    _context?: string
+  ) => void;
 }
 
 export const TagsView = ({
@@ -47,6 +53,8 @@ export const TagsView = ({
   selectedTagIds,
   onTagMultiSelect,
 }: SidebarTagsViewProps) => {
+  useTheme();
+
   // Get all unique tags
   const allTags = useAllTags();
   const notes = useNotesStore((state) => state.notes);
@@ -61,13 +69,13 @@ export const TagsView = ({
           !note.deletedAt &&
           note.tags.some((t) => t.toLowerCase() === tag.toLowerCase())
       ).length;
-      
+
       const folderCount = folders.filter(
         (folder) =>
           !folder.deletedAt &&
           folder.tags.some((t) => t.toLowerCase() === tag.toLowerCase())
       ).length;
-      
+
       const count = noteCount + folderCount;
       return { tag, count };
     });
@@ -98,14 +106,16 @@ export const TagsView = ({
     >
       {/* Favourites Section - Always visible */}
       <SidebarSection
-        title="Favourites"
+        title={SECTIONS['favourites-tags'].label}
         isCollapsed={isFavouritesCollapsed}
         onToggle={onFavouritesToggle}
         onHeaderClick={onFavouritesHeaderClick}
         badge={String(favouriteTags.length)}
       >
         {favouriteTags.length === 0 ? (
-          <SidebarEmptyState message="No favorite tags yet" />
+          <SidebarEmptyState
+            message={SECTIONS['favourites-tags'].emptyMessage}
+          />
         ) : (
           <div
             style={{
@@ -122,7 +132,7 @@ export const TagsView = ({
                 tag={tag}
                 count={count}
                 isSelected={
-                  selection.type === 'tag' && 
+                  selection.type === 'tag' &&
                   (selectedTagIds?.has(tag) || selection.itemId === tag) &&
                   selection.context === 'favorites'
                 }
@@ -140,7 +150,7 @@ export const TagsView = ({
 
       {/* All Tags Section */}
       <SidebarSection
-        title="All Tags"
+        title={SECTIONS['all-tags'].label}
         isCollapsed={isAllTagsCollapsed}
         onToggle={onAllTagsToggle}
         onHeaderClick={onAllTagsHeaderClick}
@@ -148,7 +158,7 @@ export const TagsView = ({
         actions={allTagsHeaderActions}
       >
         {tagsWithCounts.length === 0 ? (
-          <SidebarEmptyState message="No tags yet. Add tags to your notes." />
+          <SidebarEmptyState message={SECTIONS['all-tags'].emptyMessage} />
         ) : (
           <div
             style={{
@@ -165,7 +175,7 @@ export const TagsView = ({
                 tag={tag}
                 count={count}
                 isSelected={
-                  selection.type === 'tag' && 
+                  selection.type === 'tag' &&
                   (selectedTagIds?.has(tag) || selection.itemId === tag) &&
                   selection.context === 'all'
                 }
@@ -183,5 +193,3 @@ export const TagsView = ({
     </div>
   );
 };
-
-

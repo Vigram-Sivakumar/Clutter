@@ -1,141 +1,66 @@
 import { useMemo } from 'react';
 import { useNotesStore } from '@clutter/state';
+import {
+  getTodayDateString,
+  extractTasksFromNote,
+  toggleTaskInNote,
+  categorizeTasks,
+  sortTasksByCreation,
+  type Task,
+} from '@clutter/shared';
 import { ListView, ListItem, TaskListItemData } from '../../shared/list-view';
 import { PageTitleSection } from '../../shared/content-header';
 import { ListViewLayout } from '../../shared/list-view-layout';
-import { CheckSquare } from '../../../../icons';
 import { sizing } from '../../../../tokens/sizing';
 import { Note } from '@clutter/domain';
+import { SECTIONS, renderIcon } from '../../../../config/sidebarConfig';
 
 interface CompletedTasksListViewProps {
-  onTaskClick: (noteId: string, taskId: string) => void;
+  onTaskClick: (_noteId: string, _taskId: string) => void;
 }
 
-interface TaskWithDate extends TaskListItemData {
-  date?: string;
-  dailyNoteDate?: string;
-  createdAt: string;
-}
-
-const extractTasksFromNote = (note: Note): TaskWithDate[] => {
-  try {
-    const parsed = JSON.parse(note.content);
-    const tasks: TaskWithDate[] = [];
-    
-    const traverseNodes = (node: any) => {
-      if (node.type === 'listBlock' && node.attrs?.listType === 'task') {
-        let text = '';
-        let taskDate: string | undefined;
-        
-        if (node.content && Array.isArray(node.content)) {
-          node.content.forEach((child: any) => {
-            if (child.type === 'text') {
-              text += child.text || '';
-            } else if (child.type === 'dateMention' && child.attrs?.date) {
-              taskDate = child.attrs.date;
-            }
-          });
-        }
-        
-        if (text.trim()) {
-          tasks.push({
-            id: node.attrs.blockId || crypto.randomUUID(),
-            text: text.trim(),
-            checked: node.attrs.checked || false,
-            noteId: note.id,
-            noteTitle: note.title || 'Untitled',
-            noteEmoji: note.emoji,
-            date: taskDate,
-            dailyNoteDate: note.dailyNoteDate || undefined,
-            createdAt: note.createdAt,
-          });
-        }
-      }
-      
-      if (node.content && Array.isArray(node.content)) {
-        node.content.forEach(traverseNodes);
-      }
-    };
-    
-    if (parsed.type === 'doc' && parsed.content) {
-      parsed.content.forEach(traverseNodes);
-    }
-    
-    return tasks;
-  } catch {
-    return [];
-  }
-};
-
-const toggleTaskInNote = (note: Note, taskId: string): string => {
-  try {
-    const parsed = JSON.parse(note.content);
-    
-    const traverseAndToggle = (node: any): boolean => {
-      if (node.type === 'listBlock' && 
-          node.attrs?.listType === 'task' && 
-          node.attrs?.blockId === taskId) {
-        node.attrs.checked = !node.attrs.checked;
-        return true;
-      }
-      
-      if (node.content && Array.isArray(node.content)) {
-        for (const child of node.content) {
-          if (traverseAndToggle(child)) {
-            return true;
-          }
-        }
-      }
-      
-      return false;
-    };
-    
-    if (parsed.type === 'doc' && parsed.content) {
-      parsed.content.forEach(traverseAndToggle);
-    }
-    
-    return JSON.stringify(parsed);
-  } catch {
-    return note.content;
-  }
-};
-
-export const CompletedTasksListView = ({ onTaskClick }: CompletedTasksListViewProps) => {
+export const CompletedTasksListView = ({
+  onTaskClick,
+}: CompletedTasksListViewProps) => {
   const { notes, updateNoteContent } = useNotesStore();
-  
+  const todayDateString = useMemo(() => getTodayDateString(), []);
+
   const completedTasks = useMemo(() => {
     const activeNotes = notes.filter((n: Note) => !n.deletedAt);
-    const allTasks: TaskWithDate[] = [];
-    
-    activeNotes.forEach(note => {
+    const allTasks: Task[] = [];
+
+    activeNotes.forEach((note) => {
       const noteTasks = extractTasksFromNote(note);
       allTasks.push(...noteTasks);
     });
-    
-    return allTasks
-      .filter(task => task.checked)
-      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-  }, [notes]);
-  
+
+    // Use centralized categorization (SINGLE SOURCE OF TRUTH)
+    const { completed } = categorizeTasks(allTasks, todayDateString);
+    return sortTasksByCreation(completed);
+  }, [notes, todayDateString]);
+
   const handleToggleTask = (taskId: string) => {
-    const task = completedTasks.find(t => t.id === taskId);
+    const task = completedTasks.find((t) => t.id === taskId);
     if (!task) return;
-    
-    const note = notes.find(n => n.id === task.noteId);
+
+    const note = notes.find((n) => n.id === task.noteId);
     if (!note) return;
-    
+
     const updatedContent = toggleTaskInNote(note, taskId);
     updateNoteContent(note.id, updatedContent);
   };
-  
+
   return (
     <>
       <PageTitleSection
         variant="folder"
-        folderName="Completed"
-        staticIcon={<CheckSquare size={sizing.icon.pageTitleIcon} />}
+        folderName={SECTIONS.completed.label}
+        staticIcon={renderIcon(
+          SECTIONS.completed.iconName,
+          sizing.icon.pageTitleIcon
+        )}
       />
-      
+
       <ListViewLayout
         sections={[
           {
@@ -147,7 +72,7 @@ export const CompletedTasksListView = ({ onTaskClick }: CompletedTasksListViewPr
                 items={completedTasks}
                 selectedId={null}
                 onItemClick={(taskId) => {
-                  const task = completedTasks.find(t => t.id === taskId);
+                  const task = completedTasks.find((t) => t.id === taskId);
                   if (task) {
                     onTaskClick(task.noteId, task.id);
                   }
@@ -159,15 +84,14 @@ export const CompletedTasksListView = ({ onTaskClick }: CompletedTasksListViewPr
                     onToggle={handleToggleTask}
                   />
                 )}
-                emptyState="No completed tasks"
+                emptyState={SECTIONS.completed.emptyMessage}
                 showDividers={false}
               />
             ),
           },
         ]}
-        emptyState="No completed tasks"
+        emptyState={SECTIONS.completed.emptyMessage}
       />
     </>
   );
 };
-

@@ -1,15 +1,49 @@
 /**
  * Date formatting utilities for consistent date handling across the app
- * 
+ *
  * Date Formats Used:
  * - YYYY-MM-DD: Storage format for dates (e.g., "2026-01-03")
  * - ISO 8601: Full timestamps for createdAt/updatedAt (e.g., "2026-01-03T14:30:00.000Z")
  * - Display formats: Various human-readable formats for UI
  */
 
-const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-const MONTH_NAMES_FULL = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const DAY_NAMES = [
+  'Sunday',
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+];
+const MONTH_NAMES = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+];
+const MONTH_NAMES_FULL = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+];
 
 /**
  * Get today's date in YYYY-MM-DD format (local time)
@@ -50,48 +84,55 @@ export const dateToYYYYMMDD = (date: Date): string => {
 
 /**
  * Format a date string for display in task groups
- * Handles special cases like "Yesterday", "Tomorrow" and day names for near future
+ * Shows date with special suffixes for Today, Yesterday, Tomorrow
  * Shows year only if different from current year
- * 
+ *
  * @param dateString - Date in YYYY-MM-DD format
  * @param todayDateString - Today's date in YYYY-MM-DD format (optional, will calculate if not provided)
- * @returns Formatted date string (e.g., "Yesterday", "Tomorrow", "Monday", "01 Jan", "01 Jan 2027")
+ * @returns Formatted date string (e.g., "06 Jan, Today", "05 Jan, Yesterday", "07 Jan, Tomorrow", "01 Jan 2027")
  */
-export const formatTaskDateLabel = (dateString: string, todayDateString?: string): string => {
-  const today = todayDateString ? new Date(todayDateString + 'T00:00:00') : new Date();
+export const formatTaskDateLabel = (
+  dateString: string,
+  todayDateString?: string
+): string => {
+  const today = todayDateString
+    ? new Date(todayDateString + 'T00:00:00')
+    : new Date();
   const date = new Date(dateString + 'T00:00:00');
   const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1);
-  
-  const day = String(date.getDate()).padStart(2, '0');
-  const dayName = DAY_NAMES[date.getDay()]!;
+
+  const day = String(date.getDate());
   const monthName = MONTH_NAMES[date.getMonth()]!;
   const currentYear = today.getFullYear();
   const dateYear = date.getFullYear();
-  
+
+  // Base date format
+  const yearSuffix = dateYear !== currentYear ? ` ${dateYear}` : '';
+  const baseDate = `${day} ${monthName}${yearSuffix}`;
+
+  // Check if it's today
+  const todayStr = todayDateString || dateToYYYYMMDD(today);
+  if (dateString === todayStr) {
+    return `${baseDate}, Today`;
+  }
+
   // Check if it's yesterday
   const yesterdayStr = dateToYYYYMMDD(yesterday);
   if (dateString === yesterdayStr) {
-    return 'Yesterday';
+    return `${baseDate}, Yesterday`;
   }
-  
+
   // Check if it's tomorrow
   const tomorrowStr = dateToYYYYMMDD(tomorrow);
   if (dateString === tomorrowStr) {
-    return 'Tomorrow';
+    return `${baseDate}, Tomorrow`;
   }
-  
-  // Check if it's within the next 7 days (show day of week)
-  const daysUntil = Math.floor((date.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-  if (daysUntil > 0 && daysUntil <= 7) {
-    return dayName;
-  }
-  
-  // Otherwise show date with year if different from current year
-  const yearSuffix = dateYear !== currentYear ? ` ${dateYear}` : '';
-  return `${day} ${monthName}${yearSuffix}`;
+
+  // Otherwise show date only
+  return baseDate;
 };
 
 /**
@@ -111,9 +152,11 @@ export const compareDates = (dateA: string, dateB: string): number => {
  * @returns true if same day, false otherwise
  */
 export const isSameDay = (date1: Date, date2: Date): boolean => {
-  return date1.getFullYear() === date2.getFullYear() &&
-         date1.getMonth() === date2.getMonth() &&
-         date1.getDate() === date2.getDate();
+  return (
+    date1.getFullYear() === date2.getFullYear() &&
+    date1.getMonth() === date2.getMonth() &&
+    date1.getDate() === date2.getDate()
+  );
 };
 
 /**
@@ -136,21 +179,20 @@ export const addDays = (date: Date, days: number): Date => {
  */
 export const groupByDate = <T>(
   items: T[],
-  getDate: (item: T) => string
+  getDate: (_item: T) => string
 ): Map<string, T[]> => {
   const groups = new Map<string, T[]>();
-  
-  items.forEach(item => {
+
+  items.forEach((item) => {
     const date = getDate(item);
     if (!groups.has(date)) {
       groups.set(date, []);
     }
     groups.get(date)!.push(item);
   });
-  
+
   return groups;
 };
 
 // Export constants for use in other modules
 export { DAY_NAMES, MONTH_NAMES, MONTH_NAMES_FULL };
-

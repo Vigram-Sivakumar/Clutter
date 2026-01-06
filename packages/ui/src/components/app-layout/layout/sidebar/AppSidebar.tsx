@@ -40,11 +40,7 @@ import {
 import { sortByOrder } from '@clutter/shared';
 import { Note, Folder } from '@clutter/domain';
 import { getTagColor } from '../../../../utils/tagColors';
-import {
-  getFolderIcon,
-  getNoteIcon,
-  ALL_TASKS_FOLDER_ID,
-} from '../../../../utils/itemIcons';
+import { getFolderIcon, getNoteIcon } from '../../../../utils/itemIcons';
 import type { SidebarNote, SidebarFolder, GlobalSelection } from './types';
 
 /**
@@ -1002,13 +998,6 @@ export const AppSidebar = ({
     }
   }, [onFolderClick]);
 
-  const handleAllTasksHeaderClick = useCallback(() => {
-    // Navigate to "All Tasks" view when clicking "All Tasks" section title
-    if (onFolderClick) {
-      onFolderClick('all-tasks'); // Special ID for All Tasks view
-    }
-  }, [onFolderClick]);
-
   const handleTodayHeaderClick = useCallback(() => {
     if (onFolderClick) {
       onFolderClick('today-tasks');
@@ -1688,11 +1677,7 @@ export const AppSidebar = ({
     const cache = new Map<string, ReactNode[]>();
 
     // Add system folder actions
-    const systemFolderIds = [
-      CLUTTERED_FOLDER_ID,
-      DAILY_NOTES_FOLDER_ID,
-      ALL_TASKS_FOLDER_ID,
-    ];
+    const systemFolderIds = [CLUTTERED_FOLDER_ID, DAILY_NOTES_FOLDER_ID];
     systemFolderIds.forEach((folderId) => {
       cache.set(folderId, [
         <TertiaryButton
@@ -2149,17 +2134,6 @@ export const AppSidebar = ({
           {/* Tasks Tab */}
           {contentType === 'tasks' && (
             <CalendarView
-              onTaskClick={(noteId, taskId) => {
-                // Navigate to the note containing the task and scroll to the task block
-                if (onNoteClickWithBlock) {
-                  onNoteClickWithBlock(noteId, taskId);
-                } else {
-                  // Fallback if the handler is not provided
-                  setCurrentNoteId(noteId);
-                  onNoteClickFromSidebar?.();
-                }
-              }}
-              onAllTasksHeaderClick={handleAllTasksHeaderClick}
               dailyNotes={dailyNotes}
               onDailyNoteClick={(id, e) =>
                 handleNoteMultiSelect(id, e, 'dailyNotes')
@@ -2179,7 +2153,6 @@ export const AppSidebar = ({
               openContextMenuId={openContextMenuId}
               getNoteActions={getNoteActions}
               getFolderActions={getFolderActions}
-              getTaskActions={getTaskActions}
               onNoteDragStart={(id, context) =>
                 handleDragStart('note', id, context)
               }
@@ -2202,8 +2175,6 @@ export const AppSidebar = ({
               onNoteRenameComplete={handleNoteRenameComplete}
               onNoteRenameCancel={handleNoteRenameCancel}
               onNoteEmojiClick={handleNoteEmojiClick}
-              selectedTaskIds={selectedTaskIds}
-              onTaskMultiSelect={handleTaskMultiSelect}
             />
           )}
 

@@ -2,21 +2,25 @@ import { useMemo } from 'react';
 import { CLUTTERED_FOLDER_ID, DAILY_NOTES_FOLDER_ID } from '@clutter/domain';
 import { useFoldersStore } from '@clutter/state';
 import { Note } from '@clutter/domain';
+import { SECTIONS } from '../../../../config/sidebarConfig';
 
 /**
  * Breadcrumb configuration for different view types
  * Centralizes all breadcrumb logic in one place for easy maintenance
  */
 
-type MainView = 
+type MainView =
   | { type: 'editor'; source?: 'deletedItems' | 'default' }
   | { type: 'tagFilter'; tag: string; source: 'all' | 'favorites' }
-  | { type: 'folderView'; folderId: string; source?: 'deletedItems' | 'default' }
+  | {
+      type: 'folderView';
+      folderId: string;
+      source?: 'deletedItems' | 'default';
+    }
   | { type: 'allFoldersView' }
   | { type: 'favouritesView' }
   | { type: 'allTagsView' }
   | { type: 'favouriteTagsView' }
-  | { type: 'allTasksView' }
   | { type: 'todayTasksView' }
   | { type: 'overdueTasksView' }
   | { type: 'upcomingTasksView' }
@@ -35,7 +39,7 @@ interface BreadcrumbPath {
 
 /**
  * Hook to generate breadcrumb paths based on the current view and context
- * 
+ *
  * @param mainView - The current main view type and context
  * @param currentNote - The currently open note (if in editor mode)
  * @returns BreadcrumbPath object with path array and optional current page title
@@ -45,7 +49,7 @@ export const useBreadcrumbs = (
   currentNote?: Note | null
 ): BreadcrumbPath => {
   const { getFolderPath } = useFoldersStore();
-  
+
   return useMemo(() => {
     switch (mainView.type) {
       case 'editor': {
@@ -54,7 +58,7 @@ export const useBreadcrumbs = (
           // No note selected - shouldn't normally happen, but handle gracefully
           return { path: [] };
         }
-        
+
         // Check if viewing a deleted note
         if (mainView.source === 'deletedItems') {
           return {
@@ -62,22 +66,37 @@ export const useBreadcrumbs = (
             currentPageTitle: currentNote.title || 'Untitled',
           };
         }
-        
+
         // Note is a daily note
-        if (currentNote.folderId === DAILY_NOTES_FOLDER_ID && currentNote.dailyNoteDate) {
+        if (
+          currentNote.folderId === DAILY_NOTES_FOLDER_ID &&
+          currentNote.dailyNoteDate
+        ) {
           // Extract year and month from the daily note date
           const date = new Date(currentNote.dailyNoteDate + 'T00:00:00');
           const year = date.getFullYear().toString();
-          const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-                              'July', 'August', 'September', 'October', 'November', 'December'];
+          const monthNames = [
+            'January',
+            'February',
+            'March',
+            'April',
+            'May',
+            'June',
+            'July',
+            'August',
+            'September',
+            'October',
+            'November',
+            'December',
+          ];
           const month = monthNames[date.getMonth()];
-          
+
           return {
             path: ['Daily notes', year, month],
             currentPageTitle: currentNote.title || 'Untitled',
           };
         }
-        
+
         // Note is in Cluttered (no folder)
         if (!currentNote.folderId) {
           return {
@@ -85,7 +104,7 @@ export const useBreadcrumbs = (
             currentPageTitle: currentNote.title || 'Untitled',
           };
         }
-        
+
         // Note is in a specific folder
         const folderHierarchy = getFolderPath(currentNote.folderId);
         return {
@@ -93,134 +112,128 @@ export const useBreadcrumbs = (
           currentPageTitle: currentNote.title || 'Untitled',
         };
       }
-      
+
       case 'tagFilter': {
         // Tag filter view: showing notes with a specific tag
-        const rootSection = mainView.source === 'favorites' ? 'Favourites' : 'All tags';
+        const rootSection =
+          mainView.source === 'favorites' ? 'Favourites' : 'All tags';
         return {
           path: [rootSection, mainView.tag],
         };
       }
-      
+
       case 'folderView': {
         // Folder view: showing contents of a specific folder
-        
+
         // Check if viewing a deleted folder
         if (mainView.source === 'deletedItems') {
           // Get folder name for the breadcrumb
           const folders = useFoldersStore.getState().folders;
-          const folder = folders.find(f => f.id === mainView.folderId);
+          const folder = folders.find((f) => f.id === mainView.folderId);
           return {
             path: ['Recently deleted'],
             currentPageTitle: folder?.name || 'Untitled Folder',
           };
         }
-        
+
         if (mainView.folderId === CLUTTERED_FOLDER_ID) {
           // Special case: Cluttered folder
           return {
             path: ['Folders', 'Cluttered'],
           };
         }
-        
+
         // Regular folder
         const folderHierarchy = getFolderPath(mainView.folderId);
         return {
           path: ['Folders', ...folderHierarchy],
         };
       }
-      
+
       case 'allFoldersView': {
         // All folders view - just show 'Folders' since this IS the folders root
         return {
           path: ['Folders'],
         };
       }
-      
+
       case 'favouritesView': {
         // Favourites view - show all favourite notes and folders
         return {
           path: ['Favourites'],
         };
       }
-      
+
       case 'allTagsView': {
         // All tags view - show all tags
         return {
           path: ['All tags'],
         };
       }
-      
+
       case 'favouriteTagsView': {
         // Favourite tags view - show all favourite tags
         return {
           path: ['Favourites'],
         };
       }
-      
-      case 'allTasksView': {
-        // All tasks view - show all tasks
-        return {
-          path: ['Tasks'],
-        };
-      }
-      
+
       case 'todayTasksView': {
         // Today tasks view
         return {
-          path: ['Tasks', 'Today'],
+          path: SECTIONS.today.breadcrumbPath,
         };
       }
-      
+
       case 'overdueTasksView': {
         // Overdue tasks view
         return {
-          path: ['Tasks', 'Overdue'],
+          path: SECTIONS.overdue.breadcrumbPath,
         };
       }
-      
+
       case 'upcomingTasksView': {
         // Upcoming tasks view
         return {
-          path: ['Tasks', 'Upcoming'],
+          path: SECTIONS.upcoming.breadcrumbPath,
         };
       }
-      
+
       case 'unplannedTasksView': {
-        // Unplanned tasks view
+        // Inbox tasks view
         return {
-          path: ['Tasks', 'Unplanned'],
+          path: SECTIONS.inbox.breadcrumbPath,
         };
       }
-      
+
       case 'completedTasksView': {
         // Completed tasks view
         return {
-          path: ['Tasks', 'Completed'],
+          path: SECTIONS.completed.breadcrumbPath,
         };
       }
-      
+
       case 'deletedItemsView': {
         // Deleted items view - show trash
         return {
           path: ['Recently deleted'],
         };
       }
-      
+
       case 'dailyNotesYearView': {
         // Daily notes year view - show all months in a year
         return {
           path: ['Daily notes', mainView.year],
         };
       }
-      
+
       case 'dailyNotesMonthView': {
         // Daily notes month view - show all notes in a month
         return {
           path: ['Daily notes', mainView.year, mainView.month],
         };
       }
-      
+
       default:
         return { path: [] };
     }
@@ -236,20 +249,22 @@ export const useBreadcrumbFolderIds = (
   currentNote?: Note | null
 ): string[] => {
   const { getFolderPathWithIds } = useFoldersStore();
-  
+
   return useMemo(() => {
     if (mainView.type === 'editor' && currentNote?.folderId) {
       // Editor mode with a note in a folder
-      return getFolderPathWithIds(currentNote.folderId).map(f => f.id);
+      return getFolderPathWithIds(currentNote.folderId).map((f) => f.id);
     }
-    
-    if (mainView.type === 'folderView' && mainView.folderId !== CLUTTERED_FOLDER_ID) {
+
+    if (
+      mainView.type === 'folderView' &&
+      mainView.folderId !== CLUTTERED_FOLDER_ID
+    ) {
       // Folder view (not cluttered)
-      return getFolderPathWithIds(mainView.folderId).map(f => f.id);
+      return getFolderPathWithIds(mainView.folderId).map((f) => f.id);
     }
-    
+
     // No folder IDs for other cases
     return [];
   }, [mainView, currentNote, getFolderPathWithIds]);
 };
-

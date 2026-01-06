@@ -1,5 +1,6 @@
 import { ReactNode } from 'react';
 import { CLUTTERED_FOLDER_ID, DAILY_NOTES_FOLDER_ID } from '@clutter/domain';
+import { useTheme } from '../../../../../hooks/useTheme';
 import { SidebarSection } from '../sections/Section';
 import { SidebarItemNote } from '../items/NoteItem';
 import { SidebarItemFolder } from '../items/FolderItem';
@@ -7,6 +8,7 @@ import { SidebarEmptyState } from '../sections/EmptyState';
 import { transitions } from '../../../../../tokens/transitions';
 import { sidebarLayout } from '../../../../../tokens/sidebar';
 import { SidebarNote, SidebarFolder, GlobalSelection } from '../types';
+import { SECTIONS } from '../../../../../config/sidebarConfig';
 
 interface SidebarNotesViewProps {
   // Cluttered Notes
@@ -179,6 +181,8 @@ export const NotesView = ({
   onNoteEmojiClick,
   onFolderEmojiClick,
 }: SidebarNotesViewProps) => {
+  useTheme();
+
   // Recursive function to render folders and their nested content
   // parentFolderId is used to determine the ordering context
   // Can also be 'favourites' to indicate this folder is in the Favourites section
@@ -393,7 +397,7 @@ export const NotesView = ({
     >
       {/* Favourites Section - Always visible */}
       <SidebarSection
-        title="Favourites"
+        title={SECTIONS['favourites-notes'].label}
         isCollapsed={isFavouritesCollapsed}
         onToggle={onFavouritesToggle}
         onHeaderClick={onFavouritesHeaderClick}
@@ -405,7 +409,9 @@ export const NotesView = ({
         }}
       >
         {favouriteNotes.length === 0 && favouriteFolders.length === 0 ? (
-          <SidebarEmptyState message="No favorite yet. Use the star icon to add favorites." />
+          <SidebarEmptyState
+            message={SECTIONS['favourites-notes'].emptyMessage}
+          />
         ) : (
           <div
             style={{
@@ -481,7 +487,7 @@ export const NotesView = ({
 
       {/* Folders Section */}
       <SidebarSection
-        title="Folders"
+        title={SECTIONS.folders.label}
         isCollapsed={isFoldersCollapsed}
         onToggle={onFoldersToggle}
         onHeaderClick={onFoldersHeaderClick}
@@ -510,7 +516,7 @@ export const NotesView = ({
           >
             <SidebarItemFolder
               id="cluttered"
-              label="Cluttered"
+              label={SECTIONS.cluttered.label}
               folderId={CLUTTERED_FOLDER_ID}
               emoji={undefined} // Force no emoji - Cluttered uses Tray icon
               isOpen={!isClutteredCollapsed}
@@ -560,7 +566,9 @@ export const NotesView = ({
                 >
                   {clutteredNotes.length === 0 ? (
                     <div style={{ paddingLeft: '28px' }}>
-                      <SidebarEmptyState message="All notes are organized ✨" />
+                      <SidebarEmptyState
+                        message={SECTIONS.cluttered.emptyMessage}
+                      />
                     </div>
                   ) : (
                     clutteredNotes.map((note) => (

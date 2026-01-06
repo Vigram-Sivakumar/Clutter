@@ -5,15 +5,15 @@ import { useNotesStore, useCurrentDateStore } from '@clutter/state';
 import { PageSkeleton } from '../../shared/page-skeleton';
 import { PageTitleSection } from '../../shared/content-header';
 import { NotesListView } from '../../shared/notes-list';
-import { CalendarBlank } from '../../../../icons';
 import { sizing } from '../../../../tokens/sizing';
 import { isContentEmpty } from '../../../../utils/noteHelpers';
+import { SECTIONS, renderIcon } from '../../../../config/sidebarConfig';
 
 interface DailyNotesMonthViewProps {
   year: string;
   month: string;
-  onNoteClick: (noteId: string) => void;
-  onTagClick?: (tag: string, source?: 'all' | 'favorites') => void;
+  onNoteClick: (_noteId: string) => void;
+  onTagClick?: (_tag: string, _source?: 'all' | 'favorites') => void;
 }
 
 // Helper function to count tasks in note content
@@ -22,7 +22,7 @@ const countTasksInNote = (content: string): number => {
   try {
     const parsed = JSON.parse(content);
     let taskCount = 0;
-    
+
     const countTasks = (node: any) => {
       if (node.type === 'listBlock' && node.attrs?.listType === 'task') {
         taskCount++;
@@ -31,7 +31,7 @@ const countTasksInNote = (content: string): number => {
         node.content.forEach(countTasks);
       }
     };
-    
+
     countTasks(parsed);
     return taskCount;
   } catch {
@@ -41,8 +41,20 @@ const countTasksInNote = (content: string): number => {
 
 // Helper to get month number from name
 const getMonthNumber = (monthName: string): string => {
-  const months = ['January', 'February', 'March', 'April', 'May', 'June',
-                  'July', 'August', 'September', 'October', 'November', 'December'];
+  const months = [
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
+  ];
   const index = months.indexOf(monthName);
   return index !== -1 ? String(index + 1).padStart(2, '0') : '01';
 };
@@ -58,12 +70,12 @@ export const DailyNotesMonthView = ({
   const updateNote = useNotesStore((state) => state.updateNote);
   const currentDate = useCurrentDateStore();
   const currentDateString = currentDate.dateString;
-  
+
   // Filter daily notes for this month
   const monthNotes = useMemo(() => {
     const monthNumber = getMonthNumber(month);
     const yearMonth = `${year}-${monthNumber}`;
-    
+
     return notes
       .filter(
         (note) =>
@@ -79,7 +91,7 @@ export const DailyNotesMonthView = ({
         return dateA - dateB;
       });
   }, [notes, year, month]);
-  
+
   // Build sections array - single section with all notes
   const sections = useMemo(() => {
     return [
@@ -89,7 +101,7 @@ export const DailyNotesMonthView = ({
         show: monthNotes.length > 0,
         content: (
           <NotesListView
-            notes={monthNotes.map(note => ({
+            notes={monthNotes.map((note) => ({
               id: note.id,
               title: note.title,
               emoji: note.emoji,
@@ -103,9 +115,9 @@ export const DailyNotesMonthView = ({
             onNoteClick={onNoteClick}
             onTagClick={onTagClick}
             onRemoveTag={(noteId, tagToRemove) => {
-              const note = notes.find(n => n.id === noteId);
+              const note = notes.find((n) => n.id === noteId);
               if (note) {
-                const newTags = note.tags.filter(t => t !== tagToRemove);
+                const newTags = note.tags.filter((t) => t !== tagToRemove);
                 updateNote(noteId, { tags: newTags });
               }
             }}
@@ -114,8 +126,15 @@ export const DailyNotesMonthView = ({
         ),
       },
     ];
-  }, [monthNotes, currentDateString, onNoteClick, onTagClick, notes, updateNote]);
-  
+  }, [
+    monthNotes,
+    currentDateString,
+    onNoteClick,
+    onTagClick,
+    notes,
+    updateNote,
+  ]);
+
   return (
     <PageSkeleton
       header={
@@ -123,7 +142,10 @@ export const DailyNotesMonthView = ({
           variant="folder"
           folderName={`${month} ${year}`}
           staticDescription={`All daily notes from ${month} ${year}`}
-          staticIcon={<CalendarBlank size={sizing.icon.lg} />}
+          staticIcon={renderIcon(
+            SECTIONS['daily-notes'].iconName,
+            sizing.icon.pageTitleIcon
+          )}
           backgroundColor={colors.background.default}
         />
       }
@@ -134,4 +156,3 @@ export const DailyNotesMonthView = ({
     />
   );
 };
-

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useTheme } from '../../../../hooks/useTheme';
 import { DAILY_NOTES_FOLDER_ID } from '@clutter/domain';
 import { useNotesStore, useCurrentDateStore } from '@clutter/state';
@@ -16,12 +16,13 @@ import {
   getSortedMonths,
   getMonthNoteCount,
 } from '../../../../utils/dailyNotesGrouping';
+import { SECTIONS, renderIcon } from '../../../../config/sidebarConfig';
 
 interface DailyNotesYearViewProps {
   year: string;
-  onMonthClick: (year: string, month: string) => void;
-  onNoteClick: (noteId: string) => void;
-  onTagClick?: (tag: string, source?: 'all' | 'favorites') => void;
+  onMonthClick: (_year: string, _month: string) => void;
+  onNoteClick: (_noteId: string) => void;
+  onTagClick?: (_tag: string, _source?: 'all' | 'favorites') => void;
 }
 
 // Helper function to count tasks in note content
@@ -30,7 +31,7 @@ const countTasksInNote = (content: string): number => {
   try {
     const parsed = JSON.parse(content);
     let taskCount = 0;
-    
+
     const countTasks = (node: any) => {
       if (node.type === 'listBlock' && node.attrs?.listType === 'task') {
         taskCount++;
@@ -39,7 +40,7 @@ const countTasksInNote = (content: string): number => {
         node.content.forEach(countTasks);
       }
     };
-    
+
     countTasks(parsed);
     return taskCount;
   } catch {
@@ -60,7 +61,7 @@ export const DailyNotesYearView = ({
   const currentYear = currentDate.year.toString();
   const currentMonthName = currentDate.monthName;
   const currentDateString = currentDate.dateString;
-  
+
   // Filter daily notes for this year
   const dailyNotes = useMemo(() => {
     return notes.filter(
@@ -71,36 +72,44 @@ export const DailyNotesYearView = ({
         note.dailyNoteDate.startsWith(year)
     );
   }, [notes, year]);
-  
+
   // Group notes by month
   const groupedNotes = useMemo(() => {
     return groupDailyNotesByYearMonth(dailyNotes);
   }, [dailyNotes]);
-  
+
   // Get sorted months for this year
   const months = useMemo(() => {
     return getSortedMonths(groupedNotes, year);
   }, [groupedNotes, year]);
-  
+
   // Build sections array - one section per month
   const sections = useMemo(() => {
     const isCurrentYear = year === currentYear;
-    
+
     return months.map((month) => {
       const monthNotes = groupedNotes[year][month];
       const monthCount = getMonthNoteCount(groupedNotes, year, month);
       const isCurrentMonth = isCurrentYear && month === currentMonthName;
-      
+
       return {
         id: `month-${month}`,
         title: '', // No title - using custom SectionTitle component
         show: true,
         content: (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: spacing['4'] }}>
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: spacing['4'],
+            }}
+          >
             {/* Month Header - Clickable */}
             <SectionTitle
               collapsible={false}
-              titleColor={isCurrentMonth ? colors.semantic.calendarAccent : undefined}
+              titleColor={
+                isCurrentMonth ? colors.semantic.calendarAccent : undefined
+              }
             >
               <div
                 style={{
@@ -113,19 +122,21 @@ export const DailyNotesYearView = ({
                 onClick={() => onMonthClick(year, month)}
               >
                 <span>{month}</span>
-                <div style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: spacing['2'],
-                  fontSize: '12px',
-                  color: colors.text.tertiary,
-                }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: spacing['2'],
+                    fontSize: '12px',
+                    color: colors.text.tertiary,
+                  }}
+                >
                   <CalendarBlank size={12} />
                   <span>{monthCount}</span>
                 </div>
               </div>
             </SectionTitle>
-            
+
             {/* Month Notes - Preview with "View all" link */}
             <TruncatedSection
               items={monthNotes}
@@ -135,7 +146,7 @@ export const DailyNotesYearView = ({
               onViewAll={() => onMonthClick(year, month)}
               renderItems={(truncatedNotes) => (
                 <NotesListView
-                  notes={truncatedNotes.map(note => ({
+                  notes={truncatedNotes.map((note) => ({
                     id: note.id,
                     title: note.title,
                     emoji: note.emoji,
@@ -149,13 +160,17 @@ export const DailyNotesYearView = ({
                   onNoteClick={onNoteClick}
                   onTagClick={onTagClick}
                   onRemoveTag={(noteId, tagToRemove) => {
-                    const note = notes.find(n => n.id === noteId);
+                    const note = notes.find((n) => n.id === noteId);
                     if (note) {
-                      const newTags = note.tags.filter(t => t !== tagToRemove);
+                      const newTags = note.tags.filter(
+                        (t) => t !== tagToRemove
+                      );
                       updateNote(noteId, { tags: newTags });
                     }
                   }}
-                  onUpdateEmoji={(noteId, emoji) => updateNote(noteId, { emoji })}
+                  onUpdateEmoji={(noteId, emoji) =>
+                    updateNote(noteId, { emoji })
+                  }
                 />
               )}
             />
@@ -163,8 +178,21 @@ export const DailyNotesYearView = ({
         ),
       };
     });
-  }, [months, groupedNotes, year, currentYear, currentMonthName, currentDateString, colors, onMonthClick, onNoteClick, onTagClick, notes, updateNote]);
-  
+  }, [
+    months,
+    groupedNotes,
+    year,
+    currentYear,
+    currentMonthName,
+    currentDateString,
+    colors,
+    onMonthClick,
+    onNoteClick,
+    onTagClick,
+    notes,
+    updateNote,
+  ]);
+
   return (
     <PageSkeleton
       header={
@@ -172,7 +200,10 @@ export const DailyNotesYearView = ({
           variant="folder"
           folderName={year}
           staticDescription={`All daily notes from ${year}`}
-          staticIcon={<CalendarBlank size={sizing.icon.lg} />}
+          staticIcon={renderIcon(
+            SECTIONS['daily-notes'].iconName,
+            sizing.icon.pageTitleIcon
+          )}
           backgroundColor={colors.background.default}
         />
       }
@@ -183,4 +214,3 @@ export const DailyNotesYearView = ({
     />
   );
 };
-

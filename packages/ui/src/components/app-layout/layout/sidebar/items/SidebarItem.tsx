@@ -1,4 +1,11 @@
-import { useState, useEffect, useRef, ReactNode } from 'react';
+import {
+  useState,
+  useEffect,
+  useRef,
+  ReactNode,
+  cloneElement,
+  isValidElement,
+} from 'react';
 import { useTheme } from '../../../../../hooks/useTheme';
 import { ChevronRight, ChevronDown } from '../../../../../icons';
 import { TertiaryButton } from '../../../../ui-buttons';
@@ -6,11 +13,7 @@ import { DropIndicator } from '../internal/DropIndicator';
 import { sidebarLayout } from '../../../../../tokens/sidebar';
 import { sizing as _globalSizing } from '../../../../../tokens/sizing';
 import { TagPill } from '../../../shared/content-header/tags/Tag';
-import {
-  getNoteIcon,
-  getFolderIcon,
-  ALL_TASKS_FOLDER_ID,
-} from '../../../../../utils/itemIcons';
+import { getNoteIcon, getFolderIcon } from '../../../../../utils/itemIcons';
 import { CLUTTERED_FOLDER_ID, DAILY_NOTES_FOLDER_ID } from '@clutter/domain';
 import { sidebarStyles } from '../config/sidebarConfig';
 import { animations } from '../../../../../tokens/animations';
@@ -469,9 +472,10 @@ export const SidebarItem = ({
   // Render icon based on variant
   const renderIcon = () => {
     // Headers can have optional icons (e.g., All Tasks with CheckSquare)
+    // Wrap in TertiaryButton for consistent 20x20px sizing with items
     if (variant === 'header') {
       if (icon) {
-        return icon;
+        return <TertiaryButton icon={icon} size="xs" disabled disabledNoFade />;
       }
       return null;
     }
@@ -573,16 +577,31 @@ export const SidebarItem = ({
               }}
             >
               <TertiaryButton
-                icon={getFolderIcon({
-                  folderId: folderId || id,
-                  emoji: typeof icon === 'string' ? icon : undefined,
-                  isOpen,
-                  size: 16,
-                  // Don't use accent color on icon - only on label
-                  color: isSelected
-                    ? colors.text.default
-                    : colors.text.secondary,
-                })}
+                icon={
+                  typeof icon !== 'string' && icon
+                    ? isValidElement(icon)
+                      ? cloneElement(
+                          icon as React.ReactElement,
+                          {
+                            color:
+                              isSelected || isOpen
+                                ? colors.text.default
+                                : colors.text.secondary,
+                          } as any
+                        )
+                      : icon
+                    : getFolderIcon({
+                        folderId: folderId || id,
+                        emoji: typeof icon === 'string' ? icon : undefined,
+                        isOpen,
+                        size: 16,
+                        // Don't use accent color on icon - only on label
+                        color:
+                          isSelected || isOpen
+                            ? colors.text.default
+                            : colors.text.secondary,
+                      })
+                }
                 onClick={(e) => {
                   e.stopPropagation();
                   if (onEmojiClick) {
@@ -631,16 +650,25 @@ export const SidebarItem = ({
 
       // Folder without toggle: Just show icon
       // Don't use accent color on icon - only on label
-      const iconColor = isSelected
-        ? colors.text.default
-        : colors.text.secondary;
-      const folderIcon = getFolderIcon({
-        folderId: folderId || id,
-        emoji: typeof icon === 'string' ? icon : undefined,
-        isOpen,
-        size: 16,
-        color: iconColor,
-      });
+      const iconColor =
+        isSelected || isOpen ? colors.text.default : colors.text.secondary;
+      const folderIcon =
+        typeof icon !== 'string' && icon
+          ? isValidElement(icon)
+            ? cloneElement(
+                icon as React.ReactElement,
+                {
+                  color: iconColor,
+                } as any
+              )
+            : icon
+          : getFolderIcon({
+              folderId: folderId || id,
+              emoji: typeof icon === 'string' ? icon : undefined,
+              isOpen,
+              size: 16,
+              color: iconColor,
+            });
 
       if (onEmojiClick) {
         return (
@@ -819,7 +847,10 @@ export const SidebarItem = ({
             minWidth: 0,
             fontSize: DESIGN.typography.fontSize,
             fontWeight: DESIGN.typography.fontWeight,
-            color: isSelected ? colors.text.default : colors.text.secondary,
+            color:
+              isSelected || (variant === 'folder' && isOpen)
+                ? colors.text.default
+                : colors.text.secondary,
             backgroundColor: 'transparent',
             border: 'none',
             outline: 'none',
@@ -937,7 +968,10 @@ export const SidebarItem = ({
           {
             fontSize: DESIGN.typography.fontSize,
             fontWeight: DESIGN.typography.fontWeight,
-            color: isSelected ? colors.text.default : colors.text.secondary,
+            color:
+              isSelected || (variant === 'folder' && isOpen)
+                ? colors.text.default
+                : colors.text.secondary,
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',
@@ -967,8 +1001,6 @@ export const SidebarItem = ({
             className={sidebarStyles.classes.badge}
             style={
               {
-                position: 'absolute',
-                inset: 0,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -977,6 +1009,7 @@ export const SidebarItem = ({
                 userSelect: 'none',
                 WebkitUserSelect: 'none',
                 transition: animations.transition.opacity,
+                whiteSpace: 'nowrap',
               } as any
             }
           >
@@ -998,8 +1031,6 @@ export const SidebarItem = ({
           className={sidebarStyles.classes.badge}
           style={
             {
-              position: 'absolute',
-              inset: 0,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -1009,6 +1040,7 @@ export const SidebarItem = ({
               userSelect: 'none',
               WebkitUserSelect: 'none',
               transition: animations.transition.opacity,
+              whiteSpace: 'nowrap',
             } as any
           }
         >
@@ -1028,7 +1060,6 @@ export const SidebarItem = ({
     const shouldShowPlusIcon =
       variant === 'folder' ||
       folderId === CLUTTERED_FOLDER_ID ||
-      folderId === ALL_TASKS_FOLDER_ID ||
       (variant === 'header' && onToggle);
 
     if (!shouldShowPlusIcon) return null;
@@ -1073,7 +1104,6 @@ export const SidebarItem = ({
       variant === 'folder' ||
       folderId === CLUTTERED_FOLDER_ID ||
       folderId === DAILY_NOTES_FOLDER_ID ||
-      folderId === ALL_TASKS_FOLDER_ID ||
       (variant === 'header' && onToggle);
 
     // For items with + icon, the context menu is the second action (if it exists)
@@ -1099,7 +1129,7 @@ export const SidebarItem = ({
       <div
         style={{
           position: 'relative',
-          width: '20px',
+          minWidth: '20px',
           height: '20px',
           flexShrink: 0,
         }}
@@ -1263,6 +1293,7 @@ export const SidebarItem = ({
               display: 'flex',
               alignItems: 'center',
               gap: DESIGN.spacing.rightSideGap,
+              flexShrink: 0,
             }}
           >
             {/* Quick add button (+ icon for folders/containers) */}
