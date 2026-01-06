@@ -125,7 +125,7 @@ export const SidebarItem = ({
   level = 0,
   icon,
   badge,
-  labelColor,
+  labelColor: _labelColor,
   isOpen = false,
   isSelected = false,
   hasOpenContextMenu = false,
@@ -585,9 +585,8 @@ export const SidebarItem = ({
                       ? cloneElement(
                           icon as React.ReactElement,
                           {
-                            color: labelColor
-                              ? labelColor
-                              : isSelected || isOpen
+                            color:
+                              isSelected || isOpen
                                 ? colors.text.default
                                 : colors.text.secondary,
                           } as any
@@ -599,9 +598,8 @@ export const SidebarItem = ({
                         isOpen,
                         size: 16,
                         // Don't use accent color on icon - only on label
-                        color: labelColor
-                          ? labelColor
-                          : isSelected || isOpen
+                        color:
+                          isSelected || isOpen
                             ? colors.text.default
                             : colors.text.secondary,
                       })
@@ -654,11 +652,8 @@ export const SidebarItem = ({
 
       // Folder without toggle: Just show icon
       // Don't use accent color on icon - only on label
-      const iconColor = labelColor
-        ? labelColor
-        : isSelected || isOpen
-          ? colors.text.default
-          : colors.text.secondary;
+      const iconColor =
+        isSelected || isOpen ? colors.text.default : colors.text.secondary;
       const folderIcon =
         typeof icon !== 'string' && icon
           ? isValidElement(icon)
@@ -978,9 +973,8 @@ export const SidebarItem = ({
           {
             fontSize: DESIGN.typography.fontSize,
             fontWeight: DESIGN.typography.fontWeight,
-            color: labelColor
-              ? labelColor
-              : isSelected || (variant === 'folder' && isOpen)
+            color:
+              isSelected || (variant === 'folder' && isOpen)
                 ? colors.text.default
                 : colors.text.secondary,
             overflow: 'hidden',

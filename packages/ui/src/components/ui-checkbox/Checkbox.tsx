@@ -1,13 +1,12 @@
 import { useTheme } from '../../hooks/useTheme';
-import { sizing } from '../../tokens/sizing';
 
 export interface CheckboxProps {
   checked: boolean;
-  onChange: (checked: boolean) => void;
-  onKeyDown?: (e: React.KeyboardEvent) => void;
-  onClick?: (e: React.MouseEvent) => void;
-  onFocus?: (e: React.FocusEvent<HTMLInputElement>) => void;
-  onBlur?: (e: React.FocusEvent<HTMLInputElement>) => void;
+  onChange: (_checked: boolean) => void;
+  onKeyDown?: (_e: React.KeyboardEvent) => void;
+  onClick?: (_e: React.MouseEvent) => void;
+  onFocus?: (_e: React.FocusEvent<HTMLInputElement>) => void;
+  onBlur?: (_e: React.FocusEvent<HTMLInputElement>) => void;
   /** Size in pixels (defaults to 16) */
   size?: number;
   /** Additional styles to apply */
@@ -16,15 +15,15 @@ export interface CheckboxProps {
 
 /**
  * Checkbox component - Consistent checkbox styling across the app
- * 
+ *
  * Features:
  * - Matches editor's ListBlock checkbox styling
  * - Uses colors.marker for border
  * - Uses colors.text.default background when checked
  * - Uses colors.background.default background when unchecked
- * - 4px border radius (sizing.radius.md)
+ * - Circular shape (50% border radius)
  * - Checkmark SVG that matches theme
- * 
+ *
  * Usage:
  * ```tsx
  * <Checkbox
@@ -67,8 +66,10 @@ export const Checkbox = ({
         WebkitAppearance: 'none',
         MozAppearance: 'none',
         border: `1.5px solid ${colors.marker}`,
-        borderRadius: sizing.radius.md,
-        backgroundColor: checked ? colors.text.default : colors.background.default,
+        borderRadius: '50%',
+        backgroundColor: checked
+          ? colors.text.default
+          : colors.background.default,
         transition: 'background-color 0.15s ease, border-color 0.15s ease',
         outline: 'none',
         // SVG checkmark when checked (dynamic color based on theme)
@@ -83,4 +84,3 @@ export const Checkbox = ({
     />
   );
 };
-

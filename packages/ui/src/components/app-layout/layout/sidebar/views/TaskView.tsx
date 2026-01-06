@@ -675,7 +675,6 @@ export const TaskView = ({
               ? completedTasks.length.toString()
               : undefined
           }
-          labelColor={taskCompletedCollapsed ? colors.text.tertiary : undefined}
           level={0}
           context="task-sections"
         />
