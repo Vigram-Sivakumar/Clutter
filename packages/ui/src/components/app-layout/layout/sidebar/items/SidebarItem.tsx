@@ -1211,7 +1211,6 @@ export const SidebarItem = ({
 
       <div
         style={{
-          width: '100%',
           paddingLeft: `${paddingLeft}px`,
           position: sticky ? 'sticky' : 'relative',
           top: sticky ? 0 : undefined,
@@ -1219,6 +1218,7 @@ export const SidebarItem = ({
           backgroundColor: sticky ? colors.background.secondary : undefined,
           overflow: 'visible',
           boxSizing: 'border-box',
+          maxWidth: '100%',
         }}
       >
         {/* Drop indicators for reordering */}
