@@ -15,6 +15,7 @@ export interface Task {
   date?: string;
   dailyNoteDate?: string;
   createdAt: string;
+  completedAt?: string; // ISO date string when task was completed
 }
 
 /**
@@ -52,6 +53,7 @@ export const extractTasksFromNote = (note: Note): Task[] => {
             date: taskDate,
             dailyNoteDate: note.dailyNoteDate || undefined,
             createdAt: note.createdAt,
+            completedAt: node.attrs.completedAt || undefined,
           });
         }
       }
@@ -85,7 +87,18 @@ export const toggleTaskInNote = (note: Note, taskId: string): string => {
         node.attrs?.listType === 'task' &&
         node.attrs?.blockId === taskId
       ) {
-        node.attrs.checked = !node.attrs.checked;
+        const wasChecked = node.attrs.checked;
+        node.attrs.checked = !wasChecked;
+
+        // Set completedAt when completing a task, clear it when uncompleting
+        if (!wasChecked) {
+          // Task is being completed - set completion date
+          node.attrs.completedAt = new Date().toISOString();
+        } else {
+          // Task is being uncompleted - remove completion date
+          delete node.attrs.completedAt;
+        }
+
         return true;
       }
 

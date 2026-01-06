@@ -191,34 +191,39 @@ export const TaskView = ({
     return grouped;
   }, [upcomingTasks, todayDateString]);
 
-  // Group completed tasks by their original date
+  // Group completed tasks by completion date (when they were actually completed)
   const groupedCompletedTasks = useMemo(() => {
     const dateGroups = new Map<string, Task[]>();
-    const noDateGroup: Task[] = [];
 
     completedTasks.forEach((task) => {
-      const effectiveDate = task.date || task.dailyNoteDate;
-      if (effectiveDate) {
-        if (!dateGroups.has(effectiveDate)) {
-          dateGroups.set(effectiveDate, []);
-        }
-        dateGroups.get(effectiveDate)!.push(task);
+      // Get completion date (YYYY-MM-DD format)
+      let completionDate: string;
+      if (task.completedAt) {
+        // Extract just the date part from ISO string (YYYY-MM-DD)
+        completionDate = task.completedAt.split('T')[0];
       } else {
-        noDateGroup.push(task);
+        // Fallback for old tasks without completedAt - use today
+        completionDate = todayDateString;
       }
+
+      if (!dateGroups.has(completionDate)) {
+        dateGroups.set(completionDate, []);
+      }
+      dateGroups.get(completionDate)!.push(task);
     });
 
-    // Sort tasks within each date by creation date (most recent first for completed)
+    // Sort tasks within each date by completion time (most recent first)
     dateGroups.forEach((tasks) => {
-      tasks.sort(
-        (a, b) =>
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      );
+      tasks.sort((a, b) => {
+        const timeA = a.completedAt
+          ? new Date(a.completedAt).getTime()
+          : new Date(a.createdAt).getTime();
+        const timeB = b.completedAt
+          ? new Date(b.completedAt).getTime()
+          : new Date(b.createdAt).getTime();
+        return timeB - timeA; // Most recent first
+      });
     });
-    noDateGroup.sort(
-      (a, b) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
 
     // Build final map - sorted by date (most recent first)
     const grouped = new Map<string, Task[]>();
@@ -229,11 +234,6 @@ export const TaskView = ({
     sortedDates.forEach(([date, tasks]) => {
       grouped.set(date, tasks);
     });
-
-    // Add "No date" group at the end if it has tasks
-    if (noDateGroup.length > 0) {
-      grouped.set('__no_date__', noDateGroup);
-    }
 
     return grouped;
   }, [completedTasks, todayDateString]);
