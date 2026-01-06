@@ -1219,7 +1219,7 @@ export const SidebarItem = ({
           top: sticky
             ? variant === 'header'
               ? 0
-              : sidebarLayout.itemHeight
+              : `calc(${sidebarLayout.itemHeight} + 2px)` // Account for section content padding
             : undefined,
           zIndex: sticky ? (variant === 'header' ? 20 : 10) : undefined,
           backgroundColor: sticky ? colors.background.secondary : undefined,
