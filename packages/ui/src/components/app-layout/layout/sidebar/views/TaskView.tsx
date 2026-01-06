@@ -340,7 +340,7 @@ export const TaskView = ({
               title={label}
               connectorColor={connectorColor}
               showConnector={true}
-              sticky={false}
+              sticky={true}
             >
               {tasks.map((task) => {
                 // Show date badge for overdue tasks only
@@ -412,6 +412,7 @@ export const TaskView = ({
             ? unplannedTasks.length.toString()
             : undefined
         }
+        sticky
         sticky
       >
         {unplannedTasks.length === 0 ? (
@@ -500,6 +501,7 @@ export const TaskView = ({
         badge={
           upcomingTasks.length > 0 ? upcomingTasks.length.toString() : undefined
         }
+        sticky
         sticky
       >
         {upcomingTasks.length === 0 ? (

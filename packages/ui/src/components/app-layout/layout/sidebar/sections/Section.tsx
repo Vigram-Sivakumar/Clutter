@@ -151,21 +151,19 @@ export const SidebarSection = ({
       }}
     >
       {/* Section Header - using SidebarItem with variant='header' */}
-      <div style={{ position: 'relative', zIndex: 10 }}>
-        <SidebarItem
-          variant="header"
-          id={title}
-          label={title}
-          badge={badge}
-          icon={icon}
-          isOpen={!isCollapsed}
-          onClick={onHeaderClick || (() => {})}
-          onToggle={onToggle}
-          actions={actions}
-          enableAutoExpandHeader={enableAutoExpandHeader}
-          sticky={sticky}
-        />
-      </div>
+      <SidebarItem
+        variant="header"
+        id={title}
+        label={title}
+        badge={badge}
+        icon={icon}
+        isOpen={!isCollapsed}
+        onClick={onHeaderClick || (() => {})}
+        onToggle={onToggle}
+        actions={actions}
+        enableAutoExpandHeader={enableAutoExpandHeader}
+        sticky={sticky}
+      />
 
       {/* Section Content - collapsible with slide + fade */}
       <div
