@@ -12,7 +12,6 @@ export type IconName =
   | 'Calendar'
   | 'CheckSquare'
   | 'Tag'
-  | 'HashStraight'
   | 'Star'
   | 'Tray'
   | 'CalendarDot'
@@ -60,7 +59,7 @@ export const SIDEBAR_TABS: Record<SidebarTabId, SidebarTabConfig> = {
   tags: {
     id: 'tags',
     label: 'Tags',
-    iconName: 'HashStraight',
+    iconName: 'Tag',
     shortcut: '⌘4',
   },
 } as const;
@@ -213,7 +212,7 @@ export const SECTIONS: Record<SectionId, SectionConfig> = {
   'all-tags': {
     id: 'all-tags',
     label: 'All Tags',
-    iconName: 'HashStraight',
+    iconName: 'Tag',
     emptyMessage: 'No tags yet',
     breadcrumbPath: ['All tags'],
     stateKey: 'allTagsCollapsed',

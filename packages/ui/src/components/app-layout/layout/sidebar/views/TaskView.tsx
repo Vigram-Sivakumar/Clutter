@@ -464,6 +464,7 @@ export const TaskView = ({
           }
           level={0}
           context="task-sections"
+          sticky
         />
         <div
           style={{
@@ -554,6 +555,7 @@ export const TaskView = ({
           }
           level={0}
           context="task-sections"
+          sticky
         />
         <div
           style={{
@@ -612,6 +614,7 @@ export const TaskView = ({
           }
           level={0}
           context="task-sections"
+          sticky
         />
         <div
           style={{
@@ -670,6 +673,7 @@ export const TaskView = ({
           }
           level={0}
           context="task-sections"
+          sticky
         />
         <div
           style={{

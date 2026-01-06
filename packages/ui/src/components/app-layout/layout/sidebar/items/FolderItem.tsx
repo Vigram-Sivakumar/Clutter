@@ -11,32 +11,33 @@ interface SidebarItemFolderProps {
   folderId?: string; // Folder ID for system folder identification (cluttered, __daily_notes__)
   labelColor?: string; // Optional color override for the label (e.g., calendarAccent for current year/month)
   isToday?: boolean; // Whether this is today's month (for showing dot indicator)
-  onClick: (event?: React.MouseEvent) => void; // Click folder to open folder view
+  onClick: (_event?: React.MouseEvent) => void; // Click folder to open folder view
   onToggle?: () => void; // Click chevron to expand/collapse
   actions?: ReactNode[];
+  sticky?: boolean; // Whether this folder header should stick to the top when scrolling
   // Drag and drop (for moving into folder)
-  onDragStart?: (id: string, context: string) => void;
+  onDragStart?: (_id: string, _context: string) => void;
   onDragEnd?: () => void;
-  onDragOver?: (id: string) => void;
+  onDragOver?: (_id: string) => void;
   onDragLeave?: () => void;
-  onDrop?: (id: string) => void;
+  onDrop?: (_id: string) => void;
   isDragging?: boolean;
   isDropTarget?: boolean;
   isSelected?: boolean; // For multi-select visual feedback
   hasOpenContextMenu?: boolean; // Whether this folder's context menu is currently open
   context: string; // Context for ordering (e.g., 'root-folders', 'folder-children-123')
   // Drop zone detection for reordering
-  onDragOverForReorder?: (id: string, position: 'before' | 'after') => void;
+  onDragOverForReorder?: (_id: string, _position: 'before' | 'after') => void;
   onDragLeaveForReorder?: () => void;
-  onDropForReorder?: (id: string, position: 'before' | 'after') => void;
+  onDropForReorder?: (_id: string, _position: 'before' | 'after') => void;
   dropPosition?: 'before' | 'after' | null;
   onClearAllReorderIndicators?: () => void; // Clear all reorder indicators when becoming drop target
   // Inline editing
   isEditing?: boolean;
-  onRenameComplete?: (id: string, newName: string) => void;
+  onRenameComplete?: (_id: string, _newName: string) => void;
   onRenameCancel?: () => void;
   // Emoji picker
-  onEmojiClick?: (folderId: string, buttonElement: HTMLButtonElement) => void;
+  onEmojiClick?: (_folderId: string, _buttonElement: HTMLButtonElement) => void;
 }
 
 /**
@@ -56,6 +57,7 @@ export const SidebarItemFolder = ({
   onClick,
   onToggle,
   actions,
+  sticky = false,
   onDragStart,
   onDragEnd,
   onDragOver,
@@ -95,6 +97,7 @@ export const SidebarItemFolder = ({
       onClick={onClick}
       onToggle={onToggle}
       actions={actions}
+      sticky={sticky}
       draggable={!!onDragStart}
       context={context}
       onDragStart={onDragStart}
