@@ -353,8 +353,6 @@ export const TaskView = ({
                     id={`group-${sectionPrefix}-${date}`}
                     label={label}
                     onClick={() => {}}
-                    sticky
-                    stickyTop={28}
                   />
                 </div>
 
@@ -479,7 +477,7 @@ export const TaskView = ({
           <div
             style={{
               minHeight: 0,
-              overflow: 'visible',
+              overflow: 'hidden',
               opacity: taskUnplannedCollapsed ? 0 : 1,
               transition: transitions.collapse.content,
             }}
@@ -570,7 +568,7 @@ export const TaskView = ({
           <div
             style={{
               minHeight: 0,
-              overflow: 'visible',
+              overflow: 'hidden',
               opacity: taskTodayCollapsed ? 0 : 1,
               transition: transitions.collapse.content,
             }}
@@ -629,7 +627,7 @@ export const TaskView = ({
           <div
             style={{
               minHeight: 0,
-              overflow: 'visible',
+              overflow: 'hidden',
               opacity: taskUpcomingCollapsed ? 0 : 1,
               transition: transitions.collapse.content,
             }}
@@ -688,7 +686,7 @@ export const TaskView = ({
           <div
             style={{
               minHeight: 0,
-              overflow: 'visible',
+              overflow: 'hidden',
               opacity: taskCompletedCollapsed ? 0 : 1,
               transition: transitions.collapse.content,
             }}
