@@ -68,6 +68,9 @@ export const TaskView = ({
     new Set()
   );
 
+  // Track tasks that are in the removal animation phase (height collapse)
+  const [removingTasks, setRemovingTasks] = useState<Set<string>>(new Set());
+
   // Get collapse states from UI state store
   const {
     taskTodayCollapsed,
@@ -207,17 +210,28 @@ export const TaskView = ({
           setTaskCompletedCollapsed(false);
         }
 
-        // Wait for animation, then persist
+        // Wait for animation, then start removal animation
         setTimeout(() => {
-          const updatedContent = toggleTaskInNote(note, taskId);
-          updateNoteContent(note.id, updatedContent);
+          // Move to removing phase (height collapse animation)
+          setRemovingTasks((prev) => new Set(prev).add(taskId));
 
-          // Remove from completing set after persistence
-          setCompletingTasks((prev) => {
-            const next = new Set(prev);
-            next.delete(taskId);
-            return next;
-          });
+          // Wait for height collapse animation, then persist
+          setTimeout(() => {
+            const updatedContent = toggleTaskInNote(note, taskId);
+            updateNoteContent(note.id, updatedContent);
+
+            // Remove from both sets after persistence
+            setCompletingTasks((prev) => {
+              const next = new Set(prev);
+              next.delete(taskId);
+              return next;
+            });
+            setRemovingTasks((prev) => {
+              const next = new Set(prev);
+              next.delete(taskId);
+              return next;
+            });
+          }, 300); // 300ms for height collapse
         }, 800); // 800ms animation duration
       } else {
         // If uncompleting (checked -> unchecked), update immediately
@@ -325,6 +339,7 @@ export const TaskView = ({
                           : undefined;
 
                       const isCompleting = completingTasks.has(task.id);
+                      const isRemoving = removingTasks.has(task.id);
 
                       return (
                         <div
@@ -332,7 +347,14 @@ export const TaskView = ({
                           style={{
                             paddingLeft: sidebarLayout.indentPerLevel,
                             opacity: isCompleting ? 0.5 : 1,
-                            transition: 'opacity 0.3s ease',
+                            maxHeight: isRemoving ? '0px' : '32px',
+                            overflow: 'hidden',
+                            transition: isRemoving
+                              ? 'opacity 0.3s ease, max-height 0.3s ease, margin-bottom 0.3s ease'
+                              : 'opacity 0.3s ease',
+                            marginBottom: isRemoving
+                              ? '0px'
+                              : sidebarLayout.itemGap,
                           }}
                         >
                           <SidebarItemTask
@@ -425,13 +447,21 @@ export const TaskView = ({
               ) : (
                 unplannedTasks.map((task) => {
                   const isCompleting = completingTasks.has(task.id);
+                  const isRemoving = removingTasks.has(task.id);
 
                   return (
                     <div
                       key={task.id}
                       style={{
                         opacity: isCompleting ? 0.5 : 1,
-                        transition: 'opacity 0.3s ease',
+                        maxHeight: isRemoving ? '0px' : '32px',
+                        overflow: 'hidden',
+                        transition: isRemoving
+                          ? 'opacity 0.3s ease, max-height 0.3s ease, margin-bottom 0.3s ease'
+                          : 'opacity 0.3s ease',
+                        marginBottom: isRemoving
+                          ? '0px'
+                          : sidebarLayout.itemGap,
                       }}
                     >
                       <SidebarItemTask
