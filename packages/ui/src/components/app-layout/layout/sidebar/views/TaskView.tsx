@@ -397,7 +397,7 @@ export const TaskView = ({
 
                       return (
                         <div
-                          key={task.id}
+                          key={`${sectionPrefix}-${task.id}`}
                           style={{
                             paddingLeft: sidebarLayout.indentPerLevel,
                             opacity: isCompleting ? 0.5 : 1,
