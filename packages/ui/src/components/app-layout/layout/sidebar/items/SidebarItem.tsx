@@ -585,8 +585,9 @@ export const SidebarItem = ({
                       ? cloneElement(
                           icon as React.ReactElement,
                           {
-                            color:
-                              isSelected || isOpen
+                            color: labelColor
+                              ? labelColor
+                              : isSelected || isOpen
                                 ? colors.text.default
                                 : colors.text.secondary,
                           } as any
@@ -598,8 +599,9 @@ export const SidebarItem = ({
                         isOpen,
                         size: 16,
                         // Don't use accent color on icon - only on label
-                        color:
-                          isSelected || isOpen
+                        color: labelColor
+                          ? labelColor
+                          : isSelected || isOpen
                             ? colors.text.default
                             : colors.text.secondary,
                       })
