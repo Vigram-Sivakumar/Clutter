@@ -2042,9 +2042,10 @@ export const AppSidebar = ({
               onClutteredToggle={() =>
                 setClutteredCollapsed(!isClutteredCollapsed)
               }
-              onClutteredFolderClick={() =>
-                onFolderClick?.(CLUTTERED_FOLDER_ID)
-              }
+              onClutteredFolderClick={() => {
+                handleFolderMultiSelect('cluttered', undefined, 'cluttered');
+                onFolderClick?.(CLUTTERED_FOLDER_ID);
+              }}
               favouriteNotes={favouriteNotes}
               favouriteFolders={favouriteFolders}
               onFavouriteClick={(id, e) =>

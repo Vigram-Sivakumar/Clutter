@@ -528,6 +528,11 @@ export const NotesView = ({
               onDragLeave={onDragLeave}
               onDrop={onClutteredDrop}
               isDropTarget={dropTargetType === CLUTTERED_FOLDER_ID}
+              isSelected={
+                selection.type === 'folder' &&
+                selection.multiSelectIds?.has('cluttered') &&
+                selection.context === 'cluttered'
+              }
               context="cluttered"
               onClearAllReorderIndicators={() => {
                 // Clear both note and folder reorder indicators when hovering over cluttered
