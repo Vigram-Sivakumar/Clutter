@@ -589,10 +589,9 @@ export const SidebarItem = ({
                       ? cloneElement(
                           icon as React.ReactElement,
                           {
-                            color:
-                              isSelected || isOpen
-                                ? colors.text.default
-                                : colors.text.secondary,
+                            color: isSelected
+                              ? colors.text.default
+                              : colors.text.secondary,
                           } as any
                         )
                       : icon
@@ -602,10 +601,9 @@ export const SidebarItem = ({
                         isOpen,
                         size: 16,
                         // Don't use accent color on icon - only on label
-                        color:
-                          isSelected || isOpen
-                            ? colors.text.default
-                            : colors.text.secondary,
+                        color: isSelected
+                          ? colors.text.default
+                          : colors.text.secondary,
                       })
                 }
                 onClick={(e) => {
@@ -656,8 +654,9 @@ export const SidebarItem = ({
 
       // Folder without toggle: Just show icon
       // Don't use accent color on icon - only on label
-      const iconColor =
-        isSelected || isOpen ? colors.text.default : colors.text.secondary;
+      const iconColor = isSelected
+        ? colors.text.default
+        : colors.text.secondary;
       const folderIcon =
         typeof icon !== 'string' && icon
           ? isValidElement(icon)
@@ -853,10 +852,7 @@ export const SidebarItem = ({
             minWidth: 0,
             fontSize: DESIGN.typography.fontSize,
             fontWeight: DESIGN.typography.fontWeight,
-            color:
-              isSelected || (variant === 'folder' && isOpen)
-                ? colors.text.default
-                : colors.text.secondary,
+            color: isSelected ? colors.text.default : colors.text.secondary,
             backgroundColor: 'transparent',
             border: 'none',
             outline: 'none',
@@ -976,10 +972,7 @@ export const SidebarItem = ({
           {
             fontSize: DESIGN.typography.fontSize,
             fontWeight: DESIGN.typography.fontWeight,
-            color:
-              isSelected || (variant === 'folder' && isOpen)
-                ? colors.text.default
-                : colors.text.secondary,
+            color: isSelected ? colors.text.default : colors.text.secondary,
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',
