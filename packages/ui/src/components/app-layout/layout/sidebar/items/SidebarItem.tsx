@@ -182,10 +182,12 @@ export const SidebarItem = ({
   } as React.CSSProperties;
 
   const paddingLeft =
-    variant === 'tag' || variant === 'header' || variant === 'group'
+    variant === 'tag' || variant === 'header'
       ? 0
-      : Math.min(level, DESIGN.limits.maxVisualIndent) *
-        parseInt(DESIGN.spacing.indentPerLevel);
+      : variant === 'group'
+        ? 3 // Group headers have 3px left padding for alignment
+        : Math.min(level, DESIGN.limits.maxVisualIndent) *
+          parseInt(DESIGN.spacing.indentPerLevel);
 
   // Focus input when entering edit mode
   useEffect(() => {
@@ -1214,7 +1216,11 @@ export const SidebarItem = ({
           width: '100%',
           paddingLeft: `${paddingLeft}px`,
           position: sticky ? 'sticky' : 'relative',
-          top: sticky ? 0 : undefined,
+          top: sticky
+            ? variant === 'header'
+              ? 0
+              : sidebarLayout.itemHeight
+            : undefined,
           zIndex: sticky ? (variant === 'header' ? 20 : 10) : undefined,
           backgroundColor: sticky ? colors.background.secondary : undefined,
           overflow: 'visible',

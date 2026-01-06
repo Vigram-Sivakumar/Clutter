@@ -35,19 +35,16 @@ export const SidebarListGroup = ({
         display: 'flex',
         flexDirection: 'column',
         gap: sidebarLayout.itemGap,
-        position: 'relative',
       }}
     >
       {/* Group header - can be sticky */}
-      <div style={{ paddingLeft: '3px' }}>
-        <SidebarItem
-          variant="group"
-          id={id || `group-${title}`}
-          label={title}
-          onClick={() => {}}
-          sticky={sticky}
-        />
-      </div>
+      <SidebarItem
+        variant="group"
+        id={id || `group-${title}`}
+        label={title}
+        onClick={() => {}}
+        sticky={sticky}
+      />
 
       {/* Group content with optional connector line */}
       <div style={{ position: 'relative' }}>
