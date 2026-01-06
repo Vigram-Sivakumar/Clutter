@@ -1,6 +1,6 @@
 /**
  * TagAutosuggestion - Dropdown for tag suggestions
- * 
+ *
  * Shows tag suggestions as user types in TagInput
  */
 
@@ -9,8 +9,8 @@ import { useNotesStore } from '@clutter/state';
 import { useAllTags } from '@clutter/state';
 import { AutocompleteDropdown } from '../../../../ui-primitives/AutocompleteDropdown';
 import { DropdownItem } from '../../../../ui-primitives/dropdown';
-import { Tag } from './Tag';
-import { Hash } from '../../../../../icons';
+import { TagPill } from './Tag';
+import { HashStraight } from '../../../../../icons';
 import { getTagColor } from '../../../../../utils/tagColors';
 import { useTheme } from '../../../../../hooks/useTheme';
 
@@ -20,7 +20,7 @@ interface TagAutosuggestionProps {
   onClose: () => void;
   suggestions: string[]; // Filtered suggestions based on user input
   selectedIndex: number;
-  onSelectTag: (tag: string) => void;
+  onSelectTag: (_tag: string) => void;
   query: string; // Current input value
   existingTags: string[]; // Tags already added to the note
 }
@@ -38,10 +38,10 @@ export const TagAutosuggestion = ({
   const notes = useNotesStore((state) => state.notes);
   const allTags = useAllTags();
   const { colors } = useTheme();
-  
+
   // Filter to exclude already-added tags
-  const existingTagsLower = useMemo(() => 
-    existingTags.map(t => t.toLowerCase()), 
+  const existingTagsLower = useMemo(
+    () => existingTags.map((t) => t.toLowerCase()),
     [existingTags]
   );
 
@@ -82,15 +82,16 @@ export const TagAutosuggestion = ({
   // No matches but has query - show "Create" option (unless tag already exists on note)
   if (displayTags.length === 0 && query.trim()) {
     const trimmedQuery = query.trim();
-    
+
     // Don't show "Create" if tag already exists on the note
     if (existingTagsLower.includes(trimmedQuery.toLowerCase())) {
       return null;
     }
-    
+
     const colorName = getTagColor(trimmedQuery);
     const tagColor = colors.accent[colorName as keyof typeof colors.accent];
-    const iconColor = (tagColor && 'text' in tagColor ? tagColor.text : colors.text.secondary);
+    const iconColor =
+      tagColor && 'text' in tagColor ? tagColor.text : colors.text.secondary;
 
     return (
       <AutocompleteDropdown
@@ -100,7 +101,7 @@ export const TagAutosuggestion = ({
         selectedIndex={0}
       >
         <DropdownItem
-          icon={<Hash size={16} style={{ color: iconColor }} />}
+          icon={<HashStraight size={16} style={{ color: iconColor }} />}
           label={`Create "${trimmedQuery}"`}
           isSelected={selectedIndex === 0}
           onClick={() => onSelectTag(trimmedQuery)}
@@ -136,4 +137,3 @@ export const TagAutosuggestion = ({
     </AutocompleteDropdown>
   );
 };
-
