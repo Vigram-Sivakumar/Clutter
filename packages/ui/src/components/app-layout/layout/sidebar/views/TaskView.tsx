@@ -394,7 +394,6 @@ export const TaskView = ({
 
                       const isCompleting = completingTasks.has(task.id);
                       const isRemoving = removingTasks.has(task.id);
-                      const isCompleted = sectionPrefix === 'completed';
 
                       return (
                         <div
@@ -410,10 +409,8 @@ export const TaskView = ({
                             marginBottom: isRemoving
                               ? '0px'
                               : sidebarLayout.itemGap,
-                            // Simple fade-in animation for completed tasks
-                            animation: isCompleted
-                              ? 'fadeInSlide 0.3s ease-out'
-                              : undefined,
+                            // Simple fade-in animation for all tasks (when appearing in any section)
+                            animation: 'fadeInSlide 0.3s ease-out',
                           }}
                         >
                           <SidebarItemTask
