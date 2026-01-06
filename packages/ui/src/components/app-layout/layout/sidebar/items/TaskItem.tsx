@@ -17,6 +17,7 @@ interface SidebarItemTaskProps {
   // State
   isSelected?: boolean;
   hasOpenContextMenu?: boolean;
+  isCompleting?: boolean; // Task is animating to completed state
 
   // Interactions
   onClick: (_event?: React.MouseEvent) => void;
@@ -44,6 +45,7 @@ export const SidebarItemTask = ({
   badge,
   isSelected = false,
   hasOpenContextMenu = false,
+  isCompleting = false,
   onClick,
   onToggle,
   onNavigate,
@@ -72,6 +74,7 @@ export const SidebarItemTask = ({
       hasOpenContextMenu={hasOpenContextMenu}
       onClick={onClick}
       isTaskChecked={checked}
+      isTaskCompleting={isCompleting}
       onTaskToggle={onToggle}
       taskNoteId={noteId}
       onTaskNavigate={onNavigate}

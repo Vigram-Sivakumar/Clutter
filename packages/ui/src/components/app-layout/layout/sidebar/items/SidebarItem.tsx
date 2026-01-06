@@ -112,6 +112,7 @@ interface SidebarItemProps {
 
   // Task-specific props
   isTaskChecked?: boolean; // For tasks - completion state
+  isTaskCompleting?: boolean; // For tasks - animating to completed state
   onTaskToggle?: (_id: string) => void; // For tasks - checkbox toggle handler
   taskNoteId?: string; // For tasks - parent note ID (for navigation)
   onTaskNavigate?: (_noteId: string, _blockId: string) => void; // For tasks - navigate to note
@@ -157,6 +158,7 @@ export const SidebarItem = ({
   tagCount,
   enableAutoExpandHeader = false,
   isTaskChecked = false,
+  isTaskCompleting = false,
   onTaskToggle,
   taskNoteId: _taskNoteId,
   onTaskNavigate: _onTaskNavigate,
@@ -934,19 +936,21 @@ export const SidebarItem = ({
       );
     }
 
-    // Task variant - text with conditional strikethrough
+    // Task variant - text with conditional strikethrough and completion animation
     if (variant === 'task') {
       return (
         <span
           style={{
             fontSize: DESIGN.typography.fontSize,
             fontWeight: DESIGN.typography.fontWeight,
-            color: isTaskChecked
-              ? colors.text.tertiary
-              : isSelected
-                ? colors.text.default
-                : colors.text.secondary,
-            textDecoration: isTaskChecked ? 'line-through' : 'none',
+            color:
+              isTaskChecked || isTaskCompleting
+                ? colors.text.tertiary
+                : isSelected
+                  ? colors.text.default
+                  : colors.text.secondary,
+            textDecoration:
+              isTaskChecked || isTaskCompleting ? 'line-through' : 'none',
             flex: '1 1 0',
             minWidth: 0,
             overflow: 'hidden',
@@ -954,6 +958,7 @@ export const SidebarItem = ({
             whiteSpace: 'nowrap',
             userSelect: 'none',
             WebkitUserSelect: 'none',
+            transition: 'color 0.3s ease, text-decoration 0.3s ease',
           }}
         >
           {label}

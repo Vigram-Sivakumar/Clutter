@@ -1,4 +1,4 @@
-import { useMemo, ReactNode } from 'react';
+import { useMemo, useState, useCallback, ReactNode } from 'react';
 import { useNotesStore, useUIStateStore } from '@clutter/state';
 import {
   getTodayDateString,
@@ -62,6 +62,11 @@ export const TaskView = ({
   const notes = useNotesStore((state) => state.notes);
   const updateNoteContent = useNotesStore((state) => state.updateNoteContent);
   const { colors } = useTheme();
+
+  // Track tasks that are currently completing (for animation)
+  const [completingTasks, setCompletingTasks] = useState<Set<string>>(
+    new Set()
+  );
 
   // Get collapse states from UI state store
   const {
@@ -183,17 +188,51 @@ export const TaskView = ({
     return grouped;
   }, [upcomingTasks, todayDateString]);
 
-  // Handle checkbox toggle
-  const handleToggleTask = (taskId: string) => {
-    const task = allTasks.find((t) => t.id === taskId);
-    if (!task) return;
+  // Handle checkbox toggle with animation
+  const handleToggleTask = useCallback(
+    (taskId: string) => {
+      const task = allTasks.find((t) => t.id === taskId);
+      if (!task) return;
 
-    const note = notes.find((n) => n.id === task.noteId);
-    if (!note) return;
+      const note = notes.find((n) => n.id === task.noteId);
+      if (!note) return;
 
-    const updatedContent = toggleTaskInNote(note, taskId);
-    updateNoteContent(note.id, updatedContent);
-  };
+      // If completing a task (unchecked -> checked)
+      if (!task.checked) {
+        // Add to completing set for animation
+        setCompletingTasks((prev) => new Set(prev).add(taskId));
+
+        // Auto-expand Completed section when completing a task
+        if (taskCompletedCollapsed) {
+          setTaskCompletedCollapsed(false);
+        }
+
+        // Wait for animation, then persist
+        setTimeout(() => {
+          const updatedContent = toggleTaskInNote(note, taskId);
+          updateNoteContent(note.id, updatedContent);
+
+          // Remove from completing set after persistence
+          setCompletingTasks((prev) => {
+            const next = new Set(prev);
+            next.delete(taskId);
+            return next;
+          });
+        }, 500); // 500ms animation duration
+      } else {
+        // If uncompleting (checked -> unchecked), update immediately
+        const updatedContent = toggleTaskInNote(note, taskId);
+        updateNoteContent(note.id, updatedContent);
+      }
+    },
+    [
+      allTasks,
+      notes,
+      updateNoteContent,
+      taskCompletedCollapsed,
+      setTaskCompletedCollapsed,
+    ]
+  );
 
   // Handle task navigation
   const handleTaskNavigate = (noteId: string, blockId: string) => {
@@ -285,17 +324,23 @@ export const TaskView = ({
                           ? formatTaskDateLabel(taskDate, todayDateString)
                           : undefined;
 
+                      const isCompleting = completingTasks.has(task.id);
+
                       return (
                         <div
                           key={task.id}
-                          style={{ paddingLeft: sidebarLayout.indentPerLevel }}
+                          style={{
+                            paddingLeft: sidebarLayout.indentPerLevel,
+                            opacity: isCompleting ? 0.5 : 1,
+                            transition: 'opacity 0.3s ease',
+                          }}
                         >
                           <SidebarItemTask
                             id={task.id}
                             noteId={task.noteId}
                             noteTitle={task.noteTitle}
                             text={task.text}
-                            checked={task.checked}
+                            checked={task.checked || isCompleting}
                             badge={badge}
                             isSelected={selectedTaskIds?.has(task.id)}
                             hasOpenContextMenu={openContextMenuId === task.id}
@@ -303,6 +348,7 @@ export const TaskView = ({
                             onToggle={handleToggleTask}
                             onNavigate={handleTaskNavigate}
                             actions={getTaskActions?.(task.id, task.noteId)}
+                            isCompleting={isCompleting}
                           />
                         </div>
                       );
@@ -377,22 +423,34 @@ export const TaskView = ({
               {unplannedTasks.length === 0 ? (
                 <SidebarEmptyState message={SECTIONS.inbox.emptyMessage} />
               ) : (
-                unplannedTasks.map((task) => (
-                  <SidebarItemTask
-                    key={task.id}
-                    id={task.id}
-                    noteId={task.noteId}
-                    noteTitle={task.noteTitle}
-                    text={task.text}
-                    checked={task.checked}
-                    isSelected={selectedTaskIds?.has(task.id)}
-                    hasOpenContextMenu={openContextMenuId === task.id}
-                    onClick={(e) => handleTaskClick(task.id, e)}
-                    onToggle={handleToggleTask}
-                    onNavigate={handleTaskNavigate}
-                    actions={getTaskActions?.(task.id, task.noteId)}
-                  />
-                ))
+                unplannedTasks.map((task) => {
+                  const isCompleting = completingTasks.has(task.id);
+
+                  return (
+                    <div
+                      key={task.id}
+                      style={{
+                        opacity: isCompleting ? 0.5 : 1,
+                        transition: 'opacity 0.3s ease',
+                      }}
+                    >
+                      <SidebarItemTask
+                        id={task.id}
+                        noteId={task.noteId}
+                        noteTitle={task.noteTitle}
+                        text={task.text}
+                        checked={task.checked || isCompleting}
+                        isSelected={selectedTaskIds?.has(task.id)}
+                        hasOpenContextMenu={openContextMenuId === task.id}
+                        onClick={(e) => handleTaskClick(task.id, e)}
+                        onToggle={handleToggleTask}
+                        onNavigate={handleTaskNavigate}
+                        actions={getTaskActions?.(task.id, task.noteId)}
+                        isCompleting={isCompleting}
+                      />
+                    </div>
+                  );
+                })
               )}
             </div>
           </div>
