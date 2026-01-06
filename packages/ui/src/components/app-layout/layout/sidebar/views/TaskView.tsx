@@ -670,11 +670,7 @@ export const TaskView = ({
         <SidebarItemFolder
           id={SECTIONS.completed.id}
           label={SECTIONS.completed.label}
-          emoji={renderIcon(
-            SECTIONS.completed.iconName,
-            16,
-            taskCompletedCollapsed ? colors.text.tertiary : undefined
-          )}
+          emoji={renderIcon(SECTIONS.completed.iconName, 16)}
           isOpen={!taskCompletedCollapsed}
           onToggle={() => setTaskCompletedCollapsed(!taskCompletedCollapsed)}
           onClick={onCompletedHeaderClick}
