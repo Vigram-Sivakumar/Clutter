@@ -221,8 +221,6 @@ export const NotesView = ({
           display: 'flex',
           flexDirection: 'column',
           gap: sidebarLayout.itemGap,
-          overflowX: 'hidden',
-          overflowY: 'visible',
         }}
       >
         <SidebarItemFolder
@@ -249,7 +247,6 @@ export const NotesView = ({
             selection.context === folderContext
           }
           context={folderContext}
-          sticky
           reorderable={Boolean(onFolderDragOverForReorder)}
           onClearAllReorderIndicators={() => {
             // Clear both note and folder reorder indicators when hovering over folder
@@ -280,15 +277,13 @@ export const NotesView = ({
             display: 'grid',
             gridTemplateRows: folder.isOpen ? '1fr' : '0fr',
             transition: transitions.collapse.height,
-            overflowX: 'hidden',
-            overflowY: 'visible',
+            overflow: 'visible',
           }}
         >
           <div
             style={{
               minHeight: 0,
-              overflowX: 'hidden',
-              overflowY: 'visible',
+              overflow: 'hidden',
               opacity: folder.isOpen ? 1 : 0,
               transition: transitions.collapse.content,
             }}
@@ -398,8 +393,6 @@ export const NotesView = ({
         display: 'flex',
         flexDirection: 'column',
         gap: sidebarLayout.sectionGap,
-        overflowX: 'hidden',
-        overflowY: 'visible',
       }}
     >
       {/* Favourites Section - Always visible */}
@@ -409,7 +402,6 @@ export const NotesView = ({
         onToggle={onFavouritesToggle}
         onHeaderClick={onFavouritesHeaderClick}
         badge={String(favouriteNotes.length + favouriteFolders.length)}
-        sticky
         onClearAllReorderIndicators={() => {
           // Clear both note and folder reorder indicators when hovering over section
           onNoteDragLeaveForReorder?.();
@@ -505,7 +497,6 @@ export const NotesView = ({
         // )}
         actions={foldersHeaderActions}
         enableAutoExpandHeader={true}
-        sticky
         onClearAllReorderIndicators={() => {
           // Clear both note and folder reorder indicators when hovering over section
           onNoteDragLeaveForReorder?.();
@@ -539,7 +530,6 @@ export const NotesView = ({
               onDrop={onClutteredDrop}
               isDropTarget={dropTargetType === CLUTTERED_FOLDER_ID}
               context="cluttered"
-              sticky
               onClearAllReorderIndicators={() => {
                 // Clear both note and folder reorder indicators when hovering over cluttered
                 onNoteDragLeaveForReorder?.();
@@ -553,15 +543,13 @@ export const NotesView = ({
                 display: 'grid',
                 gridTemplateRows: !isClutteredCollapsed ? '1fr' : '0fr',
                 transition: transitions.collapse.height,
-                overflowX: 'hidden',
-                overflowY: 'visible',
+                overflow: 'visible',
               }}
             >
               <div
                 style={{
                   minHeight: 0,
-                  overflowX: 'hidden',
-                  overflowY: 'visible',
+                  overflow: 'hidden',
                   opacity: !isClutteredCollapsed ? 1 : 0,
                   transition: transitions.collapse.content,
                 }}

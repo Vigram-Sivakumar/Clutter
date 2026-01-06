@@ -207,7 +207,9 @@ export const SidebarContainer = ({
               overflowY: disableScroll ? 'hidden' : 'auto',
               overflowX: 'hidden',
               padding: `0px ${DESIGN.spacing.paddingBase}`,
-              borderTop: `1px solid ${isScrolled ? colors.border.subtle : colors.background.secondary}`,
+              borderTop: isScrolled
+                ? `1px solid ${colors.border.subtle}`
+                : 'none',
             }}
           >
             {children}

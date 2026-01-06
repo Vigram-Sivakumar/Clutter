@@ -1211,13 +1211,13 @@ export const SidebarItem = ({
 
       <div
         style={{
+          width: '100%',
           paddingLeft: `${paddingLeft}px`,
           position: sticky ? 'sticky' : 'relative',
           top: sticky ? 0 : undefined,
           zIndex: sticky ? 10 : undefined,
           backgroundColor: sticky ? colors.background.secondary : undefined,
-          overflowX: 'hidden',
-          overflowY: 'visible',
+          overflow: 'visible',
           boxSizing: 'border-box',
         }}
       >
@@ -1263,12 +1263,10 @@ export const SidebarItem = ({
               display: 'flex',
               alignItems: 'center',
               width: '100%',
-              maxWidth: '100%',
               height: DESIGN.sizing.height,
               paddingLeft: DESIGN.spacing.paddingX,
               paddingRight: DESIGN.spacing.paddingX,
               boxSizing: 'border-box',
-              overflow: 'hidden',
               cursor: isDragging
                 ? 'grabbing'
                 : variant === 'group'

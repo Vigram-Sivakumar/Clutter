@@ -13,7 +13,7 @@ interface SidebarSectionProps {
   badge?: string;
   icon?: ReactNode; // Optional icon for the section header
   actions?: ReactNode[];
-  sticky?: boolean; // Whether the section header should stick to the top when scrolling
+  sticky?: boolean; // Whether the section header should be sticky
 
   // Drop target props (for section body)
   isDropTarget?: boolean;
@@ -69,8 +69,6 @@ export const SidebarSection = ({
           width: '100%',
           paddingTop: '2px',
           paddingBottom: '2px',
-          overflowX: 'hidden',
-          overflowY: 'visible',
         }}
       >
         {items.map((item, index) => renderItem(item, index))}
@@ -150,8 +148,6 @@ export const SidebarSection = ({
         border: `1px solid ${isDropTarget ? colors.semantic.info : 'transparent'}`,
         borderRadius: radius['6'],
         transition: 'background-color 150ms ease, border-color 150ms ease',
-        overflowX: 'hidden',
-        overflowY: 'visible',
       }}
     >
       {/* Section Header - using SidebarItem with variant='header' */}
@@ -177,15 +173,13 @@ export const SidebarSection = ({
           display: 'grid',
           gridTemplateRows: isCollapsed ? '0fr' : '1fr',
           transition: transitions.collapse.height,
-          overflowX: 'hidden',
-          overflowY: 'visible',
+          overflow: 'visible', // Allow sticky children to work
         }}
       >
         <div
           style={{
             minHeight: 0,
-            overflowX: 'hidden',
-            overflowY: 'visible',
+            overflow: 'hidden', // Keep for collapse animation
             opacity: isCollapsed ? 0 : 1,
             transition: transitions.collapse.content,
           }}
