@@ -111,6 +111,7 @@ export const TagsView = ({
         onToggle={onFavouritesToggle}
         onHeaderClick={onFavouritesHeaderClick}
         badge={String(favouriteTags.length)}
+        sticky
       >
         {favouriteTags.length === 0 ? (
           <SidebarEmptyState
@@ -156,6 +157,7 @@ export const TagsView = ({
         onHeaderClick={onAllTagsHeaderClick}
         badge={String(allTags.length)}
         actions={allTagsHeaderActions}
+        sticky
       >
         {tagsWithCounts.length === 0 ? (
           <SidebarEmptyState message={SECTIONS['all-tags'].emptyMessage} />

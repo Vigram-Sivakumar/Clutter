@@ -402,6 +402,7 @@ export const NotesView = ({
         onToggle={onFavouritesToggle}
         onHeaderClick={onFavouritesHeaderClick}
         badge={String(favouriteNotes.length + favouriteFolders.length)}
+        sticky
         onClearAllReorderIndicators={() => {
           // Clear both note and folder reorder indicators when hovering over section
           onNoteDragLeaveForReorder?.();
@@ -497,6 +498,7 @@ export const NotesView = ({
         // )}
         actions={foldersHeaderActions}
         enableAutoExpandHeader={true}
+        sticky
         onClearAllReorderIndicators={() => {
           // Clear both note and folder reorder indicators when hovering over section
           onNoteDragLeaveForReorder?.();
@@ -530,6 +532,7 @@ export const NotesView = ({
               onDrop={onClutteredDrop}
               isDropTarget={dropTargetType === CLUTTERED_FOLDER_ID}
               context="cluttered"
+              sticky
               onClearAllReorderIndicators={() => {
                 // Clear both note and folder reorder indicators when hovering over cluttered
                 onNoteDragLeaveForReorder?.();

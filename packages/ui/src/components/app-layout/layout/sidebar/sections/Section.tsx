@@ -1,10 +1,9 @@
-import { ReactNode, useState } from 'react';
+import { ReactNode } from 'react';
 import { useTheme } from '../../../../../hooks/useTheme';
 import { transitions } from '../../../../../tokens/transitions';
 import { radius } from '../../../../../tokens/radius';
 import { SidebarItem } from '../items/SidebarItem';
 import { sidebarLayout } from '../../../../../tokens/sidebar';
-import { spacing } from '../../../../../tokens/spacing';
 
 interface SidebarSectionProps {
   title: string;
@@ -14,23 +13,24 @@ interface SidebarSectionProps {
   badge?: string;
   icon?: ReactNode; // Optional icon for the section header
   actions?: ReactNode[];
-  
+  sticky?: boolean; // Whether the section header should stick to the top when scrolling
+
   // Drop target props (for section body)
   isDropTarget?: boolean;
   onDragOver?: () => void;
   onDragLeave?: () => void;
   onDrop?: () => void;
-  
+
   // Reorder state management
   onClearAllReorderIndicators?: () => void; // Clear all reorder indicators when entering section drop zone
-  
+
   // Auto-expand section header on drag
   enableAutoExpandHeader?: boolean;
-  
+
   // Data-driven rendering (NEW)
   items?: any[];
-  renderItem?: (item: any, index: number) => ReactNode;
-  
+  renderItem?: (_item: any, _index: number) => ReactNode;
+
   // OR manual children (backwards compatible)
   children?: ReactNode;
 }
@@ -43,6 +43,7 @@ export const SidebarSection = ({
   badge,
   icon,
   actions,
+  sticky = false,
   isDropTarget = false,
   onDragOver,
   onDragLeave,
@@ -56,33 +57,36 @@ export const SidebarSection = ({
   const { colors } = useTheme();
   // Note: isDropTarget prop already controls visual feedback
   // No need for internal hover state - drag events are sufficient
-  
+
   // Auto-render items if provided, otherwise use children
-  const content = items && renderItem ? (
-    <div 
-      style={{ 
-        display: 'flex', 
-        flexDirection: 'column', 
-        gap: sidebarLayout.itemGap,
-        width: '100%',
-        paddingTop: '2px',
-        paddingBottom: '2px',
-      }}
-    >
-      {items.map((item, index) => renderItem(item, index))}
-    </div>
-  ) : children;
+  const content =
+    items && renderItem ? (
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: sidebarLayout.itemGap,
+          width: '100%',
+          paddingTop: '2px',
+          paddingBottom: '2px',
+        }}
+      >
+        {items.map((item, index) => renderItem(item, index))}
+      </div>
+    ) : (
+      children
+    );
 
   const handleDragEnter = (e: React.DragEvent) => {
     if (!onDragOver) return;
     e.preventDefault();
     e.stopPropagation();
-    
+
     // Clear all reorder indicators when entering section drop zone
     if (onClearAllReorderIndicators) {
       onClearAllReorderIndicators();
     }
-    
+
     onDragOver();
   };
 
@@ -91,12 +95,12 @@ export const SidebarSection = ({
     e.preventDefault();
     e.stopPropagation();
     e.dataTransfer.dropEffect = 'move';
-    
+
     // Clear all reorder indicators when hovering over section drop zone
     if (onClearAllReorderIndicators) {
       onClearAllReorderIndicators();
     }
-    
+
     onDragOver();
   };
 
@@ -114,21 +118,23 @@ export const SidebarSection = ({
     if (!onDrop) return;
     e.preventDefault();
     e.stopPropagation();
-    
+
     // Clear all reorder indicators after section drop
     if (onClearAllReorderIndicators) {
       onClearAllReorderIndicators();
     }
-    
+
     onDrop();
   };
 
-  const dragHandlers = onDragOver ? {
-    onDragEnter: handleDragEnter,
-    onDragOver: handleDragOver,
-    onDragLeave: handleDragLeave,
-    onDrop: handleDrop,
-  } : {};
+  const dragHandlers = onDragOver
+    ? {
+        onDragEnter: handleDragEnter,
+        onDragOver: handleDragOver,
+        onDragLeave: handleDragLeave,
+        onDrop: handleDrop,
+      }
+    : {};
 
   return (
     <div
@@ -157,6 +163,7 @@ export const SidebarSection = ({
           onToggle={onToggle}
           actions={actions}
           enableAutoExpandHeader={enableAutoExpandHeader}
+          sticky={sticky}
         />
       </div>
 
@@ -183,4 +190,3 @@ export const SidebarSection = ({
     </div>
   );
 };
-

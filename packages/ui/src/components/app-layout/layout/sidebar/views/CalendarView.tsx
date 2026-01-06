@@ -193,6 +193,7 @@ export const CalendarView = ({
                     onClick={() => onYearClick?.(year)}
                     onToggle={() => toggleDailyNoteGroupCollapsed(yearKey)}
                     context="dailyNotes"
+                    sticky
                   />
 
                   {/* Months within Year */}
