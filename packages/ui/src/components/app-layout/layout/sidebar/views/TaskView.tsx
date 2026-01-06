@@ -446,6 +446,7 @@ export const TaskView = ({
         display: 'flex',
         flexDirection: 'column',
         gap: sidebarLayout.sectionGap,
+        minHeight: '100%',
       }}
     >
       {/* Inbox Section */}
@@ -655,6 +656,9 @@ export const TaskView = ({
         </div>
       </div>
 
+      {/* Spacer to push Completed to bottom */}
+      <div style={{ flex: 1, minHeight: sidebarLayout.sectionGap }} />
+
       {/* Completed Section */}
       <div
         style={{
@@ -670,7 +674,11 @@ export const TaskView = ({
           isOpen={!taskCompletedCollapsed}
           onToggle={() => setTaskCompletedCollapsed(!taskCompletedCollapsed)}
           onClick={onCompletedHeaderClick}
-          badge={undefined}
+          badge={
+            completedTasks.length > 0
+              ? completedTasks.length.toString()
+              : undefined
+          }
           level={0}
           context="task-sections"
         />
