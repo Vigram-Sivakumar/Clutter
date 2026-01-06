@@ -194,7 +194,7 @@ export const SECTIONS: Record<SectionId, SectionConfig> = {
     internalId: 'completed-tasks',
     breadcrumbPath: ['Tasks', 'Completed'],
     stateKey: 'taskCompletedCollapsed',
-    showBadge: false,
+    showBadge: true,
   },
 
   // ============================================================================

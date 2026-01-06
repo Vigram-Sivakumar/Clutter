@@ -670,11 +670,7 @@ export const TaskView = ({
           isOpen={!taskCompletedCollapsed}
           onToggle={() => setTaskCompletedCollapsed(!taskCompletedCollapsed)}
           onClick={onCompletedHeaderClick}
-          badge={
-            completedTasks.length > 0
-              ? completedTasks.length.toString()
-              : undefined
-          }
+          badge={undefined}
           level={0}
           context="task-sections"
         />
