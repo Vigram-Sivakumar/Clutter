@@ -65,7 +65,7 @@ export const Checkbox = ({
         appearance: 'none',
         WebkitAppearance: 'none',
         MozAppearance: 'none',
-        border: `1.5px solid ${colors.marker}`,
+        border: `1.5px solid ${checked ? colors.text.default : colors.marker}`,
         borderRadius: '50%',
         backgroundColor: checked
           ? colors.text.default
