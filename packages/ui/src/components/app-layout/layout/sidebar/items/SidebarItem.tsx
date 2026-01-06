@@ -1216,6 +1216,7 @@ export const SidebarItem = ({
           position: sticky ? 'sticky' : 'relative',
           top: sticky ? 0 : undefined,
           zIndex: sticky ? 10 : undefined,
+          backgroundColor: sticky ? colors.background.secondary : undefined,
           overflow: 'visible',
           boxSizing: 'border-box',
         }}
