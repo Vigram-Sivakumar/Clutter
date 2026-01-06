@@ -801,7 +801,15 @@ pub fn delete_folder_permanently(folder_id: String, state: State<DbConnection>) 
     let conn_guard = state.0.lock().unwrap();
     let conn = conn_guard.as_ref().ok_or("Database not initialized")?;
     
-    // Delete from folders table (junction table folder_tags will cascade delete automatically)
+    // First, update any child folders to remove their parent reference
+    // This prevents foreign key constraint violations
+    conn.execute(
+        "UPDATE folders SET parent_id = NULL WHERE parent_id = ?1",
+        [&folder_id],
+    )
+    .map_err(|e| e.to_string())?;
+    
+    // Then delete the folder (junction table folder_tags will cascade delete automatically)
     conn.execute(
         "DELETE FROM folders WHERE id = ?1",
         [&folder_id],
