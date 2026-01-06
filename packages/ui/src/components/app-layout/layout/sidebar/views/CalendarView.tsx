@@ -1,7 +1,6 @@
 import { useMemo, ReactNode } from 'react';
 import { useCurrentDateStore, useUIStateStore } from '@clutter/state';
 import { useTheme } from '../../../../../hooks/useTheme';
-import { SidebarEmptyState } from '../sections/EmptyState';
 import { SidebarSection } from '../sections/Section';
 import { SidebarItemNote } from '../items/NoteItem';
 import { SidebarItemFolder } from '../items/FolderItem';
@@ -140,7 +139,7 @@ export const CalendarView = ({
       style={{
         display: 'flex',
         flexDirection: 'column',
-        gap: sidebarLayout.sectionGap,
+        gap: sidebarLayout.sectionToSectionGap,
         width: '100%',
       }}
     >
@@ -157,156 +156,130 @@ export const CalendarView = ({
         onDragLeave={onDragLeave}
         onDrop={onDailyNotesDrop}
         onClearAllReorderIndicators={handleClearAllReorderIndicators}
+        emptyMessage={SECTIONS['daily-notes'].emptyMessage}
       >
-        {dailyNotes.length === 0 ? (
-          <SidebarEmptyState message={SECTIONS['daily-notes'].emptyMessage} />
-        ) : (
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: sidebarLayout.itemGap,
-              width: '100%',
-              paddingBottom: sidebarLayout.sectionContentPaddingBottom,
-            }}
-          >
-            {getSortedYears(groupedDailyNotes).map((year) => {
-              const yearKey = formatYearMonthKey(year);
-              const yearCollapsed = collapsedDailyNoteGroups.has(yearKey);
+        {getSortedYears(groupedDailyNotes).map((year) => {
+          const yearKey = formatYearMonthKey(year);
+          const yearCollapsed = collapsedDailyNoteGroups.has(yearKey);
 
-              return (
-                <div
-                  key={year}
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: sidebarLayout.itemGap,
-                  }}
-                >
-                  {/* Year Folder */}
-                  <SidebarItemFolder
-                    id={yearKey}
-                    label={year}
-                    isOpen={!yearCollapsed}
-                    level={0}
-                    onClick={() => onYearClick?.(year)}
-                    onToggle={() => toggleDailyNoteGroupCollapsed(yearKey)}
-                    context="dailyNotes"
-                  />
+          return (
+            <div
+              key={year}
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: sidebarLayout.itemToItemGap,
+              }}
+            >
+              {/* Year Folder */}
+              <SidebarItemFolder
+                id={yearKey}
+                label={year}
+                isOpen={!yearCollapsed}
+                level={0}
+                onClick={() => onYearClick?.(year)}
+                onToggle={() => toggleDailyNoteGroupCollapsed(yearKey)}
+                context="dailyNotes"
+              />
 
-                  {/* Months within Year */}
-                  {!yearCollapsed &&
-                    getSortedMonths(groupedDailyNotes, year).map((month) => {
-                      const monthKey = formatYearMonthKey(year, month);
-                      const monthCollapsed =
-                        collapsedDailyNoteGroups.has(monthKey);
-                      const monthNotes = groupedDailyNotes[year][month];
-                      const monthCount = getMonthNoteCount(
-                        groupedDailyNotes,
-                        year,
-                        month
-                      );
+              {/* Months within Year */}
+              {!yearCollapsed &&
+                getSortedMonths(groupedDailyNotes, year).map((month) => {
+                  const monthKey = formatYearMonthKey(year, month);
+                  const monthCollapsed = collapsedDailyNoteGroups.has(monthKey);
+                  const monthNotes = groupedDailyNotes[year][month];
+                  const monthCount = getMonthNoteCount(
+                    groupedDailyNotes,
+                    year,
+                    month
+                  );
 
-                      // Check if this month contains today's note
-                      const monthContainsToday = monthNotes.some(
-                        (note) => note.dailyNoteDate === currentDateString
-                      );
+                  // Check if this month contains today's note
+                  const monthContainsToday = monthNotes.some(
+                    (note) => note.dailyNoteDate === currentDateString
+                  );
 
-                      return (
-                        <div
-                          key={monthKey}
-                          style={{
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: sidebarLayout.itemGap,
-                          }}
-                        >
-                          {/* Month Folder */}
-                          <SidebarItemFolder
-                            id={monthKey}
-                            label={month}
-                            // Show dot on month only when collapsed and contains today
-                            isToday={monthCollapsed && monthContainsToday}
-                            badge={String(monthCount)}
-                            isOpen={!monthCollapsed}
-                            level={1}
-                            onClick={() => onMonthClick?.(year, month)}
-                            onToggle={() =>
-                              toggleDailyNoteGroupCollapsed(monthKey)
-                            }
-                            context="dailyNotes"
-                          />
+                  return (
+                    <div
+                      key={monthKey}
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: sidebarLayout.itemToItemGap,
+                      }}
+                    >
+                      {/* Month Folder */}
+                      <SidebarItemFolder
+                        id={monthKey}
+                        label={month}
+                        // Show dot on month only when collapsed and contains today
+                        isToday={monthCollapsed && monthContainsToday}
+                        badge={String(monthCount)}
+                        isOpen={!monthCollapsed}
+                        level={1}
+                        onClick={() => onMonthClick?.(year, month)}
+                        onToggle={() => toggleDailyNoteGroupCollapsed(monthKey)}
+                        context="dailyNotes"
+                      />
 
-                          {/* Notes within Month */}
-                          {!monthCollapsed &&
-                            monthNotes.map((note) => {
-                              // Show dot on note only when month is expanded and it's today
-                              const isToday =
-                                !monthCollapsed &&
-                                note.dailyNoteDate === currentDateString;
+                      {/* Notes within Month */}
+                      {!monthCollapsed &&
+                        monthNotes.map((note) => {
+                          // Show dot on note only when month is expanded and it's today
+                          const isToday =
+                            !monthCollapsed &&
+                            note.dailyNoteDate === currentDateString;
 
-                              return (
-                                <SidebarItemNote
-                                  key={note.id}
-                                  id={note.id}
-                                  title={note.title}
-                                  emoji={note.emoji}
-                                  isToday={isToday}
-                                  level={2}
-                                  isSelected={
-                                    selection.type === 'note' &&
-                                    selection.itemId === note.id &&
-                                    selection.context === 'dailyNotes'
-                                  }
-                                  hasOpenContextMenu={
-                                    openContextMenuId === note.id
-                                  }
-                                  hasContent={note.hasContent}
-                                  dailyNoteDate={note.dailyNoteDate}
-                                  onClick={(e) => onDailyNoteClick(note.id, e)}
-                                  actions={
-                                    getNoteActions
-                                      ? getNoteActions(note.id)
-                                      : []
-                                  }
-                                  draggable={Boolean(onNoteDragStart)}
-                                  context="dailyNotes"
-                                  onDragStart={onNoteDragStart}
-                                  onDragEnd={onDragEnd}
-                                  onEmojiClick={onNoteEmojiClick}
-                                  reorderable={Boolean(
-                                    onNoteDragOverForReorder
-                                  )}
-                                  onDragOverForReorder={
-                                    onNoteDragOverForReorder
-                                  }
-                                  onDragLeaveForReorder={
-                                    onNoteDragLeaveForReorder
-                                  }
-                                  onDropForReorder={onNoteDropForReorder}
-                                  dropPosition={
-                                    reorderDropTarget?.type === 'note' &&
-                                    reorderDropTarget?.id === note.id
-                                      ? reorderDropTarget.position
-                                      : null
-                                  }
-                                  onClearAllReorderIndicators={
-                                    handleClearAllReorderIndicators
-                                  }
-                                  isEditing={editingNoteId === note.id}
-                                  onRenameComplete={onNoteRenameComplete}
-                                  onRenameCancel={onNoteRenameCancel}
-                                />
-                              );
-                            })}
-                        </div>
-                      );
-                    })}
-                </div>
-              );
-            })}
-          </div>
-        )}
+                          return (
+                            <SidebarItemNote
+                              key={note.id}
+                              id={note.id}
+                              title={note.title}
+                              emoji={note.emoji}
+                              isToday={isToday}
+                              level={2}
+                              isSelected={
+                                selection.type === 'note' &&
+                                selection.itemId === note.id &&
+                                selection.context === 'dailyNotes'
+                              }
+                              hasOpenContextMenu={openContextMenuId === note.id}
+                              hasContent={note.hasContent}
+                              dailyNoteDate={note.dailyNoteDate}
+                              onClick={(e) => onDailyNoteClick(note.id, e)}
+                              actions={
+                                getNoteActions ? getNoteActions(note.id) : []
+                              }
+                              draggable={Boolean(onNoteDragStart)}
+                              context="dailyNotes"
+                              onDragStart={onNoteDragStart}
+                              onDragEnd={onDragEnd}
+                              onEmojiClick={onNoteEmojiClick}
+                              reorderable={Boolean(onNoteDragOverForReorder)}
+                              onDragOverForReorder={onNoteDragOverForReorder}
+                              onDragLeaveForReorder={onNoteDragLeaveForReorder}
+                              onDropForReorder={onNoteDropForReorder}
+                              dropPosition={
+                                reorderDropTarget?.type === 'note' &&
+                                reorderDropTarget?.id === note.id
+                                  ? reorderDropTarget.position
+                                  : null
+                              }
+                              onClearAllReorderIndicators={
+                                handleClearAllReorderIndicators
+                              }
+                              isEditing={editingNoteId === note.id}
+                              onRenameComplete={onNoteRenameComplete}
+                              onRenameCancel={onNoteRenameCancel}
+                            />
+                          );
+                        })}
+                    </div>
+                  );
+                })}
+            </div>
+          );
+        })}
       </SidebarSection>
     </div>
   );

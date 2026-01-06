@@ -28,8 +28,7 @@ const DESIGN = {
     contentGap: sidebarLayout.itemContentGap, // Gap between icon and label text
     actionsGap: sidebarLayout.itemActionsGap, // Gap between action buttons in the actions group
     rightSideGap: sidebarLayout.itemRightSideGap, // Gap between label, actions, badge, and chevron
-    paddingX: sidebarLayout.itemPaddingX, // Horizontal padding inside the item
-    headerPaddingX: sidebarLayout.headerPaddingX, // Horizontal padding for header variant
+    paddingX: sidebarLayout.itemPaddingX, // Horizontal padding for all items
     indentPerLevel: sidebarLayout.indentPerLevel, // Left indent added per nesting level
   },
   sizing: {
@@ -1258,10 +1257,7 @@ export const SidebarItem = ({
               display: 'flex',
               alignItems: 'center',
               width: '100%',
-              height:
-                variant === 'group'
-                  ? sidebarLayout.groupTitleHeight
-                  : DESIGN.sizing.height,
+              height: DESIGN.sizing.height,
               paddingLeft: DESIGN.spacing.paddingX,
               paddingRight: DESIGN.spacing.paddingX,
               boxSizing: 'border-box',

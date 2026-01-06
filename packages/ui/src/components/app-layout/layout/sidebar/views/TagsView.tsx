@@ -2,7 +2,6 @@ import { useMemo, ReactNode } from 'react';
 import { useTheme } from '../../../../../hooks/useTheme';
 import { SidebarSection } from '../sections/Section';
 import { SidebarItemTag } from '../items/TagItem';
-import { SidebarEmptyState } from '../sections/EmptyState';
 import { sidebarLayout } from '../../../../../tokens/sidebar';
 import { useTagsStore, useFoldersStore } from '@clutter/state';
 import { useAllTags } from '@clutter/state';
@@ -101,7 +100,7 @@ export const TagsView = ({
         width: '100%',
         display: 'flex',
         flexDirection: 'column',
-        gap: sidebarLayout.sectionGap,
+        gap: sidebarLayout.sectionToSectionGap,
       }}
     >
       {/* Favourites Section - Always visible */}
@@ -110,41 +109,27 @@ export const TagsView = ({
         isCollapsed={isFavouritesCollapsed}
         onToggle={onFavouritesToggle}
         onHeaderClick={onFavouritesHeaderClick}
+        emptyMessage={SECTIONS['favourites-tags'].emptyMessage}
         badge={String(favouriteTags.length)}
       >
-        {favouriteTags.length === 0 ? (
-          <SidebarEmptyState
-            message={SECTIONS['favourites-tags'].emptyMessage}
+        {favouriteTags.map(({ tag, count }) => (
+          <SidebarItemTag
+            key={tag}
+            tag={tag}
+            count={count}
+            isSelected={
+              selection.type === 'tag' &&
+              (selectedTagIds?.has(tag) || selection.itemId === tag) &&
+              selection.context === 'favorites'
+            }
+            hasOpenContextMenu={openContextMenuId === tag}
+            onClick={(e) => onTagMultiSelect?.(tag, e, 'favorites')}
+            actions={getTagActions ? getTagActions(tag) : undefined}
+            isEditing={editingTag === tag}
+            onRenameComplete={onTagRenameComplete}
+            onRenameCancel={onTagRenameCancel}
           />
-        ) : (
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: sidebarLayout.itemGap,
-              paddingBottom: sidebarLayout.sectionContentPaddingBottom,
-            }}
-          >
-            {favouriteTags.map(({ tag, count }) => (
-              <SidebarItemTag
-                key={tag}
-                tag={tag}
-                count={count}
-                isSelected={
-                  selection.type === 'tag' &&
-                  (selectedTagIds?.has(tag) || selection.itemId === tag) &&
-                  selection.context === 'favorites'
-                }
-                hasOpenContextMenu={openContextMenuId === tag}
-                onClick={(e) => onTagMultiSelect?.(tag, e, 'favorites')}
-                actions={getTagActions ? getTagActions(tag) : undefined}
-                isEditing={editingTag === tag}
-                onRenameComplete={onTagRenameComplete}
-                onRenameCancel={onTagRenameCancel}
-              />
-            ))}
-          </div>
-        )}
+        ))}
       </SidebarSection>
 
       {/* All Tags Section */}
@@ -153,40 +138,28 @@ export const TagsView = ({
         isCollapsed={isAllTagsCollapsed}
         onToggle={onAllTagsToggle}
         onHeaderClick={onAllTagsHeaderClick}
+        emptyMessage={SECTIONS['all-tags'].emptyMessage}
         badge={String(allTags.length)}
         actions={allTagsHeaderActions}
       >
-        {tagsWithCounts.length === 0 ? (
-          <SidebarEmptyState message={SECTIONS['all-tags'].emptyMessage} />
-        ) : (
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: sidebarLayout.itemGap,
-              paddingBottom: sidebarLayout.sectionContentPaddingBottom,
-            }}
-          >
-            {tagsWithCounts.map(({ tag, count }) => (
-              <SidebarItemTag
-                key={tag}
-                tag={tag}
-                count={count}
-                isSelected={
-                  selection.type === 'tag' &&
-                  (selectedTagIds?.has(tag) || selection.itemId === tag) &&
-                  selection.context === 'all'
-                }
-                hasOpenContextMenu={openContextMenuId === tag}
-                onClick={(e) => onTagMultiSelect?.(tag, e, 'all')}
-                actions={getTagActions ? getTagActions(tag) : undefined}
-                isEditing={editingTag === tag}
-                onRenameComplete={onTagRenameComplete}
-                onRenameCancel={onTagRenameCancel}
-              />
-            ))}
-          </div>
-        )}
+        {tagsWithCounts.map(({ tag, count }) => (
+          <SidebarItemTag
+            key={tag}
+            tag={tag}
+            count={count}
+            isSelected={
+              selection.type === 'tag' &&
+              (selectedTagIds?.has(tag) || selection.itemId === tag) &&
+              selection.context === 'all'
+            }
+            hasOpenContextMenu={openContextMenuId === tag}
+            onClick={(e) => onTagMultiSelect?.(tag, e, 'all')}
+            actions={getTagActions ? getTagActions(tag) : undefined}
+            isEditing={editingTag === tag}
+            onRenameComplete={onTagRenameComplete}
+            onRenameCancel={onTagRenameCancel}
+          />
+        ))}
       </SidebarSection>
     </div>
   );

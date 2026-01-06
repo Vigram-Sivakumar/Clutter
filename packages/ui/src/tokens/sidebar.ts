@@ -4,25 +4,31 @@
  */
 
 export const sidebarLayout = {
-  // Section spacing
-  sectionGap: '4px', // Gap between FAVOURITES, FOLDERS, TAGS sections
-  headerToItemsGap: '0px', // Gap between section header and first item (e.g., "FAVOURITES" → items)
-  sectionContentPaddingBottom: '8px', // Bottom padding for section content wrapper
+  // --- Vertical Spacing (top to bottom hierarchy) ---
+  sectionToSectionGap: '4px', // Between major sections (Inbox → Today → Upcoming → Completed)
+  sectionHeaderToContentGroups: '0px', // Between section header and its first item (e.g., "Today" → "Overdue")
+  groupTitleToItemsGap: '0px', // Between group title and its first item (e.g., "Overdue" → first task)
+  itemToItemGap: '0px', // Between individual items within a section (task → task, note → note)
+  sectionContentPaddingBottom: '0px', // Bottom padding inside section content (before next section starts)
 
-  // Item spacing
-  itemGap: '2px', // Gap between individual items (notes, folders, tags, headers)
-  itemHeight: '28px', // All items same height
-  groupTitleHeight: '32px', // Group title height (date groups, category headers)
-  itemPaddingX: '4px', // Left & right padding inside item (items)
-  itemBorderRadius: '6px', // Item corner radius
+  // --- Item Sizing ---
+  itemHeight: '28px', // Universal height for all items (notes, folders, tasks, headers, groups)
+  itemPaddingX: '4px', // Horizontal padding inside each item (left & right)
+  itemBorderRadius: '6px', // Corner radius for item backgrounds
 
-  // Header-specific (slight variations from items)
-  headerPaddingX: '8px', // Headers have more padding
+  // --- Empty State ---
+  emptyStatePaddingTop: '4px', // Top padding for empty state message
+  emptyStatePaddingRight: '4px', // Right padding for empty state message
+  emptyStatePaddingBottom: '4px', // Bottom padding for empty state message
+  emptyStatePaddingLeft: '4px', // Left padding for empty state message (base, before indent)
+  emptyStateFontSize: '12px', // Font size for empty state message
+  emptyStateLineHeight: '1.5', // Line height for empty state message
+  emptyStateTextColor: 'tertiary', // Text color key for empty state (maps to colors.text[key])
 
-  // Item internal spacing
-  itemContentGap: '4px', // Gap between icon → label
-  itemActionsGap: '2px', // Gap between action buttons
-  itemRightSideGap: '2px', // Gap between label → actions → badge → chevron
+  // --- Horizontal Spacing (inside each item, left to right) ---
+  itemContentGap: '4px', // Between icon/emoji and label text
+  itemRightSideGap: '2px', // Between label and right-side elements (quick add → badge → chevron)
+  itemActionsGap: '2px', // Between multiple action buttons (if present)
 
   // Indentation
   indentPerLevel: '24px', // Each nesting level adds 24px
@@ -30,7 +36,8 @@ export const sidebarLayout = {
 
   // Icon/Button sizes
   iconButtonSize: '20px', // All icon buttons (emoji, folder, chevron)
-  iconSize: '16px', // Icon inside button
+  iconSize: '16px', // Phosphor icon size (calendar, folder icons, etc.)
+  emojiSize: '14px', // Emoji font size (notes, folders)
   badgeMinSize: '20px', // Badge/count container
 
   // Typography

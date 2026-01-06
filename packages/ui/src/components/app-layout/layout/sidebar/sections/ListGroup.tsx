@@ -34,7 +34,7 @@ export const SidebarListGroup = ({
       style={{
         display: 'flex',
         flexDirection: 'column',
-        gap: sidebarLayout.itemGap,
+        gap: sidebarLayout.groupTitleToItemsGap,
         width: '100%',
         minWidth: 0, // Allow shrinking below content size
       }}
@@ -62,7 +62,7 @@ export const SidebarListGroup = ({
               position: 'absolute',
               left: '12.5px', // Center of 3px line aligned with folder icon center
               top: 0,
-              bottom: `-${sidebarLayout.itemGap}`,
+              bottom: `-${sidebarLayout.groupTitleToItemsGap}`,
               width: '3px',
               backgroundColor: connectorColor,
               borderRadius: '3px',
@@ -75,7 +75,7 @@ export const SidebarListGroup = ({
           style={{
             display: 'flex',
             flexDirection: 'column',
-            gap: sidebarLayout.itemGap,
+            gap: sidebarLayout.itemToItemGap,
             overflow: 'hidden', // Enable collapse animations for items
             width: '100%',
             minWidth: 0, // Allow shrinking below content size

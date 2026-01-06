@@ -1,8 +1,9 @@
-import { ReactNode } from 'react';
+import { ReactNode, Children } from 'react';
 import { useTheme } from '../../../../../hooks/useTheme';
 import { transitions } from '../../../../../tokens/transitions';
 import { radius } from '../../../../../tokens/radius';
 import { SidebarItem } from '../items/SidebarItem';
+import { SidebarEmptyState } from './EmptyState';
 import { sidebarLayout } from '../../../../../tokens/sidebar';
 
 interface SidebarSectionProps {
@@ -14,6 +15,9 @@ interface SidebarSectionProps {
   icon?: ReactNode; // Optional icon for the section header
   actions?: ReactNode[];
   sticky?: boolean; // Whether the section header should be sticky
+
+  // Empty state
+  emptyMessage?: string; // Message to show when section is empty
 
   // Drop target props (for section body)
   isDropTarget?: boolean;
@@ -44,6 +48,7 @@ export const SidebarSection = ({
   icon,
   actions,
   sticky = false,
+  emptyMessage,
   isDropTarget = false,
   onDragOver,
   onDragLeave,
@@ -55,27 +60,34 @@ export const SidebarSection = ({
   children,
 }: SidebarSectionProps) => {
   const { colors } = useTheme();
+
+  // Check if section is empty
+  const isEmpty = items ? items.length === 0 : Children.count(children) === 0;
+
   // Note: isDropTarget prop already controls visual feedback
   // No need for internal hover state - drag events are sufficient
 
   // Auto-render items if provided, otherwise use children
-  const content =
-    items && renderItem ? (
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: sidebarLayout.itemGap,
-          width: '100%',
-          minWidth: 0, // Allow shrinking below content size
-          paddingBottom: sidebarLayout.sectionContentPaddingBottom,
-        }}
-      >
-        {items.map((item, index) => renderItem(item, index))}
-      </div>
-    ) : (
-      children
-    );
+  const content = (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: sidebarLayout.itemToItemGap,
+        width: '100%',
+        minWidth: 0, // Allow shrinking below content size
+        paddingBottom: sidebarLayout.sectionContentPaddingBottom,
+      }}
+    >
+      {isEmpty && emptyMessage ? (
+        <SidebarEmptyState message={emptyMessage} />
+      ) : items && renderItem ? (
+        items.map((item, index) => renderItem(item, index))
+      ) : (
+        children
+      )}
+    </div>
+  );
 
   const handleDragEnter = (e: React.DragEvent) => {
     if (!onDragOver) return;
@@ -144,7 +156,7 @@ export const SidebarSection = ({
         minWidth: 0, // Allow shrinking below content size
         display: 'flex',
         flexDirection: 'column',
-        gap: sidebarLayout.headerToItemsGap,
+        gap: sidebarLayout.sectionHeaderToContentGroups,
         backgroundColor: isDropTarget ? colors.background.hover : 'transparent',
         border: `1px solid ${isDropTarget ? colors.semantic.info : 'transparent'}`,
         borderRadius: radius['6'],

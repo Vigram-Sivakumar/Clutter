@@ -220,7 +220,7 @@ export const NotesView = ({
           width: '100%',
           display: 'flex',
           flexDirection: 'column',
-          gap: sidebarLayout.itemGap,
+          gap: sidebarLayout.itemToItemGap,
         }}
       >
         <SidebarItemFolder
@@ -293,16 +293,17 @@ export const NotesView = ({
                 width: '100%',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: sidebarLayout.itemGap,
+                gap: sidebarLayout.itemToItemGap,
                 paddingBottom: sidebarLayout.sectionContentPaddingBottom,
               }}
             >
               {/* Empty state - shown when folder has no notes or subfolders */}
               {folder.notes.length === 0 &&
               (!folder.subfolders || folder.subfolders.length === 0) ? (
-                <div style={{ paddingLeft: 0 }}>
-                  <SidebarEmptyState message="Folder is empty. Use the + button to add a note." />
-                </div>
+                <SidebarEmptyState
+                  message="Folder is empty. Use the + button to add a note."
+                  level={level + 1}
+                />
               ) : (
                 <>
                   {/* Notes in folder */}
@@ -391,7 +392,7 @@ export const NotesView = ({
         width: '100%',
         display: 'flex',
         flexDirection: 'column',
-        gap: sidebarLayout.sectionGap,
+        gap: sidebarLayout.sectionToSectionGap,
       }}
     >
       {/* Favourites Section - Always visible */}
@@ -406,82 +407,67 @@ export const NotesView = ({
           onNoteDragLeaveForReorder?.();
           onFolderDragLeaveForReorder?.();
         }}
+        emptyMessage={SECTIONS['favourites-notes'].emptyMessage}
       >
-        {favouriteNotes.length === 0 && favouriteFolders.length === 0 ? (
-          <SidebarEmptyState
-            message={SECTIONS['favourites-notes'].emptyMessage}
-          />
-        ) : (
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: sidebarLayout.itemGap,
-              paddingTop: '2px',
-              paddingBottom: '2px',
-            }}
-          >
-            {/* Favorite Folders - Fully functional with expansion */}
-            {favouriteFolders.map((folder) =>
-              renderFolder(folder, 0, 'favourites')
-            )}
-
-            {/* Favorite Notes */}
-            {favouriteNotes.map((note) => (
-              <SidebarItemNote
-                key={note.id}
-                id={note.id}
-                title={note.title}
-                icon={note.icon || undefined}
-                hasContent={note.hasContent}
-                isSelected={
-                  selection.type === 'note' &&
-                  (selection.multiSelectIds?.has(note.id) ||
-                    selection.itemId === note.id) &&
-                  selection.context === 'favourites'
-                }
-                hasOpenContextMenu={openContextMenuId === note.id}
-                level={0}
-                onClick={(e) => onFavouriteClick(note.id, e)}
-                actions={getNoteActions ? getNoteActions(note.id) : undefined}
-                onDragStart={onNoteDragStart}
-                onDragEnd={onDragEnd}
-                isDragging={draggedItemId?.includes(note.id) || false}
-                context="favourites"
-                onDragOverForReorder={(id, pos) =>
-                  onNoteDragOverForReorder?.(id, pos, 'favourites')
-                }
-                onDragLeaveForReorder={onNoteDragLeaveForReorder}
-                onDropForReorder={(id, pos) => {
-                  console.log(
-                    '[SidebarNotesView] 📝 Note Drop For Reorder (Favourites):',
-                    {
-                      noteId: id,
-                      position: pos,
-                      context: 'favourites',
-                    }
-                  );
-                  onNoteDropForReorder?.(id, pos, 'favourites');
-                }}
-                dropPosition={
-                  reorderDropTarget?.type === 'note' &&
-                  reorderDropTarget?.id === note.id
-                    ? reorderDropTarget.position
-                    : null
-                }
-                onClearAllReorderIndicators={() => {
-                  // Clear both note and folder reorder indicators
-                  onNoteDragLeaveForReorder?.();
-                  onFolderDragLeaveForReorder?.();
-                }}
-                isEditing={editingNoteId === note.id}
-                onRenameComplete={onNoteRenameComplete}
-                onRenameCancel={onNoteRenameCancel}
-                onEmojiClick={onNoteEmojiClick}
-              />
-            ))}
-          </div>
+        {/* Favorite Folders - Fully functional with expansion */}
+        {favouriteFolders.map((folder) =>
+          renderFolder(folder, 0, 'favourites')
         )}
+
+        {/* Favorite Notes */}
+        {favouriteNotes.map((note) => (
+          <SidebarItemNote
+            key={note.id}
+            id={note.id}
+            title={note.title}
+            icon={note.icon || undefined}
+            hasContent={note.hasContent}
+            isSelected={
+              selection.type === 'note' &&
+              (selection.multiSelectIds?.has(note.id) ||
+                selection.itemId === note.id) &&
+              selection.context === 'favourites'
+            }
+            hasOpenContextMenu={openContextMenuId === note.id}
+            level={0}
+            onClick={(e) => onFavouriteClick(note.id, e)}
+            actions={getNoteActions ? getNoteActions(note.id) : undefined}
+            onDragStart={onNoteDragStart}
+            onDragEnd={onDragEnd}
+            isDragging={draggedItemId?.includes(note.id) || false}
+            context="favourites"
+            onDragOverForReorder={(id, pos) =>
+              onNoteDragOverForReorder?.(id, pos, 'favourites')
+            }
+            onDragLeaveForReorder={onNoteDragLeaveForReorder}
+            onDropForReorder={(id, pos) => {
+              console.log(
+                '[SidebarNotesView] 📝 Note Drop For Reorder (Favourites):',
+                {
+                  noteId: id,
+                  position: pos,
+                  context: 'favourites',
+                }
+              );
+              onNoteDropForReorder?.(id, pos, 'favourites');
+            }}
+            dropPosition={
+              reorderDropTarget?.type === 'note' &&
+              reorderDropTarget?.id === note.id
+                ? reorderDropTarget.position
+                : null
+            }
+            onClearAllReorderIndicators={() => {
+              // Clear both note and folder reorder indicators
+              onNoteDragLeaveForReorder?.();
+              onFolderDragLeaveForReorder?.();
+            }}
+            isEditing={editingNoteId === note.id}
+            onRenameComplete={onNoteRenameComplete}
+            onRenameCancel={onNoteRenameCancel}
+            onEmojiClick={onNoteEmojiClick}
+          />
+        ))}
       </SidebarSection>
 
       {/* Folders Section */}
@@ -510,7 +496,7 @@ export const NotesView = ({
               width: '100%',
               display: 'flex',
               flexDirection: 'column',
-              gap: sidebarLayout.itemGap,
+              gap: sidebarLayout.itemToItemGap,
             }}
           >
             <SidebarItemFolder
@@ -563,17 +549,16 @@ export const NotesView = ({
                     width: '100%',
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: sidebarLayout.itemGap,
+                    gap: sidebarLayout.itemToItemGap,
                     paddingTop: '2px',
                     paddingBottom: '2px',
                   }}
                 >
                   {clutteredNotes.length === 0 ? (
-                    <div style={{ paddingLeft: '28px' }}>
-                      <SidebarEmptyState
-                        message={SECTIONS.cluttered.emptyMessage}
-                      />
-                    </div>
+                    <SidebarEmptyState
+                      message={SECTIONS.cluttered.emptyMessage}
+                      level={0}
+                    />
                   ) : (
                     clutteredNotes.map((note) => (
                       <SidebarItemNote

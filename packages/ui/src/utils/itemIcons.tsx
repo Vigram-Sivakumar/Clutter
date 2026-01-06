@@ -16,6 +16,7 @@ import {
   FolderOpen,
   CheckSquare,
 } from '../icons';
+import { sidebarLayout } from '../tokens/sidebar';
 
 // System folder IDs
 const SYSTEM_FOLDERS = {
@@ -68,7 +69,11 @@ export const getNoteIcon = ({
 }: GetNoteIconOptions): ReactNode => {
   // 1. Custom emoji takes priority
   if (emoji) {
-    return <span style={{ fontSize: '14px', lineHeight: 1 }}>{emoji}</span>;
+    return (
+      <span style={{ fontSize: sidebarLayout.emojiSize, lineHeight: 1 }}>
+        {emoji}
+      </span>
+    );
   }
 
   // 2. Daily notes get calendar icon - dot if has content, blank if empty
@@ -136,7 +141,11 @@ export const getFolderIcon = ({
 
   // 2. Custom emoji
   if (emoji) {
-    return <span style={{ fontSize: '14px', lineHeight: 1 }}>{emoji}</span>;
+    return (
+      <span style={{ fontSize: sidebarLayout.emojiSize, lineHeight: 1 }}>
+        {emoji}
+      </span>
+    );
   }
 
   // 3. Default folder icon - open or closed

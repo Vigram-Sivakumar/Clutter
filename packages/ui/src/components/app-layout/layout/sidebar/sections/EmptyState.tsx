@@ -1,28 +1,39 @@
 import { useTheme } from '../../../../../hooks/useTheme';
+import { sidebarLayout } from '../../../../../tokens/sidebar';
 
 interface SidebarEmptyStateProps {
   message: string;
   level?: number;
 }
 
-export const SidebarEmptyState = ({ message, level = 0 }: SidebarEmptyStateProps) => {
+export const SidebarEmptyState = ({
+  message,
+  level = 0,
+}: SidebarEmptyStateProps) => {
   const { colors } = useTheme();
-  const MAX_VISUAL_INDENT = 3;
-  const paddingLeft = 8 + (Math.min(level, MAX_VISUAL_INDENT) * 24);
+
+  const paddingLeft =
+    parseInt(sidebarLayout.emptyStatePaddingLeft) +
+    Math.min(level, sidebarLayout.maxVisualIndent) *
+      parseInt(sidebarLayout.indentPerLevel);
 
   return (
     <div
       style={{
-        padding: `2px 8px 8px 8px`,
-        fontSize: '12px',
-        color: colors.text.placeholder,
-        lineHeight: '1.5',
+        paddingTop: sidebarLayout.emptyStatePaddingTop,
+        paddingRight: sidebarLayout.emptyStatePaddingRight,
+        paddingBottom: sidebarLayout.emptyStatePaddingBottom,
+        paddingLeft: `${paddingLeft}px`,
+        fontSize: sidebarLayout.emptyStateFontSize,
+        color:
+          colors.text[
+            sidebarLayout.emptyStateTextColor as keyof typeof colors.text
+          ],
+        lineHeight: sidebarLayout.emptyStateLineHeight,
         userSelect: 'none',
-        // marginLeft: '8px',
       }}
     >
       {message}
     </div>
   );
 };
-

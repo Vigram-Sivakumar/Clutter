@@ -15,7 +15,6 @@ import { useTheme } from '../../../../../hooks/useTheme';
 import { SidebarItemTask } from '../items/TaskItem';
 import { SidebarSection } from '../sections/Section';
 import { SidebarListGroup } from '../sections/ListGroup';
-import { SidebarEmptyState } from '../sections/EmptyState';
 import { sidebarLayout } from '../../../../../tokens/sidebar';
 import { Note } from '@clutter/domain';
 import { GlobalSelection } from '../types';
@@ -311,7 +310,7 @@ export const TaskView = ({
         style={{
           display: 'flex',
           flexDirection: 'column',
-          gap: sidebarLayout.itemGap,
+          gap: sidebarLayout.itemToItemGap,
           width: '100%',
           minWidth: 0, // Allow shrinking below content size
         }}
@@ -365,7 +364,9 @@ export const TaskView = ({
                       overflow: 'hidden',
                       transition:
                         'opacity 0.3s ease, max-height 0.3s ease, margin-bottom 0.3s ease',
-                      marginBottom: isRemoving ? '0px' : sidebarLayout.itemGap,
+                      marginBottom: isRemoving
+                        ? '0px'
+                        : sidebarLayout.itemToItemGap,
                     }}
                   >
                     <SidebarItemTask
@@ -399,157 +400,101 @@ export const TaskView = ({
       style={{
         display: 'flex',
         flexDirection: 'column',
-        gap: sidebarLayout.sectionGap,
+        gap: sidebarLayout.sectionToSectionGap,
       }}
     >
       {/* Inbox Section */}
       <SidebarSection
         title={SECTIONS.inbox.label}
-        icon={renderIcon(SECTIONS.inbox.iconName, 16)}
+        icon={renderIcon(SECTIONS.inbox.iconName, 16, colors.text.default)}
         isCollapsed={taskUnplannedCollapsed}
         onToggle={() => setTaskUnplannedCollapsed(!taskUnplannedCollapsed)}
         onHeaderClick={onUnplannedHeaderClick}
+        emptyMessage={SECTIONS.inbox.emptyMessage}
         badge={
           unplannedTasks.length > 0
             ? unplannedTasks.length.toString()
             : undefined
         }
       >
-        {unplannedTasks.length === 0 ? (
-          <SidebarEmptyState message={SECTIONS.inbox.emptyMessage} />
-        ) : (
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: sidebarLayout.itemGap,
-              paddingBottom: sidebarLayout.sectionContentPaddingBottom,
-              width: '100%',
-              minWidth: 0, // Allow shrinking below content size
-            }}
-          >
-            {unplannedTasks.map((task) => {
-              const isCompleting = completingTasks.has(task.id);
-              const isRemoving = removingTasks.has(task.id);
+        {unplannedTasks.map((task) => {
+          const isCompleting = completingTasks.has(task.id);
+          const isRemoving = removingTasks.has(task.id);
 
-              return (
-                <div
-                  key={task.id}
-                  style={{
-                    opacity: isCompleting ? 0.5 : 1,
-                    maxHeight: isRemoving ? '0px' : '32px',
-                    overflow: 'hidden',
-                    transition:
-                      'opacity 0.3s ease, max-height 0.3s ease, margin-bottom 0.3s ease',
-                    marginBottom: isRemoving ? '0px' : sidebarLayout.itemGap,
-                  }}
-                >
-                  <SidebarItemTask
-                    id={task.id}
-                    noteId={task.noteId}
-                    noteTitle={task.noteTitle}
-                    text={task.text}
-                    checked={task.checked || isCompleting}
-                    isSelected={selectedTaskIds?.has(task.id)}
-                    hasOpenContextMenu={openContextMenuId === task.id}
-                    onClick={(e) => handleTaskClick(task.id, e)}
-                    onToggle={handleToggleTask}
-                    onNavigate={handleTaskNavigate}
-                    actions={getTaskActions?.(task.id, task.noteId)}
-                    isCompleting={isCompleting}
-                  />
-                </div>
-              );
-            })}
-          </div>
-        )}
+          return (
+            <div
+              key={task.id}
+              style={{
+                opacity: isCompleting ? 0.5 : 1,
+                maxHeight: isRemoving ? '0px' : '32px',
+                overflow: 'hidden',
+                transition:
+                  'opacity 0.3s ease, max-height 0.3s ease, margin-bottom 0.3s ease',
+                marginBottom: isRemoving ? '0px' : sidebarLayout.itemToItemGap,
+              }}
+            >
+              <SidebarItemTask
+                id={task.id}
+                noteId={task.noteId}
+                noteTitle={task.noteTitle}
+                text={task.text}
+                checked={task.checked || isCompleting}
+                isSelected={selectedTaskIds?.has(task.id)}
+                hasOpenContextMenu={openContextMenuId === task.id}
+                onClick={(e) => handleTaskClick(task.id, e)}
+                onToggle={handleToggleTask}
+                onNavigate={handleTaskNavigate}
+                actions={getTaskActions?.(task.id, task.noteId)}
+                isCompleting={isCompleting}
+              />
+            </div>
+          );
+        })}
       </SidebarSection>
 
       {/* Today Section */}
       <SidebarSection
         title={SECTIONS.today.label}
-        icon={renderIcon(SECTIONS.today.iconName, 16)}
+        icon={renderIcon(SECTIONS.today.iconName, 16, colors.text.default)}
         isCollapsed={taskTodayCollapsed}
         onToggle={() => setTaskTodayCollapsed(!taskTodayCollapsed)}
         onHeaderClick={onTodayHeaderClick}
+        emptyMessage={SECTIONS.today.emptyMessage}
         badge={todayTasks.length > 0 ? todayTasks.length.toString() : undefined}
       >
-        {todayTasks.length === 0 ? (
-          <SidebarEmptyState message={SECTIONS.today.emptyMessage} />
-        ) : (
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: sidebarLayout.itemGap,
-              paddingBottom: sidebarLayout.sectionContentPaddingBottom,
-              width: '100%',
-              minWidth: 0, // Allow shrinking below content size
-            }}
-          >
-            {renderGroupedTasks(groupedTodayTasks, 'today')}
-          </div>
-        )}
+        {renderGroupedTasks(groupedTodayTasks, 'today')}
       </SidebarSection>
 
       {/* Upcoming Section */}
       <SidebarSection
         title={SECTIONS.upcoming.label}
-        icon={renderIcon(SECTIONS.upcoming.iconName, 16)}
+        icon={renderIcon(SECTIONS.upcoming.iconName, 16, colors.text.default)}
         isCollapsed={taskUpcomingCollapsed}
         onToggle={() => setTaskUpcomingCollapsed(!taskUpcomingCollapsed)}
         onHeaderClick={onUpcomingHeaderClick}
+        emptyMessage={SECTIONS.upcoming.emptyMessage}
         badge={
           upcomingTasks.length > 0 ? upcomingTasks.length.toString() : undefined
         }
       >
-        {upcomingTasks.length === 0 ? (
-          <SidebarEmptyState message={SECTIONS.upcoming.emptyMessage} />
-        ) : (
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: sidebarLayout.itemGap,
-              paddingBottom: sidebarLayout.sectionContentPaddingBottom,
-              width: '100%',
-              minWidth: 0, // Allow shrinking below content size
-            }}
-          >
-            {renderGroupedTasks(groupedUpcomingTasks, 'upcoming')}
-          </div>
-        )}
+        {renderGroupedTasks(groupedUpcomingTasks, 'upcoming')}
       </SidebarSection>
 
       {/* Completed Section */}
       <SidebarSection
         title={SECTIONS.completed.label}
-        icon={renderIcon(SECTIONS.completed.iconName, 16)}
+        icon={renderIcon(SECTIONS.completed.iconName, 16, colors.text.default)}
         isCollapsed={taskCompletedCollapsed}
         onToggle={() => setTaskCompletedCollapsed(!taskCompletedCollapsed)}
         onHeaderClick={onCompletedHeaderClick}
+        emptyMessage={SECTIONS.completed.emptyMessage}
         badge={
           completedTasks.length > 0
             ? completedTasks.length.toString()
             : undefined
         }
       >
-        {completedTasks.length === 0 ? (
-          <SidebarEmptyState message={SECTIONS.completed.emptyMessage} />
-        ) : (
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: sidebarLayout.itemGap,
-              paddingBottom: sidebarLayout.sectionContentPaddingBottom,
-              width: '100%',
-              minWidth: 0, // Allow shrinking below content size
-            }}
-          >
-            {renderGroupedTasks(groupedCompletedTasks, 'completed')}
-          </div>
-        )}
+        {renderGroupedTasks(groupedCompletedTasks, 'completed')}
       </SidebarSection>
     </div>
   );
