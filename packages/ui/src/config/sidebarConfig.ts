@@ -53,7 +53,7 @@ export const SIDEBAR_TABS: Record<SidebarTabId, SidebarTabConfig> = {
   task: {
     id: 'task',
     label: 'Tasks',
-    iconName: 'CheckSquare',
+    iconName: 'CheckCircle',
     shortcut: '⌘3',
   },
   tags: {
@@ -189,7 +189,7 @@ export const SECTIONS: Record<SectionId, SectionConfig> = {
   completed: {
     id: 'completed',
     label: 'Completed',
-    iconName: 'CheckSquare',
+    iconName: 'CheckCircle',
     emptyMessage: 'No completed tasks',
     internalId: 'completed-tasks',
     breadcrumbPath: ['Tasks', 'Completed'],
