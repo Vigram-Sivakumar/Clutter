@@ -426,7 +426,7 @@ export const TaskView = ({
               flexDirection: 'column',
               gap: sidebarLayout.itemGap,
               paddingTop: '2px',
-              paddingBottom: '2px',
+              paddingBottom: '24px',
               width: '100%',
               minWidth: 0, // Allow shrinking below content size
             }}
@@ -487,7 +487,7 @@ export const TaskView = ({
               flexDirection: 'column',
               gap: sidebarLayout.itemGap,
               paddingTop: '2px',
-              paddingBottom: '2px',
+              paddingBottom: '24px',
               width: '100%',
               minWidth: 0, // Allow shrinking below content size
             }}
@@ -519,7 +519,7 @@ export const TaskView = ({
               flexDirection: 'column',
               gap: sidebarLayout.itemGap,
               paddingTop: '2px',
-              paddingBottom: '2px',
+              paddingBottom: '24px',
               width: '100%',
               minWidth: 0, // Allow shrinking below content size
             }}
@@ -552,7 +552,7 @@ export const TaskView = ({
               flexDirection: 'column',
               gap: sidebarLayout.itemGap,
               paddingTop: '2px',
-              paddingBottom: '2px',
+              paddingBottom: '24px',
               width: '100%',
               minWidth: 0, // Allow shrinking below content size
             }}
