@@ -479,7 +479,7 @@ export const TaskView = ({
           <div
             style={{
               minHeight: 0,
-              overflow: 'hidden',
+              overflow: 'visible',
               opacity: taskUnplannedCollapsed ? 0 : 1,
               transition: transitions.collapse.content,
             }}
@@ -570,7 +570,7 @@ export const TaskView = ({
           <div
             style={{
               minHeight: 0,
-              overflow: 'hidden',
+              overflow: 'visible',
               opacity: taskTodayCollapsed ? 0 : 1,
               transition: transitions.collapse.content,
             }}
@@ -629,7 +629,7 @@ export const TaskView = ({
           <div
             style={{
               minHeight: 0,
-              overflow: 'hidden',
+              overflow: 'visible',
               opacity: taskUpcomingCollapsed ? 0 : 1,
               transition: transitions.collapse.content,
             }}
@@ -688,7 +688,7 @@ export const TaskView = ({
           <div
             style={{
               minHeight: 0,
-              overflow: 'hidden',
+              overflow: 'visible',
               opacity: taskCompletedCollapsed ? 0 : 1,
               transition: transitions.collapse.content,
             }}
