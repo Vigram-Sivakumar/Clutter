@@ -281,6 +281,7 @@ export const NotesView = ({
             gridTemplateRows: folder.isOpen ? '1fr' : '0fr',
             transition: transitions.collapse.height,
             overflow: 'visible',
+            maxWidth: '100%',
           }}
         >
           <div
@@ -289,6 +290,7 @@ export const NotesView = ({
               overflow: 'visible',
               opacity: folder.isOpen ? 1 : 0,
               transition: transitions.collapse.content,
+              maxWidth: '100%',
             }}
           >
             <div
@@ -297,6 +299,7 @@ export const NotesView = ({
                 display: 'flex',
                 flexDirection: 'column',
                 gap: sidebarLayout.itemGap,
+                maxWidth: '100%',
                 paddingTop: '2px',
                 paddingBottom: '2px',
               }}

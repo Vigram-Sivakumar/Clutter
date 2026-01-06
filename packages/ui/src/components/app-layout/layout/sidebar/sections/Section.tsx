@@ -178,6 +178,7 @@ export const SidebarSection = ({
           gridTemplateRows: isCollapsed ? '0fr' : '1fr',
           transition: transitions.collapse.height,
           overflow: 'visible',
+          maxWidth: '100%',
         }}
       >
         <div
