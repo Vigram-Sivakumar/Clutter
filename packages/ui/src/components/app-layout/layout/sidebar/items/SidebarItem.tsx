@@ -1265,7 +1265,10 @@ export const SidebarItem = ({
               display: 'flex',
               alignItems: 'center',
               width: '100%',
-              height: DESIGN.sizing.height,
+              height:
+                variant === 'group'
+                  ? sidebarLayout.groupTitleHeight
+                  : DESIGN.sizing.height,
               paddingLeft: DESIGN.spacing.paddingX,
               paddingRight: DESIGN.spacing.paddingX,
               boxSizing: 'border-box',

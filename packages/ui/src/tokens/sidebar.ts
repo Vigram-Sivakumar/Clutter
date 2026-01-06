@@ -12,6 +12,7 @@ export const sidebarLayout = {
   // Item spacing
   itemGap: '2px', // Gap between individual items (notes, folders, tags, headers)
   itemHeight: '28px', // All items same height
+  groupTitleHeight: '32px', // Group title height (date groups, category headers)
   itemPaddingX: '4px', // Left & right padding inside item (items)
   itemBorderRadius: '6px', // Item corner radius
 
