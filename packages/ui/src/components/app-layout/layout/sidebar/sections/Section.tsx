@@ -67,10 +67,10 @@ export const SidebarSection = ({
           flexDirection: 'column',
           gap: sidebarLayout.itemGap,
           width: '100%',
-          maxWidth: '100%',
           paddingTop: '2px',
           paddingBottom: '2px',
-          overflow: 'hidden',
+          overflowX: 'hidden',
+          overflowY: 'visible',
         }}
       >
         {items.map((item, index) => renderItem(item, index))}
@@ -143,7 +143,6 @@ export const SidebarSection = ({
       {...dragHandlers}
       style={{
         width: '100%',
-        maxWidth: '100%',
         display: 'flex',
         flexDirection: 'column',
         gap: sidebarLayout.headerToItemsGap,
@@ -151,7 +150,8 @@ export const SidebarSection = ({
         border: `1px solid ${isDropTarget ? colors.semantic.info : 'transparent'}`,
         borderRadius: radius['6'],
         transition: 'background-color 150ms ease, border-color 150ms ease',
-        overflow: 'hidden',
+        overflowX: 'hidden',
+        overflowY: 'visible',
       }}
     >
       {/* Section Header - using SidebarItem with variant='header' */}
@@ -177,15 +177,15 @@ export const SidebarSection = ({
           display: 'grid',
           gridTemplateRows: isCollapsed ? '0fr' : '1fr',
           transition: transitions.collapse.height,
-          overflow: 'visible',
-          maxWidth: '100%',
+          overflowX: 'hidden',
+          overflowY: 'visible',
         }}
       >
         <div
           style={{
             minHeight: 0,
-            maxWidth: '100%',
-            overflow: 'visible',
+            overflowX: 'hidden',
+            overflowY: 'visible',
             opacity: isCollapsed ? 0 : 1,
             transition: transitions.collapse.content,
           }}

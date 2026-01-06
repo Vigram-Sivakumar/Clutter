@@ -218,11 +218,11 @@ export const NotesView = ({
         key={folder.id}
         style={{
           width: '100%',
-          maxWidth: '100%',
           display: 'flex',
           flexDirection: 'column',
           gap: sidebarLayout.itemGap,
-          overflow: 'hidden',
+          overflowX: 'hidden',
+          overflowY: 'visible',
         }}
       >
         <SidebarItemFolder
@@ -280,17 +280,17 @@ export const NotesView = ({
             display: 'grid',
             gridTemplateRows: folder.isOpen ? '1fr' : '0fr',
             transition: transitions.collapse.height,
-            overflow: 'visible',
-            maxWidth: '100%',
+            overflowX: 'hidden',
+            overflowY: 'visible',
           }}
         >
           <div
             style={{
               minHeight: 0,
-              overflow: 'visible',
+              overflowX: 'hidden',
+              overflowY: 'visible',
               opacity: folder.isOpen ? 1 : 0,
               transition: transitions.collapse.content,
-              maxWidth: '100%',
             }}
           >
             <div
@@ -299,7 +299,6 @@ export const NotesView = ({
                 display: 'flex',
                 flexDirection: 'column',
                 gap: sidebarLayout.itemGap,
-                maxWidth: '100%',
                 paddingTop: '2px',
                 paddingBottom: '2px',
               }}
@@ -396,11 +395,11 @@ export const NotesView = ({
       }}
       style={{
         width: '100%',
-        maxWidth: '100%',
         display: 'flex',
         flexDirection: 'column',
         gap: sidebarLayout.sectionGap,
-        overflow: 'hidden',
+        overflowX: 'hidden',
+        overflowY: 'visible',
       }}
     >
       {/* Favourites Section - Always visible */}
@@ -554,13 +553,15 @@ export const NotesView = ({
                 display: 'grid',
                 gridTemplateRows: !isClutteredCollapsed ? '1fr' : '0fr',
                 transition: transitions.collapse.height,
-                overflow: 'visible',
+                overflowX: 'hidden',
+                overflowY: 'visible',
               }}
             >
               <div
                 style={{
                   minHeight: 0,
-                  overflow: 'visible',
+                  overflowX: 'hidden',
+                  overflowY: 'visible',
                   opacity: !isClutteredCollapsed ? 1 : 0,
                   transition: transitions.collapse.content,
                 }}

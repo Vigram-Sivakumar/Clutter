@@ -1216,9 +1216,9 @@ export const SidebarItem = ({
           top: sticky ? 0 : undefined,
           zIndex: sticky ? 10 : undefined,
           backgroundColor: sticky ? colors.background.secondary : undefined,
-          overflow: 'visible',
+          overflowX: 'hidden',
+          overflowY: 'visible',
           boxSizing: 'border-box',
-          maxWidth: '100%',
         }}
       >
         {/* Drop indicators for reordering */}
