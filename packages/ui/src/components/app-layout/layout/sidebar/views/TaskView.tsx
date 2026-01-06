@@ -353,6 +353,7 @@ export const TaskView = ({
                     id={`group-${sectionPrefix}-${date}`}
                     label={label}
                     onClick={() => {}}
+                    sticky
                   />
                 </div>
 
