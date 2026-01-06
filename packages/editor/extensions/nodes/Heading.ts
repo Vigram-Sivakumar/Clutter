@@ -1,35 +1,48 @@
 /**
  * Heading Node - H1, H2, H3 headings
- * 
+ *
  * Block-level headings with configurable level attribute.
  * Uses uniform block structure (no marker, just content).
  * No margin - parent handles spacing via gap.
- * 
+ *
  * - H1: 32px, bold
- * - H2: 24px, semibold  
+ * - H2: 24px, semibold
  * - H3: 20px, semibold
  */
 
 import { Node } from '@tiptap/core';
 import { ReactNodeViewRenderer } from '@tiptap/react';
-import { TextSelection } from '@tiptap/pm/state';
 import { Heading as HeadingComponent } from '../../components/Heading';
 import type { HeadingLevel } from '../../types';
-import { convertEmptyBlockToParagraph, insertParagraphAfterBlock, handleEmptyBlockInToggle, indentBlock, outdentBlock } from '../../utils/keyboardHelpers';
+import {
+  convertEmptyBlockToParagraph,
+  insertParagraphAfterBlock,
+  handleEmptyBlockInToggle,
+  indentBlock,
+  outdentBlock,
+} from '../../utils/keyboardHelpers';
 import { EnterRules, BackspaceRules } from '../../utils/keyboardRules';
-import { handleArrowLeft, handleArrowRight, handleArrowUp, handleArrowDown } from '../../plugins/keyboard';
+import {
+  handleArrowLeft,
+  handleArrowRight,
+  handleArrowUp,
+  handleArrowDown,
+} from '../../plugins/keyboard';
 
 declare module '@tiptap/core' {
+  // eslint-disable-next-line no-unused-vars
   interface Commands<ReturnType> {
     heading: {
       /**
        * Set a heading node with a specific level
        */
-      setHeading: (attributes: { headingLevel: HeadingLevel }) => ReturnType;
+      setHeading: (_attributes: { headingLevel: HeadingLevel }) => ReturnType;
       /**
        * Toggle a heading node with a specific level
        */
-      toggleHeading: (attributes: { headingLevel: HeadingLevel }) => ReturnType;
+      toggleHeading: (_attributes: {
+        headingLevel: HeadingLevel;
+      }) => ReturnType;
     };
   }
 }
@@ -54,7 +67,8 @@ export const Heading = Node.create({
     return {
       blockId: {
         default: null,
-        parseHTML: (element) => element.getAttribute('data-block-id') || crypto.randomUUID(),
+        parseHTML: (element) =>
+          element.getAttribute('data-block-id') || crypto.randomUUID(),
         renderHTML: (attributes) => {
           const blockId = attributes.blockId || crypto.randomUUID();
           return { 'data-block-id': blockId };
@@ -62,7 +76,8 @@ export const Heading = Node.create({
       },
       parentBlockId: {
         default: null,
-        parseHTML: (element) => element.getAttribute('data-parent-block-id') || null,
+        parseHTML: (element) =>
+          element.getAttribute('data-parent-block-id') || null,
         renderHTML: (attributes) => {
           if (attributes.parentBlockId) {
             return { 'data-parent-block-id': attributes.parentBlockId };
@@ -77,16 +92,18 @@ export const Heading = Node.create({
           const match = tag.match(/^h([1-3])$/);
           return match ? parseInt(match[1], 10) : 1;
         },
-        renderHTML: (attributes) => ({}),
+        renderHTML: (_attributes) => ({}),
       },
       level: {
         default: 0,
-        parseHTML: (element) => parseInt(element.getAttribute('data-level') || '0', 10),
+        parseHTML: (element) =>
+          parseInt(element.getAttribute('data-level') || '0', 10),
         renderHTML: (attributes) => ({ 'data-level': attributes.level || 0 }),
       },
       parentToggleId: {
         default: null,
-        parseHTML: (element) => element.getAttribute('data-parent-toggle-id') || null,
+        parseHTML: (element) =>
+          element.getAttribute('data-parent-toggle-id') || null,
         renderHTML: (attributes) => {
           if (attributes.parentToggleId) {
             return { 'data-parent-toggle-id': attributes.parentToggleId };
@@ -141,26 +158,37 @@ export const Heading = Node.create({
       ArrowRight: ({ editor }) => handleArrowRight(editor),
       ArrowUp: ({ editor }) => handleArrowUp(editor),
       ArrowDown: ({ editor }) => handleArrowDown(editor),
-      
+
       // Cmd/Ctrl+Alt+1/2/3 for headings
-      'Mod-Alt-1': () => this.editor.commands.toggleHeading({ headingLevel: 1 }),
-      'Mod-Alt-2': () => this.editor.commands.toggleHeading({ headingLevel: 2 }),
-      'Mod-Alt-3': () => this.editor.commands.toggleHeading({ headingLevel: 3 }),
+      'Mod-Alt-1': () =>
+        this.editor.commands.toggleHeading({ headingLevel: 1 }),
+      'Mod-Alt-2': () =>
+        this.editor.commands.toggleHeading({ headingLevel: 2 }),
+      'Mod-Alt-3': () =>
+        this.editor.commands.toggleHeading({ headingLevel: 3 }),
 
       // Tab: Indent heading
       Tab: ({ editor }) => {
         const headingContext = EnterRules.isInHeading(editor);
         if (!headingContext.inHeading) return false;
-        
-        return indentBlock(editor, headingContext.headingPos!, headingContext.headingNode!);
+
+        return indentBlock(
+          editor,
+          headingContext.headingPos!,
+          headingContext.headingNode!
+        );
       },
 
       // Shift-Tab: Outdent heading
       'Shift-Tab': ({ editor }) => {
         const headingContext = EnterRules.isInHeading(editor);
         if (!headingContext.inHeading) return false;
-        
-        return outdentBlock(editor, headingContext.headingPos!, headingContext.headingNode!);
+
+        return outdentBlock(
+          editor,
+          headingContext.headingPos!,
+          headingContext.headingNode!
+        );
       },
 
       // Shift+Enter: Insert line break (soft break)
@@ -168,19 +196,22 @@ export const Heading = Node.create({
         // Check if we're inside a heading
         const { state } = editor;
         const { $from } = state.selection;
-        
+
         if ($from.parent.type.name === this.name) {
           return editor.commands.setHardBreak();
         }
-        
+
         return false;
       },
 
       // Enter keeps all text in heading, creates empty paragraph below
       Enter: ({ editor }) => {
+        console.log('[OLD Heading.Enter] Handler called');
+
         const headingContext = EnterRules.isInHeading(editor);
-          
+
         if (!headingContext.inHeading) {
+          console.log('[OLD Heading.Enter] Not in heading, returning false');
           return false;
         }
 
@@ -189,14 +220,43 @@ export const Heading = Node.create({
         const attrs = headingNode.attrs;
         const parentToggleId = attrs.parentToggleId;
         const isEmpty = headingNode.textContent === '';
-        
+
+        console.log('[OLD Heading.Enter] In heading', {
+          isEmpty,
+          pos: headingPos,
+          parentToggleId,
+        });
+
         // Handle empty heading using shared handler
         if (isEmpty) {
-          return handleEmptyBlockInToggle(editor, headingPos, headingNode, 'heading');
+          console.log(
+            '[OLD Heading.Enter] Empty heading, using handleEmptyBlockInToggle'
+          );
+          return handleEmptyBlockInToggle(
+            editor,
+            headingPos,
+            headingNode,
+            'heading'
+          );
         }
-        
+
         // Non-empty: Create paragraph after heading
-        return insertParagraphAfterBlock(editor, headingPos, headingNode);
+        console.log(
+          '[OLD Heading.Enter] Non-empty heading, calling insertParagraphAfterBlock'
+        );
+        const result = insertParagraphAfterBlock(
+          editor,
+          headingPos,
+          headingNode
+        );
+
+        console.log('[OLD Heading.Enter] After insertParagraphAfterBlock', {
+          result,
+          selectionFrom: editor.state.selection.from,
+          selectionTo: editor.state.selection.to,
+        });
+
+        return result;
       },
 
       // Backspace at start of empty heading converts to paragraph
@@ -212,7 +272,7 @@ export const Heading = Node.create({
         // (KEEP ALL EXECUTION CODE)
         const heading = context.heading!;
         const headingPos = context.headingPos!;
-        
+
         return convertEmptyBlockToParagraph(editor, headingPos, heading);
       },
     };

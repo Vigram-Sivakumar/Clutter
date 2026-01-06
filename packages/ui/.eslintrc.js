@@ -1,5 +1,13 @@
 module.exports = {
   extends: ['../../.eslintrc.js'],
+  env: {
+    browser: true,
+    es2022: true,
+  },
+  globals: {
+    React: 'readonly',
+    NodeJS: 'readonly',
+  },
   rules: {
     // 🔒 UI BOUNDARY: Presentational components
     // ✅ CAN import: domain, state, shared
@@ -13,7 +21,8 @@ module.exports = {
         patterns: [
           {
             group: ['@clutter/editor', '@clutter/editor/*'],
-            message: '⚠️ ui should not import from editor. Apps compose editor + ui. (Will be enforced after Phase 2-4)',
+            message:
+              '⚠️ ui should not import from editor. Apps compose editor + ui. (Will be enforced after Phase 2-4)',
           },
         ],
       },

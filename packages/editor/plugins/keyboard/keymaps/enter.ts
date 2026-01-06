@@ -1,9 +1,9 @@
 /**
  * Enter Keymap
- * 
+ *
  * Aggregates all Enter rules into a single handler.
  * This is the new way to handle Enter behavior.
- * 
+ *
  * Usage in TipTap extension:
  * ```ts
  * addKeyboardShortcuts() {
@@ -41,11 +41,31 @@ const enterEngine = createKeyboardEngine([
 
 /**
  * Handle Enter key press
- * 
+ *
  * @param editor - TipTap editor instance
  * @returns true if handled, false to allow default behavior
  */
 export function handleEnter(editor: Editor): boolean {
-  return enterEngine.handle(editor, 'Enter');
-}
+  const { state } = editor;
 
+  console.log('⌨️  [ENTER KEY PRESSED] ════════════════════════════════');
+  console.log('📍 [Enter Handler] Starting Enter key handling', {
+    from: state.selection.from,
+    to: state.selection.to,
+    parentType: state.selection.$from.parent.type.name,
+    parentText: state.selection.$from.parent.textContent.substring(0, 50),
+  });
+
+  const handled = enterEngine.handle(editor, 'Enter');
+
+  const newState = editor.state;
+  console.log('✅ [Enter Handler] Enter key handling complete', {
+    handled,
+    from: newState.selection.from,
+    to: newState.selection.to,
+    parentType: newState.selection.$from.parent.type.name,
+  });
+  console.log('════════════════════════════════════════════════════════');
+
+  return handled;
+}

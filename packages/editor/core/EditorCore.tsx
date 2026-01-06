@@ -1,10 +1,16 @@
 /**
  * EditorCore - Main Tiptap editor component
- * 
+ *
  * Core editor with all extensions, plugins, and behavior.
  */
 
-import React, { useEffect, useCallback, forwardRef, useImperativeHandle, useRef } from 'react';
+import React, {
+  useEffect,
+  useCallback,
+  forwardRef,
+  useImperativeHandle,
+  useRef,
+} from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import { Editor } from '@tiptap/core';
 import { NodeSelection } from '@tiptap/pm/state';
@@ -12,7 +18,7 @@ import { logSelectionTypeChange } from '../utils/selectionDebug';
 
 export interface EditorCoreHandle {
   focus: () => void;
-  scrollToBlock: (blockId: string, highlight?: boolean) => void;
+  scrollToBlock: (_blockId: string, _highlight?: boolean) => void;
 }
 
 // Extensions
@@ -82,9 +88,9 @@ import HardBreak from '@tiptap/extension-hard-break';
 
 interface EditorCoreProps {
   content?: object | null;
-  onChange?: (content: object) => void;
-  onTagClick?: (tag: string) => void; // Callback when a tag is clicked for navigation
-  onNavigate?: (linkType: 'note' | 'folder', targetId: string) => void; // Callback when a note/folder link is clicked
+  onChange?: (_content: object) => void;
+  onTagClick?: (_tag: string) => void; // Callback when a tag is clicked for navigation
+  onNavigate?: (_linkType: 'note' | 'folder', _targetId: string) => void; // Callback when a note/folder link is clicked
   onFocus?: () => void;
   onBlur?: () => void;
   placeholder?: string;
@@ -93,304 +99,321 @@ interface EditorCoreProps {
   style?: React.CSSProperties;
 }
 
-export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(({
-  content,
-  onChange,
-  onTagClick,
-  onNavigate,
-  onFocus,
-  onBlur,
-  // placeholder prop kept for API compatibility but not used
-  // (placeholders are handled by individual React components)
-  placeholder: _placeholder = placeholders.default,
-  editable = true,
-  className,
-  style,
-}, ref) => {
-  const { colors } = useTheme();
-  const { availableTags } = useEditorContext();
-  
-  // Track if we're updating from the editor (to prevent clearing history)
-  const isInternalUpdate = useRef(false);
-
-  // Create editor instance
-  const editor = useEditor({
-    extensions: [
-      // Core nodes
-      Document,
-      Text,
-      Paragraph,
-      Heading,
-      ListBlock,
-      Blockquote,
-      CodeBlock,
-      HorizontalRule,
-      HardBreak.configure({
-        // Don't bind Shift+Enter - we handle it in individual node extensions
-        keepMarks: true,
-      }),
-      Link, // Standard link mark (browser default behavior)
-      Callout, // Info/warning/error/success callout boxes
-      ToggleHeader, // Standalone toggle header (flat structure like ListBlock)
-      DateMentionNode, // Date mentions (@Today, @Yesterday, etc.) - atomic inline node
-      NoteLink.configure({
-        onNavigate, // Pass navigation callback to NoteLink extension
-      }), // Note/folder links (no @) - atomic inline node
-      Gapcursor, // Shows cursor when navigating around atomic nodes
-
-      // Marks
-      Bold,
-      Italic,
-      Underline,
-      Strike,
-      Code,
-      WavyUnderline,
-      TextColor, // Text foreground color
-      CustomHighlight, // Highlight with bg color
-
-      // Plugins
-      BlockIdGenerator, // Auto-generate blockId for all blocks
-      MarkdownShortcuts,
-      SlashCommands,
-      TaskPriority, // Highlight priority indicators (!, !!, !!!) in tasks
-      BackspaceHandler,
-      TabHandler, // Global Tab handler - prevents focus navigation
-      EscapeMarks,
-      DoubleSpaceEscape,
-      SelectAll, // Progressive Cmd+A: block text → block node → all blocks
-      BlockDeletion, // Handle DELETE/Backspace for node-selected blocks
-      HashtagDetection, // Simple #tag detection (moves to metadata)
-      HashtagAutocomplete.configure({
-        getColors: () => colors,
-        getTags: () => availableTags,
-      }),
-      AtMention.configure({
-        getColors: () => colors,
-      }),
-      // FocusFade, // Fade text before cursor for better focus - Disabled for now
-
-      // Built-in extensions
-      History.configure({
-        depth: 100,
-        // Extremely short delay for granular undo (like Notion) - creates new group after 1ms pause
-        // This ensures each rapid action can potentially be its own undo step
-        newGroupDelay: 1,
-      }),
-      UndoBoundaries, // Create undo boundaries on spaces and line breaks (Notion-like behavior)
-
-      // DISABLED: TipTap Placeholder uses CSS ::before which shows placeholder BEFORE markers
-      // We use React-based placeholders in each component instead
-      // Placeholder.configure({...}),
-    ] as any[],
-    content: content || {
-      type: 'doc',
-      content: [{ type: 'paragraph' }],
+export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
+  (
+    {
+      content,
+      onChange,
+      onTagClick,
+      onNavigate,
+      onFocus,
+      onBlur,
+      // placeholder prop kept for API compatibility but not used
+      // (placeholders are handled by individual React components)
+      placeholder: _placeholder = placeholders.default,
+      editable = true,
+      className,
+      style,
     },
-    editable,
-    editorProps: {
-      attributes: {
-        class: 'editor-content',
+    ref
+  ) => {
+    const { colors } = useTheme();
+    const { availableTags } = useEditorContext();
+
+    // Track if we're updating from the editor (to prevent clearing history)
+    const isInternalUpdate = useRef(false);
+
+    // Create editor instance
+    const editor = useEditor({
+      extensions: [
+        // Core nodes
+        Document,
+        Text,
+        Paragraph,
+        Heading,
+        ListBlock,
+        Blockquote,
+        CodeBlock,
+        HorizontalRule,
+        HardBreak.configure({
+          // Don't bind Shift+Enter - we handle it in individual node extensions
+          keepMarks: true,
+        }),
+        Link, // Standard link mark (browser default behavior)
+        Callout, // Info/warning/error/success callout boxes
+        ToggleHeader, // Standalone toggle header (flat structure like ListBlock)
+        DateMentionNode, // Date mentions (@Today, @Yesterday, etc.) - atomic inline node
+        NoteLink.configure({
+          onNavigate, // Pass navigation callback to NoteLink extension
+        }), // Note/folder links (no @) - atomic inline node
+        Gapcursor, // Shows cursor when navigating around atomic nodes
+
+        // Marks
+        Bold,
+        Italic,
+        Underline,
+        Strike,
+        Code,
+        WavyUnderline,
+        TextColor, // Text foreground color
+        CustomHighlight, // Highlight with bg color
+
+        // Plugins
+        BlockIdGenerator, // Auto-generate blockId for all blocks
+        MarkdownShortcuts,
+        SlashCommands,
+        TaskPriority, // Highlight priority indicators (!, !!, !!!) in tasks
+        BackspaceHandler,
+        TabHandler, // Global Tab handler - prevents focus navigation
+        EscapeMarks,
+        DoubleSpaceEscape,
+        SelectAll, // Progressive Cmd+A: block text → block node → all blocks
+        BlockDeletion, // Handle DELETE/Backspace for node-selected blocks
+        HashtagDetection, // Simple #tag detection (moves to metadata)
+        HashtagAutocomplete.configure({
+          getColors: () => colors,
+          getTags: () => availableTags,
+        }),
+        AtMention.configure({
+          getColors: () => colors,
+        }),
+        // FocusFade, // Fade text before cursor for better focus - Disabled for now
+
+        // Built-in extensions
+        History.configure({
+          depth: 100,
+          // Extremely short delay for granular undo (like Notion) - creates new group after 1ms pause
+          // This ensures each rapid action can potentially be its own undo step
+          newGroupDelay: 1,
+        }),
+        UndoBoundaries, // Create undo boundaries on spaces and line breaks (Notion-like behavior)
+
+        // DISABLED: TipTap Placeholder uses CSS ::before which shows placeholder BEFORE markers
+        // We use React-based placeholders in each component instead
+        // Placeholder.configure({...}),
+      ] as any[],
+      content: content || {
+        type: 'doc',
+        content: [{ type: 'paragraph' }],
       },
-      handleDOMEvents: {
-        mousedown: (_view, event) => {
-          // 🛡️ Prevent browser from creating DIV-level selection
-          // ProseMirror manages selection, not the browser
-          event.preventDefault();
-          return false;
+      editable,
+      editorProps: {
+        attributes: {
+          class: 'editor-content',
         },
-        focus: () => {
-          onFocus?.();
-          return false; // Allow default focus behavior
-        },
-        blur: () => {
-          onBlur?.();
-          return false; // Allow default blur behavior
+        handleDOMEvents: {
+          // ❌ REMOVED mousedown preventDefault - it prevented clicking into empty blocks
+          // ProseMirror handles its own selection and mousedown behavior
+          // We don't need to prevent default browser behavior
+          focus: () => {
+            onFocus?.();
+            return false; // Allow default focus behavior
+          },
+          blur: () => {
+            onBlur?.();
+            return false; // Allow default blur behavior
+          },
         },
       },
-    },
-    onUpdate: ({ editor, transaction }) => {
-      // Sync DOM selection when PM selection type changes (fixes sticky halo bug)
-      logSelectionTypeChange(editor);
-      
-      // Only fire onChange if document actually changed (not just selection)
-      if (onChange && transaction.docChanged) {
-        // Mark that this update is coming from the editor (internal)
-        isInternalUpdate.current = true;
-        onChange(editor.getJSON());
-        // Reset flag after a short delay to allow parent to update prop
-        setTimeout(() => {
-          isInternalUpdate.current = false;
-        }, 0);
-      }
-    },
-    onSelectionUpdate: ({ editor }) => {
-      // Sync DOM selection when PM selection type changes (fixes sticky halo bug)
-      logSelectionTypeChange(editor);
-    },
-  });
+      onUpdate: ({ editor, transaction }) => {
+        // Sync DOM selection when PM selection type changes (fixes sticky halo bug)
+        logSelectionTypeChange(editor);
 
-  // Store onTagClick callback in editor instance so node views can access it
-  useEffect(() => {
-    if (editor) {
-      (editor as any).onTagClick = onTagClick;
-    }
-  }, [editor, onTagClick]);
+        // Only fire onChange if document actually changed (not just selection)
+        if (onChange && transaction.docChanged) {
+          console.log('📝 [EditorCore] Document changed - firing onChange');
+          // Mark that this update is coming from the editor (internal)
+          isInternalUpdate.current = true;
+          onChange(editor.getJSON());
+          // Reset flag after a short delay to allow parent to update prop
+          setTimeout(() => {
+            isInternalUpdate.current = false;
+          }, 0);
+        }
+      },
+      onSelectionUpdate: ({ editor }) => {
+        // Sync DOM selection when PM selection type changes (fixes sticky halo bug)
+        logSelectionTypeChange(editor);
+      },
+    });
 
-  // Expose methods to parent via ref
-  useImperativeHandle(ref, () => ({
-    focus: () => {
+    // Store onTagClick callback in editor instance so node views can access it
+    useEffect(() => {
       if (editor) {
-        const { doc } = editor.state;
-        const lastNode = doc.lastChild;
-        const isLastBlockEmpty = lastNode && lastNode.textContent.trim() === '';
-
-        if (isLastBlockEmpty) {
-          // Just focus the existing empty block
-          editor.commands.focus('end');
-        } else {
-          // Create a new paragraph and focus it
-          editor.commands.focus('end');
-          editor.commands.insertContentAt(doc.content.size, { type: 'paragraph' });
-          editor.commands.focus('end');
-        }
+        (editor as any).onTagClick = onTagClick;
       }
-    },
-    scrollToBlock: (blockId: string, highlight: boolean = true) => {
-      if (!editor) return;
+    }, [editor, onTagClick]);
 
-      // Find the block position in the document by blockId
-      const { doc } = editor.state;
-      let blockPos: number | null = null;
-      
-      doc.descendants((node, pos) => {
-        if (node.attrs?.blockId === blockId) {
-          blockPos = pos;
-          return false; // Stop searching
-        }
-        return true;
-      });
-      
-      if (blockPos === null) return;
-      
-      // Find the DOM element with data-block-id attribute for scrolling
-      const blockElement = document.querySelector(`[data-block-id="${blockId}"]`);
-      
-      if (blockElement) {
-        // Scroll into view if not visible
-        const rect = blockElement.getBoundingClientRect();
-        const isInViewport = (
-          rect.top >= 0 &&
-          rect.bottom <= window.innerHeight
-        );
+    // Expose methods to parent via ref
+    useImperativeHandle(
+      ref,
+      () => ({
+        focus: () => {
+          if (editor) {
+            const { doc } = editor.state;
+            const lastNode = doc.lastChild;
+            const isLastBlockEmpty =
+              lastNode && lastNode.textContent.trim() === '';
 
-        if (!isInViewport) {
-          blockElement.scrollIntoView({ 
-            behavior: 'smooth', 
-            block: 'center' 
+            if (isLastBlockEmpty) {
+              // Just focus the existing empty block
+              editor.commands.focus('end');
+            } else {
+              // Create a new paragraph and focus it
+              editor.commands.focus('end');
+              editor.commands.insertContentAt(doc.content.size, {
+                type: 'paragraph',
+              });
+              editor.commands.focus('end');
+            }
+          }
+        },
+        scrollToBlock: (blockId: string, highlight: boolean = true) => {
+          if (!editor) return;
+
+          // Find the block position in the document by blockId
+          const { doc } = editor.state;
+          let blockPos: number | null = null;
+
+          doc.descendants((node, pos) => {
+            if (node.attrs?.blockId === blockId) {
+              blockPos = pos;
+              return false; // Stop searching
+            }
+            return true;
           });
-        }
-      }
-      
-      // Highlight the block by selecting it (shows the blue halo)
-      if (highlight) {
-        // Use NodeSelection to select the entire block (triggers halo effect)
-        const tr = editor.state.tr.setSelection(
-          NodeSelection.create(doc, blockPos)
+
+          if (blockPos === null) return;
+
+          // Find the DOM element with data-block-id attribute for scrolling
+          const blockElement = document.querySelector(
+            `[data-block-id="${blockId}"]`
+          );
+
+          if (blockElement) {
+            // Scroll into view if not visible
+            const rect = blockElement.getBoundingClientRect();
+            const isInViewport =
+              rect.top >= 0 && rect.bottom <= window.innerHeight;
+
+            if (!isInViewport) {
+              blockElement.scrollIntoView({
+                behavior: 'smooth',
+                block: 'center',
+              });
+            }
+          }
+
+          // Highlight the block by selecting it (shows the blue halo)
+          if (highlight) {
+            // Use NodeSelection to select the entire block (triggers halo effect)
+            const tr = editor.state.tr.setSelection(
+              NodeSelection.create(doc, blockPos)
+            );
+            editor.view.dispatch(tr);
+            editor.view.focus();
+
+            // Selection persists until user manually clicks elsewhere
+          }
+        },
+      }),
+      [editor]
+    );
+
+    // Update content when prop changes
+    useEffect(() => {
+      // Skip if this update is from the editor itself (internal)
+      // This prevents clearing history on every keystroke
+      if (isInternalUpdate.current) {
+        console.log(
+          '🛡️ [EditorCore] Skipping content update (internal update flag set)'
         );
-        editor.view.dispatch(tr);
-        editor.view.focus();
-        
-        // Selection persists until user manually clicks elsewhere
+        // Clear the flag after a short delay to allow for any pending renders
+        const timeoutId = setTimeout(() => {
+          isInternalUpdate.current = false;
+        }, 100);
+        return () => clearTimeout(timeoutId);
       }
-    },
-  }), [editor]);
 
-  // Update content when prop changes
-  useEffect(() => {
-    // Skip if this update is from the editor itself (internal)
-    // This prevents clearing history on every keystroke
-    if (isInternalUpdate.current) {
-      // Clear the flag after a short delay to allow for any pending renders
-      const timeoutId = setTimeout(() => {
-        isInternalUpdate.current = false;
-      }, 100);
-      return () => clearTimeout(timeoutId);
-    }
+      if (editor && content) {
+        // Only update if content is different (semantic comparison)
+        const currentContent = JSON.stringify(editor.getJSON());
+        const newContent = JSON.stringify(content);
 
-    if (editor && content) {
-      // Only update if content is different (semantic comparison)
-      const currentContent = JSON.stringify(editor.getJSON());
-      const newContent = JSON.stringify(content);
-
-      if (currentContent !== newContent) {
-        // Note: setContent clears history, so only call when content truly changed externally
-        // (e.g., loading a different note or external sync)
-        editor.commands.setContent(content, false);
-      }
-    }
-  }, [content, editor]);
-
-  // Update editable state
-  useEffect(() => {
-    if (editor) {
-      editor.setEditable(editable);
-    }
-  }, [editable, editor]);
-
-  // 🔬 FORENSIC: Log selection on focus events
-
-  // Handle click on empty space to focus editor
-  const handleWrapperClick = useCallback(
-    (e: React.MouseEvent<HTMLDivElement>) => {
-      if (!editor) return;
-
-      // Check if click is on the wrapper itself (not on content)
-      const target = e.target as HTMLElement;
-      const editorContent = target.closest('.ProseMirror');
-
-      if (!editorContent) {
-        // Click was outside editor content
-        const { doc } = editor.state;
-        const lastNode = doc.lastChild;
-        const isLastBlockEmpty = lastNode && lastNode.textContent.trim() === '';
-
-        if (isLastBlockEmpty) {
-          // Just focus the existing empty block
-          editor.commands.focus('end');
+        if (currentContent !== newContent) {
+          console.log(
+            '🔄 [EditorCore] Content prop changed - calling setContent() [WIPES SELECTION]'
+          );
+          // Note: setContent clears history, so only call when content truly changed externally
+          // (e.g., loading a different note or external sync)
+          editor.commands.setContent(content, false);
         } else {
-          // Create a new paragraph and focus it
-          editor.commands.focus('end');
-          editor.commands.insertContentAt(doc.content.size, { type: 'paragraph' });
-          editor.commands.focus('end');
+          console.log(
+            '✅ [EditorCore] Content prop changed but content is same - skipping'
+          );
         }
       }
-    },
-    [editor]
-  );
+    }, [content, editor]);
 
-  if (!editor) {
-    return null;
-  }
+    // Update editable state
+    useEffect(() => {
+      if (editor) {
+        editor.setEditable(editable);
+      }
+    }, [editable, editor]);
 
-  return (
-    <div
-      className={className}
-      style={{
-        minHeight: '100%',
-        cursor: 'text',
-        flex: 1,
-        // paddingBottom: '15vh',  // Inner clickable space (outer 30vh is on container)
-        ...style,
-      }}
-      onClick={handleWrapperClick}
-      onMouseDown={(e) => {
-        // 🛡️ Prevent browser from creating DIV-level selection
-        // ProseMirror manages all selection, browser should not interfere
-        e.preventDefault();
-      }}
-    >
-      {/* Editor styles */}
-      <style>{`
+    // 🔬 FORENSIC: Log selection on focus events
+
+    // Handle click on empty space to focus editor
+    const handleWrapperClick = useCallback(
+      (e: React.MouseEvent<HTMLDivElement>) => {
+        if (!editor) return;
+
+        // Check if click is on the wrapper itself (not on content)
+        const target = e.target as HTMLElement;
+        const editorContent = target.closest('.ProseMirror');
+
+        if (!editorContent) {
+          // Click was outside editor content
+          const { doc } = editor.state;
+          const lastNode = doc.lastChild;
+          const isLastBlockEmpty =
+            lastNode && lastNode.textContent.trim() === '';
+
+          if (isLastBlockEmpty) {
+            // Just focus the existing empty block
+            editor.commands.focus('end');
+          } else {
+            // Create a new paragraph and focus it
+            editor.commands.focus('end');
+            editor.commands.insertContentAt(doc.content.size, {
+              type: 'paragraph',
+            });
+            editor.commands.focus('end');
+          }
+        }
+      },
+      [editor]
+    );
+
+    if (!editor) {
+      return null;
+    }
+
+    return (
+      <div
+        className={className}
+        style={{
+          minHeight: '100%',
+          cursor: 'text',
+          flex: 1,
+          // paddingBottom: '15vh',  // Inner clickable space (outer 30vh is on container)
+          ...style,
+        }}
+        onClick={handleWrapperClick}
+      >
+        {/* Editor styles */}
+        <style>{`
         .ProseMirror {
           outline: none;
           font-family: ${typography.fontFamily};
@@ -543,21 +566,21 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(({
         /* Styles are handled inline in MentionPill.tsx */
       `}</style>
 
-      {/* Editor content */}
-      <EditorContent editor={editor} />
+        {/* Editor content */}
+        <EditorContent editor={editor} />
 
-      {/* Slash command menu */}
-      <SlashCommandMenu editor={editor as any} />
+        {/* Slash command menu */}
+        <SlashCommandMenu editor={editor as any} />
 
-      {/* @ mention menu (dates + links) */}
-      <AtMentionMenu editor={editor as any} />
+        {/* @ mention menu (dates + links) */}
+        <AtMentionMenu editor={editor as any} />
 
-      {/* Floating toolbar for text formatting (shows on selection) */}
-      <FloatingToolbar editor={editor} />
-    </div>
-  );
-});
+        {/* Floating toolbar for text formatting (shows on selection) */}
+        <FloatingToolbar editor={editor} />
+      </div>
+    );
+  }
+);
 
 // Export editor type for external use
 export type { Editor };
-

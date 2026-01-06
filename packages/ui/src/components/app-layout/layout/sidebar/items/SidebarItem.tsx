@@ -1,12 +1,16 @@
 import { useState, useEffect, useRef, ReactNode } from 'react';
 import { useTheme } from '../../../../../hooks/useTheme';
-import { ChevronRight, ChevronDown, Plus, MoreVertical } from '../../../../../icons';
+import { ChevronRight, ChevronDown } from '../../../../../icons';
 import { TertiaryButton } from '../../../../ui-buttons';
 import { DropIndicator } from '../internal/DropIndicator';
 import { sidebarLayout } from '../../../../../tokens/sidebar';
-import { sizing as globalSizing } from '../../../../../tokens/sizing';
+import { sizing as _globalSizing } from '../../../../../tokens/sizing';
 import { TagPill } from '../../../shared/content-header/tags/Tag';
-import { getNoteIcon, getFolderIcon, ALL_TASKS_FOLDER_ID } from '../../../../../utils/itemIcons';
+import {
+  getNoteIcon,
+  getFolderIcon,
+  ALL_TASKS_FOLDER_ID,
+} from '../../../../../utils/itemIcons';
 import { CLUTTERED_FOLDER_ID, DAILY_NOTES_FOLDER_ID } from '@clutter/domain';
 import { sidebarStyles } from '../config/sidebarConfig';
 import { animations } from '../../../../../tokens/animations';
@@ -18,31 +22,37 @@ import { Checkbox } from '../../../../ui-checkbox';
  */
 const DESIGN = {
   spacing: {
-    contentGap: sidebarLayout.itemContentGap,      // Gap between icon and label text
-    actionsGap: sidebarLayout.itemActionsGap,      // Gap between action buttons in the actions group
-    rightSideGap: sidebarLayout.itemRightSideGap,  // Gap between label, actions, badge, and chevron
-    paddingX: sidebarLayout.itemPaddingX,          // Horizontal padding inside the item
-    headerPaddingX: sidebarLayout.headerPaddingX,  // Horizontal padding for header variant
-    indentPerLevel: sidebarLayout.indentPerLevel,  // Left indent added per nesting level
+    contentGap: sidebarLayout.itemContentGap, // Gap between icon and label text
+    actionsGap: sidebarLayout.itemActionsGap, // Gap between action buttons in the actions group
+    rightSideGap: sidebarLayout.itemRightSideGap, // Gap between label, actions, badge, and chevron
+    paddingX: sidebarLayout.itemPaddingX, // Horizontal padding inside the item
+    headerPaddingX: sidebarLayout.headerPaddingX, // Horizontal padding for header variant
+    indentPerLevel: sidebarLayout.indentPerLevel, // Left indent added per nesting level
   },
   sizing: {
-    height: sidebarLayout.itemHeight,              // Height of the entire item container
-    iconButtonSize: sidebarLayout.iconButtonSize,  // Size of icon/emoji button containers
-    iconSize: sidebarLayout.iconSize,              // Size of icons inside buttons
-    badgeMinSize: sidebarLayout.badgeMinSize,      // Minimum size of badge/count container
-    borderRadius: sidebarLayout.itemBorderRadius,  // Corner radius of the item
+    height: sidebarLayout.itemHeight, // Height of the entire item container
+    iconButtonSize: sidebarLayout.iconButtonSize, // Size of icon/emoji button containers
+    iconSize: sidebarLayout.iconSize, // Size of icons inside buttons
+    badgeMinSize: sidebarLayout.badgeMinSize, // Minimum size of badge/count container
+    borderRadius: sidebarLayout.itemBorderRadius, // Corner radius of the item
   },
   typography: {
-    fontSize: sidebarLayout.itemFontSize,          // Font size for item label
-    fontWeight: sidebarLayout.itemFontWeight,      // Font weight for item label
-    badgeFontSize: sidebarLayout.badgeFontSize,    // Font size for badge/count text
+    fontSize: sidebarLayout.itemFontSize, // Font size for item label
+    fontWeight: sidebarLayout.itemFontWeight, // Font weight for item label
+    badgeFontSize: sidebarLayout.badgeFontSize, // Font size for badge/count text
   },
   limits: {
     maxVisualIndent: sidebarLayout.maxVisualIndent, // Maximum visual indentation levels
   },
 } as const;
 
-type SidebarItemVariant = 'note' | 'folder' | 'tag' | 'header' | 'task' | 'group';
+type SidebarItemVariant =
+  | 'note'
+  | 'folder'
+  | 'tag'
+  | 'header'
+  | 'task'
+  | 'group';
 
 interface SidebarItemProps {
   // Core
@@ -50,7 +60,7 @@ interface SidebarItemProps {
   label: string;
   variant: SidebarItemVariant;
   level?: number; // Default: 0
-  
+
   // Visual
   icon?: string | ReactNode; // emoji string or React icon component
   badge?: string;
@@ -64,44 +74,44 @@ interface SidebarItemProps {
   dailyNoteDate?: string | null; // For notes - if it's a daily note (YYYY-MM-DD format)
   isToday?: boolean; // For notes - whether this is today's daily note (for showing dot indicator)
   folderId?: string; // For folders - the folder ID (used to identify system folders)
-  
+
   // Interactions
-  onClick: (event?: React.MouseEvent) => void;
+  onClick: (_event?: React.MouseEvent) => void;
   onToggle?: () => void; // For folders - click chevron to expand/collapse
   actions?: ReactNode[];
-  
+
   // Drag & Drop (optional)
   draggable?: boolean;
   context?: string; // Context for ordering
-  onDragStart?: (id: string, context: string) => void;
+  onDragStart?: (_id: string, _context: string) => void;
   onDragEnd?: () => void;
-  onDragOver?: (id: string) => void;
+  onDragOver?: (_id: string) => void;
   onDragLeave?: () => void;
-  onDrop?: (id: string) => void;
-  
+  onDrop?: (_id: string) => void;
+
   // Reorder (optional)
   reorderable?: boolean;
-  onDragOverForReorder?: (id: string, position: 'before' | 'after') => void;
+  onDragOverForReorder?: (_id: string, _position: 'before' | 'after') => void;
   onDragLeaveForReorder?: () => void;
-  onDropForReorder?: (id: string, position: 'before' | 'after') => void;
+  onDropForReorder?: (_id: string, _position: 'before' | 'after') => void;
   dropPosition?: 'before' | 'after' | null;
   onClearAllReorderIndicators?: () => void; // Clear all reorder indicators when becoming a drop target
-  
+
   // Rename (optional)
   isEditing?: boolean;
-  onRenameComplete?: (id: string, newValue: string) => void;
+  onRenameComplete?: (_id: string, _newValue: string) => void;
   onRenameCancel?: () => void;
-  
+
   // Special props for specific variants
-  onEmojiClick?: (id: string, buttonElement: HTMLButtonElement) => void; // For notes/folders
+  onEmojiClick?: (_id: string, _buttonElement: HTMLButtonElement) => void; // For notes/folders
   tagCount?: number; // For tags - total usage count (notes + folders)
   enableAutoExpandHeader?: boolean; // For headers - auto-expand on drag
-  
+
   // Task-specific props
   isTaskChecked?: boolean; // For tasks - completion state
-  onTaskToggle?: (id: string) => void; // For tasks - checkbox toggle handler
+  onTaskToggle?: (_id: string) => void; // For tasks - checkbox toggle handler
   taskNoteId?: string; // For tasks - parent note ID (for navigation)
-  onTaskNavigate?: (noteId: string, blockId: string) => void; // For tasks - navigate to note
+  onTaskNavigate?: (_noteId: string, _blockId: string) => void; // For tasks - navigate to note
 }
 
 export const SidebarItem = ({
@@ -111,7 +121,7 @@ export const SidebarItem = ({
   level = 0,
   icon,
   badge,
-  labelColor,
+  labelColor: _labelColor,
   isOpen = false,
   isSelected = false,
   hasOpenContextMenu = false,
@@ -145,17 +155,14 @@ export const SidebarItem = ({
   enableAutoExpandHeader = false,
   isTaskChecked = false,
   onTaskToggle,
-  taskNoteId,
-  onTaskNavigate,
+  taskNoteId: _taskNoteId,
+  onTaskNavigate: _onTaskNavigate,
 }: SidebarItemProps) => {
-  // #region agent log
-  fetch('http://127.0.0.1:7244/ingest/a7f9fa0e-3f72-4ff3-8c3a-792215d634cd',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SidebarItem.tsx:151',message:'SidebarItem RENDER',data:{variant,id,draggable,reorderable,isDragging,isDropTarget,dropPosition},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'G'})}).catch(()=>{});
-  // #endregion
   const { colors } = useTheme();
   const [editValue, setEditValue] = useState(label);
   const inputRef = useRef<HTMLInputElement>(null);
   const itemRef = useRef<HTMLDivElement>(null);
-  
+
   // For header auto-expand on drag
   const [isHeaderDragOver, setIsHeaderDragOver] = useState(false);
   const expandTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -167,9 +174,11 @@ export const SidebarItem = ({
     '--sidebar-transition': sidebarStyles.transitions.hover,
   } as React.CSSProperties;
 
-  const paddingLeft = variant === 'tag' || variant === 'header' || variant === 'group'
-    ? 0 
-    : Math.min(level, DESIGN.limits.maxVisualIndent) * parseInt(DESIGN.spacing.indentPerLevel);
+  const paddingLeft =
+    variant === 'tag' || variant === 'header' || variant === 'group'
+      ? 0
+      : Math.min(level, DESIGN.limits.maxVisualIndent) *
+        parseInt(DESIGN.spacing.indentPerLevel);
 
   // Focus input when entering edit mode
   useEffect(() => {
@@ -189,13 +198,7 @@ export const SidebarItem = ({
 
   // Cleanup expand timeout on unmount (for headers)
   useEffect(() => {
-    // #region agent log
-    fetch('http://127.0.0.1:7244/ingest/a7f9fa0e-3f72-4ff3-8c3a-792215d634cd',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SidebarItem.tsx:188',message:'SidebarItem MOUNTED',data:{variant,id,draggable,reorderable},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'G'})}).catch(()=>{});
-    // #endregion
     return () => {
-      // #region agent log
-      fetch('http://127.0.0.1:7244/ingest/a7f9fa0e-3f72-4ff3-8c3a-792215d634cd',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SidebarItem.tsx:193',message:'SidebarItem UNMOUNTING',data:{variant,id},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'G'})}).catch(()=>{});
-      // #endregion
       if (expandTimeoutRef.current) {
         clearTimeout(expandTimeoutRef.current);
       }
@@ -206,19 +209,13 @@ export const SidebarItem = ({
   // Drag handlers
   const handleDragStart = (e: React.DragEvent) => {
     if (!draggable || !onDragStart || isEditing) return;
-    // #region agent log
-    fetch('http://127.0.0.1:7244/ingest/a7f9fa0e-3f72-4ff3-8c3a-792215d634cd',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SidebarItem.tsx:198',message:'handleDragStart BEFORE setting effectAllowed',data:{variant,id,effectAllowedBefore:e.dataTransfer.effectAllowed},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
-    // #endregion
     e.dataTransfer.effectAllowed = 'move';
-    // #region agent log
-    fetch('http://127.0.0.1:7244/ingest/a7f9fa0e-3f72-4ff3-8c3a-792215d634cd',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SidebarItem.tsx:200',message:'handleDragStart AFTER setting effectAllowed',data:{variant,id,effectAllowedAfter:e.dataTransfer.effectAllowed},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
-    // #endregion
-    
+
     // Create a custom drag preview with more opacity
     if (itemRef.current) {
       const original = itemRef.current;
       const rect = original.getBoundingClientRect();
-      
+
       // Create a wrapper container for opacity control
       const wrapper = document.createElement('div');
       wrapper.style.position = 'absolute';
@@ -228,52 +225,46 @@ export const SidebarItem = ({
       wrapper.style.height = `${rect.height}px`;
       wrapper.style.opacity = '0.5'; // Adjust this value (0.0 to 1.0) for more/less transparency
       wrapper.style.pointerEvents = 'none';
-      
+
       // Clone and add to wrapper
       const dragPreview = original.cloneNode(true) as HTMLElement;
       dragPreview.style.width = '100%';
       dragPreview.style.height = '100%';
       dragPreview.style.boxSizing = 'border-box';
       wrapper.appendChild(dragPreview);
-      
+
       document.body.appendChild(wrapper);
-      
+
       // Set the wrapper as the drag image
       e.dataTransfer.setDragImage(wrapper, 0, 0);
-      
+
       // Clean up the wrapper after a short delay
       setTimeout(() => {
         document.body.removeChild(wrapper);
       }, 0);
     }
-    
+
     onDragStart(id, context);
   };
 
   const handleDragEnd = () => {
-    // #region agent log
-    fetch('http://127.0.0.1:7244/ingest/a7f9fa0e-3f72-4ff3-8c3a-792215d634cd',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SidebarItem.tsx:238',message:'handleDragEnd called',data:{variant,id},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
-    // #endregion
     // Clear all reorder indicators when drag ends
     if (onClearAllReorderIndicators) {
       onClearAllReorderIndicators();
     }
-    
+
     if (onDragEnd) onDragEnd();
   };
 
   const handleDragEnter = (e: React.DragEvent) => {
-    // #region agent log
-    fetch('http://127.0.0.1:7244/ingest/a7f9fa0e-3f72-4ff3-8c3a-792215d634cd',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SidebarItem.tsx:256',message:'handleDragEnter ENTRY',data:{variant,id,reorderable,hasOnDragOver:!!onDragOver,hasOnDragOverForReorder:!!onDragOverForReorder,effectAllowed:e.dataTransfer.effectAllowed},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'F'})}).catch(()=>{});
-    // #endregion
     // Header-specific: Auto-expand on drag
     if (variant === 'header' && enableAutoExpandHeader) {
       e.preventDefault();
-      
+
       // Only highlight if collapsed (isOpen=false means collapsed for headers)
       if (!isOpen) {
         setIsHeaderDragOver(true);
-        
+
         // Auto-expand collapsed section after hovering for 800ms
         if (onToggle) {
           expandTimeoutRef.current = setTimeout(() => {
@@ -282,91 +273,75 @@ export const SidebarItem = ({
         }
       }
     }
-    
+
     // For HTML5 drag & drop to work, we must call preventDefault on dragenter
     // This is required for BOTH drop targets (folders) AND reorderable items (notes/folders)
     if (reorderable || onDragOver) {
       e.preventDefault();
-      // #region agent log
-      fetch('http://127.0.0.1:7244/ingest/a7f9fa0e-3f72-4ff3-8c3a-792215d634cd',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SidebarItem.tsx:277',message:'dragEnter preventDefault called',data:{id,variant,reorderable,hasOnDragOver:!!onDragOver},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'F'})}).catch(()=>{});
-      // #endregion
     }
-    
+
     // Regular drag enter for items (folders)
     if (onDragOver) {
       e.stopPropagation();
-      
+
       // Clear all reorder indicators when entering a drop zone
       if (onClearAllReorderIndicators) {
         onClearAllReorderIndicators();
       }
-      
+
       onDragOver(id);
     }
   };
 
   const handleDragOver = (e: React.DragEvent) => {
-    // #region agent log
-    fetch('http://127.0.0.1:7244/ingest/a7f9fa0e-3f72-4ff3-8c3a-792215d634cd',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SidebarItem.tsx:279',message:'handleDragOver ENTRY',data:{variant,id,reorderable,hasOnDragOver:!!onDragOver,hasOnDragOverForReorder:!!onDragOverForReorder,effectAllowed:e.dataTransfer.effectAllowed},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
-    // #endregion
     // Header-specific: Auto-expand on drag
     if (variant === 'header' && enableAutoExpandHeader) {
       e.preventDefault();
-      
+
       // Only highlight if collapsed
       if (!isOpen) {
         setIsHeaderDragOver(true);
       }
     }
-    
+
     // Handle drag over with zone-based logic
     if (itemRef.current && (reorderable || onDragOver)) {
       e.preventDefault();
       // NOTE: Don't call e.stopPropagation() here - it prevents the drop event from firing!
       e.dataTransfer.dropEffect = 'move';
-      // #region agent log
-      fetch('http://127.0.0.1:7244/ingest/a7f9fa0e-3f72-4ff3-8c3a-792215d634cd',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SidebarItem.tsx:297',message:'preventDefault called, dropEffect set',data:{id,dropEffect:e.dataTransfer.dropEffect,effectAllowed:e.dataTransfer.effectAllowed},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
-      // #endregion
-      
+
       const rect = itemRef.current.getBoundingClientRect();
       const relativeY = e.clientY - rect.top;
       const height = rect.height;
       const relativePos = relativeY / height; // 0.0 to 1.0
-      
+
       // Define zones
       const isTopEdge = relativePos < 0.2; // Top 20%
       const isBottomEdge = relativePos > 0.8; // Bottom 20%
       // Center zone (middle 60%) is implicit: !isTopEdge && !isBottomEdge
-      
-      // #region agent log
-      fetch('http://127.0.0.1:7244/ingest/a7f9fa0e-3f72-4ff3-8c3a-792215d634cd',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SidebarItem.tsx:301',message:'zone calculation',data:{variant,id,relativePos,isTopEdge,isBottomEdge,reorderable,hasOnDragOver:!!onDragOver,hasOnDragOverForReorder:!!onDragOverForReorder},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C,D'})}).catch(()=>{});
-      // #endregion
-      
+
       // ZONE-BASED LOGIC (folders only - they can be drop targets AND reorderable)
       // Notes are only reorderable, so they always show reorder indicator
-      
-      if (variant === 'folder' && onDragOver && onDragOverForReorder && reorderable) {
+
+      if (
+        variant === 'folder' &&
+        onDragOver &&
+        onDragOverForReorder &&
+        reorderable
+      ) {
         // FOLDER: Zone-based mutually exclusive indicators
         if (isTopEdge || isBottomEdge) {
           // Edge zones: Show reorder line only
           const position: 'before' | 'after' = isTopEdge ? 'before' : 'after';
-          // #region agent log
-          fetch('http://127.0.0.1:7244/ingest/a7f9fa0e-3f72-4ff3-8c3a-792215d634cd',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SidebarItem.tsx:314',message:'calling onDragOverForReorder (edge zone)',data:{id,position,context},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
-          // #endregion
           onDragOverForReorder(id, position);
         } else {
           // Center zone: Show folder drop highlight only
-          // #region agent log
-          fetch('http://127.0.0.1:7244/ingest/a7f9fa0e-3f72-4ff3-8c3a-792215d634cd',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SidebarItem.tsx:317',message:'calling onDragOver (center zone)',data:{id},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
-          // #endregion
           onDragOver(id);
         }
       } else if (reorderable && onDragOverForReorder) {
         // NOTE or other reorderable item: Always show reorder indicator
-        const position: 'before' | 'after' = relativePos < 0.5 ? 'before' : 'after';
-        // #region agent log
-        fetch('http://127.0.0.1:7244/ingest/a7f9fa0e-3f72-4ff3-8c3a-792215d634cd',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SidebarItem.tsx:332',message:'calling onDragOverForReorder (note/simple)',data:{id,position,context,variant},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
-        // #endregion
+        const position: 'before' | 'after' =
+          relativePos < 0.5 ? 'before' : 'after';
         onDragOverForReorder(id, position);
       } else if (onDragOver) {
         // Non-reorderable drop target: Always show drop highlight
@@ -379,20 +354,20 @@ export const SidebarItem = ({
     // Header-specific: Clear drag state and timeout
     if (variant === 'header' && enableAutoExpandHeader) {
       setIsHeaderDragOver(false);
-      
+
       // Clear the expand timeout when leaving
       if (expandTimeoutRef.current) {
         clearTimeout(expandTimeoutRef.current);
         expandTimeoutRef.current = null;
       }
     }
-    
+
     if (onDragLeave) {
       e.preventDefault();
       e.stopPropagation();
       onDragLeave();
     }
-    
+
     if (reorderable && onDragLeaveForReorder) {
       e.preventDefault();
       e.stopPropagation();
@@ -401,71 +376,59 @@ export const SidebarItem = ({
   };
 
   const handleDrop = (e: React.DragEvent) => {
-    // #region agent log
-    fetch('http://127.0.0.1:7244/ingest/a7f9fa0e-3f72-4ff3-8c3a-792215d634cd',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SidebarItem.tsx:365',message:'handleDrop called',data:{variant,id,reorderable,hasOnDrop:!!onDrop,hasOnDropForReorder:!!onDropForReorder},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
-    // #endregion
     // Header-specific: Clear drag state
     if (variant === 'header' && enableAutoExpandHeader) {
       e.preventDefault();
       setIsHeaderDragOver(false);
-      
+
       if (expandTimeoutRef.current) {
         clearTimeout(expandTimeoutRef.current);
         expandTimeoutRef.current = null;
       }
     }
-    
+
     // Handle drop with zone-based logic (matching dragOver)
     if (itemRef.current && (reorderable || onDrop)) {
       e.preventDefault();
       e.stopPropagation(); // OK to stopPropagation on drop (after it's fired)
-      
+
       const rect = itemRef.current.getBoundingClientRect();
       const relativeY = e.clientY - rect.top;
       const height = rect.height;
       const relativePos = relativeY / height; // 0.0 to 1.0
-      
+
       // Define zones
       const isTopEdge = relativePos < 0.2; // Top 20%
       const isBottomEdge = relativePos > 0.8; // Bottom 20%
-      
-      // #region agent log
-      fetch('http://127.0.0.1:7244/ingest/a7f9fa0e-3f72-4ff3-8c3a-792215d634cd',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SidebarItem.tsx:390',message:'drop zone calculation',data:{relativePos,isTopEdge,isBottomEdge,variant,hasOnDrop:!!onDrop,hasOnDropForReorder:!!onDropForReorder,reorderable},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
-      // #endregion
-      
+
       // ZONE-BASED DROP (matching dragOver logic)
       if (variant === 'folder' && onDrop && onDropForReorder && reorderable) {
         // FOLDER: Zone-based mutually exclusive drop
         if (isTopEdge || isBottomEdge) {
           // Edge zones: Reorder drop
           const position: 'before' | 'after' = isTopEdge ? 'before' : 'after';
-          // #region agent log
-          fetch('http://127.0.0.1:7244/ingest/a7f9fa0e-3f72-4ff3-8c3a-792215d634cd',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SidebarItem.tsx:397',message:'calling onDropForReorder',data:{id,position,context},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
-          // #endregion
           onDropForReorder(id, position);
         } else {
           // Center zone: Folder drop
-          // #region agent log
-          fetch('http://127.0.0.1:7244/ingest/a7f9fa0e-3f72-4ff3-8c3a-792215d634cd',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SidebarItem.tsx:400',message:'calling onDrop',data:{id},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
-          // #endregion
           onDrop(id);
         }
-        
+
         if (onClearAllReorderIndicators) {
           onClearAllReorderIndicators();
         }
       } else if (reorderable && onDropForReorder) {
         // NOTE or other reorderable item: Always reorder drop
-        const position: 'before' | 'after' = relativePos < 0.5 ? 'before' : 'after';
+        const position: 'before' | 'after' =
+          relativePos < 0.5 ? 'before' : 'after';
         onDropForReorder(id, position);
-        
+
         if (onClearAllReorderIndicators) {
           onClearAllReorderIndicators();
         }
       } else if (onDrop) {
         // Non-reorderable drop target: Always folder drop
         onDrop(id);
-        
+
         if (onClearAllReorderIndicators) {
           onClearAllReorderIndicators();
         }
@@ -512,7 +475,7 @@ export const SidebarItem = ({
       }
       return null;
     }
-    
+
     // Groups can have optional icons but they're not interactive
     if (variant === 'group') {
       if (icon) {
@@ -520,10 +483,12 @@ export const SidebarItem = ({
       }
       return null;
     }
-    
+
     if (variant === 'note') {
       // Don't use accent color on icon - only on label
-      const iconColor = isSelected ? colors.text.default : colors.text.secondary;
+      const iconColor = isSelected
+        ? colors.text.default
+        : colors.text.secondary;
       const noteIcon = getNoteIcon({
         emoji: typeof icon === 'string' ? icon : undefined,
         dailyNoteDate,
@@ -531,7 +496,7 @@ export const SidebarItem = ({
         size: 16,
         color: iconColor,
       });
-      
+
       return (
         <div style={{ position: 'relative' }}>
           {/* Dot indicator for today's daily note */}
@@ -563,7 +528,7 @@ export const SidebarItem = ({
         </div>
       );
     }
-    
+
     if (variant === 'folder') {
       // For folders with toggle: Show chevron on hover (replaces icon), otherwise show icon
       if (onToggle) {
@@ -594,40 +559,42 @@ export const SidebarItem = ({
                 }}
               />
             )}
-              {/* Icon - always rendered, CSS controls visibility */}
-              <div
-                className={sidebarStyles.classes.icon}
-                style={{
-                  position: 'absolute',
-                  inset: 0,
-                  display: 'flex',
+            {/* Icon - always rendered, CSS controls visibility */}
+            <div
+              className={sidebarStyles.classes.icon}
+              style={{
+                position: 'absolute',
+                inset: 0,
+                display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 opacity: 1,
                 transition: animations.transition.opacity,
+              }}
+            >
+              <TertiaryButton
+                icon={getFolderIcon({
+                  folderId: folderId || id,
+                  emoji: typeof icon === 'string' ? icon : undefined,
+                  isOpen,
+                  size: 16,
+                  // Don't use accent color on icon - only on label
+                  color: isSelected
+                    ? colors.text.default
+                    : colors.text.secondary,
+                })}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (onEmojiClick) {
+                    onEmojiClick(id, e.currentTarget as HTMLButtonElement);
+                  }
                 }}
-              >
-                <TertiaryButton
-                  icon={getFolderIcon({
-                    folderId: folderId || id,
-                    emoji: typeof icon === 'string' ? icon : undefined,
-                    isOpen,
-                    size: 16,
-                    // Don't use accent color on icon - only on label
-                    color: isSelected ? colors.text.default : colors.text.secondary,
-                  })}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (onEmojiClick) {
-                      onEmojiClick(id, e.currentTarget as HTMLButtonElement);
-                    }
-                  }}
-                  disabled={!onEmojiClick}
-                  disabledNoFade={!onEmojiClick}
-                  size="xs"
-                />
-              </div>
-            
+                disabled={!onEmojiClick}
+                disabledNoFade={!onEmojiClick}
+                size="xs"
+              />
+            </div>
+
             {/* Chevron - always rendered, CSS controls visibility (shown on hover) */}
             <div
               className={sidebarStyles.classes.chevronLeft}
@@ -635,10 +602,10 @@ export const SidebarItem = ({
                 position: 'absolute',
                 inset: 0,
                 display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              opacity: 0,
-              transition: animations.transition.opacity,
+                alignItems: 'center',
+                justifyContent: 'center',
+                opacity: 0,
+                transition: animations.transition.opacity,
               }}
             >
               <TertiaryButton
@@ -661,10 +628,12 @@ export const SidebarItem = ({
           </div>
         );
       }
-      
+
       // Folder without toggle: Just show icon
       // Don't use accent color on icon - only on label
-      const iconColor = isSelected ? colors.text.default : colors.text.secondary;
+      const iconColor = isSelected
+        ? colors.text.default
+        : colors.text.secondary;
       const folderIcon = getFolderIcon({
         folderId: folderId || id,
         emoji: typeof icon === 'string' ? icon : undefined,
@@ -672,7 +641,7 @@ export const SidebarItem = ({
         size: 16,
         color: iconColor,
       });
-      
+
       if (onEmojiClick) {
         return (
           <div style={{ position: 'relative' }}>
@@ -703,7 +672,7 @@ export const SidebarItem = ({
           </div>
         );
       }
-      
+
       return (
         <div style={{ position: 'relative' }}>
           {/* Dot indicator for today's month */}
@@ -726,7 +695,7 @@ export const SidebarItem = ({
         </div>
       );
     }
-    
+
     // Tasks: Render checkbox in 20px container (matches icon button size)
     if (variant === 'task') {
       return (
@@ -742,7 +711,7 @@ export const SidebarItem = ({
         >
           <Checkbox
             checked={isTaskChecked}
-            onChange={(checked) => {
+            onChange={(_checked) => {
               if (onTaskToggle) {
                 onTaskToggle(id);
               }
@@ -755,7 +724,7 @@ export const SidebarItem = ({
         </div>
       );
     }
-    
+
     return null;
   };
 
@@ -764,7 +733,7 @@ export const SidebarItem = ({
   // Badge and chevron swap in the same 20px container
   const renderToggle = () => {
     if (variant !== 'header' || !onToggle) return null;
-    
+
     return (
       <div
         style={{
@@ -778,24 +747,26 @@ export const SidebarItem = ({
         {badge && (
           <div
             className={sidebarStyles.classes.badge}
-            style={{
-              position: 'absolute',
-              inset: 0,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: sidebarLayout.badgeFontSize,
-              color: colors.text.tertiary,
-              userSelect: 'none',
-              WebkitUserSelect: 'none',
-              opacity: isDropTarget ? 1 : undefined, // Keep visible when drop target
-              transition: animations.transition.opacity,
-            } as any}
+            style={
+              {
+                position: 'absolute',
+                inset: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: sidebarLayout.badgeFontSize,
+                color: colors.text.tertiary,
+                userSelect: 'none',
+                WebkitUserSelect: 'none',
+                opacity: isDropTarget ? 1 : undefined, // Keep visible when drop target
+                transition: animations.transition.opacity,
+              } as any
+            }
           >
             {badge}
           </div>
         )}
-        
+
         {/* Chevron - clickable to toggle expand/collapse */}
         {/* Headers: always swap with badge (show on hover) */}
         <div
@@ -805,21 +776,21 @@ export const SidebarItem = ({
             inset: 0,
             display: 'flex',
             alignItems: 'center',
-          justifyContent: 'center',
-          opacity: isDropTarget ? 0 : 0, // Hidden by default, CSS shows on hover
-          transition: animations.transition.opacity,
-          pointerEvents: isDropTarget ? 'none' : 'auto',
+            justifyContent: 'center',
+            opacity: isDropTarget ? 0 : 0, // Hidden by default, CSS shows on hover
+            transition: animations.transition.opacity,
+            pointerEvents: isDropTarget ? 'none' : 'auto',
           }}
         >
           <TertiaryButton
             icon={
-                <ChevronDown
-                  size={16}
-                  style={{
-                    transform: isOpen ? 'rotate(0deg)' : 'rotate(-90deg)',
-                    transition: animations.transition.transform,
-                  }}
-                />
+              <ChevronDown
+                size={16}
+                style={{
+                  transform: isOpen ? 'rotate(0deg)' : 'rotate(-90deg)',
+                  transition: animations.transition.transform,
+                }}
+              />
             }
             onClick={(e) => {
               e.stopPropagation();
@@ -858,56 +829,60 @@ export const SidebarItem = ({
         />
       );
     }
-    
+
     // Header variant - smaller font, same case as items
     if (variant === 'header') {
       return (
         <span
-          style={{
-            fontSize: sidebarLayout.headerFontSize,
-            fontWeight: sidebarLayout.headerFontWeight,
-            letterSpacing: sidebarLayout.headerLetterSpacing,
-            color: colors.text.default,
-            flex: '1 1 0',
-            minWidth: 0,
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-            userSelect: 'none',
-            WebkitUserSelect: 'none',
-            cursor: 'pointer',
-          } as any}
+          style={
+            {
+              fontSize: sidebarLayout.headerFontSize,
+              fontWeight: sidebarLayout.headerFontWeight,
+              letterSpacing: sidebarLayout.headerLetterSpacing,
+              color: colors.text.default,
+              flex: '1 1 0',
+              minWidth: 0,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              userSelect: 'none',
+              WebkitUserSelect: 'none',
+              cursor: 'pointer',
+            } as any
+          }
         >
           {label}
         </span>
       );
     }
-    
+
     // Group variant - similar to header but non-interactive and more subtle
     if (variant === 'group') {
       return (
         <span
-          style={{
-            fontSize: sidebarLayout.headerFontSize,
-            fontWeight: sidebarLayout.headerFontWeight,
-            letterSpacing: sidebarLayout.headerLetterSpacing,
-            color: colors.text.tertiary,
-            textTransform: 'uppercase',
-            flex: '1 1 0',
-            minWidth: 0,
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-            userSelect: 'none',
-            WebkitUserSelect: 'none',
-            cursor: 'default',
-          } as any}
+          style={
+            {
+              fontSize: sidebarLayout.headerFontSize,
+              fontWeight: sidebarLayout.headerFontWeight,
+              letterSpacing: sidebarLayout.headerLetterSpacing,
+              color: colors.text.tertiary,
+              textTransform: 'uppercase',
+              flex: '1 1 0',
+              minWidth: 0,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              userSelect: 'none',
+              WebkitUserSelect: 'none',
+              cursor: 'default',
+            } as any
+          }
         >
           {label}
         </span>
       );
     }
-    
+
     // Tag variant - use global NoteTag component
     if (variant === 'tag') {
       return (
@@ -927,7 +902,7 @@ export const SidebarItem = ({
         </div>
       );
     }
-    
+
     // Task variant - text with conditional strikethrough
     if (variant === 'task') {
       return (
@@ -935,9 +910,11 @@ export const SidebarItem = ({
           style={{
             fontSize: DESIGN.typography.fontSize,
             fontWeight: DESIGN.typography.fontWeight,
-            color: isTaskChecked 
-              ? colors.text.tertiary 
-              : (isSelected ? colors.text.default : colors.text.secondary),
+            color: isTaskChecked
+              ? colors.text.tertiary
+              : isSelected
+                ? colors.text.default
+                : colors.text.secondary,
             textDecoration: isTaskChecked ? 'line-through' : 'none',
             flex: '1 1 0',
             minWidth: 0,
@@ -952,23 +929,25 @@ export const SidebarItem = ({
         </span>
       );
     }
-    
+
     // Note and folder variants - plain text
     return (
       <span
-        style={{
-          fontSize: DESIGN.typography.fontSize,
-          fontWeight: DESIGN.typography.fontWeight,
-          color: isSelected ? colors.text.default : colors.text.secondary,
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
-          flex: '1 1 0',
-          minWidth: 0,
-          pointerEvents: 'none',
-          userSelect: 'none',
-          WebkitUserSelect: 'none',
-        } as any}
+        style={
+          {
+            fontSize: DESIGN.typography.fontSize,
+            fontWeight: DESIGN.typography.fontWeight,
+            color: isSelected ? colors.text.default : colors.text.secondary,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            flex: '1 1 0',
+            minWidth: 0,
+            pointerEvents: 'none',
+            userSelect: 'none',
+            WebkitUserSelect: 'none',
+          } as any
+        }
       >
         {label}
       </span>
@@ -986,18 +965,20 @@ export const SidebarItem = ({
         return (
           <div
             className={sidebarStyles.classes.badge}
-            style={{
-              position: 'absolute',
-              inset: 0,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: sidebarLayout.badgeFontSize,
-              color: colors.text.tertiary,
-              userSelect: 'none',
-              WebkitUserSelect: 'none',
-              transition: animations.transition.opacity,
-            } as any}
+            style={
+              {
+                position: 'absolute',
+                inset: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: sidebarLayout.badgeFontSize,
+                color: colors.text.tertiary,
+                userSelect: 'none',
+                WebkitUserSelect: 'none',
+                transition: animations.transition.opacity,
+              } as any
+            }
           >
             {tagCount}
           </div>
@@ -1010,24 +991,26 @@ export const SidebarItem = ({
       if (variant === 'header' && onToggle) {
         return null;
       }
-      
+
       // For folders, notes, or any item without toggle in renderToggle()
       return (
         <div
           className={sidebarStyles.classes.badge}
-          style={{
-            position: 'absolute',
-            inset: 0,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: sidebarLayout.badgeFontSize,
-            color: colors.text.tertiary,
-            pointerEvents: 'none',
-            userSelect: 'none',
-            WebkitUserSelect: 'none',
-            transition: animations.transition.opacity,
-          } as any}
+          style={
+            {
+              position: 'absolute',
+              inset: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: sidebarLayout.badgeFontSize,
+              color: colors.text.tertiary,
+              pointerEvents: 'none',
+              userSelect: 'none',
+              WebkitUserSelect: 'none',
+              transition: animations.transition.opacity,
+            } as any
+          }
         >
           {badge}
         </div>
@@ -1056,9 +1039,9 @@ export const SidebarItem = ({
       // Always render, CSS controls visibility (show on hover OR when context menu is open)
       // Keep visible when context menu is open
       const shouldShowForContextMenu = hasOpenContextMenu && !isEditing;
-      
+
       return (
-        <div 
+        <div
           className="sidebar-item__quick-add"
           style={{
             display: 'flex',
@@ -1081,9 +1064,10 @@ export const SidebarItem = ({
   // Render badge/context menu swap container (uses absolute positioning for clean swap)
   const renderBadgeContextMenuSwap = () => {
     // Check if we have both badge and context menu to enable swapping
-    const hasBadgeToShow = (variant === 'tag' && tagCount !== undefined && tagCount !== null) || 
-                           (badge && !(variant === 'header' && onToggle));
-    
+    const hasBadgeToShow =
+      (variant === 'tag' && tagCount !== undefined && tagCount !== null) ||
+      (badge && !(variant === 'header' && onToggle));
+
     // Determine if this item has a quick add button (+ icon)
     const hasQuickAddButton =
       variant === 'folder' ||
@@ -1094,9 +1078,14 @@ export const SidebarItem = ({
 
     // For items with + icon, the context menu is the second action (if it exists)
     // For items without + icon (notes/tags), it's the first action
-    const contextMenuAction = actions && actions.length > 0
-      ? (hasQuickAddButton ? (actions.length > 1 ? actions[1] : null) : actions[0])
-      : null;
+    const contextMenuAction =
+      actions && actions.length > 0
+        ? hasQuickAddButton
+          ? actions.length > 1
+            ? actions[1]
+            : null
+          : actions[0]
+        : null;
 
     const hasContextMenu = contextMenuAction !== null;
 
@@ -1117,7 +1106,7 @@ export const SidebarItem = ({
       >
         {/* Badge - always rendered, CSS controls visibility (hidden on hover) */}
         {hasBadgeToShow && renderBadge()}
-        
+
         {/* Context Menu - always rendered, CSS controls visibility (shown on hover) */}
         {hasContextMenu && (
           <div
@@ -1177,7 +1166,7 @@ export const SidebarItem = ({
           background-color: var(--sidebar-hover-bg) !important;
         }
       `}</style>
-      
+
       <div
         style={{
           width: '100%',
@@ -1190,11 +1179,19 @@ export const SidebarItem = ({
         {/* Drop indicators for reordering */}
         {reorderable && (
           <>
-            <DropIndicator position="before" visible={dropPosition === 'before'} level={level} />
-            <DropIndicator position="after" visible={dropPosition === 'after'} level={level} />
+            <DropIndicator
+              position="before"
+              visible={dropPosition === 'before'}
+              level={level}
+            />
+            <DropIndicator
+              position="after"
+              visible={dropPosition === 'after'}
+              level={level}
+            />
           </>
         )}
-        
+
         <div
           ref={itemRef}
           className={sidebarStyles.classes.item}
@@ -1207,63 +1204,78 @@ export const SidebarItem = ({
           onDragEnter={handleDragEnter}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
-          onDrop={(e) => {
-            // #region agent log
-            fetch('http://127.0.0.1:7244/ingest/a7f9fa0e-3f72-4ff3-8c3a-792215d634cd',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'SidebarItem.tsx:1172',message:'NATIVE onDrop event fired',data:{variant,id,draggable:draggable&&!isEditing,reorderable,hasHandleDrop:!!handleDrop},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
-            // #endregion
-            handleDrop(e);
-          }}
+          onDrop={handleDrop}
           onMouseUp={handleMouseUp}
-          onClick={isEditing ? undefined : (variant === 'group' ? undefined : (e) => onClick(e))}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            width: '100%',
-            height: DESIGN.sizing.height,
-            paddingLeft: DESIGN.spacing.paddingX,
-            paddingRight: DESIGN.spacing.paddingX,
-            boxSizing: 'border-box',
-            cursor: isDragging ? 'grabbing' : (variant === 'group' ? 'default' : 'pointer'),
-            opacity: isDragging ? 0.4 : 1,
-            backgroundColor: variant === 'group' 
-              ? 'transparent'
-              : (isSelected || hasOpenContextMenu
-                ? colors.background.tertiary
-                : (variant === 'header' && isHeaderDragOver && !isOpen)
-                  ? colors.background.tertiary
-                  : isDropTarget 
-                    ? colors.background.subtleHover 
-                    : 'transparent'),
-            borderRadius: DESIGN.sizing.borderRadius,
-            gap: DESIGN.spacing.contentGap,
-          userSelect: 'none',
-          WebkitUserSelect: 'none',
-          transition: `${animations.transition.backgroundColor}, ${animations.transition.borderColor}`,
-          opacity: isDragging ? 0.5 : 1,
-            border: variant === 'folder' && isDropTarget ? `1px solid ${colors.semantic.info}` : '0.5px solid transparent',
-            ...cssVars,
-          } as any}
+          onClick={
+            isEditing
+              ? undefined
+              : variant === 'group'
+                ? undefined
+                : (e) => onClick(e)
+          }
+          style={
+            {
+              display: 'flex',
+              alignItems: 'center',
+              width: '100%',
+              height: DESIGN.sizing.height,
+              paddingLeft: DESIGN.spacing.paddingX,
+              paddingRight: DESIGN.spacing.paddingX,
+              boxSizing: 'border-box',
+              cursor: isDragging
+                ? 'grabbing'
+                : variant === 'group'
+                  ? 'default'
+                  : 'pointer',
+              backgroundColor:
+                variant === 'group'
+                  ? 'transparent'
+                  : isSelected || hasOpenContextMenu
+                    ? colors.background.tertiary
+                    : variant === 'header' && isHeaderDragOver && !isOpen
+                      ? colors.background.tertiary
+                      : isDropTarget
+                        ? colors.background.subtleHover
+                        : 'transparent',
+              borderRadius: DESIGN.sizing.borderRadius,
+              gap: DESIGN.spacing.contentGap,
+              userSelect: 'none',
+              WebkitUserSelect: 'none',
+              transition: `${animations.transition.backgroundColor}, ${animations.transition.borderColor}`,
+              border:
+                variant === 'folder' && isDropTarget
+                  ? `1px solid ${colors.semantic.info}`
+                  : '0.5px solid transparent',
+              ...cssVars,
+              opacity: isDragging ? 0.5 : 1,
+            } as any
+          }
         >
-        {/* Icon */}
-        {renderIcon()}
-        
-        {/* Label */}
-        {renderLabel()}
-        
-        {/* Right side elements - all together with tight spacing */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: DESIGN.spacing.rightSideGap }}>
-          {/* Quick add button (+ icon for folders/containers) */}
-          {renderQuickAdd()}
-          
-          {/* Badge/Context Menu swap (uses absolute positioning for clean swap) */}
-          {renderBadgeContextMenuSwap()}
-          
-          {/* Badge/Chevron Toggle (for folders/headers, on right like section header) */}
-          {renderToggle()}
+          {/* Icon */}
+          {renderIcon()}
+
+          {/* Label */}
+          {renderLabel()}
+
+          {/* Right side elements - all together with tight spacing */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: DESIGN.spacing.rightSideGap,
+            }}
+          >
+            {/* Quick add button (+ icon for folders/containers) */}
+            {renderQuickAdd()}
+
+            {/* Badge/Context Menu swap (uses absolute positioning for clean swap) */}
+            {renderBadgeContextMenuSwap()}
+
+            {/* Badge/Chevron Toggle (for folders/headers, on right like section header) */}
+            {renderToggle()}
+          </div>
         </div>
       </div>
-    </div>
     </>
   );
 };
-

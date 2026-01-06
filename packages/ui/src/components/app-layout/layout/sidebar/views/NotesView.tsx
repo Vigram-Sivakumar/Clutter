@@ -11,7 +11,7 @@ import { SidebarNote, SidebarFolder, GlobalSelection } from '../types';
 interface SidebarNotesViewProps {
   // Cluttered Notes
   clutteredNotes: SidebarNote[];
-  onClutteredNoteClick: (noteId: string, event?: React.MouseEvent) => void;
+  onClutteredNoteClick: (_noteId: string, _event?: React.MouseEvent) => void;
   isClutteredCollapsed: boolean;
   onClutteredToggle: () => void;
   onClutteredFolderClick?: () => void; // Click folder name to open Cluttered folder view
@@ -19,23 +19,34 @@ interface SidebarNotesViewProps {
   // Favourites
   favouriteNotes: SidebarNote[];
   favouriteFolders: SidebarFolder[];
-  onFavouriteClick: (noteId: string, event?: React.MouseEvent) => void;
-  
+  onFavouriteClick: (_noteId: string, _event?: React.MouseEvent) => void;
+
   // Selection
   onClearSelection?: () => void; // Clear selection when clicking empty space
-  
+
   // Folder notes (with context)
-  onFolderNoteClick?: (noteId: string, context: string, event?: React.MouseEvent) => void;
-  onFavouriteFolderClick?: (folderId: string, event?: React.MouseEvent) => void;
-  onFavouriteFolderToggle: (folderId: string) => void;
+  onFolderNoteClick?: (
+    _noteId: string,
+    _context: string,
+    _event?: React.MouseEvent
+  ) => void;
+  onFavouriteFolderClick?: (
+    _folderId: string,
+    _event?: React.MouseEvent
+  ) => void;
+  onFavouriteFolderToggle: (_folderId: string) => void;
   isFavouritesCollapsed: boolean;
   onFavouritesToggle: () => void;
   onFavouritesHeaderClick?: () => void; // Click favourites section header to navigate
 
   // Folders
   folders: SidebarFolder[];
-  onFolderClick?: (folderId: string, context: string, event?: React.MouseEvent) => void; // Click folder name to open folder view (with context)
-  onFolderToggle: (folderId: string) => void; // Click chevron to expand/collapse
+  onFolderClick?: (
+    _folderId: string,
+    _context: string,
+    _event?: React.MouseEvent
+  ) => void; // Click folder name to open folder view (with context)
+  onFolderToggle: (_folderId: string) => void; // Click chevron to expand/collapse
   onFolderAdd: () => void;
   isFoldersCollapsed: boolean;
   onFoldersToggle: () => void;
@@ -46,44 +57,70 @@ interface SidebarNotesViewProps {
   selection: GlobalSelection;
   currentNoteId?: string | null; // Current note open in editor (for highlighting)
   openContextMenuId?: string | null; // ID of item with open context menu (for highlighting)
-  
+
   // Action builders
-  getNoteActions?: (noteId: string) => ReactNode[];
-  getFolderActions?: (folderId: string) => ReactNode[];
-  
+  getNoteActions?: (_noteId: string) => ReactNode[];
+  getFolderActions?: (_folderId: string) => ReactNode[];
+
   // Drag and drop
-  onNoteDragStart?: (noteId: string, context: string) => void;
-  onFolderDragStart?: (folderId: string, context: string) => void;
+  onNoteDragStart?: (_noteId: string, _context: string) => void;
+  onFolderDragStart?: (_folderId: string, _context: string) => void;
   onDragEnd?: () => void;
-  onFolderDragOver?: (folderId: string) => void;
+  onFolderDragOver?: (_folderId: string) => void;
   onClutteredDragOver?: () => void;
   onDragLeave?: () => void;
-  onFolderDrop?: (folderId: string) => void;
+  onFolderDrop?: (_folderId: string) => void;
   onClutteredDrop?: () => void;
   draggedItemId?: string[] | null;
   dropTargetId?: string | null;
   dropTargetType?: 'folder' | CLUTTERED_FOLDER_ID | 'dailyNotes' | null;
-  
+
   // Reordering
-  onNoteDragOverForReorder?: (noteId: string, position: 'before' | 'after', context: string) => void;
+  onNoteDragOverForReorder?: (
+    _noteId: string,
+    _position: 'before' | 'after',
+    _context: string
+  ) => void;
   onNoteDragLeaveForReorder?: () => void;
-  onNoteDropForReorder?: (noteId: string, position: 'before' | 'after', context: string) => void;
-  onFolderDragOverForReorder?: (folderId: string, position: 'before' | 'after', context: string) => void;
+  onNoteDropForReorder?: (
+    _noteId: string,
+    _position: 'before' | 'after',
+    _context: string
+  ) => void;
+  onFolderDragOverForReorder?: (
+    _folderId: string,
+    _position: 'before' | 'after',
+    _context: string
+  ) => void;
   onFolderDragLeaveForReorder?: () => void;
-  onFolderDropForReorder?: (folderId: string, position: 'before' | 'after', context: string) => void;
-  reorderDropTarget?: { id: string; position: 'before' | 'after'; type: 'note' | 'folder' } | null;
-  
+  onFolderDropForReorder?: (
+    _folderId: string,
+    _position: 'before' | 'after',
+    _context: string
+  ) => void;
+  reorderDropTarget?: {
+    id: string;
+    position: 'before' | 'after';
+    type: 'note' | 'folder';
+  } | null;
+
   // Inline editing
   editingNoteId?: string | null;
   editingFolderId?: string | null;
-  onNoteRenameComplete?: (noteId: string, newTitle: string) => void;
+  onNoteRenameComplete?: (_noteId: string, _newTitle: string) => void;
   onNoteRenameCancel?: () => void;
-  onFolderRenameComplete?: (folderId: string, newName: string) => void;
+  onFolderRenameComplete?: (_folderId: string, _newName: string) => void;
   onFolderRenameCancel?: () => void;
-  
+
   // Emoji picker
-  onNoteEmojiClick?: (noteId: string, buttonElement: HTMLButtonElement) => void;
-  onFolderEmojiClick?: (folderId: string, buttonElement: HTMLButtonElement) => void;
+  onNoteEmojiClick?: (
+    _noteId: string,
+    _buttonElement: HTMLButtonElement
+  ) => void;
+  onFolderEmojiClick?: (
+    _folderId: string,
+    _buttonElement: HTMLButtonElement
+  ) => void;
 }
 
 export const NotesView = ({
@@ -95,8 +132,8 @@ export const NotesView = ({
   favouriteNotes,
   favouriteFolders,
   onFavouriteClick,
-  onFavouriteFolderClick,
-  onFavouriteFolderToggle,
+  onFavouriteFolderClick: _onFavouriteFolderClick,
+  onFavouriteFolderToggle: _onFavouriteFolderToggle,
   isFavouritesCollapsed,
   onFavouritesToggle,
   onFavouritesHeaderClick,
@@ -104,13 +141,13 @@ export const NotesView = ({
   onFolderClick,
   onFolderToggle,
   onFolderNoteClick,
-  onFolderAdd,
+  onFolderAdd: _onFolderAdd,
   isFoldersCollapsed,
   onFoldersToggle,
   onFoldersHeaderClick,
   foldersHeaderActions,
   selection,
-  currentNoteId,
+  currentNoteId: _currentNoteId,
   openContextMenuId,
   onClearSelection,
   getNoteActions,
@@ -145,24 +182,33 @@ export const NotesView = ({
   // Recursive function to render folders and their nested content
   // parentFolderId is used to determine the ordering context
   // Can also be 'favourites' to indicate this folder is in the Favourites section
-  const renderFolder = (folder: SidebarFolder, level: number, parentFolderId: string | null = null) => {
+  const renderFolder = (
+    folder: SidebarFolder,
+    level: number,
+    parentFolderId: string | null = null
+  ) => {
     // Determine the context for this folder based on its parent
     // Special case: 'favourites' is passed as a context, not a parent ID
-    const isInFavourites = parentFolderId === 'favourites' || (typeof parentFolderId === 'string' && parentFolderId.startsWith('favourites-'));
+    const isInFavourites =
+      parentFolderId === 'favourites' ||
+      (typeof parentFolderId === 'string' &&
+        parentFolderId.startsWith('favourites-'));
     const folderContext = isInFavourites
-      ? 'favourites' 
-      : (parentFolderId ? `folder-children-${parentFolderId}` : 'root-folders');
-    
+      ? 'favourites'
+      : parentFolderId
+        ? `folder-children-${parentFolderId}`
+        : 'root-folders';
+
     // Context for notes inside this folder
-    const notesContext = isInFavourites 
+    const notesContext = isInFavourites
       ? `favourites-folder-notes-${folder.id}`
       : `folder-notes-${folder.id}`;
-    
+
     // Context for child folders (to propagate favourites context)
-    const childFolderParentId = isInFavourites 
+    const childFolderParentId = isInFavourites
       ? `favourites-${folder.id}`
       : folder.id;
-    
+
     return (
       <div
         key={folder.id}
@@ -191,7 +237,11 @@ export const NotesView = ({
           onDrop={onFolderDrop}
           isDragging={draggedItemId?.includes(folder.id) || false}
           isDropTarget={dropTargetId === folder.id}
-          isSelected={selection.type === 'folder' && selection.multiSelectIds?.has(folder.id) && selection.context === folderContext}
+          isSelected={
+            selection.type === 'folder' &&
+            selection.multiSelectIds?.has(folder.id) &&
+            selection.context === folderContext
+          }
           context={folderContext}
           reorderable={Boolean(onFolderDragOverForReorder)}
           onClearAllReorderIndicators={() => {
@@ -200,16 +250,18 @@ export const NotesView = ({
             onFolderDragLeaveForReorder?.();
           }}
           onDragOverForReorder={(id, pos) => {
-            // #region agent log
-            fetch('http://127.0.0.1:7244/ingest/a7f9fa0e-3f72-4ff3-8c3a-792215d634cd',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'NotesView.tsx:201',message:'folder onDragOverForReorder wrapper',data:{folderId:id,position:pos,folderContext},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
-            // #endregion
             onFolderDragOverForReorder?.(id, pos, folderContext);
           }}
           onDragLeaveForReorder={onFolderDragLeaveForReorder}
           onDropForReorder={(id, pos) => {
             onFolderDropForReorder?.(id, pos, folderContext);
           }}
-          dropPosition={reorderDropTarget?.type === 'folder' && reorderDropTarget?.id === folder.id ? reorderDropTarget.position : null}
+          dropPosition={
+            reorderDropTarget?.type === 'folder' &&
+            reorderDropTarget?.id === folder.id
+              ? reorderDropTarget.position
+              : null
+          }
           isEditing={editingFolderId === folder.id}
           onRenameComplete={onFolderRenameComplete}
           onRenameCancel={onFolderRenameCancel}
@@ -243,7 +295,8 @@ export const NotesView = ({
               }}
             >
               {/* Empty state - shown when folder has no notes or subfolders */}
-              {folder.notes.length === 0 && (!folder.subfolders || folder.subfolders.length === 0) ? (
+              {folder.notes.length === 0 &&
+              (!folder.subfolders || folder.subfolders.length === 0) ? (
                 <div style={{ paddingLeft: 0 }}>
                   <SidebarEmptyState message="Folder is empty. Use the + button to add a note." />
                 </div>
@@ -257,29 +310,48 @@ export const NotesView = ({
                       title={note.title}
                       icon={note.icon || undefined}
                       hasContent={note.hasContent}
-                      isSelected={selection.type === 'note' && (selection.multiSelectIds?.has(note.id) || selection.itemId === note.id) && selection.context === notesContext}
+                      isSelected={
+                        selection.type === 'note' &&
+                        (selection.multiSelectIds?.has(note.id) ||
+                          selection.itemId === note.id) &&
+                        selection.context === notesContext
+                      }
                       hasOpenContextMenu={openContextMenuId === note.id}
                       level={level + 1}
-                      onClick={(e) => onFolderNoteClick?.(note.id, notesContext, e)}
-                      actions={getNoteActions ? getNoteActions(note.id) : undefined}
+                      onClick={(e) =>
+                        onFolderNoteClick?.(note.id, notesContext, e)
+                      }
+                      actions={
+                        getNoteActions ? getNoteActions(note.id) : undefined
+                      }
                       onDragStart={onNoteDragStart}
                       onDragEnd={onDragEnd}
                       isDragging={draggedItemId?.includes(note.id) || false}
                       context={notesContext}
                       reorderable={Boolean(onNoteDragOverForReorder)}
-                      onDragOverForReorder={(id, pos) => onNoteDragOverForReorder?.(id, pos, notesContext)}
+                      onDragOverForReorder={(id, pos) =>
+                        onNoteDragOverForReorder?.(id, pos, notesContext)
+                      }
                       onDragLeaveForReorder={onNoteDragLeaveForReorder}
                       onDropForReorder={(id, pos) => {
-                        console.log('[SidebarNotesView] 📝 Note Drop For Reorder (Folder):', {
-                          noteId: id,
-                          position: pos,
-                          context: notesContext,
-                          folderId: folder.id,
-                          folderName: folder.name,
-                        });
+                        console.log(
+                          '[SidebarNotesView] 📝 Note Drop For Reorder (Folder):',
+                          {
+                            noteId: id,
+                            position: pos,
+                            context: notesContext,
+                            folderId: folder.id,
+                            folderName: folder.name,
+                          }
+                        );
                         onNoteDropForReorder?.(id, pos, notesContext);
                       }}
-                      dropPosition={reorderDropTarget?.type === 'note' && reorderDropTarget?.id === note.id ? reorderDropTarget.position : null}
+                      dropPosition={
+                        reorderDropTarget?.type === 'note' &&
+                        reorderDropTarget?.id === note.id
+                          ? reorderDropTarget.position
+                          : null
+                      }
                       onClearAllReorderIndicators={() => {
                         // Clear both note and folder reorder indicators
                         onNoteDragLeaveForReorder?.();
@@ -292,7 +364,9 @@ export const NotesView = ({
                     />
                   ))}
                   {/* Subfolders */}
-                  {folder.subfolders?.map((subfolder) => renderFolder(subfolder, level + 1, childFolderParentId))}
+                  {folder.subfolders?.map((subfolder) =>
+                    renderFolder(subfolder, level + 1, childFolderParentId)
+                  )}
                 </>
               )}
             </div>
@@ -318,19 +392,18 @@ export const NotesView = ({
       }}
     >
       {/* Favourites Section - Always visible */}
-        <SidebarSection
-          title="Favourites"
-          isCollapsed={isFavouritesCollapsed}
-          onToggle={onFavouritesToggle}
-          onHeaderClick={onFavouritesHeaderClick}
-          badge={String(favouriteNotes.length + favouriteFolders.length)}
-          onClearAllReorderIndicators={() => {
-            // Clear both note and folder reorder indicators when hovering over section
-            onNoteDragLeaveForReorder?.();
-            onFolderDragLeaveForReorder?.();
-          }}
-        >
-      
+      <SidebarSection
+        title="Favourites"
+        isCollapsed={isFavouritesCollapsed}
+        onToggle={onFavouritesToggle}
+        onHeaderClick={onFavouritesHeaderClick}
+        badge={String(favouriteNotes.length + favouriteFolders.length)}
+        onClearAllReorderIndicators={() => {
+          // Clear both note and folder reorder indicators when hovering over section
+          onNoteDragLeaveForReorder?.();
+          onFolderDragLeaveForReorder?.();
+        }}
+      >
         {favouriteNotes.length === 0 && favouriteFolders.length === 0 ? (
           <SidebarEmptyState message="No favorite yet. Use the star icon to add favorites." />
         ) : (
@@ -344,7 +417,9 @@ export const NotesView = ({
             }}
           >
             {/* Favorite Folders - Fully functional with expansion */}
-            {favouriteFolders.map((folder) => renderFolder(folder, 0, 'favourites'))}
+            {favouriteFolders.map((folder) =>
+              renderFolder(folder, 0, 'favourites')
+            )}
 
             {/* Favorite Notes */}
             {favouriteNotes.map((note) => (
@@ -354,7 +429,12 @@ export const NotesView = ({
                 title={note.title}
                 icon={note.icon || undefined}
                 hasContent={note.hasContent}
-                isSelected={selection.type === 'note' && (selection.multiSelectIds?.has(note.id) || selection.itemId === note.id) && selection.context === 'favourites'}
+                isSelected={
+                  selection.type === 'note' &&
+                  (selection.multiSelectIds?.has(note.id) ||
+                    selection.itemId === note.id) &&
+                  selection.context === 'favourites'
+                }
                 hasOpenContextMenu={openContextMenuId === note.id}
                 level={0}
                 onClick={(e) => onFavouriteClick(note.id, e)}
@@ -363,17 +443,27 @@ export const NotesView = ({
                 onDragEnd={onDragEnd}
                 isDragging={draggedItemId?.includes(note.id) || false}
                 context="favourites"
-                onDragOverForReorder={(id, pos) => onNoteDragOverForReorder?.(id, pos, 'favourites')}
+                onDragOverForReorder={(id, pos) =>
+                  onNoteDragOverForReorder?.(id, pos, 'favourites')
+                }
                 onDragLeaveForReorder={onNoteDragLeaveForReorder}
                 onDropForReorder={(id, pos) => {
-                  console.log('[SidebarNotesView] 📝 Note Drop For Reorder (Favourites):', {
-                    noteId: id,
-                    position: pos,
-                    context: 'favourites',
-                  });
+                  console.log(
+                    '[SidebarNotesView] 📝 Note Drop For Reorder (Favourites):',
+                    {
+                      noteId: id,
+                      position: pos,
+                      context: 'favourites',
+                    }
+                  );
                   onNoteDropForReorder?.(id, pos, 'favourites');
                 }}
-                dropPosition={reorderDropTarget?.type === 'note' && reorderDropTarget?.id === note.id ? reorderDropTarget.position : null}
+                dropPosition={
+                  reorderDropTarget?.type === 'note' &&
+                  reorderDropTarget?.id === note.id
+                    ? reorderDropTarget.position
+                    : null
+                }
                 onClearAllReorderIndicators={() => {
                   // Clear both note and folder reorder indicators
                   onNoteDragLeaveForReorder?.();
@@ -387,7 +477,7 @@ export const NotesView = ({
             ))}
           </div>
         )}
-        </SidebarSection>
+      </SidebarSection>
 
       {/* Folders Section */}
       <SidebarSection
@@ -469,38 +559,59 @@ export const NotesView = ({
                   }}
                 >
                   {clutteredNotes.length === 0 ? (
-                  <div style={{ paddingLeft: '28px' }}>
-                    <SidebarEmptyState message="All notes are organized ✨" />
-                  </div>
-                ) : (
-                  clutteredNotes.map((note) => (
-                    <SidebarItemNote
-                      key={note.id}
-                      id={note.id}
-                      title={note.title}
-                      icon={note.icon || undefined}
-                      hasContent={note.hasContent}
-                      isSelected={selection.type === 'note' && (selection.multiSelectIds?.has(note.id) || selection.itemId === note.id) && selection.context === CLUTTERED_FOLDER_ID}
-                      hasOpenContextMenu={openContextMenuId === note.id}
-                      level={1}
-                      onClick={(e) => onClutteredNoteClick(note.id, e)}
-                      actions={getNoteActions ? getNoteActions(note.id) : undefined}
-                      onDragStart={onNoteDragStart}
-                      onDragEnd={onDragEnd}
-                      isDragging={draggedItemId?.includes(note.id) || false}
-                      context="cluttered"
-                      reorderable={Boolean(onNoteDragOverForReorder)}
-                      onDragOverForReorder={(id, pos) => onNoteDragOverForReorder?.(id, pos, CLUTTERED_FOLDER_ID)}
-                      onDragLeaveForReorder={onNoteDragLeaveForReorder}
-                      onDropForReorder={(id, pos) => {
-                        console.log('[SidebarNotesView] 📝 Note Drop For Reorder (Cluttered):', {
-                          noteId: id,
-                          position: pos,
-                          context: CLUTTERED_FOLDER_ID,
-                        });
-                        onNoteDropForReorder?.(id, pos, CLUTTERED_FOLDER_ID);
+                    <div style={{ paddingLeft: '28px' }}>
+                      <SidebarEmptyState message="All notes are organized ✨" />
+                    </div>
+                  ) : (
+                    clutteredNotes.map((note) => (
+                      <SidebarItemNote
+                        key={note.id}
+                        id={note.id}
+                        title={note.title}
+                        icon={note.icon || undefined}
+                        hasContent={note.hasContent}
+                        isSelected={
+                          selection.type === 'note' &&
+                          (selection.multiSelectIds?.has(note.id) ||
+                            selection.itemId === note.id) &&
+                          selection.context === CLUTTERED_FOLDER_ID
+                        }
+                        hasOpenContextMenu={openContextMenuId === note.id}
+                        level={1}
+                        onClick={(e) => onClutteredNoteClick(note.id, e)}
+                        actions={
+                          getNoteActions ? getNoteActions(note.id) : undefined
+                        }
+                        onDragStart={onNoteDragStart}
+                        onDragEnd={onDragEnd}
+                        isDragging={draggedItemId?.includes(note.id) || false}
+                        context="cluttered"
+                        reorderable={Boolean(onNoteDragOverForReorder)}
+                        onDragOverForReorder={(id, pos) =>
+                          onNoteDragOverForReorder?.(
+                            id,
+                            pos,
+                            CLUTTERED_FOLDER_ID
+                          )
+                        }
+                        onDragLeaveForReorder={onNoteDragLeaveForReorder}
+                        onDropForReorder={(id, pos) => {
+                          console.log(
+                            '[SidebarNotesView] 📝 Note Drop For Reorder (Cluttered):',
+                            {
+                              noteId: id,
+                              position: pos,
+                              context: CLUTTERED_FOLDER_ID,
+                            }
+                          );
+                          onNoteDropForReorder?.(id, pos, CLUTTERED_FOLDER_ID);
                         }}
-                        dropPosition={reorderDropTarget?.type === 'note' && reorderDropTarget?.id === note.id ? reorderDropTarget.position : null}
+                        dropPosition={
+                          reorderDropTarget?.type === 'note' &&
+                          reorderDropTarget?.id === note.id
+                            ? reorderDropTarget.position
+                            : null
+                        }
                         onClearAllReorderIndicators={() => {
                           // Clear both note and folder reorder indicators
                           onNoteDragLeaveForReorder?.();
@@ -517,14 +628,13 @@ export const NotesView = ({
               </div>
             </div>
           </div>
-          
+
           {/* Regular folders (exclude system folders like Daily Notes) */}
           {folders
-            .filter(folder => folder.id !== DAILY_NOTES_FOLDER_ID)
+            .filter((folder) => folder.id !== DAILY_NOTES_FOLDER_ID)
             .map((folder) => renderFolder(folder, 0))}
         </>
       </SidebarSection>
     </div>
   );
 };
-

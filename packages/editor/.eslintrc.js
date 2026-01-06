@@ -5,8 +5,12 @@ module.exports = {
     sourceType: 'module',
   },
   env: {
-    node: true,
+    browser: true,
     es2022: true,
+  },
+  globals: {
+    React: 'readonly',
+    NodeJS: 'readonly',
   },
   ignorePatterns: ['node_modules', 'dist', '**/__validation__.ts'],
   rules: {
@@ -22,19 +26,23 @@ module.exports = {
         patterns: [
           {
             group: ['@clutter/domain', '@clutter/domain/*'],
-            message: '⚠️ editor should not import from domain. Use EditorProvider for dependency injection. (Will be enforced after Phase 2-4)',
+            message:
+              '⚠️ editor should not import from domain. Use EditorProvider for dependency injection. (Will be enforced after Phase 2-4)',
           },
           {
             group: ['@clutter/state', '@clutter/state/*'],
-            message: '⚠️ editor should not import from state. Use EditorProvider for dependency injection. (Will be enforced after Phase 2-4)',
+            message:
+              '⚠️ editor should not import from state. Use EditorProvider for dependency injection. (Will be enforced after Phase 2-4)',
           },
           {
             group: ['@clutter/shared', '@clutter/shared/*'],
-            message: '⚠️ editor should not import from shared. Use EditorProvider for dependency injection. (Will be enforced after Phase 2-4)',
+            message:
+              '⚠️ editor should not import from shared. Use EditorProvider for dependency injection. (Will be enforced after Phase 2-4)',
           },
           {
             group: ['@clutter/ui', '@clutter/ui/*'],
-            message: '⚠️ editor should not import from ui. Editor should be UI-agnostic. (Will be enforced after Phase 2-4)',
+            message:
+              '⚠️ editor should not import from ui. Editor should be UI-agnostic. (Will be enforced after Phase 2-4)',
           },
         ],
       },
