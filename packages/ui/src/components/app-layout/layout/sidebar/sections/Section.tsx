@@ -69,7 +69,8 @@ export const SidebarSection = ({
           width: '100%',
           minWidth: 0, // Allow shrinking below content size
           paddingTop: '2px',
-          paddingBottom: '24px',
+          borderBottom: `1px solid ${colors.border.default}`,
+          paddingBottom: sidebarLayout.sectionContentPaddingBottom,
         }}
       >
         {items.map((item, index) => renderItem(item, index))}

@@ -415,7 +415,6 @@ export const TaskView = ({
             : undefined
         }
         sticky
-        sticky
       >
         {unplannedTasks.length === 0 ? (
           <SidebarEmptyState message={SECTIONS.inbox.emptyMessage} />
@@ -426,7 +425,7 @@ export const TaskView = ({
               flexDirection: 'column',
               gap: sidebarLayout.itemGap,
               paddingTop: '2px',
-              paddingBottom: '24px',
+              paddingBottom: sidebarLayout.sectionContentPaddingBottom,
               width: '100%',
               minWidth: 0, // Allow shrinking below content size
             }}
@@ -487,7 +486,7 @@ export const TaskView = ({
               flexDirection: 'column',
               gap: sidebarLayout.itemGap,
               paddingTop: '2px',
-              paddingBottom: '24px',
+              paddingBottom: sidebarLayout.sectionContentPaddingBottom,
               width: '100%',
               minWidth: 0, // Allow shrinking below content size
             }}
@@ -508,7 +507,6 @@ export const TaskView = ({
           upcomingTasks.length > 0 ? upcomingTasks.length.toString() : undefined
         }
         sticky
-        sticky
       >
         {upcomingTasks.length === 0 ? (
           <SidebarEmptyState message={SECTIONS.upcoming.emptyMessage} />
@@ -519,7 +517,7 @@ export const TaskView = ({
               flexDirection: 'column',
               gap: sidebarLayout.itemGap,
               paddingTop: '2px',
-              paddingBottom: '24px',
+              paddingBottom: sidebarLayout.sectionContentPaddingBottom,
               width: '100%',
               minWidth: 0, // Allow shrinking below content size
             }}
@@ -552,7 +550,7 @@ export const TaskView = ({
               flexDirection: 'column',
               gap: sidebarLayout.itemGap,
               paddingTop: '2px',
-              paddingBottom: '24px',
+              paddingBottom: sidebarLayout.sectionContentPaddingBottom,
               width: '100%',
               minWidth: 0, // Allow shrinking below content size
             }}
