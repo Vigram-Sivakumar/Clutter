@@ -177,7 +177,7 @@ export const SidebarSection = ({
         <div
           style={{
             minHeight: 0,
-            overflow: 'hidden', // Keep for collapse animation
+            overflow: 'visible', // Changed to visible to allow sticky positioning
             opacity: isCollapsed ? 0 : 1,
             transition: transitions.collapse.content,
           }}

@@ -1997,7 +1997,7 @@ export const AppSidebar = ({
         position: 'relative',
         marginLeft: isCollapsed ? `-${sidebarWidth}px` : '0',
         transition: 'margin-left 0.3s ease-out',
-        overflow: 'hidden',
+        overflow: 'visible', // Changed to visible for sticky positioning
         backgroundColor: colors.background.secondary,
       }}
     >
@@ -2005,7 +2005,7 @@ export const AppSidebar = ({
       <div
         style={{
           flex: 1,
-          overflow: 'hidden',
+          overflow: 'visible', // Changed to visible for sticky positioning
           display: 'flex',
           flexDirection: 'column',
           minHeight: 0,
