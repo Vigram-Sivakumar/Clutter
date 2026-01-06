@@ -589,7 +589,7 @@ export const SidebarItem = ({
                               isSelected || isOpen
                                 ? colors.text.default
                                 : id === 'completed-tasks' && !isOpen
-                                  ? colors.text.tertiary
+                                  ? colors.text.placeholder
                                   : colors.text.secondary,
                           } as any
                         )
@@ -600,12 +600,12 @@ export const SidebarItem = ({
                         isOpen,
                         size: 16,
                         // Don't use accent color on icon - only on label
-                        // Completed section uses tertiary color when collapsed
+                        // Completed section uses placeholder color when collapsed
                         color:
                           isSelected || isOpen
                             ? colors.text.default
                             : id === 'completed-tasks' && !isOpen
-                              ? colors.text.tertiary
+                              ? colors.text.placeholder
                               : colors.text.secondary,
                       })
                 }
@@ -972,7 +972,7 @@ export const SidebarItem = ({
     }
 
     // Note and folder variants - plain text
-    // Completed section uses tertiary color when collapsed
+    // Completed section uses placeholder color when collapsed
     const isCompletedSection = id === 'completed-tasks';
     const shouldUseSubtleColor = isCompletedSection && !isOpen;
 
@@ -986,7 +986,7 @@ export const SidebarItem = ({
               isSelected || (variant === 'folder' && isOpen)
                 ? colors.text.default
                 : shouldUseSubtleColor
-                  ? colors.text.tertiary
+                  ? colors.text.placeholder
                   : colors.text.secondary,
             overflow: 'hidden',
             textOverflow: 'ellipsis',
