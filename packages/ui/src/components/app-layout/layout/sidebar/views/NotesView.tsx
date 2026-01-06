@@ -247,6 +247,7 @@ export const NotesView = ({
             selection.context === folderContext
           }
           context={folderContext}
+          sticky
           reorderable={Boolean(onFolderDragOverForReorder)}
           onClearAllReorderIndicators={() => {
             // Clear both note and folder reorder indicators when hovering over folder
