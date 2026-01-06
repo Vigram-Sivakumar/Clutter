@@ -167,7 +167,6 @@ export const CalendarView = ({
               flexDirection: 'column',
               gap: sidebarLayout.itemGap,
               width: '100%',
-              paddingTop: '2px',
               paddingBottom: sidebarLayout.sectionContentPaddingBottom,
             }}
           >

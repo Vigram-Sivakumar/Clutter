@@ -294,7 +294,6 @@ export const NotesView = ({
                 display: 'flex',
                 flexDirection: 'column',
                 gap: sidebarLayout.itemGap,
-                paddingTop: '2px',
                 paddingBottom: sidebarLayout.sectionContentPaddingBottom,
               }}
             >

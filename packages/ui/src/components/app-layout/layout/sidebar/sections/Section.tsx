@@ -68,7 +68,6 @@ export const SidebarSection = ({
           gap: sidebarLayout.itemGap,
           width: '100%',
           minWidth: 0, // Allow shrinking below content size
-          paddingTop: '2px',
           paddingBottom: sidebarLayout.sectionContentPaddingBottom,
         }}
       >

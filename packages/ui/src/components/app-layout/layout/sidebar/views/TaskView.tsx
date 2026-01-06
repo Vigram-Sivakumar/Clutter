@@ -424,7 +424,6 @@ export const TaskView = ({
               display: 'flex',
               flexDirection: 'column',
               gap: sidebarLayout.itemGap,
-              paddingTop: '2px',
               paddingBottom: sidebarLayout.sectionContentPaddingBottom,
               width: '100%',
               minWidth: 0, // Allow shrinking below content size
@@ -485,7 +484,6 @@ export const TaskView = ({
               display: 'flex',
               flexDirection: 'column',
               gap: sidebarLayout.itemGap,
-              paddingTop: '2px',
               paddingBottom: sidebarLayout.sectionContentPaddingBottom,
               width: '100%',
               minWidth: 0, // Allow shrinking below content size
@@ -516,7 +514,6 @@ export const TaskView = ({
               display: 'flex',
               flexDirection: 'column',
               gap: sidebarLayout.itemGap,
-              paddingTop: '2px',
               paddingBottom: sidebarLayout.sectionContentPaddingBottom,
               width: '100%',
               minWidth: 0, // Allow shrinking below content size
@@ -549,7 +546,6 @@ export const TaskView = ({
               display: 'flex',
               flexDirection: 'column',
               gap: sidebarLayout.itemGap,
-              paddingTop: '2px',
               paddingBottom: sidebarLayout.sectionContentPaddingBottom,
               width: '100%',
               minWidth: 0, // Allow shrinking below content size
