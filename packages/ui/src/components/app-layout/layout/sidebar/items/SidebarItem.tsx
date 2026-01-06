@@ -125,7 +125,7 @@ export const SidebarItem = ({
   level = 0,
   icon,
   badge,
-  labelColor: _labelColor,
+  labelColor,
   isOpen = false,
   isSelected = false,
   hasOpenContextMenu = false,
@@ -588,9 +588,7 @@ export const SidebarItem = ({
                             color:
                               isSelected || isOpen
                                 ? colors.text.default
-                                : id === 'completed-tasks' && !isOpen
-                                  ? colors.text.placeholder
-                                  : colors.text.secondary,
+                                : colors.text.secondary,
                           } as any
                         )
                       : icon
@@ -600,13 +598,10 @@ export const SidebarItem = ({
                         isOpen,
                         size: 16,
                         // Don't use accent color on icon - only on label
-                        // Completed section uses placeholder color when collapsed
                         color:
                           isSelected || isOpen
                             ? colors.text.default
-                            : id === 'completed-tasks' && !isOpen
-                              ? colors.text.placeholder
-                              : colors.text.secondary,
+                            : colors.text.secondary,
                       })
                 }
                 onClick={(e) => {
@@ -657,8 +652,11 @@ export const SidebarItem = ({
 
       // Folder without toggle: Just show icon
       // Don't use accent color on icon - only on label
-      const iconColor =
-        isSelected || isOpen ? colors.text.default : colors.text.secondary;
+      const iconColor = labelColor
+        ? labelColor
+        : isSelected || isOpen
+          ? colors.text.default
+          : colors.text.secondary;
       const folderIcon =
         typeof icon !== 'string' && icon
           ? isValidElement(icon)
@@ -972,22 +970,17 @@ export const SidebarItem = ({
     }
 
     // Note and folder variants - plain text
-    // Completed section uses placeholder color when collapsed
-    const isCompletedSection = id === 'completed-tasks';
-    const shouldUseSubtleColor = isCompletedSection && !isOpen;
-
     return (
       <span
         style={
           {
             fontSize: DESIGN.typography.fontSize,
             fontWeight: DESIGN.typography.fontWeight,
-            color:
-              isSelected || (variant === 'folder' && isOpen)
+            color: labelColor
+              ? labelColor
+              : isSelected || (variant === 'folder' && isOpen)
                 ? colors.text.default
-                : shouldUseSubtleColor
-                  ? colors.text.placeholder
-                  : colors.text.secondary,
+                : colors.text.secondary,
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',
