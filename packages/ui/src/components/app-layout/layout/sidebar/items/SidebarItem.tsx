@@ -1267,6 +1267,7 @@ export const SidebarItem = ({
               paddingLeft: DESIGN.spacing.paddingX,
               paddingRight: DESIGN.spacing.paddingX,
               boxSizing: 'border-box',
+              overflow: 'hidden',
               cursor: isDragging
                 ? 'grabbing'
                 : variant === 'group'
