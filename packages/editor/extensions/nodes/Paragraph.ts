@@ -286,14 +286,8 @@ export const Paragraph = Node.create({
         if (result) {
           // Get the new block's position
           const { state } = editor;
-          const { $from, from, to } = state.selection;
+          const { $from } = state.selection;
           const blockPos = $from.before($from.depth);
-
-          console.log('🔧 [Paragraph.Enter] Setting blockId after split', {
-            from,
-            to,
-            blockPos,
-          });
 
           // ✅ ALWAYS set new blockId and clear tags
           const tr = state.tr;
@@ -307,16 +301,7 @@ export const Paragraph = Node.create({
           // The second transaction must maintain the selection or it gets lost!
           tr.setSelection(state.selection.map(tr.doc, tr.mapping));
 
-          console.log(
-            '🎯 [Paragraph.Enter] Dispatching transaction with selection preserved'
-          );
           editor.view.dispatch(tr);
-
-          console.log('✅ [Paragraph.Enter] After dispatch, selection:', {
-            from: editor.state.selection.from,
-            to: editor.state.selection.to,
-            parent: editor.state.selection.$from.parent.type.name,
-          });
         }
 
         return result;

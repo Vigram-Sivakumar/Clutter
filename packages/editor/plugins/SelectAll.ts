@@ -1,13 +1,19 @@
 /**
  * Progressive Select All Plugin
- * 
+ *
  * Implements Notion/Craft-style Cmd+A behavior:
  * 1. First Cmd+A: Select all text in current block
  * 2. Second Cmd+A: Select the entire current block (NodeSelection)
  * 3. Third Cmd+A: Select all blocks in the document
  */
 
-import { Plugin, PluginKey, TextSelection, AllSelection, NodeSelection } from '@tiptap/pm/state';
+import {
+  Plugin,
+  PluginKey,
+  TextSelection,
+  AllSelection,
+  NodeSelection,
+} from '@tiptap/pm/state';
 import { Extension } from '@tiptap/core';
 
 export const SelectAllPluginKey = new PluginKey('selectAll');
@@ -16,7 +22,7 @@ export const SelectAllPluginKey = new PluginKey('selectAll');
  * Check if selection covers all text in the current block
  */
 function isBlockFullySelected(state: any): boolean {
-  const { selection, doc } = state;
+  const { selection } = state;
   const { $from, $to, from, to } = selection;
 
   // Must be a TextSelection (note: constructor name has underscore prefix)
@@ -27,7 +33,7 @@ function isBlockFullySelected(state: any): boolean {
   // Must be in the same block
   const blockDepth = $from.depth;
   if (blockDepth === 0) return false;
-  
+
   // Check if $from and $to are in the same block
   if ($from.depth !== $to.depth) {
     return false;
@@ -36,7 +42,7 @@ function isBlockFullySelected(state: any): boolean {
   // Check if they share the same parent block
   const fromParent = $from.node(blockDepth);
   const toParent = $to.node(blockDepth);
-  
+
   if (fromParent !== toParent) {
     return false;
   }
@@ -111,12 +117,13 @@ function selectCurrentBlockAsNode(state: any, dispatch: any): boolean {
  */
 function selectAllBlocks(state: any, dispatch: any): boolean {
   const { doc } = state;
-  
-  // Create a TextSelection spanning the entire document
-  const tr = state.tr.setSelection(
-    TextSelection.create(doc, 0, doc.content.size)
-  );
+
+  // Use AllSelection for selecting the entire document
+  // This is the correct way to select all content - it properly handles
+  // document-level selection without creating invalid TextSelection endpoints
+  const tr = state.tr.setSelection(new AllSelection(doc));
   dispatch(tr);
+
   return true;
 }
 
@@ -150,7 +157,7 @@ export const SelectAll = Extension.create({
       new Plugin({
         key: SelectAllPluginKey,
         props: {
-          handleKeyDown(view, event) {
+          handleKeyDown(_view, _event) {
             // Let the keyboard shortcut handler take care of it
             return false;
           },
@@ -159,4 +166,3 @@ export const SelectAll = Extension.create({
     ];
   },
 });
-
