@@ -7,7 +7,7 @@ export const sidebarLayout = {
   // Section spacing
   sectionGap: '4px', // Gap between FAVOURITES, FOLDERS, TAGS sections
   headerToItemsGap: '0px', // Gap between section header and first item (e.g., "FAVOURITES" → items)
-  sectionContentPaddingBottom: '16px', // Bottom padding for section content wrapper
+  sectionContentPaddingBottom: '8px', // Bottom padding for section content wrapper
 
   // Item spacing
   itemGap: '2px', // Gap between individual items (notes, folders, tags, headers)

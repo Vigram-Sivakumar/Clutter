@@ -123,7 +123,7 @@ export const TagsView = ({
               flexDirection: 'column',
               gap: sidebarLayout.itemGap,
               paddingTop: '2px',
-              paddingBottom: '2px',
+              paddingBottom: sidebarLayout.sectionContentPaddingBottom,
             }}
           >
             {favouriteTags.map(({ tag, count }) => (
@@ -166,7 +166,7 @@ export const TagsView = ({
               flexDirection: 'column',
               gap: sidebarLayout.itemGap,
               paddingTop: '2px',
-              paddingBottom: '2px',
+              paddingBottom: sidebarLayout.sectionContentPaddingBottom,
             }}
           >
             {tagsWithCounts.map(({ tag, count }) => (

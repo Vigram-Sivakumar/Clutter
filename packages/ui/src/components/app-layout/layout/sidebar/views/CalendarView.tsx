@@ -168,7 +168,7 @@ export const CalendarView = ({
               gap: sidebarLayout.itemGap,
               width: '100%',
               paddingTop: '2px',
-              paddingBottom: '2px',
+              paddingBottom: sidebarLayout.sectionContentPaddingBottom,
             }}
           >
             {getSortedYears(groupedDailyNotes).map((year) => {

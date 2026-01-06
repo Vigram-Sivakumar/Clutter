@@ -295,7 +295,7 @@ export const NotesView = ({
                 flexDirection: 'column',
                 gap: sidebarLayout.itemGap,
                 paddingTop: '2px',
-                paddingBottom: '2px',
+                paddingBottom: sidebarLayout.sectionContentPaddingBottom,
               }}
             >
               {/* Empty state - shown when folder has no notes or subfolders */}
