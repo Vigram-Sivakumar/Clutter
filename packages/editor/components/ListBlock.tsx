@@ -1,11 +1,11 @@
 /**
  * ListBlock - React node view for list items
- * 
+ *
  * Notion-style structure:
  * - [Marker 24px] [Content flex:1]
  * - Connector via CSS pseudo-element (in padding area)
  * - No ul/ol/li - all divs
- * 
+ *
  * Features:
  * - L-shaped connectors for nested items (CSS)
  * - Collapse toggle with completion count for tasks with children
@@ -18,7 +18,6 @@ import type { NodeViewProps } from '@tiptap/react';
 import { spacing, sizing, typography } from '../tokens';
 import type { ListBlockAttrs } from '../types';
 import { useTheme } from '@clutter/ui';
-import { sizing as globalSizing } from '@clutter/ui';
 import { usePlaceholder } from '../hooks/usePlaceholder';
 import { useBlockSelection } from '../hooks/useBlockSelection';
 // import { Placeholder } from './Placeholder'; // No longer used - CSS handles placeholders
@@ -48,7 +47,7 @@ function calculateListNumber(
 
   doc.nodesBetween(0, pos, (node, nodePos) => {
     if (nodePos >= pos) return false;
-    
+
     if (node.type.name === 'listBlock') {
       const attrs = node.attrs as ListBlockAttrs;
       if (attrs.listType === 'numbered' && attrs.level === level) {
@@ -58,14 +57,19 @@ function calculateListNumber(
       if (attrs.listType !== 'numbered' || attrs.level < level) {
         count = 1;
       }
-    } else if (node.type.name === 'paragraph' || node.type.name === 'heading' || 
-               node.type.name === 'blockquote' || node.type.name === 'callout' || 
-               node.type.name === 'codeBlock' || node.type.name === 'toggleHeader' ||
-               node.type.name === 'horizontalRule') {
+    } else if (
+      node.type.name === 'paragraph' ||
+      node.type.name === 'heading' ||
+      node.type.name === 'blockquote' ||
+      node.type.name === 'callout' ||
+      node.type.name === 'codeBlock' ||
+      node.type.name === 'toggleHeader' ||
+      node.type.name === 'horizontalRule'
+    ) {
       // Reset count when any other block type interrupts the numbered list
       count = 1;
     }
-    
+
     return true;
   });
 
@@ -85,10 +89,10 @@ function getChildrenInfo(
   const doc = editor.state.doc;
   const currentNode = doc.nodeAt(pos);
   if (!currentNode) return { total: 0, completed: 0, hasChildren: false };
-  
+
   const currentBlockId = currentNode.attrs.blockId;
   if (!currentBlockId) return { total: 0, completed: 0, hasChildren: false };
-  
+
   let total = 0;
   let completed = 0;
 
@@ -99,9 +103,9 @@ function getChildrenInfo(
 
       // Only count tasks that are direct children (parentBlockId matches our blockId)
       if (attrs.parentBlockId === currentBlockId && attrs.listType === 'task') {
-          total++;
-          if (attrs.checked) {
-            completed++;
+        total++;
+        if (attrs.checked) {
+          completed++;
         }
       }
     }
@@ -139,10 +143,7 @@ function isChildOfPreviousTask(
     if (node.type.name === 'listBlock') {
       const attrs = node.attrs as ListBlockAttrs;
 
-      if (
-        attrs.listType === 'task' &&
-        attrs.blockId === parentBlockId
-      ) {
+      if (attrs.listType === 'task' && attrs.blockId === parentBlockId) {
         foundParent = true;
         return false; // Stop once parent is found
       }
@@ -168,45 +169,45 @@ function isHiddenByCollapsedParent(
   const doc = editor.state.doc;
   const currentNode = doc.nodeAt(pos);
   if (!currentNode) return false;
-  
+
   let currentParentId = currentNode.attrs.parentBlockId;
-  
+
   // Walk up the parent chain checking for collapsed ancestors
   while (currentParentId) {
     let foundParent = false;
     let parentCollapsed = false;
-    
+
     doc.descendants((node) => {
-    if (node.type.name === 'listBlock') {
-      const attrs = node.attrs as ListBlockAttrs;
-      
+      if (node.type.name === 'listBlock') {
+        const attrs = node.attrs as ListBlockAttrs;
+
         // Found the parent
         if (attrs.blockId === currentParentId) {
           foundParent = true;
-          
+
           // Check if it's a collapsed task
           if (attrs.listType === 'task' && attrs.collapsed) {
             parentCollapsed = true;
             return false; // Stop searching
           }
-          
+
           // Move up to next parent
           currentParentId = attrs.parentBlockId;
           return false; // Stop this iteration
+        }
       }
-    }
-    return true;
-  });
-  
+      return true;
+    });
+
     if (parentCollapsed) {
       return true; // Found collapsed ancestor
     }
-    
+
     if (!foundParent) {
       break; // No more parents
     }
   }
-  
+
   return false;
 }
 
@@ -224,7 +225,7 @@ function updateChildrenChecked(
   const { state } = editor;
   const currentNode = state.doc.nodeAt(pos);
   if (!currentNode) return;
-  
+
   const currentBlockId = currentNode.attrs.blockId;
   if (!currentBlockId) return;
 
@@ -233,9 +234,9 @@ function updateChildrenChecked(
 
   // Recursively update all descendants by parentBlockId
   const updateDescendants = (parentId: string) => {
-  state.doc.descendants((node, nodePos) => {
-    if (node.type.name === 'listBlock') {
-      const attrs = node.attrs as ListBlockAttrs;
+    state.doc.descendants((node, nodePos) => {
+      if (node.type.name === 'listBlock') {
+        const attrs = node.attrs as ListBlockAttrs;
 
         // If this node's parent matches, update it and recurse
         if (attrs.parentBlockId === parentId && attrs.listType === 'task') {
@@ -243,11 +244,11 @@ function updateChildrenChecked(
           // Recursively update this node's children
           if (attrs.blockId) {
             updateDescendants(attrs.blockId);
+          }
         }
       }
-    }
-    return true;
-  });
+      return true;
+    });
   };
 
   // Start recursion from current block's ID
@@ -272,20 +273,25 @@ export function ListBlock({
 }: ListBlockProps) {
   const { colors } = useTheme();
   const attrs = node.attrs as ListBlockAttrs;
-  const { listType, level, checked, collapsed, parentToggleId, priority } = attrs;
-  
+  const { listType, level, checked, collapsed, parentToggleId, priority } =
+    attrs;
+
   // Check if this block is selected
-  const isSelected = useBlockSelection({ editor, getPos, nodeSize: node.nodeSize });
-  
+  const isSelected = useBlockSelection({
+    editor,
+    getPos,
+    nodeSize: node.nodeSize,
+  });
+
   // Force re-render when document updates (for reactive children info)
   const [, forceUpdate] = useState(0);
-  
+
   useEffect(() => {
     const handleUpdate = () => {
       // Trigger re-render on any document change
-      forceUpdate(prev => prev + 1);
+      forceUpdate((prev) => prev + 1);
     };
-    
+
     editor.on('update', handleUpdate);
     editor.on('selectionUpdate', handleUpdate); // Re-render on selection change for placeholder focus detection
     editor.on('focus', handleUpdate);
@@ -306,7 +312,8 @@ export function ListBlock({
 
   // Get children info for tasks
   const childrenInfo = useMemo(() => {
-    if (listType !== 'task') return { total: 0, completed: 0, hasChildren: false };
+    if (listType !== 'task')
+      return { total: 0, completed: 0, hasChildren: false };
     return getChildrenInfo(editor, getPos);
   }, [editor, getPos, listType, editor.state.doc]);
 
@@ -314,13 +321,15 @@ export function ListBlock({
   const isHidden = useMemo(() => {
     const pos = getPos();
     if (pos === undefined) return false;
-    
+
     // Check if hidden by collapsed task parent
     const hiddenByTask = isHiddenByCollapsedParent(editor, getPos);
-    
+
     // Check if hidden by collapsed toggle parent
-    const hiddenByToggle = parentToggleId ? isHiddenByCollapsedToggle(editor.state.doc, pos, parentToggleId) : false;
-    
+    const hiddenByToggle = parentToggleId
+      ? isHiddenByCollapsedToggle(editor.state.doc, pos, parentToggleId)
+      : false;
+
     return hiddenByTask || hiddenByToggle;
   }, [editor, getPos, level, parentToggleId, editor.state.doc]);
 
@@ -329,12 +338,12 @@ export function ListBlock({
 
   // Get priority level from attribute (set when user types ! and presses space)
   const committedPriority = priority || 0;
-  
+
   // Detect uncommitted priority from text content (preview as user types)
   const textContent = node.textContent || '';
   const exclamationMatches = textContent.match(/!+/g);
-  const previewPriority = exclamationMatches 
-    ? Math.min(Math.max(...exclamationMatches.map(m => m.length)), 3)
+  const previewPriority = exclamationMatches
+    ? Math.min(Math.max(...exclamationMatches.map((m) => m.length)), 3)
     : 0;
 
   // Check if this task is a child of the previous task (for showing connectors)
@@ -373,9 +382,19 @@ export function ListBlock({
   // Helper: Convert number to lowercase roman numeral
   const toRomanNumeral = (num: number): string => {
     const romanMap: [number, string][] = [
-      [1000, 'm'], [900, 'cm'], [500, 'd'], [400, 'cd'],
-      [100, 'c'], [90, 'xc'], [50, 'l'], [40, 'xl'],
-      [10, 'x'], [9, 'ix'], [5, 'v'], [4, 'iv'], [1, 'i']
+      [1000, 'm'],
+      [900, 'cm'],
+      [500, 'd'],
+      [400, 'cd'],
+      [100, 'c'],
+      [90, 'xc'],
+      [50, 'l'],
+      [40, 'xl'],
+      [10, 'x'],
+      [9, 'ix'],
+      [5, 'v'],
+      [4, 'iv'],
+      [1, 'i'],
     ];
     let result = '';
     for (const [value, numeral] of romanMap) {
@@ -402,7 +421,7 @@ export function ListBlock({
       case 'bullet': {
         // Cycle through 3 bullet styles based on display level
         const bulletStyle = displayLevel % 3;
-        
+
         if (bulletStyle === 0) {
           // Level 0, 3, 6... → • filled circle
           return (
@@ -446,7 +465,7 @@ export function ListBlock({
         // Cycle through 3 numbering styles based on display level
         const numberStyle = displayLevel % 3;
         let displayNumber: string;
-        
+
         if (numberStyle === 0) {
           // Level 0, 3, 6... → 1. decimal
           displayNumber = `${listNumber}.`;
@@ -458,7 +477,7 @@ export function ListBlock({
           // Level 2, 5, 8... → i. lowercase roman
           displayNumber = `${toRomanNumeral(listNumber)}.`;
         }
-        
+
         return (
           <span
             style={{
@@ -597,33 +616,39 @@ export function ListBlock({
       <BlockHandle editor={editor} getPos={getPos} indent={indent} />
 
       {/* Main row: marker (24px) + gap (4px) + content */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: spacing.inline }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: spacing.inline,
+        }}
+      >
         {/* PHASE 3 REFACTOR: Use shared MarkerContainer component */}
         <div style={{ color: colors.marker, position: 'relative' }}>
-      {/* L-shaped connector for nested task items */}
+          {/* L-shaped connector for nested task items */}
           {/* Only show when previous sibling is also a task */}
           {showConnector && (
-        <div
-          style={{
-            position: 'absolute',
+            <div
+              style={{
+                position: 'absolute',
                 // Start at parent's checkbox center: -spacing.indent + markerContainer/2
                 left: -spacing.indent + sizing.markerContainer / 2,
-            top: 0,
+                top: 0,
                 width: 12,
                 height: 16,
-            borderLeft: `1px solid ${colors.connector.tertiary}`,
-            borderBottom: `1px solid ${colors.connector.tertiary}`,
-            borderBottomLeftRadius: 4,
-            pointerEvents: 'none',
-          }}
-        />
-      )}
+                borderLeft: `1px solid ${colors.border.subtle}`,
+                borderBottom: `1px solid ${colors.border.subtle}`,
+                borderBottomLeftRadius: 4,
+                pointerEvents: 'none',
+              }}
+            />
+          )}
           <MarkerContainer>{renderMarkerContent()}</MarkerContainer>
         </div>
-        
+
         {/* Content with placeholder */}
         <div style={{ ...contentStyle, position: 'relative' }}>
-          <NodeViewContent 
+          <NodeViewContent
             as="div"
             data-placeholder={placeholderText || undefined}
           />
@@ -656,4 +681,3 @@ export function ListBlock({
     </NodeViewWrapper>
   );
 }
-
