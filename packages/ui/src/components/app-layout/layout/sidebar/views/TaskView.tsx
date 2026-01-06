@@ -252,11 +252,6 @@ export const TaskView = ({
         // Add to completing set for animation
         setCompletingTasks((prev) => new Set(prev).add(taskId));
 
-        // Auto-expand Completed section when completing a task
-        if (taskCompletedCollapsed) {
-          setTaskCompletedCollapsed(false);
-        }
-
         // Wait for animation, then start removal animation
         setTimeout(() => {
           // Move to removing phase (height collapse animation)
