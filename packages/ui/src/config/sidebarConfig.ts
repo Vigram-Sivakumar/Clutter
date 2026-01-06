@@ -189,7 +189,7 @@ export const SECTIONS: Record<SectionId, SectionConfig> = {
   completed: {
     id: 'completed',
     label: 'Completed',
-    iconName: 'CheckCircle',
+    iconName: 'CheckSquare',
     emptyMessage: 'No completed tasks',
     internalId: 'completed-tasks',
     breadcrumbPath: ['Tasks', 'Completed'],
