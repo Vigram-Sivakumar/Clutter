@@ -99,7 +99,7 @@ export const SidebarContainer = ({
         gap: '4px', // ✅ 4px gap from window controls to app layer
         paddingTop: hasWindowControls ? '0' : '12px',
         boxSizing: 'border-box',
-        overflow: 'hidden',
+        overflow: 'visible', // Allow sticky positioning for section/group headers
         minHeight: 0,
       }}
     >
@@ -122,7 +122,7 @@ export const SidebarContainer = ({
           gap: '16px', // 16px within app layer
           flex: 1,
           minHeight: 0,
-          overflow: 'hidden',
+          overflow: 'visible', // Allow sticky positioning for section/group headers
         }}
       >
         {/* Tab Toggle */}
@@ -194,7 +194,7 @@ export const SidebarContainer = ({
         <div
           style={{
             flex: 1,
-            overflow: 'hidden',
+            overflow: 'visible', // Allow sticky positioning for section/group headers
             minHeight: 0,
             display: 'flex',
             flexDirection: 'column',

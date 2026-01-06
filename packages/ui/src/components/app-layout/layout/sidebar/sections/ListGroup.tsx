@@ -68,6 +68,7 @@ export const SidebarListGroup = ({
             display: 'flex',
             flexDirection: 'column',
             gap: sidebarLayout.itemGap,
+            overflow: 'hidden', // Enable collapse animations for items
           }}
         >
           {children}
