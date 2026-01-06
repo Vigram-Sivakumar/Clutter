@@ -218,7 +218,7 @@ export const TaskView = ({
             next.delete(taskId);
             return next;
           });
-        }, 500); // 500ms animation duration
+        }, 800); // 800ms animation duration
       } else {
         // If uncompleting (checked -> unchecked), update immediately
         const updatedContent = toggleTaskInNote(note, taskId);
