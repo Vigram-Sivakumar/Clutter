@@ -191,6 +191,53 @@ export const TaskView = ({
     return grouped;
   }, [upcomingTasks, todayDateString]);
 
+  // Group completed tasks by their original date
+  const groupedCompletedTasks = useMemo(() => {
+    const dateGroups = new Map<string, Task[]>();
+    const noDateGroup: Task[] = [];
+
+    completedTasks.forEach((task) => {
+      const effectiveDate = task.date || task.dailyNoteDate;
+      if (effectiveDate) {
+        if (!dateGroups.has(effectiveDate)) {
+          dateGroups.set(effectiveDate, []);
+        }
+        dateGroups.get(effectiveDate)!.push(task);
+      } else {
+        noDateGroup.push(task);
+      }
+    });
+
+    // Sort tasks within each date by creation date (most recent first for completed)
+    dateGroups.forEach((tasks) => {
+      tasks.sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+    });
+    noDateGroup.sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+
+    // Build final map - sorted by date (most recent first)
+    const grouped = new Map<string, Task[]>();
+    const sortedDates = Array.from(dateGroups.entries()).sort((a, b) =>
+      compareDates(b[0], a[0])
+    ); // Reverse order - newest first
+
+    sortedDates.forEach(([date, tasks]) => {
+      grouped.set(date, tasks);
+    });
+
+    // Add "No date" group at the end if it has tasks
+    if (noDateGroup.length > 0) {
+      grouped.set('__no_date__', noDateGroup);
+    }
+
+    return grouped;
+  }, [completedTasks, todayDateString]);
+
   // Handle checkbox toggle with animation
   const handleToggleTask = useCallback(
     (taskId: string) => {
@@ -277,12 +324,19 @@ export const TaskView = ({
           ([date, tasks], groupIndex, groupsArray) => {
             const isLastGroup = groupIndex === groupsArray.length - 1;
             const isOverdue = date === '__overdue__';
+            const isNoDate = date === '__no_date__';
             const isToday = date === todayDateString;
 
             // Determine label and connector color
-            const label = isOverdue
-              ? 'Overdue'
-              : formatTaskDateLabel(date, todayDateString);
+            let label: string;
+            if (isOverdue) {
+              label = 'Overdue';
+            } else if (isNoDate) {
+              label = 'No date';
+            } else {
+              label = formatTaskDateLabel(date, todayDateString);
+            }
+
             const connectorColor = isToday
               ? colors.semantic.calendarAccent
               : colors.border.default;
@@ -652,22 +706,7 @@ export const TaskView = ({
               {completedTasks.length === 0 ? (
                 <SidebarEmptyState message={SECTIONS.completed.emptyMessage} />
               ) : (
-                completedTasks.map((task) => (
-                  <SidebarItemTask
-                    key={task.id}
-                    id={task.id}
-                    noteId={task.noteId}
-                    noteTitle={task.noteTitle}
-                    text={task.text}
-                    checked={task.checked}
-                    isSelected={selectedTaskIds?.has(task.id)}
-                    hasOpenContextMenu={openContextMenuId === task.id}
-                    onClick={(e) => handleTaskClick(task.id, e)}
-                    onToggle={handleToggleTask}
-                    onNavigate={handleTaskNavigate}
-                    actions={getTaskActions?.(task.id, task.noteId)}
-                  />
-                ))
+                renderGroupedTasks(groupedCompletedTasks, 'completed')
               )}
             </div>
           </div>
