@@ -39,7 +39,6 @@ import {
 } from '@clutter/state';
 import { sortByOrder } from '@clutter/shared';
 import { Note, Folder } from '@clutter/domain';
-import { getTagColor } from '../../../../utils/tagColors';
 import { getFolderIcon, getNoteIcon } from '../../../../utils/itemIcons';
 import type { SidebarNote, SidebarFolder, GlobalSelection } from './types';
 
@@ -2045,7 +2044,7 @@ export const AppSidebar = ({
               '', // empty description
               true, // description visible
               false, // not favorite
-              getTagColor(tagName) // hash-based color
+              undefined // NO color - let it use hash-based default so it updates as user types
             );
 
             // Navigate to the tag filtered view
@@ -2273,7 +2272,7 @@ export const AppSidebar = ({
                       '', // empty description
                       true, // description visible
                       false, // not favorite
-                      getTagColor(tagName) // hash-based color
+                      undefined // NO color - let it use hash-based default so it updates as user types
                     );
 
                     // Navigate to the tag filtered view

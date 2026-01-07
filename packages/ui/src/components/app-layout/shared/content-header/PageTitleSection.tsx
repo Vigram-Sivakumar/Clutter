@@ -497,15 +497,35 @@ export const PageTitleSection = forwardRef<
     // Local state to track the tag name being edited (for real-time color updates)
     const [editingTagName, setEditingTagName] = useState(props.tag);
 
-    // Get tag metadata for color - use editingTagName for real-time updates
+    // Get tag metadata for color
     const tagMetadata = getTagMetadata(props.tag);
-    const colorName = tagMetadata?.color || getTagColor(editingTagName);
+
+    // Color logic:
+    // - If tag has a SAVED color in metadata: Always use it (don't change during editing)
+    // - If tag has NO saved color (using hash default): Update color as user types for preview
+    const hasSavedColor = !!tagMetadata?.color;
+    const colorName = hasSavedColor
+      ? tagMetadata.color // Keep the saved color (don't update while editing)
+      : getTagColor(editingTagName); // No saved color - show hash preview as they type
+
     const accentColor = colors.accent[colorName as keyof typeof colors.accent];
     const tagColor = (
       accentColor && 'bg' in accentColor && 'text' in accentColor
         ? accentColor
         : colors.accent.default
     ) as { bg: string; text: string };
+
+    // #region agent log
+    console.log('[DEBUG] Tag color calculation', {
+      editingTagName,
+      propsTag: props.tag,
+      hasSavedColor,
+      colorName,
+      tagColorBg: tagColor.bg,
+      tagColorText: tagColor.text,
+      metadataColor: tagMetadata?.color,
+    });
+    // #endregion
 
     // Handle color icon click
     const handleColorIconClick = () => {
@@ -527,8 +547,21 @@ export const PageTitleSection = forwardRef<
     // Handle real-time input changes
     const handleTagNameInput = () => {
       if (tagNameRef.current) {
-        const currentText = tagNameRef.current.textContent?.trim() || '';
-        setEditingTagName(currentText);
+        const currentText = tagNameRef.current.textContent || ''; // Don't trim here - keep spaces
+        // #region agent log
+        console.log('[DEBUG] handleTagNameInput', {
+          currentText,
+          trimmed: currentText.trim(),
+          before: editingTagName,
+          propsTag: props.tag,
+        });
+        // #endregion
+        setEditingTagName(currentText.trim() || props.tag); // Use trimmed for state, fallback to original
+        // #region agent log
+        console.log('[DEBUG] handleTagNameInput after setState', {
+          newValue: currentText.trim() || props.tag,
+        });
+        // #endregion
       }
     };
 

@@ -202,15 +202,20 @@ export const TagFilteredNotesView = ({
   const handleTagRename = useCallback(
     (oldTag: string, newTag: string) => {
       if (renameTag) {
-        // Get the NEW tag's hash-based color (not the old one)
-        const newTagHashColor = getTagColor(newTag);
+        const oldMetadata = getTagMetadata(oldTag);
 
         // Perform the rename - this will move metadata and update all notes/folders
         renameTag(oldTag, newTag);
 
-        // Update the renamed tag's metadata with the NEW tag's hash-based color
-        // This ensures the new tag gets its proper color, not the old tag's color
-        updateTagMetadata(newTag, { color: newTagHashColor });
+        // Color logic:
+        // - If old tag had NO saved color (was using hash default), calculate new hash color
+        // - If old tag had a saved color, keep it (renameTag already moved the metadata)
+        if (!oldMetadata?.color) {
+          // No saved color - calculate hash color for the new tag name
+          const newTagHashColor = getTagColor(newTag);
+          updateTagMetadata(newTag, { color: newTagHashColor });
+        }
+        // If oldMetadata.color exists, renameTag already moved it, so we don't update
 
         // Use requestAnimationFrame to wait for React to complete all pending renders
         // This ensures Zustand state updates have propagated to all subscribers
