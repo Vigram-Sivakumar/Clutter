@@ -196,14 +196,9 @@ export const TaskView = ({
 
     completedTasks.forEach((task) => {
       // Get completion date (YYYY-MM-DD format)
-      let completionDate: string;
-      if (task.completedAt) {
-        // Extract just the date part from ISO string (YYYY-MM-DD)
-        completionDate = task.completedAt.split('T')[0];
-      } else {
-        // Fallback for old tasks without completedAt - use today
-        completionDate = todayDateString;
-      }
+      // Extract date part from ISO string (YYYY-MM-DD) or fallback to today
+      const completionDate: string =
+        task.completedAt?.split('T')[0] || todayDateString;
 
       if (!dateGroups.has(completionDate)) {
         dateGroups.set(completionDate, []);
@@ -335,17 +330,12 @@ export const TaskView = ({
             ? colors.semantic.calendarAccent
             : colors.border.default;
 
-          const labelBackgroundColor = isToday
-            ? colors.semantic.calendarAccent
-            : undefined;
-
           return (
             <SidebarListGroup
               key={date}
               id={`group-${sectionPrefix}-${date}`}
               title={label}
               connectorColor={connectorColor}
-              labelBackgroundColor={labelBackgroundColor}
               showConnector={false}
               sticky={true}
             >
