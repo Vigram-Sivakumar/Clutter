@@ -13,6 +13,7 @@ interface SidebarItemFolderProps {
   isToday?: boolean; // Whether this is today's month (for showing dot indicator)
   onClick: (_event?: React.MouseEvent) => void; // Click folder to open folder view
   onToggle?: () => void; // Click chevron to expand/collapse
+  isToggleDisabled?: boolean; // Whether the toggle/chevron is disabled (e.g., empty folder)
   actions?: ReactNode[];
   sticky?: boolean; // Whether this folder header should stick to the top when scrolling
   // Drag and drop (for moving into folder)
@@ -56,6 +57,7 @@ export const SidebarItemFolder = ({
   isToday = false,
   onClick,
   onToggle,
+  isToggleDisabled = false,
   actions,
   sticky = false,
   onDragStart,
@@ -96,6 +98,7 @@ export const SidebarItemFolder = ({
       isDropTarget={isDropTarget}
       onClick={onClick}
       onToggle={onToggle}
+      isToggleDisabled={isToggleDisabled}
       actions={actions}
       sticky={sticky}
       draggable={!!onDragStart}

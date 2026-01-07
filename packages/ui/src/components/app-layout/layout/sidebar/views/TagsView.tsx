@@ -108,6 +108,7 @@ export const TagsView = ({
         title={SECTIONS['favourites-tags'].label}
         isCollapsed={isFavouritesCollapsed}
         onToggle={onFavouritesToggle}
+        isToggleDisabled={favouriteTags.length === 0 && isFavouritesCollapsed} // Only disable when empty AND collapsed
         onHeaderClick={onFavouritesHeaderClick}
         emptyMessage={SECTIONS['favourites-tags'].emptyMessage}
         emptyShortcut={SECTIONS['favourites-tags'].emptyShortcut}
@@ -141,6 +142,7 @@ export const TagsView = ({
         title={SECTIONS['all-tags'].label}
         isCollapsed={isAllTagsCollapsed}
         onToggle={onAllTagsToggle}
+        isToggleDisabled={allTags.length === 0 && isAllTagsCollapsed} // Only disable when empty AND collapsed
         onHeaderClick={onAllTagsHeaderClick}
         emptyMessage={SECTIONS['all-tags'].emptyMessage}
         emptyShortcut={SECTIONS['all-tags'].emptyShortcut}

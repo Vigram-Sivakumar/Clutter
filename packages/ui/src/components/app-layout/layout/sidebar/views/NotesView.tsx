@@ -235,6 +235,11 @@ export const NotesView = ({
           level={level}
           onClick={(e) => onFolderClick?.(folder.id, folderContext, e)} // Click folder name to open folder view
           onToggle={() => onFolderToggle(folder.id)} // Click chevron to expand/collapse
+          isToggleDisabled={
+            folder.notes.length === 0 &&
+            (!folder.subfolders || folder.subfolders.length === 0) &&
+            !folder.isOpen
+          } // Only disable when empty AND collapsed
           actions={getFolderActions ? getFolderActions(folder.id) : undefined}
           hasOpenContextMenu={openContextMenuId === folder.id}
           onDragStart={onFolderDragStart}
@@ -405,6 +410,11 @@ export const NotesView = ({
         title={SECTIONS['favourites-notes'].label}
         isCollapsed={isFavouritesCollapsed}
         onToggle={onFavouritesToggle}
+        isToggleDisabled={
+          favouriteNotes.length === 0 &&
+          favouriteFolders.length === 0 &&
+          isFavouritesCollapsed
+        } // Only disable when empty AND collapsed
         onHeaderClick={onFavouritesHeaderClick}
         badge={
           favouriteNotes.length + favouriteFolders.length > 0
@@ -486,6 +496,7 @@ export const NotesView = ({
         title={SECTIONS.folders.label}
         isCollapsed={isFoldersCollapsed}
         onToggle={onFoldersToggle}
+        isToggleDisabled={false} // Never disable - Cluttered folder is always visible
         onHeaderClick={onFoldersHeaderClick}
         badge={(() => {
           const count =
@@ -529,6 +540,9 @@ export const NotesView = ({
               level={0}
               onClick={onClutteredFolderClick || (() => {})}
               onToggle={onClutteredToggle}
+              isToggleDisabled={
+                clutteredNotes.length === 0 && isClutteredCollapsed
+              } // Only disable when empty AND collapsed
               onDragEnd={onDragEnd}
               onDragOver={onClutteredDragOver}
               onDragLeave={onDragLeave}

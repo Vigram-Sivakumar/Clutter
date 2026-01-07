@@ -10,6 +10,7 @@ interface SidebarSectionProps {
   title: string;
   isCollapsed: boolean;
   onToggle: () => void;
+  isToggleDisabled?: boolean; // Whether the toggle/chevron is disabled (e.g., empty section)
   onHeaderClick?: () => void; // Click on title text (optional)
   badge?: string;
   icon?: ReactNode; // Optional icon for the section header
@@ -45,6 +46,7 @@ export const SidebarSection = ({
   title,
   isCollapsed,
   onToggle,
+  isToggleDisabled = false,
   onHeaderClick,
   badge,
   icon,
@@ -181,6 +183,7 @@ export const SidebarSection = ({
         isOpen={!isCollapsed}
         onClick={onHeaderClick || (() => {})}
         onToggle={onToggle}
+        isToggleDisabled={isToggleDisabled}
         actions={actions}
         enableAutoExpandHeader={enableAutoExpandHeader}
         sticky={sticky}

@@ -474,6 +474,7 @@ export const TaskView = ({
         icon={renderIcon(SECTIONS.today.iconName, 16, colors.text.default)}
         isCollapsed={taskTodayCollapsed}
         onToggle={() => setTaskTodayCollapsed(!taskTodayCollapsed)}
+        isToggleDisabled={todayTasks.length === 0 && taskTodayCollapsed} // Only disable when empty AND collapsed
         onHeaderClick={onTodayHeaderClick}
         emptyMessage={SECTIONS.today.emptyMessage}
         emptyShortcut={SECTIONS.today.emptyShortcut}
@@ -489,6 +490,7 @@ export const TaskView = ({
         icon={renderIcon(SECTIONS.upcoming.iconName, 16, colors.text.default)}
         isCollapsed={taskUpcomingCollapsed}
         onToggle={() => setTaskUpcomingCollapsed(!taskUpcomingCollapsed)}
+        isToggleDisabled={upcomingTasks.length === 0 && taskUpcomingCollapsed} // Only disable when empty AND collapsed
         onHeaderClick={onUpcomingHeaderClick}
         emptyMessage={SECTIONS.upcoming.emptyMessage}
         emptyShortcut={SECTIONS.upcoming.emptyShortcut}
@@ -506,6 +508,7 @@ export const TaskView = ({
         icon={renderIcon(SECTIONS.inbox.iconName, 16, colors.text.default)}
         isCollapsed={taskUnplannedCollapsed}
         onToggle={() => setTaskUnplannedCollapsed(!taskUnplannedCollapsed)}
+        isToggleDisabled={unplannedTasks.length === 0 && taskUnplannedCollapsed} // Only disable when empty AND collapsed
         onHeaderClick={onUnplannedHeaderClick}
         emptyMessage={SECTIONS.inbox.emptyMessage}
         emptyShortcut={SECTIONS.inbox.emptyShortcut}
@@ -557,6 +560,7 @@ export const TaskView = ({
         icon={renderIcon(SECTIONS.completed.iconName, 16, colors.text.default)}
         isCollapsed={taskCompletedCollapsed}
         onToggle={() => setTaskCompletedCollapsed(!taskCompletedCollapsed)}
+        isToggleDisabled={completedTasks.length === 0 && taskCompletedCollapsed} // Only disable when empty AND collapsed
         onHeaderClick={onCompletedHeaderClick}
         emptyMessage={SECTIONS.completed.emptyMessage}
         badge={

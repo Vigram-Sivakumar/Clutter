@@ -148,6 +148,10 @@ export const CalendarView = ({
         title={SECTIONS['daily-notes'].label}
         isCollapsed={isDailyNotesCollapsed}
         onToggle={onDailyNotesToggle}
+        isToggleDisabled={
+          getSortedYears(groupedDailyNotes).length === 0 &&
+          isDailyNotesCollapsed
+        } // Only disable when empty AND collapsed
         onHeaderClick={onDailyNotesFolderClick}
         isDropTarget={
           dropTargetType === 'dailyNotes' && dropTargetId === 'dailyNotes'
@@ -181,6 +185,10 @@ export const CalendarView = ({
                 level={0}
                 onClick={() => onYearClick?.(year)}
                 onToggle={() => toggleDailyNoteGroupCollapsed(yearKey)}
+                isToggleDisabled={
+                  getSortedMonths(groupedDailyNotes, year).length === 0 &&
+                  yearCollapsed
+                } // Only disable when empty AND collapsed
                 context="dailyNotes"
               />
 
@@ -221,6 +229,9 @@ export const CalendarView = ({
                         level={1}
                         onClick={() => onMonthClick?.(year, month)}
                         onToggle={() => toggleDailyNoteGroupCollapsed(monthKey)}
+                        isToggleDisabled={
+                          monthNotes.length === 0 && monthCollapsed
+                        } // Only disable when empty AND collapsed
                         context="dailyNotes"
                       />
 

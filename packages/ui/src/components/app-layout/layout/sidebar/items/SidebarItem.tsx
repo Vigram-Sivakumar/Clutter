@@ -84,6 +84,7 @@ interface SidebarItemProps {
   // Interactions
   onClick: (_event?: React.MouseEvent) => void;
   onToggle?: () => void; // For folders - click chevron to expand/collapse
+  isToggleDisabled?: boolean; // Whether the toggle/chevron is disabled (e.g., empty folder/section)
   actions?: ReactNode[];
 
   // Drag & Drop (optional)
@@ -143,6 +144,7 @@ export const SidebarItem = ({
   folderId,
   onClick,
   onToggle,
+  isToggleDisabled = false,
   actions,
   draggable = false,
   context = '',
@@ -633,12 +635,14 @@ export const SidebarItem = ({
                 justifyContent: 'center',
                 opacity: 0,
                 transition: animations.transition.opacity,
+                cursor: isToggleDisabled ? 'not-allowed' : 'pointer',
               }}
             >
               <TertiaryButton
                 icon={
                   <ChevronRight
                     size={16}
+                    color={isToggleDisabled ? colors.text.disabled : undefined}
                     style={{
                       transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)',
                       transition: animations.transition.transform,
@@ -646,10 +650,12 @@ export const SidebarItem = ({
                   />
                 }
                 onClick={(e) => {
+                  if (isToggleDisabled) return;
                   e.stopPropagation();
                   onToggle();
                 }}
                 size="xs"
+                disabled={isToggleDisabled}
               />
             </div>
           </div>
@@ -817,12 +823,14 @@ export const SidebarItem = ({
             opacity: isDropTarget ? 0 : 0, // Hidden by default, CSS shows on hover
             transition: animations.transition.opacity,
             pointerEvents: isDropTarget ? 'none' : 'auto',
+            cursor: isToggleDisabled ? 'not-allowed' : 'pointer',
           }}
         >
           <TertiaryButton
             icon={
               <ChevronDown
                 size={16}
+                color={isToggleDisabled ? colors.text.disabled : undefined}
                 style={{
                   transform: isOpen ? 'rotate(0deg)' : 'rotate(-90deg)',
                   transition: animations.transition.transform,
@@ -830,10 +838,12 @@ export const SidebarItem = ({
               />
             }
             onClick={(e) => {
+              if (isToggleDisabled) return;
               e.stopPropagation();
               onToggle();
             }}
             size="xs"
+            disabled={isToggleDisabled}
           />
         </div>
       </div>
