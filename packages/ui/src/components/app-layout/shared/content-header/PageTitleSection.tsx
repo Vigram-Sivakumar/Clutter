@@ -494,9 +494,12 @@ export const PageTitleSection = forwardRef<
 
   // Tag variant
   if (props.variant === 'tag') {
-    // Get tag metadata for color
+    // Local state to track the tag name being edited (for real-time color updates)
+    const [editingTagName, setEditingTagName] = useState(props.tag);
+
+    // Get tag metadata for color - use editingTagName for real-time updates
     const tagMetadata = getTagMetadata(props.tag);
-    const colorName = tagMetadata?.color || getTagColor(props.tag);
+    const colorName = tagMetadata?.color || getTagColor(editingTagName);
     const accentColor = colors.accent[colorName as keyof typeof colors.accent];
     const tagColor = (
       accentColor && 'bg' in accentColor && 'text' in accentColor
@@ -521,12 +524,23 @@ export const PageTitleSection = forwardRef<
       setIsColorTrayOpen(false);
     };
 
+    // Handle real-time input changes
+    const handleTagNameInput = () => {
+      if (tagNameRef.current) {
+        const currentText = tagNameRef.current.textContent?.trim() || '';
+        setEditingTagName(currentText);
+      }
+    };
+
     // Handle tag name edit
     const handleTagNameBlur = () => {
       if (tagNameRef.current && props.onTagRename) {
         const newTagName = tagNameRef.current.textContent?.trim() || '';
         if (newTagName && newTagName !== props.tag) {
           props.onTagRename(props.tag, newTagName);
+        } else {
+          // Reset to original if empty or unchanged
+          setEditingTagName(props.tag);
         }
       }
     };
@@ -541,6 +555,7 @@ export const PageTitleSection = forwardRef<
 
     // Update tag name when it changes externally
     useEffect(() => {
+      setEditingTagName(props.tag);
       if (tagNameRef.current && props.tag) {
         const currentText = tagNameRef.current.textContent || '';
         if (currentText !== props.tag) {
@@ -634,6 +649,7 @@ export const PageTitleSection = forwardRef<
                 ref={tagNameRef}
                 contentEditable={!!props.onTagRename}
                 suppressContentEditableWarning
+                onInput={handleTagNameInput}
                 onBlur={handleTagNameBlur}
                 onKeyDown={handleTagNameKeyDown}
                 style={{
