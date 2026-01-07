@@ -6,7 +6,7 @@ import { SidebarActionBar } from './sections/ActionBar';
 import { WindowControls } from './internal/WindowControls';
 import { CalendarMonthHeader, CalendarDateGrid } from './internal';
 import { SIDEBAR_TABS, renderIcon } from '../../../../config/sidebarConfig';
-import { Calendar, Hash } from '../../../../icons';
+import { Calendar, Search } from '../../../../icons';
 
 const DESIGN = {
   spacing: {
@@ -202,7 +202,7 @@ export const SidebarContainer = ({
               onPrimaryAction={onCreateTag}
               onSecondaryAction={() => {}}
               primaryLabel="Create Tag"
-              secondaryIcon={<Hash size={16} />}
+              secondaryIcon={<Search size={16} />}
               primaryShortcut="⌘⇧T"
             />
           </div>
