@@ -564,7 +564,13 @@ export const PageTitleSection = forwardRef<
     // Update tag name when it changes externally
     useEffect(() => {
       setEditingTagName(props.tag);
-      if (tagNameRef.current && props.tag) {
+      // Only update textContent if the element is not currently focused
+      // This prevents cursor jumping when user is actively editing
+      if (
+        tagNameRef.current &&
+        props.tag &&
+        document.activeElement !== tagNameRef.current
+      ) {
         const currentText = tagNameRef.current.textContent || '';
         if (currentText !== props.tag) {
           tagNameRef.current.textContent = props.tag;
