@@ -11,6 +11,8 @@ interface SidebarListGroupProps {
   id?: string; // Optional: for unique identification
   labelBackgroundColor?: string; // Optional: background color for the title text
   labelColor?: string; // Optional: text color for the title
+  showDivider?: boolean; // Optional: show horizontal line after title
+  dividerColor?: string; // Optional: color for the divider line
 }
 
 /**
@@ -32,6 +34,8 @@ export const SidebarListGroup = ({
   id,
   labelBackgroundColor,
   labelColor,
+  showDivider = false,
+  dividerColor,
 }: SidebarListGroupProps) => {
   return (
     <div
@@ -44,15 +48,34 @@ export const SidebarListGroup = ({
       }}
     >
       {/* Group header - can be sticky */}
-      <SidebarItem
-        variant="group"
-        id={id || `group-${title}`}
-        label={title}
-        onClick={() => {}}
-        sticky={sticky}
-        labelBackgroundColor={labelBackgroundColor}
-        labelColor={labelColor}
-      />
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '4px',
+        }}
+      >
+        <SidebarItem
+          variant="group"
+          id={id || `group-${title}`}
+          label={title}
+          onClick={() => {}}
+          sticky={sticky}
+          labelBackgroundColor={labelBackgroundColor}
+          labelColor={labelColor}
+        />
+
+        {/* Optional horizontal divider */}
+        {showDivider && (
+          <div
+            style={{
+              height: '1px',
+              backgroundColor: dividerColor,
+              width: '100%',
+            }}
+          />
+        )}
+      </div>
 
       {/* Group content with optional connector line */}
       <div
