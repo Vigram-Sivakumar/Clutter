@@ -89,7 +89,7 @@ export const dateToYYYYMMDD = (date: Date): string => {
  *
  * @param dateString - Date in YYYY-MM-DD format
  * @param todayDateString - Today's date in YYYY-MM-DD format (optional, will calculate if not provided)
- * @returns Formatted date string (e.g., "06 Jan, Today", "05 Jan, Yesterday", "07 Jan, Tomorrow", "01 Jan 2027")
+ * @returns Formatted date string (e.g., "Today, 06 Jan", "Yesterday, 05 Jan", "Tomorrow, 07 Jan", "01 Jan 2027")
  */
 export const formatTaskDateLabel = (
   dateString: string,
@@ -116,19 +116,19 @@ export const formatTaskDateLabel = (
   // Check if it's today
   const todayStr = todayDateString || dateToYYYYMMDD(today);
   if (dateString === todayStr) {
-    return `${baseDate}, Today`;
+    return `Today, ${baseDate}`;
   }
 
   // Check if it's yesterday
   const yesterdayStr = dateToYYYYMMDD(yesterday);
   if (dateString === yesterdayStr) {
-    return `${baseDate}, Yesterday`;
+    return `Yesterday, ${baseDate}`;
   }
 
   // Check if it's tomorrow
   const tomorrowStr = dateToYYYYMMDD(tomorrow);
   if (dateString === tomorrowStr) {
-    return `${baseDate}, Tomorrow`;
+    return `Tomorrow, ${baseDate}`;
   }
 
   // Otherwise show date only
