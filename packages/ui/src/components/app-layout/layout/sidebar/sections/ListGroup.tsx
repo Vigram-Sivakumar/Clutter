@@ -48,34 +48,16 @@ export const SidebarListGroup = ({
       }}
     >
       {/* Group header - can be sticky */}
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '4px',
-        }}
-      >
-        {/* Optional horizontal divider */}
-        {showDivider && (
-          <div
-            style={{
-              height: '1px',
-              backgroundColor: dividerColor,
-              width: '100%',
-            }}
-          />
-        )}
-
-        <SidebarItem
-          variant="group"
-          id={id || `group-${title}`}
-          label={title}
-          onClick={() => {}}
-          sticky={sticky}
-          labelBackgroundColor={labelBackgroundColor}
-          labelColor={labelColor}
-        />
-      </div>
+      <SidebarItem
+        variant="group"
+        id={id || `group-${title}`}
+        label={title}
+        onClick={() => {}}
+        sticky={sticky}
+        labelBackgroundColor={labelBackgroundColor}
+        labelColor={labelColor}
+        borderTop={showDivider ? `1px solid ${dividerColor}` : undefined}
+      />
 
       {/* Group content with optional connector line */}
       <div

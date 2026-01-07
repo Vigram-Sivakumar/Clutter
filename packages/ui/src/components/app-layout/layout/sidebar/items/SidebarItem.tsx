@@ -69,6 +69,7 @@ interface SidebarItemProps {
   badge?: string;
   labelColor?: string; // Optional color override for the label (e.g., calendarAccent for current year/month)
   labelBackgroundColor?: string; // Optional background color for the label text
+  borderTop?: string; // Optional border-top CSS value (e.g., "1px solid #color")
   isOpen?: boolean; // For folders - whether children are expanded
   isSelected?: boolean;
   hasOpenContextMenu?: boolean; // Whether this item's context menu is currently open
@@ -129,6 +130,7 @@ export const SidebarItem = ({
   badge,
   labelColor,
   labelBackgroundColor,
+  borderTop,
   isOpen = false,
   sticky = false,
   isSelected = false,
@@ -1233,6 +1235,7 @@ export const SidebarItem = ({
           backgroundColor: sticky ? colors.background.secondary : undefined,
           overflow: 'visible',
           boxSizing: 'border-box',
+          borderTop: borderTop,
         }}
       >
         {/* Drop indicators for reordering */}
