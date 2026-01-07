@@ -55,16 +55,6 @@ export const SidebarListGroup = ({
           gap: '4px',
         }}
       >
-        <SidebarItem
-          variant="group"
-          id={id || `group-${title}`}
-          label={title}
-          onClick={() => {}}
-          sticky={sticky}
-          labelBackgroundColor={labelBackgroundColor}
-          labelColor={labelColor}
-        />
-
         {/* Optional horizontal divider */}
         {showDivider && (
           <div
@@ -75,6 +65,16 @@ export const SidebarListGroup = ({
             }}
           />
         )}
+
+        <SidebarItem
+          variant="group"
+          id={id || `group-${title}`}
+          label={title}
+          onClick={() => {}}
+          sticky={sticky}
+          labelBackgroundColor={labelBackgroundColor}
+          labelColor={labelColor}
+        />
       </div>
 
       {/* Group content with optional connector line */}
