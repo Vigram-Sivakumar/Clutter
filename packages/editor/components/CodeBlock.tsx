@@ -1,6 +1,6 @@
 /**
  * CodeBlock - React node view for code blocks
- * 
+ *
  * PHASE 4 REFACTOR: Uses shared hooks and components.
  * Full-width block with custom styling.
  * No margin - parent handles spacing via gap.
@@ -32,29 +32,38 @@ interface CodeBlockProps extends NodeViewProps {
   };
 }
 
-export function CodeBlock({ node, editor, getPos, updateAttributes }: CodeBlockProps) {
+export function CodeBlock({
+  node,
+  editor,
+  getPos,
+  updateAttributes: _updateAttributes,
+}: CodeBlockProps) {
   const { colors } = useTheme();
   const { language, parentToggleId, level } = node.attrs;
-  
+
   // Check if this block is selected
-  const isSelected = useBlockSelection({ editor, getPos, nodeSize: node.nodeSize });
-  
-  // Get placeholder text (CSS handles visibility) - use custom text for code blocks
-  const placeholderText = usePlaceholder({ 
-    node, 
-    editor, 
+  const isSelected = useBlockSelection({
+    editor,
     getPos,
-    customText: placeholders.codeBlock
+    nodeSize: node.nodeSize,
+  });
+
+  // Get placeholder text (CSS handles visibility) - use custom text for code blocks
+  const placeholderText = usePlaceholder({
+    node,
+    editor,
+    getPos,
+    customText: placeholders.codeBlock,
   });
 
   // Force re-render when document updates (to react to parent toggle collapse)
   const [, forceUpdate] = useState(0);
-  
+
   useEffect(() => {
     const handleUpdate = () => {
-      forceUpdate(prev => prev + 1);
+      forceUpdate((prev) => prev + 1);
     };
-    
+
     editor.on('update', handleUpdate);
     editor.on('selectionUpdate', handleUpdate); // Re-render on selection change for placeholder focus detection
     editor.on('focus', handleUpdate);
@@ -114,7 +123,7 @@ export function CodeBlock({ node, editor, getPos, updateAttributes }: CodeBlockP
           pointerEvents: 'auto',
         }}
       />
-      
+
       {/* Block handle (⋮⋮) - shows on hover */}
       <BlockHandle editor={editor} getPos={getPos} indent={indent} />
 
@@ -145,7 +154,8 @@ export function CodeBlock({ node, editor, getPos, updateAttributes }: CodeBlockP
           style={{
             display: 'block',
             position: 'relative', // For CSS ::before placeholder
-            fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace',
+            fontFamily:
+              'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace',
             fontSize: 14,
             lineHeight: 1.5,
             color: colors.text.secondary,
@@ -168,4 +178,3 @@ export function CodeBlock({ node, editor, getPos, updateAttributes }: CodeBlockP
     </NodeViewWrapper>
   );
 }
-

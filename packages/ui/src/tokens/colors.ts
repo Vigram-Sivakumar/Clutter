@@ -132,7 +132,7 @@ export const colors = {
 
     // Text colors - Notion Calendar hierarchy (high contrast on black)
     text: {
-      default: neutral[50], // #e5e5e5 (light gray, high contrast)
+      default: neutral[100], // #e5e5e5 (light gray, high contrast)
       secondary: neutral[300], // #9a9a9a (medium gray)
       tertiary: neutral[500], // #666666 (dim gray, metadata, markers)
       disabled: neutral[500], // #666666 (disabled - clearly inactive)
