@@ -5,8 +5,8 @@ import { NotesListView } from '../../shared/notes-list';
 import { PageTitleSection } from '../../shared/content-header';
 import { ListViewLayout } from '../../shared/list-view-layout';
 import { FolderGrid } from '../folder';
-import { getTagColor } from '../../../../utils/tagColors';
 import { isContentEmpty } from '../../../../utils/noteHelpers';
+import { handleTagRenameWithColorPreservation } from '../../../../utils/tagRenameHelpers';
 
 // Helper function to count tasks (checkboxes) in note content
 const countTasksInNote = (content: string): number => {
@@ -202,20 +202,14 @@ export const TagFilteredNotesView = ({
   const handleTagRename = useCallback(
     (oldTag: string, newTag: string) => {
       if (renameTag) {
-        const oldMetadata = getTagMetadata(oldTag);
-
-        // Perform the rename - this will move metadata and update all notes/folders
-        renameTag(oldTag, newTag);
-
-        // Color logic:
-        // - If old tag had NO saved color (was using hash default), calculate new hash color
-        // - If old tag had a saved color, keep it (renameTag already moved the metadata)
-        if (!oldMetadata?.color) {
-          // No saved color - calculate hash color for the new tag name
-          const newTagHashColor = getTagColor(newTag);
-          updateTagMetadata(newTag, { color: newTagHashColor });
-        }
-        // If oldMetadata.color exists, renameTag already moved it, so we don't update
+        // Use shared helper to handle rename with color preservation
+        handleTagRenameWithColorPreservation(
+          oldTag,
+          newTag,
+          renameTag,
+          getTagMetadata,
+          updateTagMetadata
+        );
 
         // Use requestAnimationFrame to wait for React to complete all pending renders
         // This ensures Zustand state updates have propagated to all subscribers
@@ -228,7 +222,7 @@ export const TagFilteredNotesView = ({
         }
       }
     },
-    [renameTag, onTagClick, getTagMetadata, getTagColor, updateTagMetadata]
+    [renameTag, onTagClick, getTagMetadata, updateTagMetadata]
   );
 
   return (

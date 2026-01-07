@@ -40,7 +40,7 @@ import {
 import { sortByOrder } from '@clutter/shared';
 import { Note, Folder } from '@clutter/domain';
 import { getFolderIcon, getNoteIcon } from '../../../../utils/itemIcons';
-import { getTagColor } from '../../../../utils/tagColors';
+import { handleTagRenameWithColorPreservation } from '../../../../utils/tagRenameHelpers';
 import type { SidebarNote, SidebarFolder, GlobalSelection } from './types';
 
 /**
@@ -1796,22 +1796,16 @@ export const AppSidebar = ({
   const handleTagRenameComplete = useCallback(
     (oldTag: string, newTag: string) => {
       if (newTag.trim() !== '' && newTag.trim() !== oldTag) {
+        // Use shared helper to handle rename with color preservation
         const { renameTag, getTagMetadata, updateTagMetadata } =
           useTagsStore.getState();
-        const oldMetadata = getTagMetadata(oldTag);
-
-        // Perform the rename - this will move metadata and update all notes/folders
-        renameTag(oldTag, newTag.trim());
-
-        // Color logic:
-        // - If old tag had NO saved color (was using hash default), calculate new hash color
-        // - If old tag had a saved color, keep it (renameTag already moved the metadata)
-        if (!oldMetadata?.color) {
-          // No saved color - calculate hash color for the new tag name
-          const newTagHashColor = getTagColor(newTag.trim());
-          updateTagMetadata(newTag.trim(), { color: newTagHashColor });
-        }
-        // If oldMetadata.color exists, renameTag already moved it, so we don't update
+        handleTagRenameWithColorPreservation(
+          oldTag,
+          newTag.trim(),
+          renameTag,
+          getTagMetadata,
+          updateTagMetadata
+        );
       }
       setEditingTag(null);
     },
