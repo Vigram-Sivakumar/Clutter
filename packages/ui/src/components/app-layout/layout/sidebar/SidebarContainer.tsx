@@ -6,7 +6,7 @@ import { SidebarActionBar } from './sections/ActionBar';
 import { WindowControls } from './internal/WindowControls';
 import { CalendarMonthHeader, CalendarDateGrid } from './internal';
 import { SIDEBAR_TABS, renderIcon } from '../../../../config/sidebarConfig';
-import { Note, CheckCircle, Tag, Calendar, Hash } from '../../../../icons';
+import { Calendar, Hash } from '../../../../icons';
 
 const DESIGN = {
   spacing: {
@@ -167,7 +167,6 @@ export const SidebarContainer = ({
               onPrimaryAction={onCreateNote}
               onSecondaryAction={onSearch}
               primaryLabel="Create Note"
-              primaryIcon={<Note size={16} />}
               primaryShortcut={createButtonShortcut}
             />
           </div>
@@ -185,7 +184,6 @@ export const SidebarContainer = ({
               onPrimaryAction={onCreateTask}
               onSecondaryAction={onOpenCalendar || (() => {})}
               primaryLabel="Create Task"
-              primaryIcon={<CheckCircle size={16} />}
               secondaryIcon={<Calendar size={16} />}
               primaryShortcut="⌘T"
             />
@@ -204,7 +202,6 @@ export const SidebarContainer = ({
               onPrimaryAction={onCreateTag}
               onSecondaryAction={() => {}}
               primaryLabel="Create Tag"
-              primaryIcon={<Tag size={16} />}
               secondaryIcon={<Hash size={16} />}
               primaryShortcut="⌘⇧T"
             />
