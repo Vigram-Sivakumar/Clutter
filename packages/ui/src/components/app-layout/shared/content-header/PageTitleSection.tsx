@@ -569,25 +569,25 @@ export const PageTitleSection = forwardRef<
     useEffect(() => {
       setEditingTagName(props.tag);
 
-      // If user just edited this tag, skip textContent update to prevent cursor jumping
-      if (justEditedRef.current) {
-        // Reset the flag after a short delay (after navigation completes)
-        setTimeout(() => {
-          justEditedRef.current = false;
-        }, 100);
-        return;
-      }
+      // Always set textContent via ref since we removed it from JSX
+      // This prevents React from resetting cursor position
+      if (tagNameRef.current && props.tag) {
+        // If user just edited this tag, skip textContent update to prevent cursor jumping
+        if (justEditedRef.current) {
+          // Reset the flag after a short delay (after navigation completes)
+          setTimeout(() => {
+            justEditedRef.current = false;
+          }, 100);
+          return;
+        }
 
-      // Only update textContent if the element is not currently focused
-      // This prevents cursor jumping when user is actively editing
-      if (
-        tagNameRef.current &&
-        props.tag &&
-        document.activeElement !== tagNameRef.current
-      ) {
-        const currentText = tagNameRef.current.textContent || '';
-        if (currentText !== props.tag) {
-          tagNameRef.current.textContent = props.tag;
+        // Only update textContent if the element is not currently focused
+        // This prevents cursor jumping when user is actively editing
+        if (document.activeElement !== tagNameRef.current) {
+          const currentText = tagNameRef.current.textContent || '';
+          if (currentText !== props.tag) {
+            tagNameRef.current.textContent = props.tag;
+          }
         }
       }
     }, [props.tag]);
@@ -685,9 +685,7 @@ export const PageTitleSection = forwardRef<
                   outline: 'none',
                   cursor: props.onTagRename ? 'text' : 'default',
                 }}
-              >
-                {props.tag}
-              </span>
+              />
             </div>
 
             <ActionControlsBar controls={props} />
