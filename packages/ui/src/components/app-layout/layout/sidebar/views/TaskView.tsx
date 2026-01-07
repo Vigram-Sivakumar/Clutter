@@ -327,7 +327,7 @@ export const TaskView = ({
               labelColor={labelColor}
               showConnector={false}
               sticky={true}
-              showDivider={isToday}
+              showDivider={true}
               dividerColor={colors.border.subtle}
             >
               {tasks.map((task) => {
