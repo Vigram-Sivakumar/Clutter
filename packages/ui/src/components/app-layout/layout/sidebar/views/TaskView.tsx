@@ -15,6 +15,7 @@ import { useTheme } from '../../../../../hooks/useTheme';
 import { SidebarItemTask } from '../items/TaskItem';
 import { SidebarSection } from '../sections/Section';
 import { SidebarListGroup } from '../sections/ListGroup';
+import { WavyDivider } from '../../../shared/wavy-divider';
 import { sidebarLayout } from '../../../../../tokens/sidebar';
 import { Note } from '@clutter/domain';
 import { GlobalSelection } from '../types';
@@ -449,6 +450,9 @@ export const TaskView = ({
       >
         {renderGroupedTasks(groupedTodayTasks, 'today')}
       </SidebarSection>
+
+      {/* Divider between Today and Upcoming */}
+      <WavyDivider />
 
       {/* Upcoming Section */}
       <SidebarSection
