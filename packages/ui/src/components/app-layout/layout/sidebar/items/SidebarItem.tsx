@@ -916,6 +916,7 @@ export const SidebarItem = ({
               fontSize: sidebarLayout.headerFontSize,
               fontWeight: sidebarLayout.itemFontWeight,
               letterSpacing: sidebarLayout.headerLetterSpacing,
+              textTransform: 'uppercase',
               color: colors.text.tertiary,
               flex: '1 1 0',
               minWidth: 0,
