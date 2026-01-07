@@ -451,8 +451,8 @@ export const TaskView = ({
         {renderGroupedTasks(groupedTodayTasks, 'today')}
       </SidebarSection>
 
-      {/* Divider between Today and Upcoming */}
-      <WavyDivider />
+      {/* Divider between Today and Upcoming - only show when Today is expanded */}
+      {!taskTodayCollapsed && <WavyDivider />}
 
       {/* Upcoming Section */}
       <SidebarSection
