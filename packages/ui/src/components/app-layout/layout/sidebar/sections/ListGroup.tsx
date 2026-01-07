@@ -10,6 +10,7 @@ interface SidebarListGroupProps {
   sticky?: boolean; // Optional: for nested sticky headers
   id?: string; // Optional: for unique identification
   labelBackgroundColor?: string; // Optional: background color for the title text
+  labelColor?: string; // Optional: text color for the title
 }
 
 /**
@@ -30,6 +31,7 @@ export const SidebarListGroup = ({
   sticky = false,
   id,
   labelBackgroundColor,
+  labelColor,
 }: SidebarListGroupProps) => {
   return (
     <div
@@ -49,6 +51,7 @@ export const SidebarListGroup = ({
         onClick={() => {}}
         sticky={sticky}
         labelBackgroundColor={labelBackgroundColor}
+        labelColor={labelColor}
       />
 
       {/* Group content with optional connector line */}

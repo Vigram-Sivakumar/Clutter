@@ -330,12 +330,17 @@ export const TaskView = ({
             ? colors.semantic.calendarAccent
             : colors.border.default;
 
+          const labelColor = isToday
+            ? colors.semantic.calendarAccent
+            : undefined;
+
           return (
             <SidebarListGroup
               key={date}
               id={`group-${sectionPrefix}-${date}`}
               title={label}
               connectorColor={connectorColor}
+              labelColor={labelColor}
               showConnector={false}
               sticky={true}
             >
