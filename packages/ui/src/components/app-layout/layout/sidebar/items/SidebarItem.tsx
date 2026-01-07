@@ -913,7 +913,7 @@ export const SidebarItem = ({
         <span
           style={
             {
-              fontSize: sidebarLayout.headerFontSize,
+              fontSize: '10px',
               fontWeight: sidebarLayout.itemFontWeight,
               letterSpacing: sidebarLayout.headerLetterSpacing,
               textTransform: 'uppercase',
