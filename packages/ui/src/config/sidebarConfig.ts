@@ -178,11 +178,11 @@ export const SECTIONS: Record<SectionId, SectionConfig> = {
   },
   inbox: {
     id: 'inbox',
-    label: 'Inbox',
+    label: 'Someday',
     iconName: 'Tray',
-    emptyMessage: 'No tasks in inbox',
+    emptyMessage: 'No tasks in someday',
     internalId: 'unplanned-tasks', // Keep old ID for backward compatibility
-    breadcrumbPath: ['Tasks', 'Inbox'],
+    breadcrumbPath: ['Tasks', 'Someday'],
     stateKey: 'taskUnplannedCollapsed',
     showBadge: true,
   },

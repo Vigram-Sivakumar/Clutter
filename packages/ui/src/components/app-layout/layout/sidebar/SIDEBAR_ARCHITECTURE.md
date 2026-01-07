@@ -172,7 +172,7 @@ When adding a new tab:
 
 - `SidebarContainer.tsx` - Main container, handles action bars
 - `sections/ActionBar.tsx` - Reusable action bar component
-- `sections/Section.tsx` - Collapsible sections (Inbox, Today, etc.)
+- `sections/Section.tsx` - Collapsible sections (Someday, Today, etc.)
 - `sections/ListGroup.tsx` - Sub-groups with date labels
 - `views/` - Individual tab view components (scrollable content only)
 - `items/` - Individual item components (notes, tasks, folders, etc.)

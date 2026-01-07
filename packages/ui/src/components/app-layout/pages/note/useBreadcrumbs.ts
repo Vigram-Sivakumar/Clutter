@@ -200,7 +200,7 @@ export const useBreadcrumbs = (
       }
 
       case 'unplannedTasksView': {
-        // Inbox tasks view
+        // Someday tasks view
         return {
           path: SECTIONS.inbox.breadcrumbPath,
         };

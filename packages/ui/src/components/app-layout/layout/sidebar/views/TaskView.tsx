@@ -403,7 +403,7 @@ export const TaskView = ({
         gap: sidebarLayout.sectionToSectionGap,
       }}
     >
-      {/* Inbox Section */}
+      {/* Someday Section */}
       <SidebarSection
         title={SECTIONS.inbox.label}
         icon={renderIcon(SECTIONS.inbox.iconName, 16, colors.text.default)}
