@@ -496,6 +496,8 @@ export const PageTitleSection = forwardRef<
   if (props.variant === 'tag') {
     // Local state to track the tag name being edited (for real-time color updates)
     const [editingTagName, setEditingTagName] = useState(props.tag);
+    // Track if user just completed editing (to prevent cursor jumping)
+    const justEditedRef = useRef(false);
 
     // Get tag metadata for color
     const tagMetadata = getTagMetadata(props.tag);
@@ -545,6 +547,8 @@ export const PageTitleSection = forwardRef<
       if (tagNameRef.current && props.onTagRename) {
         const newTagName = tagNameRef.current.textContent?.trim() || '';
         if (newTagName && newTagName !== props.tag) {
+          // Mark that user just edited this tag
+          justEditedRef.current = true;
           props.onTagRename(props.tag, newTagName);
         } else {
           // Reset to original if empty or unchanged
@@ -564,6 +568,16 @@ export const PageTitleSection = forwardRef<
     // Update tag name when it changes externally
     useEffect(() => {
       setEditingTagName(props.tag);
+
+      // If user just edited this tag, skip textContent update to prevent cursor jumping
+      if (justEditedRef.current) {
+        // Reset the flag after a short delay (after navigation completes)
+        setTimeout(() => {
+          justEditedRef.current = false;
+        }, 100);
+        return;
+      }
+
       // Only update textContent if the element is not currently focused
       // This prevents cursor jumping when user is actively editing
       if (
