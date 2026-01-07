@@ -31,7 +31,7 @@ export const SidebarActionBar = ({
       {/* Primary Button - fills available space */}
       <div style={{ flex: 1, textWrap: 'nowrap', textOverflow: 'ellipsis' }}>
         <FilledButton
-          icon={primaryIcon}
+          {...(primaryIcon && { icon: primaryIcon })}
           onClick={onPrimaryAction}
           size="medium"
           shortcut={primaryShortcut}
@@ -44,7 +44,7 @@ export const SidebarActionBar = ({
 
       {/* Secondary Button - icon only, hugs content */}
       <FilledButton
-        icon={secondaryIcon}
+        {...(secondaryIcon && { icon: secondaryIcon })}
         onClick={onSecondaryAction}
         size="medium"
         onBackground="secondary"
