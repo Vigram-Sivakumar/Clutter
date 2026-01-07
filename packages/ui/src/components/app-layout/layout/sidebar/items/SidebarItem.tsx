@@ -1016,8 +1016,8 @@ export const SidebarItem = ({
     // This is controlled by CSS class in the main container
 
     if (variant === 'tag') {
-      // Tags: show count
-      if (tagCount !== undefined && tagCount !== null) {
+      // Tags: show count only if > 0
+      if (tagCount !== undefined && tagCount !== null && tagCount > 0) {
         return (
           <div
             className={sidebarStyles.classes.badge}
@@ -1124,7 +1124,10 @@ export const SidebarItem = ({
   const renderBadgeContextMenuSwap = () => {
     // Check if we have both badge and context menu to enable swapping
     const hasBadgeToShow =
-      (variant === 'tag' && tagCount !== undefined && tagCount !== null) ||
+      (variant === 'tag' &&
+        tagCount !== undefined &&
+        tagCount !== null &&
+        tagCount > 0) ||
       (badge && !(variant === 'header' && onToggle));
 
     // Determine if this item has a quick add button (+ icon)

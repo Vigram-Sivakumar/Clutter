@@ -1,5 +1,9 @@
 import { useMemo, useState, useCallback, ReactNode } from 'react';
-import { useNotesStore, useUIStateStore } from '@clutter/state';
+import {
+  useNotesStore,
+  useUIStateStore,
+  useCurrentDateStore,
+} from '@clutter/state';
 import {
   getTodayDateString,
   formatTaskDateLabel,
@@ -15,7 +19,6 @@ import { useTheme } from '../../../../../hooks/useTheme';
 import { SidebarItemTask } from '../items/TaskItem';
 import { SidebarSection } from '../sections/Section';
 import { SidebarListGroup } from '../sections/ListGroup';
-import { WavyDivider } from '../../../shared/wavy-divider';
 import { sidebarLayout } from '../../../../../tokens/sidebar';
 import { Note } from '@clutter/domain';
 import { GlobalSelection } from '../types';
@@ -23,6 +26,22 @@ import { SECTIONS, renderIcon } from '../../../../../config/sidebarConfig';
 
 // Use shared Task type
 export type TaskWithDate = Task;
+
+// Abbreviated month names for section title
+const MONTH_NAMES = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+];
 
 interface TaskViewProps {
   onTaskClick?: (_noteId: string, _taskId: string) => void;
@@ -62,6 +81,16 @@ export const TaskView = ({
   const notes = useNotesStore((state) => state.notes);
   const updateNoteContent = useNotesStore((state) => state.updateNoteContent);
   const { colors } = useTheme();
+
+  // Get current date from global store (auto-updates at midnight)
+  const currentDate = useCurrentDateStore((state) => state.date);
+  const currentMonth = useCurrentDateStore((state) => state.month);
+
+  // Compute "Today, 7 Jan" title (reactively updates at midnight)
+  const todaySectionTitle = useMemo(() => {
+    const monthAbbr = MONTH_NAMES[currentMonth];
+    return `Today, ${currentDate} ${monthAbbr}`;
+  }, [currentDate, currentMonth]);
 
   // Track tasks that are currently completing (for animation)
   const [completingTasks, setCompletingTasks] = useState<Set<string>>(
@@ -136,11 +165,13 @@ export const TaskView = ({
     });
 
     const grouped = new Map<string, Task[]>();
-    if (overdueGroup.length > 0) {
-      grouped.set('__overdue__', overdueGroup);
-    }
+    // Today's tasks come first (no group title needed)
     if (todayGroup.length > 0) {
       grouped.set(todayDateString, todayGroup);
+    }
+    // Overdue tasks come second (demoted, with group title)
+    if (overdueGroup.length > 0) {
+      grouped.set('__overdue__', overdueGroup);
     }
 
     return grouped;
@@ -286,6 +317,11 @@ export const TaskView = ({
     groupedTasks: Map<string, Task[]>,
     sectionPrefix: string
   ) => {
+    // Return null if no tasks to allow empty state to show
+    if (groupedTasks.size === 0) {
+      return null;
+    }
+
     return (
       <div
         style={{
@@ -301,7 +337,50 @@ export const TaskView = ({
           const isNoDate = date === '__no_date__';
           const isToday = date === todayDateString;
 
-          // Determine label and connector color
+          // Skip group title for today's tasks in Today section (clean hierarchy)
+          if (isToday && sectionPrefix === 'today') {
+            return (
+              <div key={date}>
+                {tasks.map((task) => {
+                  const isCompleting = completingTasks.has(task.id);
+                  const isRemoving = removingTasks.has(task.id);
+
+                  return (
+                    <div
+                      key={task.id}
+                      style={{
+                        opacity: isCompleting ? 0.5 : 1,
+                        maxHeight: isRemoving ? '0px' : '32px',
+                        overflow: 'hidden',
+                        transition:
+                          'opacity 0.3s ease, max-height 0.3s ease, margin-bottom 0.3s ease',
+                        marginBottom: isRemoving
+                          ? '0px'
+                          : sidebarLayout.itemToItemGap,
+                      }}
+                    >
+                      <SidebarItemTask
+                        id={task.id}
+                        noteId={task.noteId}
+                        noteTitle={task.noteTitle}
+                        text={task.text}
+                        checked={task.checked || isCompleting}
+                        isSelected={selectedTaskIds?.has(task.id)}
+                        hasOpenContextMenu={openContextMenuId === task.id}
+                        onClick={(e) => handleTaskClick(task.id, e)}
+                        onToggle={handleToggleTask}
+                        onNavigate={handleTaskNavigate}
+                        actions={getTaskActions?.(task.id, task.noteId)}
+                        isCompleting={isCompleting}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          }
+
+          // For all other groups (Overdue, Upcoming dates, etc.), show group title
           let label: string;
           if (isOverdue) {
             label = 'Overdue';
@@ -389,6 +468,38 @@ export const TaskView = ({
         gap: sidebarLayout.sectionToSectionGap,
       }}
     >
+      {/* Today Section */}
+      <SidebarSection
+        title={todaySectionTitle}
+        icon={renderIcon(SECTIONS.today.iconName, 16, colors.text.default)}
+        isCollapsed={taskTodayCollapsed}
+        onToggle={() => setTaskTodayCollapsed(!taskTodayCollapsed)}
+        onHeaderClick={onTodayHeaderClick}
+        emptyMessage={SECTIONS.today.emptyMessage}
+        emptyShortcut={SECTIONS.today.emptyShortcut}
+        emptySuffix={SECTIONS.today.emptySuffix}
+        badge={todayTasks.length > 0 ? todayTasks.length.toString() : undefined}
+      >
+        {renderGroupedTasks(groupedTodayTasks, 'today')}
+      </SidebarSection>
+
+      {/* Upcoming Section */}
+      <SidebarSection
+        title={SECTIONS.upcoming.label}
+        icon={renderIcon(SECTIONS.upcoming.iconName, 16, colors.text.default)}
+        isCollapsed={taskUpcomingCollapsed}
+        onToggle={() => setTaskUpcomingCollapsed(!taskUpcomingCollapsed)}
+        onHeaderClick={onUpcomingHeaderClick}
+        emptyMessage={SECTIONS.upcoming.emptyMessage}
+        emptyShortcut={SECTIONS.upcoming.emptyShortcut}
+        emptySuffix={SECTIONS.upcoming.emptySuffix}
+        badge={
+          upcomingTasks.length > 0 ? upcomingTasks.length.toString() : undefined
+        }
+      >
+        {renderGroupedTasks(groupedUpcomingTasks, 'upcoming')}
+      </SidebarSection>
+
       {/* Someday Section */}
       <SidebarSection
         title={SECTIONS.inbox.label}
@@ -397,6 +508,8 @@ export const TaskView = ({
         onToggle={() => setTaskUnplannedCollapsed(!taskUnplannedCollapsed)}
         onHeaderClick={onUnplannedHeaderClick}
         emptyMessage={SECTIONS.inbox.emptyMessage}
+        emptyShortcut={SECTIONS.inbox.emptyShortcut}
+        emptySuffix={SECTIONS.inbox.emptySuffix}
         badge={
           unplannedTasks.length > 0
             ? unplannedTasks.length.toString()
@@ -436,37 +549,6 @@ export const TaskView = ({
             </div>
           );
         })}
-      </SidebarSection>
-
-      {/* Today Section */}
-      <SidebarSection
-        title={SECTIONS.today.label}
-        icon={renderIcon(SECTIONS.today.iconName, 16, colors.text.default)}
-        isCollapsed={taskTodayCollapsed}
-        onToggle={() => setTaskTodayCollapsed(!taskTodayCollapsed)}
-        onHeaderClick={onTodayHeaderClick}
-        emptyMessage={SECTIONS.today.emptyMessage}
-        badge={todayTasks.length > 0 ? todayTasks.length.toString() : undefined}
-      >
-        {renderGroupedTasks(groupedTodayTasks, 'today')}
-      </SidebarSection>
-
-      {/* Divider between Today and Upcoming - only show when Today is expanded */}
-      {!taskTodayCollapsed && <WavyDivider width="64px" />}
-
-      {/* Upcoming Section */}
-      <SidebarSection
-        title={SECTIONS.upcoming.label}
-        icon={renderIcon(SECTIONS.upcoming.iconName, 16, colors.text.default)}
-        isCollapsed={taskUpcomingCollapsed}
-        onToggle={() => setTaskUpcomingCollapsed(!taskUpcomingCollapsed)}
-        onHeaderClick={onUpcomingHeaderClick}
-        emptyMessage={SECTIONS.upcoming.emptyMessage}
-        badge={
-          upcomingTasks.length > 0 ? upcomingTasks.length.toString() : undefined
-        }
-      >
-        {renderGroupedTasks(groupedUpcomingTasks, 'upcoming')}
       </SidebarSection>
 
       {/* Completed Section */}

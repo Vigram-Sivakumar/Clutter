@@ -1,20 +1,27 @@
 import { useTheme } from '../../../../../hooks/useTheme';
 import { sidebarLayout } from '../../../../../tokens/sidebar';
+import { KeyboardShortcut } from '../../../../ui-primitives/KeyboardShortcut';
 
 interface SidebarEmptyStateProps {
   message: string;
   level?: number;
+  shortcut?: string | string[] | readonly string[] | null; // Optional keyboard shortcut to display
+  suffix?: string | null; // Optional text after shortcut
 }
 
 export const SidebarEmptyState = ({
   message,
   level = 0,
+  shortcut,
+  suffix,
 }: SidebarEmptyStateProps) => {
   const { colors } = useTheme();
 
+  // Level 0 and level 1 have the same indent (treat level 0 as level 1)
+  const effectiveLevel = Math.max(level, 1);
   const paddingLeft =
     parseInt(sidebarLayout.emptyStatePaddingLeft) +
-    Math.min(level, sidebarLayout.maxVisualIndent) *
+    Math.min(effectiveLevel, sidebarLayout.maxVisualIndent) *
       parseInt(sidebarLayout.indentPerLevel);
 
   return (
@@ -25,15 +32,13 @@ export const SidebarEmptyState = ({
         paddingBottom: sidebarLayout.emptyStatePaddingBottom,
         paddingLeft: `${paddingLeft}px`,
         fontSize: sidebarLayout.emptyStateFontSize,
-        color:
-          colors.text[
-            sidebarLayout.emptyStateTextColor as keyof typeof colors.text
-          ],
         lineHeight: sidebarLayout.emptyStateLineHeight,
         userSelect: 'none',
+        color: colors.text.tertiary,
       }}
     >
-      {message}
+      {message} {shortcut && <KeyboardShortcut keys={shortcut} size="small" />}
+      {suffix && ` ${suffix}`}
     </div>
   );
 };

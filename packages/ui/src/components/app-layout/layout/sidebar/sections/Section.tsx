@@ -18,6 +18,8 @@ interface SidebarSectionProps {
 
   // Empty state
   emptyMessage?: string; // Message to show when section is empty
+  emptyShortcut?: string | string[] | readonly string[] | null; // Optional keyboard shortcut to show in empty state
+  emptySuffix?: string | null; // Optional text after shortcut
 
   // Drop target props (for section body)
   isDropTarget?: boolean;
@@ -49,6 +51,8 @@ export const SidebarSection = ({
   actions,
   sticky = false,
   emptyMessage,
+  emptyShortcut,
+  emptySuffix,
   isDropTarget = false,
   onDragOver,
   onDragLeave,
@@ -80,7 +84,11 @@ export const SidebarSection = ({
       }}
     >
       {isEmpty && emptyMessage ? (
-        <SidebarEmptyState message={emptyMessage} />
+        <SidebarEmptyState
+          message={emptyMessage}
+          shortcut={emptyShortcut}
+          suffix={emptySuffix}
+        />
       ) : items && renderItem ? (
         items.map((item, index) => renderItem(item, index))
       ) : (

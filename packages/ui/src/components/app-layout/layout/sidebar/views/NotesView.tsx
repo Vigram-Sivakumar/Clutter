@@ -9,6 +9,7 @@ import { transitions } from '../../../../../tokens/transitions';
 import { sidebarLayout } from '../../../../../tokens/sidebar';
 import { SidebarNote, SidebarFolder, GlobalSelection } from '../types';
 import { SECTIONS } from '../../../../../config/sidebarConfig';
+import { PAGE_EMPTY_STATES } from '../../../../../config/placeholders';
 
 interface SidebarNotesViewProps {
   // Cluttered Notes
@@ -228,7 +229,9 @@ export const NotesView = ({
           label={folder.name || 'Untitled Folder'}
           emoji={folder.emoji}
           isOpen={folder.isOpen}
-          badge={String(folder.notes.length)}
+          badge={
+            folder.notes.length > 0 ? String(folder.notes.length) : undefined
+          }
           level={level}
           onClick={(e) => onFolderClick?.(folder.id, folderContext, e)} // Click folder name to open folder view
           onToggle={() => onFolderToggle(folder.id)} // Click chevron to expand/collapse
@@ -301,7 +304,9 @@ export const NotesView = ({
               {folder.notes.length === 0 &&
               (!folder.subfolders || folder.subfolders.length === 0) ? (
                 <SidebarEmptyState
-                  message="Folder is empty. Use the + button to add a note."
+                  message={PAGE_EMPTY_STATES.folderIsEmpty.message}
+                  shortcut={PAGE_EMPTY_STATES.folderIsEmpty.shortcut}
+                  suffix={PAGE_EMPTY_STATES.folderIsEmpty.suffix}
                   level={level + 1}
                 />
               ) : (
@@ -401,13 +406,19 @@ export const NotesView = ({
         isCollapsed={isFavouritesCollapsed}
         onToggle={onFavouritesToggle}
         onHeaderClick={onFavouritesHeaderClick}
-        badge={String(favouriteNotes.length + favouriteFolders.length)}
+        badge={
+          favouriteNotes.length + favouriteFolders.length > 0
+            ? String(favouriteNotes.length + favouriteFolders.length)
+            : undefined
+        }
         onClearAllReorderIndicators={() => {
           // Clear both note and folder reorder indicators when hovering over section
           onNoteDragLeaveForReorder?.();
           onFolderDragLeaveForReorder?.();
         }}
         emptyMessage={SECTIONS['favourites-notes'].emptyMessage}
+        emptyShortcut={SECTIONS['favourites-notes'].emptyShortcut}
+        emptySuffix={SECTIONS['favourites-notes'].emptySuffix}
       >
         {/* Favorite Folders - Fully functional with expansion */}
         {favouriteFolders.map((folder) =>
@@ -476,10 +487,15 @@ export const NotesView = ({
         isCollapsed={isFoldersCollapsed}
         onToggle={onFoldersToggle}
         onHeaderClick={onFoldersHeaderClick}
-        // badge={String(
-        //   1 + // System folder: Cluttered (always shown)
-        //   folders.filter(f => f.id !== DAILY_NOTES_FOLDER_ID).length // Regular folders (Daily Notes filtered out)
-        // )}
+        badge={(() => {
+          const count =
+            1 + // System folder: Cluttered (always shown)
+            folders.filter((f) => f.id !== DAILY_NOTES_FOLDER_ID).length; // Regular folders (Daily Notes filtered out)
+          return count > 0 ? String(count) : undefined;
+        })()}
+        emptyMessage={SECTIONS.folders.emptyMessage}
+        emptyShortcut={SECTIONS.folders.emptyShortcut}
+        emptySuffix={SECTIONS.folders.emptySuffix}
         actions={foldersHeaderActions}
         enableAutoExpandHeader={true}
         onClearAllReorderIndicators={() => {
@@ -505,7 +521,11 @@ export const NotesView = ({
               folderId={CLUTTERED_FOLDER_ID}
               emoji={undefined} // Force no emoji - Cluttered uses Tray icon
               isOpen={!isClutteredCollapsed}
-              badge={String(clutteredNotes.length)}
+              badge={
+                clutteredNotes.length > 0
+                  ? String(clutteredNotes.length)
+                  : undefined
+              }
               level={0}
               onClick={onClutteredFolderClick || (() => {})}
               onToggle={onClutteredToggle}
@@ -557,6 +577,8 @@ export const NotesView = ({
                   {clutteredNotes.length === 0 ? (
                     <SidebarEmptyState
                       message={SECTIONS.cluttered.emptyMessage}
+                      shortcut={SECTIONS.cluttered.emptyShortcut}
+                      suffix={SECTIONS.cluttered.emptySuffix}
                       level={0}
                     />
                   ) : (

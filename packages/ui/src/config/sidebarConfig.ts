@@ -1,5 +1,6 @@
 import { createElement } from 'react';
 import * as PhosphorIcons from '@phosphor-icons/react';
+import { SIDEBAR_EMPTY_STATES } from './placeholders';
 
 // ============================================================================
 // TAB CONFIGURATION
@@ -90,6 +91,8 @@ export interface SectionConfig {
   label: string;
   iconName?: IconName;
   emptyMessage: string;
+  emptyShortcut?: readonly string[] | string | null;
+  emptySuffix?: string | null;
   internalId?: string; // For folder IDs (e.g., 'unplanned-tasks')
   breadcrumbPath: string[]; // For navigation
   stateKey?: string; // For collapse state in UI store
@@ -104,7 +107,9 @@ export const SECTIONS: Record<SectionId, SectionConfig> = {
     id: 'favourites-notes',
     label: 'Favourites',
     iconName: 'Star',
-    emptyMessage: 'No favourites yet',
+    emptyMessage: SIDEBAR_EMPTY_STATES.favouritesNotes.message,
+    emptyShortcut: SIDEBAR_EMPTY_STATES.favouritesNotes.shortcut,
+    emptySuffix: SIDEBAR_EMPTY_STATES.favouritesNotes.suffix,
     breadcrumbPath: ['Favourites'],
     stateKey: 'favouritesCollapsed',
     showBadge: true,
@@ -113,7 +118,9 @@ export const SECTIONS: Record<SectionId, SectionConfig> = {
     id: 'folders',
     label: 'Folders',
     iconName: 'Folder',
-    emptyMessage: 'No folders yet',
+    emptyMessage: SIDEBAR_EMPTY_STATES.folders.message,
+    emptyShortcut: SIDEBAR_EMPTY_STATES.folders.shortcut,
+    emptySuffix: SIDEBAR_EMPTY_STATES.folders.suffix,
     breadcrumbPath: ['Folders'],
     stateKey: 'foldersCollapsed',
     showBadge: false,
@@ -122,7 +129,9 @@ export const SECTIONS: Record<SectionId, SectionConfig> = {
     id: 'cluttered',
     label: 'Cluttered',
     iconName: 'Tray',
-    emptyMessage: 'No notes yet',
+    emptyMessage: SIDEBAR_EMPTY_STATES.cluttered.message,
+    emptyShortcut: SIDEBAR_EMPTY_STATES.cluttered.shortcut,
+    emptySuffix: SIDEBAR_EMPTY_STATES.cluttered.suffix,
     internalId: '__cluttered__',
     breadcrumbPath: ['Folders', 'Cluttered'],
     stateKey: 'clutteredCollapsed',
@@ -136,7 +145,9 @@ export const SECTIONS: Record<SectionId, SectionConfig> = {
     id: 'daily-notes',
     label: 'Daily Notes',
     iconName: 'CalendarBlank',
-    emptyMessage: 'No daily notes yet',
+    emptyMessage: SIDEBAR_EMPTY_STATES.dailyNotes.message,
+    emptyShortcut: SIDEBAR_EMPTY_STATES.dailyNotes.shortcut,
+    emptySuffix: SIDEBAR_EMPTY_STATES.dailyNotes.suffix,
     internalId: '__daily_notes__',
     breadcrumbPath: ['Daily notes'],
     stateKey: 'dailyNotesCollapsed',
@@ -150,7 +161,9 @@ export const SECTIONS: Record<SectionId, SectionConfig> = {
     id: 'today',
     label: 'Today',
     iconName: 'CalendarBlank',
-    emptyMessage: 'No tasks for today',
+    emptyMessage: SIDEBAR_EMPTY_STATES.today.message,
+    emptyShortcut: SIDEBAR_EMPTY_STATES.today.shortcut,
+    emptySuffix: SIDEBAR_EMPTY_STATES.today.suffix,
     internalId: 'today-tasks',
     breadcrumbPath: ['Tasks', 'Today'],
     stateKey: 'taskTodayCollapsed',
@@ -160,7 +173,9 @@ export const SECTIONS: Record<SectionId, SectionConfig> = {
     id: 'overdue',
     label: 'Overdue',
     iconName: 'AlertTriangle',
-    emptyMessage: 'No overdue tasks',
+    emptyMessage: SIDEBAR_EMPTY_STATES.overdue.message,
+    emptyShortcut: SIDEBAR_EMPTY_STATES.overdue.shortcut,
+    emptySuffix: SIDEBAR_EMPTY_STATES.overdue.suffix,
     internalId: 'overdue-tasks',
     breadcrumbPath: ['Tasks', 'Overdue'],
     stateKey: 'taskOverdueCollapsed',
@@ -170,7 +185,9 @@ export const SECTIONS: Record<SectionId, SectionConfig> = {
     id: 'upcoming',
     label: 'Upcoming',
     iconName: 'CalendarDots',
-    emptyMessage: 'No upcoming tasks',
+    emptyMessage: SIDEBAR_EMPTY_STATES.upcoming.message,
+    emptyShortcut: SIDEBAR_EMPTY_STATES.upcoming.shortcut,
+    emptySuffix: SIDEBAR_EMPTY_STATES.upcoming.suffix,
     internalId: 'upcoming-tasks',
     breadcrumbPath: ['Tasks', 'Upcoming'],
     stateKey: 'taskUpcomingCollapsed',
@@ -180,7 +197,9 @@ export const SECTIONS: Record<SectionId, SectionConfig> = {
     id: 'inbox',
     label: 'Someday',
     iconName: 'Tray',
-    emptyMessage: 'No tasks in someday',
+    emptyMessage: SIDEBAR_EMPTY_STATES.someday.message,
+    emptyShortcut: SIDEBAR_EMPTY_STATES.someday.shortcut,
+    emptySuffix: SIDEBAR_EMPTY_STATES.someday.suffix,
     internalId: 'unplanned-tasks', // Keep old ID for backward compatibility
     breadcrumbPath: ['Tasks', 'Someday'],
     stateKey: 'taskUnplannedCollapsed',
@@ -190,7 +209,9 @@ export const SECTIONS: Record<SectionId, SectionConfig> = {
     id: 'completed',
     label: 'Completed',
     iconName: 'CheckCircle',
-    emptyMessage: 'No completed tasks',
+    emptyMessage: SIDEBAR_EMPTY_STATES.completed.message,
+    emptyShortcut: SIDEBAR_EMPTY_STATES.completed.shortcut,
+    emptySuffix: SIDEBAR_EMPTY_STATES.completed.suffix,
     internalId: 'completed-tasks',
     breadcrumbPath: ['Tasks', 'Completed'],
     stateKey: 'taskCompletedCollapsed',
@@ -204,7 +225,9 @@ export const SECTIONS: Record<SectionId, SectionConfig> = {
     id: 'favourites-tags',
     label: 'Favourites',
     iconName: 'Star',
-    emptyMessage: 'No favourite tags yet',
+    emptyMessage: SIDEBAR_EMPTY_STATES.favouriteTags.message,
+    emptyShortcut: SIDEBAR_EMPTY_STATES.favouriteTags.shortcut,
+    emptySuffix: SIDEBAR_EMPTY_STATES.favouriteTags.suffix,
     breadcrumbPath: ['Favourites'],
     stateKey: 'favouriteTagsCollapsed',
     showBadge: true,
@@ -213,7 +236,9 @@ export const SECTIONS: Record<SectionId, SectionConfig> = {
     id: 'all-tags',
     label: 'All Tags',
     iconName: 'Tag',
-    emptyMessage: 'No tags yet',
+    emptyMessage: SIDEBAR_EMPTY_STATES.allTags.message,
+    emptyShortcut: SIDEBAR_EMPTY_STATES.allTags.shortcut,
+    emptySuffix: SIDEBAR_EMPTY_STATES.allTags.suffix,
     breadcrumbPath: ['All tags'],
     stateKey: 'allTagsCollapsed',
     showBadge: true,

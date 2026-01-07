@@ -157,6 +157,8 @@ export const CalendarView = ({
         onDrop={onDailyNotesDrop}
         onClearAllReorderIndicators={handleClearAllReorderIndicators}
         emptyMessage={SECTIONS['daily-notes'].emptyMessage}
+        emptyShortcut={SECTIONS['daily-notes'].emptyShortcut}
+        emptySuffix={SECTIONS['daily-notes'].emptySuffix}
       >
         {getSortedYears(groupedDailyNotes).map((year) => {
           const yearKey = formatYearMonthKey(year);
@@ -214,7 +216,7 @@ export const CalendarView = ({
                         label={month}
                         // Show dot on month only when collapsed and contains today
                         isToday={monthCollapsed && monthContainsToday}
-                        badge={String(monthCount)}
+                        badge={monthCount > 0 ? String(monthCount) : undefined}
                         isOpen={!monthCollapsed}
                         level={1}
                         onClick={() => onMonthClick?.(year, month)}

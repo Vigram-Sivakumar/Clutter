@@ -110,7 +110,11 @@ export const TagsView = ({
         onToggle={onFavouritesToggle}
         onHeaderClick={onFavouritesHeaderClick}
         emptyMessage={SECTIONS['favourites-tags'].emptyMessage}
-        badge={String(favouriteTags.length)}
+        emptyShortcut={SECTIONS['favourites-tags'].emptyShortcut}
+        emptySuffix={SECTIONS['favourites-tags'].emptySuffix}
+        badge={
+          favouriteTags.length > 0 ? String(favouriteTags.length) : undefined
+        }
       >
         {favouriteTags.map(({ tag, count }) => (
           <SidebarItemTag
@@ -139,7 +143,9 @@ export const TagsView = ({
         onToggle={onAllTagsToggle}
         onHeaderClick={onAllTagsHeaderClick}
         emptyMessage={SECTIONS['all-tags'].emptyMessage}
-        badge={String(allTags.length)}
+        emptyShortcut={SECTIONS['all-tags'].emptyShortcut}
+        emptySuffix={SECTIONS['all-tags'].emptySuffix}
+        badge={allTags.length > 0 ? String(allTags.length) : undefined}
         actions={allTagsHeaderActions}
       >
         {tagsWithCounts.map(({ tag, count }) => (
