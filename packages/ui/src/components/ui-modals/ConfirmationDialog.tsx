@@ -61,7 +61,7 @@ export const ConfirmationDialog = () => {
             width: '256px',
             minWidth: '220px',
             maxWidth: '256px',
-            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+            boxShadow: `0 20px 25px -5px ${colors.shadow.md}, 0 10px 10px -5px ${colors.shadow.sm}`,
             border: `1px solid ${colors.border.default}`,
           }}
         >

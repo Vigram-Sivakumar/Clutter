@@ -28,7 +28,7 @@ export const KeyboardShortcut = ({
               fontFamily: typography.fontFamily.sans,
               fontWeight: 500,
               color: colors.text.secondary,
-              backgroundColor: colors.background.tertiary,
+              backgroundColor: colors.background.active, // VS Code input field color - provides contrast on tertiary bg
               border: 'none',
               borderRadius: radius['3'],
               padding: keyPadding,

@@ -11,6 +11,7 @@ import { useTheme } from '../../hooks/useTheme';
 import { sizing } from '../../tokens/sizing';
 import { radius } from '../../tokens/radius';
 import { KeyboardShortcut } from '../ui-primitives/KeyboardShortcut';
+import { stone, neutral } from '../../tokens/colors';
 
 interface ButtonProps {
   variant?: 'primary' | 'secondary' | 'tertiary' | 'filled';
@@ -59,7 +60,7 @@ export const Button = ({
   gap,
   noHoverBackground = false,
 }: ButtonProps) => {
-  const { colors } = useTheme();
+  const { colors, mode } = useTheme();
   const buttonRef = useRef<HTMLButtonElement>(null);
 
   const sizeMap = {
@@ -215,31 +216,36 @@ export const Button = ({
 
     switch (variant) {
       case 'primary':
-        target.style.backgroundColor = danger
-          ? colors.button.danger.hover
-          : colors.button.primary.hover;
+        // Use precision hover shades
+        if (danger) {
+          target.style.backgroundColor = '#b91c1c'; // Danger hover (red-700)
+        } else {
+          target.style.backgroundColor = mode === 'light' ? stone[750] : neutral[100];
+        }
         break;
       case 'secondary':
         target.style.backgroundColor = colors.background.hover;
         if (!noBorder) {
           target.style.borderColor = danger
             ? colors.button.danger.background
-            : colors.border.hover;
+            : colors.border.focus; // Use focus border instead of non-existent hover
         }
         target.style.color = danger
           ? colors.button.danger.background
           : colors.text.default;
         break;
       case 'filled':
-        target.style.backgroundColor = danger
-          ? colors.button.danger.hover
-          : colors.background.hover;
+        if (danger) {
+          target.style.backgroundColor = '#b91c1c'; // Danger hover (red-700)
+        } else {
+          target.style.backgroundColor = colors.background.hover;
+        }
         break;
       case 'tertiary':
       default:
         if (!active) {
-          target.style.backgroundColor = colors.background.hover;
-          target.style.color = colors.text.secondary;
+          // Use overlay.soft for tertiary button hover
+          target.style.backgroundColor = colors.overlay.soft;
         }
         break;
     }
@@ -285,12 +291,8 @@ export const Button = ({
       default:
         if (!active) {
           target.style.backgroundColor = 'transparent';
-          target.style.color = subtle
-            ? colors.text.tertiary
-            : colors.text.secondary;
         } else {
           target.style.backgroundColor = colors.background.tertiary;
-          target.style.color = colors.text.default;
         }
         break;
     }
@@ -303,18 +305,45 @@ export const Button = ({
     if (onMouseDown) {
       onMouseDown(e);
     }
-    if (variant === 'primary') {
-      e.currentTarget.style.backgroundColor = danger
-        ? colors.button.danger.hover
-        : colors.button.primary.hover;
+
+    const target = e.currentTarget;
+
+    switch (variant) {
+      case 'primary':
+        // Use precision active shades
+        if (danger) {
+          target.style.backgroundColor = '#b91c1c'; // Danger active (red-700)
+        } else {
+          target.style.backgroundColor = mode === 'light' ? stone[875] : neutral[200];
+        }
+        break;
+      case 'tertiary':
+        // Use overlay.default for tertiary button active state
+        if (!active) {
+          target.style.backgroundColor = colors.overlay.default;
+        }
+        break;
     }
   };
 
   const handleMouseUp = (e: MouseEvent<HTMLButtonElement>) => {
-    if (variant === 'primary') {
-      e.currentTarget.style.backgroundColor = danger
-        ? colors.button.danger.hover
-        : colors.button.primary.hover;
+    const target = e.currentTarget;
+
+    switch (variant) {
+      case 'primary':
+        // Return to hover state after mouse up
+        if (danger) {
+          target.style.backgroundColor = '#b91c1c'; // Danger hover (red-700)
+        } else {
+          target.style.backgroundColor = mode === 'light' ? stone[750] : neutral[100];
+        }
+        break;
+      case 'tertiary':
+        // Return to hover state (overlay.soft) after mouse up
+        if (!active) {
+          target.style.backgroundColor = colors.overlay.soft;
+        }
+        break;
     }
   };
 

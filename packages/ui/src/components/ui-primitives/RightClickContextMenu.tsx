@@ -130,7 +130,7 @@ export const RightClickContextMenuProvider = ({ children }: { children: ReactNod
             backgroundColor: colors.background.elevated,
             border: `1px solid ${colors.border.default}`,
             borderRadius: sizing.radius.md,
-            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.25)',
+            boxShadow: `0 8px 24px ${colors.shadow.lg}`,
             padding: `${spacing['4']} 0`,
             fontFamily: typography.fontFamily.sans,
           }}
@@ -164,7 +164,7 @@ export const RightClickContextMenuProvider = ({ children }: { children: ReactNod
                   gap: spacing['12'],
                   padding: `${spacing['4']} ${spacing['12']}`,
                   fontSize: '14px',
-                  color: item.danger ? colors.accent.red.text : colors.text.secondary,
+                  color: item.danger ? colors.semantic.error : colors.text.secondary,
                   cursor: 'pointer',
                   transition: 'background-color 100ms ease',
                   userSelect: 'none',

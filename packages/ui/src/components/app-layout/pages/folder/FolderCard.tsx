@@ -193,6 +193,9 @@ export const FolderCard = ({ folder, onClick, onNoteClick, onCreateNote, onConte
             width: '100%',
             height: 32,
             pointerEvents: 'none',
+            // TODO(design-system): Complex radial shadow gradient uses hardcoded rgba values.
+            // Consider replacing with semantic elevation tokens when elevation/motion system is introduced.
+            // This is a composed visual effect, not a simple shadow, so deferring until elevation layer is defined.
             background:
               mode === 'dark'
                 ? 'radial-gradient(ellipse at center, rgba(0,0,0,0.25) 0%, rgba(0,0,0,0.18) 30%, rgba(0,0,0,0.12) 50%, rgba(0,0,0,0.06) 70%, rgba(0,0,0,0) 85%)'
@@ -383,6 +386,8 @@ const DocumentIcon = ({
         left: '50%',
         bottom: '-60%',
         zIndex,
+        // TODO(design-system): Drop-shadow filters use hardcoded rgba values.
+        // Part of FolderCard's elevation system - defer until elevation tokens are defined.
         filter: isEmpty 
           ? 'none' 
           : isHovered 

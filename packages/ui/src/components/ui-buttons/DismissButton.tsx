@@ -37,7 +37,7 @@ export const DismissButton = ({
         cursor: disabled ? 'not-allowed' : 'pointer',
         padding: 0,
         color: colors.text.secondary,
-        boxShadow: '0 1px 2px rgba(0, 0, 0, 0.1)',
+        boxShadow: `0 1px 2px ${colors.shadow.sm}`,
         transition: 'background-color 150ms cubic-bezier(0.2, 0, 0, 1), color 150ms cubic-bezier(0.2, 0, 0, 1), opacity 150ms cubic-bezier(0.2, 0, 0, 1)',
         boxSizing: 'border-box',
         userSelect: 'none',

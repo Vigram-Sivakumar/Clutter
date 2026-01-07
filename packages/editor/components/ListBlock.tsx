@@ -624,7 +624,7 @@ export function ListBlock({
         }}
       >
         {/* PHASE 3 REFACTOR: Use shared MarkerContainer component */}
-        <div style={{ color: colors.marker, position: 'relative' }}>
+        <div style={{ color: colors.text.tertiary, position: 'relative' }}>
           {/* L-shaped connector for nested task items */}
           {/* Only show when previous sibling is also a task */}
           {showConnector && (

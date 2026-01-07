@@ -126,7 +126,7 @@ export function CodeBlock({ node, editor, getPos, updateAttributes }: CodeBlockP
           padding: spacing['4'],
           borderRadius: 3,
           // backgroundColor: colors.background.tertiary || colors.background.default,
-          color: colors.marker,
+          color: colors.text.tertiary,
           opacity: 0.4,
           userSelect: 'none',
           display: 'flex',

@@ -138,7 +138,7 @@ export const ListItem = (props: ListItemProps) => {
     backgroundColor: isSelected 
       ? colors.background.tertiary 
       : isHovered 
-      ? colors.background.subtleHover 
+      ? colors.background.hover 
       : 'transparent',
     borderRadius: DESIGN.sizing.borderRadius,
     transition: `background-color ${DESIGN.transitions.background}`,

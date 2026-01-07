@@ -260,7 +260,7 @@ export const sidebarStyles = {
       default: 'transparent',
       
       /** Hover background - function receives theme */
-      hover: (theme: any) => theme.colors.background.subtleHover,
+      hover: (theme: any) => theme.colors.background.hover,
       
       /** Selected background - function receives theme */
       selected: (theme: any) => theme.colors.background.tertiary,

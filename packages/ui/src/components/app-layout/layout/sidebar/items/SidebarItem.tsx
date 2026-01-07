@@ -1,3 +1,23 @@
+/**
+ * SidebarItem — Reference Implementation
+ *
+ * This component is the canonical pattern for interactive rows in the design system.
+ * All list-like components (sidebar items, table rows, cards) should follow this interaction model.
+ *
+ * Interaction States:
+ * - Hover: colors.background.hover (overlay on transparent background)
+ * - Selected/Active: colors.background.active (slightly darker than hover)
+ * - Disabled: colors.text.disabled (text color only, background unchanged)
+ *
+ * Key Principles:
+ * - Background changes indicate interactivity
+ * - Text color remains semantic (default/secondary/tertiary from base state)
+ * - Cursor changes communicate affordance (pointer/not-allowed)
+ * - State transitions are smooth (150ms cubic-bezier)
+ *
+ * See DESIGN_SYSTEM.md for full philosophy and implementation guidelines.
+ */
+
 import {
   useState,
   useEffect,
@@ -182,7 +202,7 @@ export const SidebarItem = ({
 
   // CSS Variables for theming (hover effects)
   const cssVars = {
-    '--sidebar-hover-bg': colors.background.subtleHover,
+    '--sidebar-hover-bg': colors.background.hover,
     '--sidebar-selected-bg': colors.background.tertiary,
     '--sidebar-transition': sidebarStyles.transitions.hover,
   } as React.CSSProperties;
@@ -656,6 +676,7 @@ export const SidebarItem = ({
                 }}
                 size="xs"
                 disabled={isToggleDisabled}
+                disabledNoFade={true}
               />
             </div>
           </div>
@@ -844,6 +865,7 @@ export const SidebarItem = ({
             }}
             size="xs"
             disabled={isToggleDisabled}
+            disabledNoFade={true}
           />
         </div>
       </div>
@@ -1310,7 +1332,7 @@ export const SidebarItem = ({
                     : variant === 'header' && isHeaderDragOver && !isOpen
                       ? colors.background.tertiary
                       : isDropTarget
-                        ? colors.background.subtleHover
+                        ? colors.background.hover
                         : 'transparent',
               borderRadius: DESIGN.sizing.borderRadius,
               gap: DESIGN.spacing.contentGap,

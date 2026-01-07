@@ -47,8 +47,8 @@ export const Input = forwardRef<HTMLInputElement | HTMLTextAreaElement, InputPro
     // Get background color based on variant and state
     const getBackgroundColor = () => {
       if (variant === 'tertiary') {
-        // Tertiary stays transparent always, only shows subtle hover
-        if (isHovered && !isFocused) return colors.background.subtleHover;
+        // Tertiary stays transparent always, only shows hover
+        if (isHovered && !isFocused) return colors.background.hover;
         return 'transparent';
       }
       if (variant === 'secondary') return colors.background.secondary;

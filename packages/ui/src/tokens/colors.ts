@@ -1,8 +1,8 @@
 /**
  * Hybrid color palette
  * Light mode: Minimal editorial aesthetic (clean off-white #fafaf8 with strong black contrast)
- * Dark mode: Notion-inspired dark theme (#141414 base)
- * Inspired by high-end portfolio and magazine design
+ * Dark mode: Notion Calendar aesthetic (true black #000000 base with subtle elevation)
+ * Inspired by high-end portfolio, magazine design, and premium productivity apps
  */
 
 // Stone palette for light mode - minimal editorial aesthetic (inspired by high-end portfolios)
@@ -15,23 +15,27 @@ const stone = {
   500: '#8a8980', // Light: tertiary text, markers
   600: '#5c5b52', // Light: secondary text
   700: '#3d3c35', // Light: tags, focus states
-  800: '#26251f', // Light: hover text, pressed states
+  750: '#2f2e28', // Light: hover on dark UI / button hover (NEW - precision shade)
+  800: '#26251f', // Light: primary button default
+  875: '#1b1a16', // Light: pressed primary (NEW - precision shade)
   900: '#131210', // Light: default text (strong black for editorial contrast)
 } as const;
 
-// Neutral palette for dark mode - Notion-inspired dark aesthetic
+// Neutral palette for dark mode - Notion Calendar aesthetic
 const neutral = {
-  50: '#d5d5d5', // Dark: default text (light gray, Notion-inspired)
-  100: '#b5b5b5', // Dark: bright text/highlights
+  50: '#D4D4D4', // Dark: default text (light gray, high contrast on black)
+  100: '#D4D4D4', // Dark: bright text/highlights
   200: '#a0a0a0', // Dark: tags
-  300: '#868686', // Dark: secondary text
-  400: '#6b6b6b', // Dark: tertiary text, focus states
-  500: '#4d4d4d', // Dark: markers, disabled text
-  600: '#3b3b3b', // Dark: borders, dividers
-  700: '#2e2e2e', // Dark: active background
-  800: '#232323', // Dark: hover background
-  900: '#1e1e1e', // Dark: tertiary background
-  950: '#141414', // Dark: default background (original Notion dark)
+  300: '#838383', // Dark: secondary text (medium gray)
+  400: '#808080', // Dark: placeholder, subtle elements
+  500: '#666666', // Dark: tertiary text, disabled
+  600: '#2B2B2B', // Dark: keyboard shortcuts, lighter elements
+  700: '#262626', // Dark: subtle borders, elevated surfaces
+  750: '#212121', // Dark: hover state (subtle lift)
+  800: '#202020', // Dark: buttons/elevated surfaces
+  875: '#191919', // Dark: sidebar background (slightly elevated from main)
+  900: '#151515', // Dark: main background (near-black)
+  950: '#000000', // Dark: true black (deepest level)
 } as const;
 
 export const colors = {
@@ -41,33 +45,25 @@ export const colors = {
       default: stone[50], // clean off-white base
       secondary: stone[100], // subtle layering
       tertiary: stone[200], // soft dividers and sections
-      hover: `${stone[400]}35`, // interactive hover state (buttons)
-      subtleHover: stone[200], // sidebar item hover state
-      active: stone[400], // pressed/active state
-      subtleActive: stone[200], // sidebar item pressed/active state
+      hover: stone[300], // interactive hover state (all surfaces)
+      active: stone[300], // pressed/selected/active state
     },
 
     // Text colors - Strong editorial contrast
     text: {
       default: stone[900], // strong black for readability
       secondary: stone[600], // medium weight for hierarchy
-      tertiary: stone[500], // lighter for subtle content
-      subtle: stone[600], // lighter for subtle content
-
-      disabled: stone[700], // faded/disabled state
-      placeholder: `${stone[700]}50`, // placeholder at 60%
+      tertiary: stone[500], // lighter for subtle content, metadata, markers
+      disabled: stone[400], // faded/disabled state
+      placeholder: `${stone[500]}66`, // placeholder with opacity
       inverse: stone[50], // off-white text on dark backgrounds
     },
 
-    // Marker colors (bullets, numbers, icons, etc.)
-    marker: stone[500], // subtle markers
-
-    // Border colors - Minimal lines
+    // Border colors - Minimal lines (structural only)
     border: {
       default: stone[300], // default border
       subtle: stone[200], // subtle border / connector line
-      hover: stone[400], // interactive border
-      focus: stone[700], // focus indicator
+      focus: stone[700], // focus indicator (keyboard navigation)
       divider: stone[200], // subtle dividers
     },
 
@@ -97,25 +93,23 @@ export const colors = {
       calendarAccent: '#FD4E00', // Calendar today/selected highlight
     },
 
-    // Button colors
+    // Button colors (behavior derived in components, not tokenized)
     button: {
       primary: {
-        background: stone[800], // Light gray for primary action
-        text: stone[100], // Dark text on light background
-        hover: stone[700], // Lighter on hover
+        background: stone[800], // Primary button default
+        text: stone[100], // Light text on dark background
       },
       danger: {
         background: '#dc2626', // red-600
         text: stone[50], // Light text on red background
-        hover: '#b91c1c', // red-700
       },
     },
 
     // Overlay colors
     overlay: {
-      light: `${stone[900]}14`, // ink overlay at 8%
-      medium: `${stone[900]}29`, // ink overlay at 16%
-      heavy: `${stone[900]}66`, // ink overlay at 40%
+      soft: `${stone[900]}14`, // ink overlay at 8% (subtle hover)
+      default: `${stone[900]}29`, // ink overlay at 16% (default interaction)
+      strong: `${stone[900]}66`, // ink overlay at 40% (strong emphasis)
       backdrop: 'rgba(37, 36, 32, 0.5)', // modal backdrop (50% opacity)
     },
 
@@ -127,39 +121,31 @@ export const colors = {
     },
   },
   dark: {
-    // Background colors - Notion-inspired dark aesthetic
+    // Background colors - Notion Calendar aesthetic (true black base)
     background: {
-      default: neutral[950], // #141414 (original Notion dark)
-      secondary: '#181818', // slightly lighter layer
-      tertiary: neutral[900], // #1e1e1e (elevated surface)
-      hover: neutral[800], // #232323 (hover state for buttons)
-      subtleHover: neutral[900], // #2e2e2e (sidebar item hover state)
-      active: neutral[900], // #2e2e2e (active/pressed state)
+      default: neutral[900], // #0a0a0a (near-black, premium feel)
+      secondary: neutral[875], // #1a1a1a (sidebar, slightly elevated)
+      tertiary: neutral[800], // #242424 (buttons, cards, elevated surfaces)
+      hover: neutral[750], // #2a2a2a (hover state, subtle lift)
+      active: neutral[600], // #303030 (pressed/active state)
     },
 
-    // Text colors - Notion-inspired hierarchy
+    // Text colors - Notion Calendar hierarchy (high contrast on black)
     text: {
-      default: neutral[50], // #d5d5d5 (primary text)
-      secondary: neutral[300], // #868686 (secondary text)
-      tertiary: neutral[500], // #4d4d4d (subtle text)
-      subtle: neutral[400], // #4d4d4d (subtle text)
-      disabled: neutral[700], // #4d4d4d (disabled)
-      placeholder: `${neutral[500]}99`, // #4d4d4d at 60%
-      // placeholder: neutral[800], // #4d4d4d at 60%
-
-      inverse: '#191919', // dark text on light backgrounds
+      default: neutral[50], // #e5e5e5 (light gray, high contrast)
+      secondary: neutral[300], // #9a9a9a (medium gray)
+      tertiary: neutral[500], // #666666 (dim gray, metadata, markers)
+      disabled: neutral[500], // #666666 (disabled - clearly inactive)
+      placeholder: neutral[600], // placeholder with opacity
+      inverse: neutral[900], // dark text on light backgrounds
     },
 
-    // Marker colors (bullets, numbers, icons, etc.)
-    marker: neutral[500], // #4d4d4d (subtle markers)
-
-    // Border colors - Notion-inspired borders
+    // Border colors - Notion Calendar borders (subtle, structural)
     border: {
-      default: neutral[600], // #3b3b3b (default border)
-      subtle: neutral[800], // subtle border / connector line
-      hover: neutral[500], // #4d4d4d (hover border)
-      focus: neutral[400], // #6b6b6b (focus indicator)
-      divider: neutral[600], // #3b3b3b (subtle dividers)
+      default: neutral[700], // #303030 (subtle borders)
+      subtle: neutral[750], // #242424 (very subtle dividers)
+      focus: neutral[600], // Sky blue (modern, less harsh than VS Code blue)
+      divider: neutral[750], // #303030 (subtle dividers)
     },
 
     // Accent colors - Notion-inspired tag colors
@@ -191,30 +177,28 @@ export const colors = {
     // Button colors
     button: {
       primary: {
-        background: neutral[50], // Light gray for primary action (d5d5d5)
+        background: neutral[50], // Primary button default (light in dark mode)
         text: neutral[950], // Dark text on light background
-        hover: neutral[100], // Brighter on hover
       },
       danger: {
         background: '#e67c73', // Notion error red
         text: neutral[950], // Dark text on red background
-        hover: '#f08a81', // Lighter red on hover
       },
     },
 
-    // Overlay colors
+    // Overlay colors - subtle white overlays for interaction on dark
     overlay: {
-      light: 'rgba(245, 245, 243, 0.08)', // warm off-white overlay
-      medium: 'rgba(245, 245, 243, 0.16)', // warm off-white overlay
-      heavy: 'rgba(245, 245, 243, 0.4)', // warm off-white overlay
-      backdrop: 'rgba(0, 0, 0, 0.5)', // modal backdrop (50% opacity)
+      soft: 'rgba(255, 255, 255, 0.06)', // Subtle hover overlay (Notion-style)
+      default: 'rgba(255, 255, 255, 0.10)', // Default overlay for interaction
+      strong: 'rgba(255, 255, 255, 0.15)', // Strong overlay for emphasis
+      backdrop: 'rgba(0, 0, 0, 0.7)', // Modal backdrop (70% opacity on true black)
     },
 
-    // Shadow colors (for box-shadow) - deeper shadows for charcoal
+    // Shadow colors (for box-shadow) - subtle depth on near-black
     shadow: {
-      sm: 'rgba(18, 18, 17, 0.3)',
-      md: 'rgba(18, 18, 17, 0.4)',
-      lg: 'rgba(18, 18, 17, 0.5)',
+      sm: 'rgba(0, 0, 0, 0.4)', // Subtle shadow on black
+      md: 'rgba(0, 0, 0, 0.5)', // Medium shadow
+      lg: 'rgba(0, 0, 0, 0.6)', // Strong shadow for modals
     },
   },
 } as const;

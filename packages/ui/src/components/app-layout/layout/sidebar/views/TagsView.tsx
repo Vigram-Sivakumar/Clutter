@@ -53,7 +53,7 @@ export const TagsView = ({
   onTagMultiSelect,
 }: SidebarTagsViewProps) => {
   useTheme();
-
+  
   // Get all unique tags
   const allTags = useAllTags();
   const notes = useNotesStore((state) => state.notes);
@@ -68,13 +68,13 @@ export const TagsView = ({
           !note.deletedAt &&
           note.tags.some((t) => t.toLowerCase() === tag.toLowerCase())
       ).length;
-
+      
       const folderCount = folders.filter(
         (folder) =>
           !folder.deletedAt &&
           folder.tags.some((t) => t.toLowerCase() === tag.toLowerCase())
       ).length;
-
+      
       const count = noteCount + folderCount;
       return { tag, count };
     });
@@ -116,25 +116,25 @@ export const TagsView = ({
         badge={
           favouriteTags.length > 0 ? String(favouriteTags.length) : undefined
         }
-      >
-        {favouriteTags.map(({ tag, count }) => (
-          <SidebarItemTag
-            key={tag}
-            tag={tag}
-            count={count}
-            isSelected={
-              selection.type === 'tag' &&
-              (selectedTagIds?.has(tag) || selection.itemId === tag) &&
-              selection.context === 'favorites'
-            }
-            hasOpenContextMenu={openContextMenuId === tag}
-            onClick={(e) => onTagMultiSelect?.(tag, e, 'favorites')}
-            actions={getTagActions ? getTagActions(tag) : undefined}
-            isEditing={editingTag === tag}
-            onRenameComplete={onTagRenameComplete}
-            onRenameCancel={onTagRenameCancel}
-          />
-        ))}
+          >
+            {favouriteTags.map(({ tag, count }) => (
+              <SidebarItemTag
+                key={tag}
+                tag={tag}
+                count={count}
+                isSelected={
+                  selection.type === 'tag' && 
+                  (selectedTagIds?.has(tag) || selection.itemId === tag) &&
+                  selection.context === 'favorites'
+                }
+                hasOpenContextMenu={openContextMenuId === tag}
+                onClick={(e) => onTagMultiSelect?.(tag, e, 'favorites')}
+                actions={getTagActions ? getTagActions(tag) : undefined}
+                isEditing={editingTag === tag}
+                onRenameComplete={onTagRenameComplete}
+                onRenameCancel={onTagRenameCancel}
+              />
+            ))}
       </SidebarSection>
 
       {/* All Tags Section */}
@@ -149,25 +149,25 @@ export const TagsView = ({
         emptySuffix={SECTIONS['all-tags'].emptySuffix}
         badge={allTags.length > 0 ? String(allTags.length) : undefined}
         actions={allTagsHeaderActions}
-      >
-        {tagsWithCounts.map(({ tag, count }) => (
-          <SidebarItemTag
-            key={tag}
-            tag={tag}
-            count={count}
-            isSelected={
-              selection.type === 'tag' &&
-              (selectedTagIds?.has(tag) || selection.itemId === tag) &&
-              selection.context === 'all'
-            }
-            hasOpenContextMenu={openContextMenuId === tag}
-            onClick={(e) => onTagMultiSelect?.(tag, e, 'all')}
-            actions={getTagActions ? getTagActions(tag) : undefined}
-            isEditing={editingTag === tag}
-            onRenameComplete={onTagRenameComplete}
-            onRenameCancel={onTagRenameCancel}
-          />
-        ))}
+          >
+            {tagsWithCounts.map(({ tag, count }) => (
+              <SidebarItemTag
+                key={tag}
+                tag={tag}
+                count={count}
+                isSelected={
+                  selection.type === 'tag' && 
+                  (selectedTagIds?.has(tag) || selection.itemId === tag) &&
+                  selection.context === 'all'
+                }
+                hasOpenContextMenu={openContextMenuId === tag}
+                onClick={(e) => onTagMultiSelect?.(tag, e, 'all')}
+                actions={getTagActions ? getTagActions(tag) : undefined}
+                isEditing={editingTag === tag}
+                onRenameComplete={onTagRenameComplete}
+                onRenameCancel={onTagRenameCancel}
+              />
+            ))}
       </SidebarSection>
     </div>
   );

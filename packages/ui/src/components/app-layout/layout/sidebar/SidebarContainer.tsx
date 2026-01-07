@@ -43,14 +43,14 @@ interface SidebarContainerProps {
   // Styling
   width?: string;
   height?: string;
-
+  
   // Testing
   showWindowControls?: boolean; // Force show window controls for testing
-
+  
   // Collapse
   onToggleSidebar?: () => void;
   isCollapsed?: boolean;
-
+  
   // Scroll control
   disableScroll?: boolean; // Disable scrolling when context menu or other overlay is open
 }
@@ -118,9 +118,9 @@ export const SidebarContainer = ({
     >
       {/* System Layer: Window Controls (macOS only) */}
       <div style={{ flexShrink: 0 }}>
-        <WindowControls
-          variant="sidebar"
-          showToggleButton
+        <WindowControls 
+        variant="sidebar"
+        showToggleButton 
           forceShow={showWindowControls}
           onToggleSidebar={onToggleSidebar}
           isCollapsed={isCollapsed}
@@ -146,13 +146,13 @@ export const SidebarContainer = ({
             flexShrink: 0,
           }}
         >
-          <SidebarTabs
-            value={contentType}
-            onChange={onContentTypeChange}
-            options={tabOptions}
-            size="medium"
-          />
-        </div>
+        <SidebarTabs
+          value={contentType}
+          onChange={onContentTypeChange}
+          options={tabOptions}
+          size="medium"
+        />
+      </div>
 
         {/* Tab-specific Action Area */}
         {contentType === 'notes' && (
@@ -198,14 +198,14 @@ export const SidebarContainer = ({
               flexShrink: 0,
             }}
           >
-            <SidebarActionBar
+        <SidebarActionBar
               onPrimaryAction={onCreateTag}
               onSecondaryAction={() => {}}
               primaryLabel="Create Tag"
               secondaryIcon={<Search size={16} />}
               primaryShortcut="⌘⇧T"
-            />
-          </div>
+        />
+      </div>
         )}
 
         {contentType === 'tasks' && currentWeekStart && onWeekChange && (
@@ -217,7 +217,7 @@ export const SidebarContainer = ({
             }}
           >
             <div style={{ marginBottom: '6px' }}>
-              <CalendarMonthHeader
+              <CalendarMonthHeader 
                 currentWeekStart={currentWeekStart}
                 onWeekChange={onWeekChange}
                 onDateSelect={onDateSelect}
@@ -241,25 +241,25 @@ export const SidebarContainer = ({
           null}
 
         {/* Scrollable Content Area */}
-        <div
-          style={{
-            flex: 1,
+      <div 
+        style={{ 
+          flex: 1, 
             overflow: 'visible', // Allow sticky positioning for section/group headers
-            minHeight: 0,
-            display: 'flex',
-            flexDirection: 'column',
+          minHeight: 0,
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
+        <div 
+          ref={scrollRef}
+          style={{ 
+              flex: 1,
+              overflowY: disableScroll ? 'hidden' : 'auto', 
+            overflowX: 'hidden',
+            padding: `0px ${DESIGN.spacing.paddingBase}`, 
           }}
         >
-          <div
-            ref={scrollRef}
-            style={{
-              flex: 1,
-              overflowY: disableScroll ? 'hidden' : 'auto',
-              overflowX: 'hidden',
-              padding: `0px ${DESIGN.spacing.paddingBase}`,
-            }}
-          >
-            {children}
+          {children}
           </div>
         </div>
       </div>

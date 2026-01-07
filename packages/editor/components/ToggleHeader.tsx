@@ -224,7 +224,7 @@ export function ToggleHeader({
       {/* Main row: chevron (24px) + gap (4px) + content */}
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: spacing.inline }}>
         {/* Chevron marker */}
-        <div style={{ color: colors.marker }}>
+        <div style={{ color: colors.text.tertiary }}>
           <MarkerContainer>
             <div
               onClick={handleToggleCollapse}
@@ -256,7 +256,7 @@ export function ToggleHeader({
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 style={{
-                  color: collapsed ? colors.marker : colors.text.default,
+                  color: collapsed ? colors.text.tertiary : colors.text.default,
                   transform: collapsed ? 'rotate(-90deg)' : 'rotate(0deg)',
                   transition: 'transform 0.15s ease, color 0.15s ease',
                 }}

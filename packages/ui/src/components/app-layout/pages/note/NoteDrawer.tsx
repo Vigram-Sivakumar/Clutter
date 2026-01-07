@@ -34,7 +34,7 @@ export const NoteDrawer = ({ isOpen, onClose, children }: NoteDrawerProps) => {
         style={{
           position: 'fixed',
           inset: 0,
-          backgroundColor: colors.overlay.medium,
+          backgroundColor: colors.overlay.default,
           zIndex: 1000,
           animation: 'fadeIn 200ms ease',
         }}

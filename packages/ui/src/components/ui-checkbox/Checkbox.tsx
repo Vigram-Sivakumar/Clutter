@@ -18,9 +18,9 @@ export interface CheckboxProps {
  *
  * Features:
  * - Matches editor's ListBlock checkbox styling
- * - Uses colors.marker for border
+ * - Uses colors.text.tertiary for border (unchecked state)
  * - Uses colors.text.default background when checked
- * - Uses colors.background.default background when unchecked
+ * - Uses transparent background when unchecked
  * - Circular shape (50% border radius)
  * - Checkmark SVG that matches theme
  *
@@ -65,11 +65,11 @@ export const Checkbox = ({
         appearance: 'none',
         WebkitAppearance: 'none',
         MozAppearance: 'none',
-        border: `1.5px solid ${checked ? colors.text.default : colors.marker}`,
+        border: `1.5px solid ${checked ? colors.text.default : colors.text.tertiary}`,
         borderRadius: '50%',
         backgroundColor: checked
           ? colors.text.default
-          : colors.background.default,
+          : 'transparent',
         transition: 'background-color 0.15s ease, border-color 0.15s ease',
         outline: 'none',
         // SVG checkmark when checked (dynamic color based on theme)

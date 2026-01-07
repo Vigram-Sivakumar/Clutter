@@ -1,6 +1,6 @@
 /**
  * Date formatting utilities for consistent date handling across the app
- *
+ * 
  * Date Formats Used:
  * - YYYY-MM-DD: Storage format for dates (e.g., "2026-01-03")
  * - ISO 8601: Full timestamps for createdAt/updatedAt (e.g., "2026-01-03T14:30:00.000Z")
@@ -86,7 +86,7 @@ export const dateToYYYYMMDD = (date: Date): string => {
  * Format a date string for display in task groups
  * Shows date with special suffixes for Today, Yesterday, Tomorrow
  * Shows year only if different from current year
- *
+ * 
  * @param dateString - Date in YYYY-MM-DD format
  * @param todayDateString - Today's date in YYYY-MM-DD format (optional, will calculate if not provided)
  * @returns Formatted date string (e.g., "Today, 06 Jan", "Yesterday, 05 Jan", "Tomorrow, 07 Jan", "01 Jan 2027")
@@ -103,34 +103,34 @@ export const formatTaskDateLabel = (
   yesterday.setDate(yesterday.getDate() - 1);
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1);
-
+  
   const day = String(date.getDate());
   const monthName = MONTH_NAMES[date.getMonth()]!;
   const currentYear = today.getFullYear();
   const dateYear = date.getFullYear();
-
+  
   // Base date format
   const yearSuffix = dateYear !== currentYear ? ` ${dateYear}` : '';
   const baseDate = `${day} ${monthName}${yearSuffix}`;
-
+  
   // Check if it's today
   const todayStr = todayDateString || dateToYYYYMMDD(today);
   if (dateString === todayStr) {
     return `Today, ${baseDate}`;
   }
-
+  
   // Check if it's yesterday
   const yesterdayStr = dateToYYYYMMDD(yesterday);
   if (dateString === yesterdayStr) {
     return `Yesterday, ${baseDate}`;
   }
-
+  
   // Check if it's tomorrow
   const tomorrowStr = dateToYYYYMMDD(tomorrow);
   if (dateString === tomorrowStr) {
     return `Tomorrow, ${baseDate}`;
   }
-
+  
   // Otherwise show date only
   return baseDate;
 };
@@ -154,7 +154,7 @@ export const compareDates = (dateA: string, dateB: string): number => {
 export const isSameDay = (date1: Date, date2: Date): boolean => {
   return (
     date1.getFullYear() === date2.getFullYear() &&
-    date1.getMonth() === date2.getMonth() &&
+         date1.getMonth() === date2.getMonth() &&
     date1.getDate() === date2.getDate()
   );
 };
@@ -182,7 +182,7 @@ export const groupByDate = <T>(
   getDate: (_item: T) => string
 ): Map<string, T[]> => {
   const groups = new Map<string, T[]>();
-
+  
   items.forEach((item) => {
     const date = getDate(item);
     if (!groups.has(date)) {
@@ -190,7 +190,7 @@ export const groupByDate = <T>(
     }
     groups.get(date)!.push(item);
   });
-
+  
   return groups;
 };
 

@@ -413,7 +413,7 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(({
         
         /* Text selection (when dragging cursor through text) */
         .ProseMirror ::selection {
-          background-color: rgba(35, 131, 226, 0.3);
+          background-color: ${colors.overlay.soft};
         }
 
         /* Hide text selection when block is selected (has halo) */

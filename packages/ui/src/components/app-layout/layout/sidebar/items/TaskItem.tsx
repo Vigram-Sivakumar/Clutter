@@ -8,29 +8,29 @@ interface SidebarItemTaskProps {
   id: string; // Task/block ID
   noteId: string; // Parent note ID
   noteTitle?: string; // Parent note title (for tooltip)
-
+  
   // Content
   text: string; // Task text content
   checked: boolean; // Completion state
   badge?: string; // Badge text (e.g., due date for overdue tasks)
-
+  
   // State
   isSelected?: boolean;
   hasOpenContextMenu?: boolean;
   isCompleting?: boolean; // Task is animating to completed state
-
+  
   // Interactions
   onClick: (_event?: React.MouseEvent) => void;
   onToggle: (_taskId: string) => void;
   onNavigate: (_noteId: string, _blockId: string) => void;
-
+  
   // Actions (context menu items)
   actions?: ReactNode[];
 }
 
 /**
  * SidebarItemTask - Wrapper around unified SidebarItem component for tasks
- *
+ * 
  * Tasks have a unique interaction model:
  * - Click task → Select (enables multi-select)
  * - Click checkbox → Toggle completion

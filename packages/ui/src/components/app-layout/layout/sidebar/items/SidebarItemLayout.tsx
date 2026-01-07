@@ -96,7 +96,7 @@ export const SidebarItemLayout = memo(({
   
   // CSS Variables for theming
   const cssVars = {
-    '--sidebar-hover-bg': colors.background.subtleHover,
+    '--sidebar-hover-bg': colors.background.hover,
     '--sidebar-selected-bg': colors.background.tertiary,
   } as React.CSSProperties;
   
@@ -146,7 +146,7 @@ export const SidebarItemLayout = memo(({
             : (variant === 'header' && isHeaderDragOver && !isOpen)
               ? colors.background.tertiary
               : isDropTarget 
-                ? colors.background.subtleHover 
+                ? colors.background.hover 
                 : 'transparent',
           borderRadius: sidebarLayout.itemBorderRadius,
           gap: sidebarLayout.itemContentGap,

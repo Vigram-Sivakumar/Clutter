@@ -115,7 +115,7 @@ export const SidebarSectionHeader = ({
         WebkitUserSelect: 'none',
         borderRadius: radius['6'],
         gap: '0px',
-        backgroundColor: (isDragOver && isCollapsed) ? colors.background.tertiary : (isHovered ? colors.background.subtleHover : 'transparent'),
+        backgroundColor: (isDragOver && isCollapsed) ? colors.background.tertiary : (isHovered ? colors.background.hover : 'transparent'),
         transition: 'background-color 150ms ease',
       } as any}
     >
