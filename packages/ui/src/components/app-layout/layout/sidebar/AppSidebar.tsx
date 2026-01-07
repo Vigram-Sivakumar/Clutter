@@ -1796,19 +1796,17 @@ export const AppSidebar = ({
   const handleTagRenameComplete = useCallback(
     (oldTag: string, newTag: string) => {
       if (newTag.trim() !== '' && newTag.trim() !== oldTag) {
-        // Find all notes with this tag and update them
-        notes.forEach((note) => {
-          if (note.tags.some((t) => t.toLowerCase() === oldTag.toLowerCase())) {
-            const updatedTags = note.tags.map((t) =>
-              t.toLowerCase() === oldTag.toLowerCase() ? newTag.trim() : t
-            );
-            updateNote(note.id, { tags: updatedTags });
-          }
-        });
+        // Use the tags store's renameTag function which handles:
+        // - Updating all notes with the tag
+        // - Updating all folders with the tag
+        // - Renaming the tag metadata
+        // - Saving everything to the database
+        const { renameTag } = useTagsStore.getState();
+        renameTag(oldTag, newTag.trim());
       }
       setEditingTag(null);
     },
-    [notes, updateNote]
+    []
   );
 
   const handleTagRenameCancel = useCallback(() => {
