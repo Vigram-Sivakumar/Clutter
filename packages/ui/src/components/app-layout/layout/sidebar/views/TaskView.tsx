@@ -452,7 +452,7 @@ export const TaskView = ({
       </SidebarSection>
 
       {/* Divider between Today and Upcoming - only show when Today is expanded */}
-      {!taskTodayCollapsed && <WavyDivider />}
+      {!taskTodayCollapsed && <WavyDivider width="64px" />}
 
       {/* Upcoming Section */}
       <SidebarSection
