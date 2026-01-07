@@ -318,6 +318,10 @@ export const TaskView = ({
             ? colors.semantic.calendarAccent
             : undefined;
 
+          const dividerColor = isToday
+            ? colors.semantic.calendarAccent
+            : colors.border.subtle;
+
           return (
             <SidebarListGroup
               key={date}
@@ -328,7 +332,7 @@ export const TaskView = ({
               showConnector={false}
               sticky={true}
               showDivider={true}
-              dividerColor={colors.border.subtle}
+              dividerColor={dividerColor}
             >
               {tasks.map((task) => {
                 // Show date badge for overdue tasks only
