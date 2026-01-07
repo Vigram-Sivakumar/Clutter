@@ -508,6 +508,19 @@ export const NoteEditor = ({
     });
   }, [currentNote, currentNoteId, cancelDebouncedSave, editorState.status]); // ✅ Runs on mount + note changes
 
+  // 🔄 Sync tags when they change externally (e.g., from tag rename)
+  // This runs independently of the hydration effect above
+  useEffect(() => {
+    if (currentNote && currentNote.id === currentNoteId) {
+      // Only update if tags actually changed (avoid unnecessary re-renders)
+      const tagsChanged =
+        JSON.stringify(currentNote.tags) !== JSON.stringify(tags);
+      if (tagsChanged) {
+        setTags(currentNote.tags);
+      }
+    }
+  }, [currentNote, currentNoteId, tags]); // Watch for currentNote changes
+
   // Update view context when current note is deleted
   useEffect(() => {
     if (

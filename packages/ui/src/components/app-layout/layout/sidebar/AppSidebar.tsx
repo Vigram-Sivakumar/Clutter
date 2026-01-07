@@ -1795,14 +1795,77 @@ export const AppSidebar = ({
 
   const handleTagRenameComplete = useCallback(
     (oldTag: string, newTag: string) => {
+      // #region agent log
+      fetch(
+        'http://127.0.0.1:7244/ingest/a7f9fa0e-3f72-4ff3-8c3a-792215d634cd',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            location: 'AppSidebar.tsx:1798',
+            message: 'handleTagRenameComplete called',
+            data: {
+              oldTag,
+              newTag,
+              trimmed: newTag.trim(),
+              willRename: newTag.trim() !== '' && newTag.trim() !== oldTag,
+            },
+            timestamp: Date.now(),
+            sessionId: 'debug-session',
+            hypothesisId: 'H1,H5',
+          }),
+        }
+      ).catch(() => {});
+      // #endregion
       if (newTag.trim() !== '' && newTag.trim() !== oldTag) {
         // Use the tags store's renameTag function which handles:
         // - Updating all notes with the tag
         // - Updating all folders with the tag
         // - Renaming the tag metadata
         // - Saving everything to the database
-        const { renameTag } = useTagsStore.getState();
+        const { renameTag, tagMetadata } = useTagsStore.getState();
+        // #region agent log
+        fetch(
+          'http://127.0.0.1:7244/ingest/a7f9fa0e-3f72-4ff3-8c3a-792215d634cd',
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              location: 'AppSidebar.tsx:1805',
+              message: 'Before renameTag call',
+              data: {
+                oldTag,
+                newTag: newTag.trim(),
+                oldTagExists: !!tagMetadata[oldTag.toLowerCase()],
+                metadataKeys: Object.keys(tagMetadata),
+              },
+              timestamp: Date.now(),
+              sessionId: 'debug-session',
+              hypothesisId: 'H3,H2',
+            }),
+          }
+        ).catch(() => {});
+        // #endregion
         renameTag(oldTag, newTag.trim());
+        // #region agent log
+        fetch(
+          'http://127.0.0.1:7244/ingest/a7f9fa0e-3f72-4ff3-8c3a-792215d634cd',
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              location: 'AppSidebar.tsx:1806',
+              message: 'After renameTag call',
+              data: {
+                metadataKeys: Object.keys(useTagsStore.getState().tagMetadata),
+              },
+              timestamp: Date.now(),
+              sessionId: 'debug-session',
+              hypothesisId: 'H1',
+            }),
+          }
+        ).catch(() => {});
+        // #endregion
       }
       setEditingTag(null);
     },
