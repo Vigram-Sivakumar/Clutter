@@ -327,8 +327,7 @@ export const TaskView = ({
               labelColor={labelColor}
               showConnector={false}
               sticky={true}
-              showDivider={true}
-              dividerColor={colors.border.subtle}
+              showDivider={false}
             >
               {tasks.map((task) => {
                 // Show date badge for overdue tasks only
