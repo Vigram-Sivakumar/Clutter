@@ -145,17 +145,15 @@ export const TaskView = ({
     return grouped;
   }, [todayTasks, todayDateString]);
 
-  // Group upcoming tasks by date with "Overdue" grouping
+  // Group upcoming tasks by date (only future dates, excluding today and overdue)
   const groupedUpcomingTasks = useMemo(() => {
-    const overdueGroup: Task[] = [];
     const dateGroups = new Map<string, Task[]>();
 
     upcomingTasks.forEach((task) => {
       const effectiveDate = task.date || task.dailyNoteDate;
       if (effectiveDate) {
-        if (compareDates(effectiveDate, todayDateString) < 0) {
-          overdueGroup.push(task);
-        } else {
+        // Only include tasks with future dates (after today)
+        if (compareDates(effectiveDate, todayDateString) > 0) {
           if (!dateGroups.has(effectiveDate)) {
             dateGroups.set(effectiveDate, []);
           }
@@ -164,22 +162,8 @@ export const TaskView = ({
       }
     });
 
-    // Sort overdue tasks by date (oldest to newest)
-    overdueGroup.sort((a, b) => {
-      const dateA = a.date || a.dailyNoteDate || '';
-      const dateB = b.date || b.dailyNoteDate || '';
-      const dateComparison = compareDates(dateA, dateB);
-      if (dateComparison !== 0) return dateComparison;
-      return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-    });
-
-    // Build final map with overdue first, then sorted dates
+    // Build final map with sorted dates
     const grouped = new Map<string, Task[]>();
-    if (overdueGroup.length > 0) {
-      grouped.set('__overdue__', overdueGroup);
-    }
-
-    // Add other dates sorted
     const sortedDates = Array.from(dateGroups.entries()).sort((a, b) =>
       compareDates(a[0], b[0])
     );
