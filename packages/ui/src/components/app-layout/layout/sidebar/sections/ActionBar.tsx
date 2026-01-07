@@ -1,6 +1,6 @@
 import { MouseEvent, ReactNode } from 'react';
 import { FilledButton } from '../../../../ui-buttons';
-import { Plus, Search } from '../../../../../icons';
+import { Search } from '../../../../../icons';
 import { spacing } from '../../../../../tokens/spacing';
 
 interface SidebarActionBarProps {
@@ -16,7 +16,7 @@ export const SidebarActionBar = ({
   onPrimaryAction,
   onSecondaryAction,
   primaryLabel,
-  primaryIcon = <Plus size={16} />,
+  primaryIcon,
   secondaryIcon = <Search size={16} />,
   primaryShortcut,
 }: SidebarActionBarProps) => {
