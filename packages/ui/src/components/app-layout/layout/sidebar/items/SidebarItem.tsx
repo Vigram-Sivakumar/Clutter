@@ -917,7 +917,7 @@ export const SidebarItem = ({
               fontWeight: sidebarLayout.itemFontWeight,
               letterSpacing: sidebarLayout.headerLetterSpacing,
               textTransform: 'uppercase',
-              color: colors.text.tertiary,
+              color: colors.text.default,
               flex: '1 1 0',
               minWidth: 0,
               overflow: labelBackgroundColor ? 'visible' : 'hidden',
