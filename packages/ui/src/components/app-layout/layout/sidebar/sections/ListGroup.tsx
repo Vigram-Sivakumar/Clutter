@@ -9,6 +9,7 @@ interface SidebarListGroupProps {
   showConnector?: boolean;
   sticky?: boolean; // Optional: for nested sticky headers
   id?: string; // Optional: for unique identification
+  labelBackgroundColor?: string; // Optional: background color for the title text
 }
 
 /**
@@ -28,6 +29,7 @@ export const SidebarListGroup = ({
   showConnector = true,
   sticky = false,
   id,
+  labelBackgroundColor,
 }: SidebarListGroupProps) => {
   return (
     <div
@@ -46,6 +48,7 @@ export const SidebarListGroup = ({
         label={title}
         onClick={() => {}}
         sticky={sticky}
+        labelBackgroundColor={labelBackgroundColor}
       />
 
       {/* Group content with optional connector line */}

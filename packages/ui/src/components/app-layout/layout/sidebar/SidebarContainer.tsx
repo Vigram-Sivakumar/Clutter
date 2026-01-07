@@ -6,6 +6,7 @@ import { SidebarActionBar } from './sections/ActionBar';
 import { WindowControls } from './internal/WindowControls';
 import { CalendarMonthHeader, CalendarDateGrid } from './internal';
 import { SIDEBAR_TABS, renderIcon } from '../../../../config/sidebarConfig';
+import { Plus, Calendar, Hash } from '../../../../icons';
 
 const DESIGN = {
   spacing: {
@@ -17,9 +18,18 @@ interface SidebarContainerProps {
   // Header
   contentType: 'notes' | 'tasks' | 'tags' | 'task';
   onContentTypeChange: (_type: string) => void;
+
+  // Notes tab actions
   onCreateNote: () => void;
   onSearch: () => void;
   createButtonShortcut?: string;
+
+  // Tasks tab actions
+  onCreateTask?: () => void;
+  onOpenCalendar?: () => void;
+
+  // Tags tab actions
+  onCreateTag?: () => void;
 
   // Calendar (for tasks tab)
   currentWeekStart?: Date;
@@ -51,6 +61,9 @@ export const SidebarContainer = ({
   onCreateNote,
   onSearch,
   createButtonShortcut,
+  onCreateTask,
+  onOpenCalendar,
+  onCreateTag,
   currentWeekStart,
   onWeekChange,
   selectedDate,
@@ -151,9 +164,48 @@ export const SidebarContainer = ({
             }}
           >
             <SidebarActionBar
-              onCreateNote={onCreateNote}
-              onSearch={onSearch}
-              createButtonShortcut={createButtonShortcut}
+              onPrimaryAction={onCreateNote}
+              onSecondaryAction={onSearch}
+              primaryLabel="Create Note"
+              primaryShortcut={createButtonShortcut}
+            />
+          </div>
+        )}
+
+        {contentType === 'task' && onCreateTask && (
+          <div
+            style={{
+              paddingLeft: DESIGN.spacing.paddingBase,
+              paddingRight: DESIGN.spacing.paddingBase,
+              flexShrink: 0,
+            }}
+          >
+            <SidebarActionBar
+              onPrimaryAction={onCreateTask}
+              onSecondaryAction={onOpenCalendar || (() => {})}
+              primaryLabel="Create Task"
+              primaryIcon={<Plus size={16} />}
+              secondaryIcon={<Calendar size={16} />}
+              primaryShortcut="⌘T"
+            />
+          </div>
+        )}
+
+        {contentType === 'tags' && onCreateTag && (
+          <div
+            style={{
+              paddingLeft: DESIGN.spacing.paddingBase,
+              paddingRight: DESIGN.spacing.paddingBase,
+              flexShrink: 0,
+            }}
+          >
+            <SidebarActionBar
+              onPrimaryAction={onCreateTag}
+              onSecondaryAction={() => {}}
+              primaryLabel="Create Tag"
+              primaryIcon={<Plus size={16} />}
+              secondaryIcon={<Hash size={16} />}
+              primaryShortcut="⌘⇧T"
             />
           </div>
         )}

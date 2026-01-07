@@ -52,6 +52,7 @@ export const TaskView = ({
   getTaskActions,
   selectedTaskIds,
   onTaskMultiSelect,
+  selection: _selection,
   onTodayHeaderClick,
   onUpcomingHeaderClick,
   onUnplannedHeaderClick,
@@ -334,13 +335,18 @@ export const TaskView = ({
             ? colors.semantic.calendarAccent
             : colors.border.default;
 
+          const labelBackgroundColor = isToday
+            ? colors.semantic.calendarAccent
+            : undefined;
+
           return (
             <SidebarListGroup
               key={date}
               id={`group-${sectionPrefix}-${date}`}
               title={label}
               connectorColor={connectorColor}
-              showConnector={true}
+              labelBackgroundColor={labelBackgroundColor}
+              showConnector={false}
               sticky={true}
             >
               {tasks.map((task) => {
@@ -358,7 +364,6 @@ export const TaskView = ({
                   <div
                     key={task.id}
                     style={{
-                      paddingLeft: sidebarLayout.indentPerLevel,
                       opacity: isCompleting ? 0.5 : 1,
                       maxHeight: isRemoving ? '0px' : '32px',
                       overflow: 'hidden',

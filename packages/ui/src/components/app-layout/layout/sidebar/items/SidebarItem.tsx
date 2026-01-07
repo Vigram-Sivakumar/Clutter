@@ -35,6 +35,7 @@ const DESIGN = {
     height: sidebarLayout.itemHeight, // Height of the entire item container
     iconButtonSize: sidebarLayout.iconButtonSize, // Size of icon/emoji button containers
     iconSize: sidebarLayout.iconSize, // Size of icons inside buttons
+    checkboxSize: sidebarLayout.checkboxSize, // Size of checkbox (task items)
     badgeMinSize: sidebarLayout.badgeMinSize, // Minimum size of badge/count container
     borderRadius: sidebarLayout.itemBorderRadius, // Corner radius of the item
   },
@@ -67,6 +68,7 @@ interface SidebarItemProps {
   icon?: string | ReactNode; // emoji string or React icon component
   badge?: string;
   labelColor?: string; // Optional color override for the label (e.g., calendarAccent for current year/month)
+  labelBackgroundColor?: string; // Optional background color for the label text
   isOpen?: boolean; // For folders - whether children are expanded
   isSelected?: boolean;
   hasOpenContextMenu?: boolean; // Whether this item's context menu is currently open
@@ -126,6 +128,7 @@ export const SidebarItem = ({
   icon,
   badge,
   labelColor: _labelColor,
+  labelBackgroundColor,
   isOpen = false,
   sticky = false,
   isSelected = false,
@@ -751,7 +754,7 @@ export const SidebarItem = ({
             onClick={(e) => {
               e.stopPropagation();
             }}
-            size={16}
+            size={parseInt(DESIGN.sizing.checkboxSize)}
           />
         </div>
       );
@@ -890,6 +893,22 @@ export const SidebarItem = ({
 
     // Group variant - similar to header but non-interactive and more subtle
     if (variant === 'group') {
+      const textContent = labelBackgroundColor ? (
+        <span
+          style={{
+            display: 'inline-block',
+            backgroundColor: labelBackgroundColor,
+            padding: '2px 6px',
+            borderRadius: '99px',
+            color: colors.text.default,
+          }}
+        >
+          {label}
+        </span>
+      ) : (
+        label
+      );
+
       return (
         <span
           style={
@@ -900,7 +919,7 @@ export const SidebarItem = ({
               color: colors.text.tertiary,
               flex: '1 1 0',
               minWidth: 0,
-              overflow: 'hidden',
+              overflow: labelBackgroundColor ? 'visible' : 'hidden',
               textOverflow: 'ellipsis',
               whiteSpace: 'nowrap',
               userSelect: 'none',
@@ -909,7 +928,7 @@ export const SidebarItem = ({
             } as any
           }
         >
-          {label}
+          {textContent}
         </span>
       );
     }

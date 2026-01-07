@@ -2021,6 +2021,59 @@ export const AppSidebar = ({
           onCreateNote={handleCreateNote}
           onSearch={() => {}}
           createButtonShortcut="⌘ N"
+          onCreateTask={() => {
+            // TODO: Implement create task functionality
+          }}
+          onOpenCalendar={() => {
+            // TODO: Implement calendar functionality
+          }}
+          onCreateTag={() => {
+            // Generate unique tag name
+            let tagName = 'Untitled Tag';
+            let counter = 1;
+
+            // Find a unique name (case-insensitive)
+            while (
+              allTags.some((t) => t.toLowerCase() === tagName.toLowerCase())
+            ) {
+              counter++;
+              tagName = `Untitled Tag ${counter}`;
+            }
+
+            // Create the tag metadata immediately
+            const { upsertTagMetadata } = useTagsStore.getState();
+            upsertTagMetadata(
+              tagName,
+              '', // empty description
+              true, // description visible
+              false, // not favorite
+              getTagColor(tagName) // hash-based color
+            );
+
+            // Navigate to the tag filtered view
+            if (onTagClick) {
+              onTagClick(tagName, 'all');
+
+              // Auto-focus and select the title after navigation
+              requestAnimationFrame(() => {
+                const titleElement = document.querySelector(
+                  '[contenteditable="true"]'
+                ) as HTMLElement;
+                if (
+                  titleElement &&
+                  titleElement.textContent?.includes('Untitled Tag')
+                ) {
+                  titleElement.focus();
+                  // Select all text for easy replacement
+                  const range = document.createRange();
+                  range.selectNodeContents(titleElement);
+                  const selection = window.getSelection();
+                  selection?.removeAllRanges();
+                  selection?.addRange(range);
+                }
+              });
+            }
+          }}
           currentWeekStart={currentWeekStart}
           onWeekChange={setCurrentWeekStart}
           selectedDate={selectedDate}

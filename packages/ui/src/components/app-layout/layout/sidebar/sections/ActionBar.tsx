@@ -1,18 +1,24 @@
-import { MouseEvent } from 'react';
+import { MouseEvent, ReactNode } from 'react';
 import { FilledButton } from '../../../../ui-buttons';
 import { Plus, Search } from '../../../../../icons';
 import { spacing } from '../../../../../tokens/spacing';
 
 interface SidebarActionBarProps {
-  onCreateNote: (e: MouseEvent<HTMLButtonElement>) => void;
-  onSearch: (e: MouseEvent<HTMLButtonElement>) => void;
-  createButtonShortcut?: string;
+  onPrimaryAction: (_e: MouseEvent<HTMLButtonElement>) => void;
+  onSecondaryAction: (_e: MouseEvent<HTMLButtonElement>) => void;
+  primaryLabel: string;
+  primaryIcon?: ReactNode;
+  secondaryIcon?: ReactNode;
+  primaryShortcut?: string;
 }
 
 export const SidebarActionBar = ({
-  onCreateNote,
-  onSearch,
-  createButtonShortcut,
+  onPrimaryAction,
+  onSecondaryAction,
+  primaryLabel,
+  primaryIcon = <Plus size={16} />,
+  secondaryIcon = <Search size={16} />,
+  primaryShortcut,
 }: SidebarActionBarProps) => {
   return (
     <div
@@ -22,30 +28,27 @@ export const SidebarActionBar = ({
         alignItems: 'center',
       }}
     >
-      {/* Create Note Button - fills available space */}
-      <div style={{ flex: 1,           textWrap: 'nowrap',
-          textOverflow: 'ellipsis', }}>
+      {/* Primary Button - fills available space */}
+      <div style={{ flex: 1, textWrap: 'nowrap', textOverflow: 'ellipsis' }}>
         <FilledButton
-          icon={<Plus size={16} />}
-          onClick={onCreateNote}
+          icon={primaryIcon}
+          onClick={onPrimaryAction}
           size="medium"
-          shortcut={createButtonShortcut}
+          shortcut={primaryShortcut}
           fullWidth
           onBackground="secondary"
         >
-          Create Note
+          {primaryLabel}
         </FilledButton>
       </div>
 
-      {/* Search Button - icon only, hugs content */}
+      {/* Secondary Button - icon only, hugs content */}
       <FilledButton
-        icon={<Search size={16} />}
-        onClick={onSearch}
+        icon={secondaryIcon}
+        onClick={onSecondaryAction}
         size="medium"
         onBackground="secondary"
-
       />
     </div>
   );
 };
-

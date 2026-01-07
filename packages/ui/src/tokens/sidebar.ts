@@ -38,6 +38,7 @@ export const sidebarLayout = {
   iconButtonSize: '20px', // All icon buttons (emoji, folder, chevron)
   iconSize: '16px', // Phosphor icon size (calendar, folder icons, etc.)
   emojiSize: '14px', // Emoji font size (notes, folders)
+  checkboxSize: '14px', // Checkbox size (task items)
   badgeMinSize: '20px', // Badge/count container
 
   // Typography
