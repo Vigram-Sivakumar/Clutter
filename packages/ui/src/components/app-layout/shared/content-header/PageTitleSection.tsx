@@ -515,18 +515,6 @@ export const PageTitleSection = forwardRef<
         : colors.accent.default
     ) as { bg: string; text: string };
 
-    // #region agent log
-    console.log('[DEBUG] Tag color calculation', {
-      editingTagName,
-      propsTag: props.tag,
-      hasSavedColor,
-      colorName,
-      tagColorBg: tagColor.bg,
-      tagColorText: tagColor.text,
-      metadataColor: tagMetadata?.color,
-    });
-    // #endregion
-
     // Handle color icon click
     const handleColorIconClick = () => {
       if (tagIconButtonRef.current) {
@@ -548,20 +536,7 @@ export const PageTitleSection = forwardRef<
     const handleTagNameInput = () => {
       if (tagNameRef.current) {
         const currentText = tagNameRef.current.textContent || ''; // Don't trim here - keep spaces
-        // #region agent log
-        console.log('[DEBUG] handleTagNameInput', {
-          currentText,
-          trimmed: currentText.trim(),
-          before: editingTagName,
-          propsTag: props.tag,
-        });
-        // #endregion
         setEditingTagName(currentText.trim() || props.tag); // Use trimmed for state, fallback to original
-        // #region agent log
-        console.log('[DEBUG] handleTagNameInput after setState', {
-          newValue: currentText.trim() || props.tag,
-        });
-        // #endregion
       }
     };
 
