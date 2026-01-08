@@ -154,7 +154,7 @@ export const NoteEditor = ({
     permanentlyDeleteFolder,
   } = useFoldersStore();
 
-  // Tags store
+  // Tags store - includes tagMetadata for deleted tag detection
   const {
     tagMetadata,
     getTagMetadata,

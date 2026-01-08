@@ -4,6 +4,8 @@ import { spacing } from '../../tokens/spacing';
 import { radius } from '../../tokens/radius';
 import { sizing } from '../../tokens/sizing';
 
+// Floating action bar for deleted items
+
 interface FloatingActionBarProps {
   /** Optional message to display before the actions */
   message?: string;
