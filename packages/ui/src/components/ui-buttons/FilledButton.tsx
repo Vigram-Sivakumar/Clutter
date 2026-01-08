@@ -7,8 +7,9 @@ interface FilledButtonProps {
   iconSize?: number;
   iconPosition?: 'left' | 'right';
   shortcut?: string;
-  onClick?: (e: MouseEvent<HTMLButtonElement>) => void;
-  onMouseDown?: (e: MouseEvent<HTMLButtonElement>) => void;
+  onClick?: (_e: MouseEvent<HTMLButtonElement>) => void;
+  onMouseDown?: (_e: MouseEvent<HTMLButtonElement>) => void;
+  danger?: boolean;
   size?: 'xs' | 'small' | 'medium';
   onBackground?: 'default' | 'secondary' | 'tertiary';
   fullWidth?: boolean;
@@ -23,6 +24,7 @@ export const FilledButton = ({
   shortcut,
   onClick,
   onMouseDown,
+  danger = false,
   size = 'medium',
   onBackground = 'secondary',
   fullWidth = false,
@@ -38,6 +40,7 @@ export const FilledButton = ({
       shortcut={shortcut}
       onClick={onClick}
       onMouseDown={onMouseDown}
+      danger={danger}
       onBackground={onBackground}
       fullWidth={fullWidth}
       disabled={disabled}
@@ -46,4 +49,3 @@ export const FilledButton = ({
     </Button>
   );
 };
-

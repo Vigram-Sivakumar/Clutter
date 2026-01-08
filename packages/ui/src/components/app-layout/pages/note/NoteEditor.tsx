@@ -1785,6 +1785,7 @@ export const NoteEditor = ({
                   onClick={handleClearClutter}
                   size="small"
                   disabled={!hasDeletedItems}
+                  danger
                 >
                   Clear clutter
                 </FilledButton>
