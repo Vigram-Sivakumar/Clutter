@@ -184,9 +184,9 @@ export const colors = {
       },
       danger: {
         background: '#e67c73', // Notion error red
-        backgroundRgba: 'rgba(230, 124, 115, 0.2)', // Notion error red with 20% opacity
-        backgroundHover: 'rgba(230, 124, 115, 0.4)', // Notion error red with 40% opacity
-        text: neutral[950], // Dark text on red background
+        backgroundRgba: 'rgba(230, 124, 115, 0.1)', // Notion error red with 20% opacity
+        backgroundHover: 'rgba(230, 124, 115, 0.2)', // Notion error red with 40% opacity
+        text: '#e67c73', // Dark text on red background
       },
     },
 

@@ -42,7 +42,12 @@ import { useTheme } from '../../../../hooks/useTheme';
 import { useUIPreferences } from '../../../../hooks/useUIPreferences';
 import { sizing } from '../../../../tokens/sizing';
 import { getTagColor } from '../../../../utils/tagColors';
-import { FilledButton } from '../../../ui-buttons';
+import {
+  FilledButton,
+  PrimaryButton,
+  SecondaryButton,
+} from '../../../ui-buttons';
+import { FloatingActionBar } from '../../../ui-primitives';
 // Main view type
 type MainView =
   | { type: 'editor'; source?: 'deletedItems' | 'default' }
@@ -149,16 +154,19 @@ export const NoteEditor = ({
     createFolder,
     updateFolder,
     deleteFolder,
+    restoreFolder,
     permanentlyDeleteFolder,
   } = useFoldersStore();
 
   // Tags store
   const {
+    tagMetadata,
     getTagMetadata,
     updateTagMetadata,
     upsertTagMetadata,
     renameTag,
     deleteTag,
+    restoreTag,
   } = useTagsStore();
 
   // Get current note or create one
@@ -914,6 +922,100 @@ export const NoteEditor = ({
   }, [
     notes,
     folders,
+    openConfirmation,
+    permanentlyDeleteNote,
+    permanentlyDeleteFolder,
+  ]);
+
+  // Handlers for deleted item actions (floating action bar)
+  const handleRestoreDeletedItem = useCallback(() => {
+    if (mainView.type === 'editor' && currentNoteId && currentNote?.deletedAt) {
+      // Restore note
+      restoreNote(currentNoteId);
+      // Navigate back to the note (now restored)
+      setMainView({ type: 'editor' });
+    } else if (mainView.type === 'folderView' && mainView.folderId) {
+      const currentFolder = folders.find((f) => f.id === mainView.folderId);
+      if (currentFolder?.deletedAt) {
+        // Restore folder
+        restoreFolder(mainView.folderId);
+        // Navigate back to the folder (now restored)
+        setMainView({ type: 'folderView', folderId: mainView.folderId });
+      }
+    } else if (mainView.type === 'tagFilter') {
+      const tagMeta = tagMetadata[mainView.tag];
+      if (tagMeta?.deletedAt) {
+        // Restore tag
+        restoreTag(mainView.tag);
+        // Stay on tag view (now restored)
+      }
+    }
+  }, [
+    mainView,
+    currentNoteId,
+    currentNote,
+    folders,
+    tagMetadata,
+    restoreNote,
+    restoreFolder,
+    restoreTag,
+  ]);
+
+  const handlePermanentlyDeleteItem = useCallback(() => {
+    if (mainView.type === 'editor' && currentNoteId && currentNote?.deletedAt) {
+      // Permanently delete note
+      openConfirmation(
+        'Permanent Delete',
+        'Permanently delete this note? This cannot be undone.',
+        true,
+        () => {
+          permanentlyDeleteNote(currentNoteId);
+          // Navigate to Recently Deleted view
+          setMainView({ type: 'deletedItemsView' });
+        },
+        'Delete'
+      );
+    } else if (mainView.type === 'folderView' && mainView.folderId) {
+      const currentFolder = folders.find((f) => f.id === mainView.folderId);
+      if (currentFolder?.deletedAt) {
+        // Permanently delete folder
+        openConfirmation(
+          'Permanent Delete',
+          'Permanently delete this folder? This cannot be undone.',
+          true,
+          () => {
+            permanentlyDeleteFolder(mainView.folderId);
+            // Navigate to Recently Deleted view
+            setMainView({ type: 'deletedItemsView' });
+          },
+          'Delete'
+        );
+      }
+    } else if (mainView.type === 'tagFilter') {
+      const tagMeta = tagMetadata[mainView.tag];
+      if (tagMeta?.deletedAt) {
+        // Permanently delete tag
+        openConfirmation(
+          'Permanent Delete',
+          'Permanently delete this tag? This cannot be undone.',
+          true,
+          () => {
+            const permanentlyDeleteTag =
+              useTagsStore.getState().permanentlyDeleteTag;
+            permanentlyDeleteTag(mainView.tag);
+            // Navigate to Recently Deleted view
+            setMainView({ type: 'deletedItemsView' });
+          },
+          'Delete'
+        );
+      }
+    }
+  }, [
+    mainView,
+    currentNoteId,
+    currentNote,
+    folders,
+    tagMetadata,
     openConfirmation,
     permanentlyDeleteNote,
     permanentlyDeleteFolder,
@@ -1943,6 +2045,37 @@ export const NoteEditor = ({
         onSelect={handleEmojiSelect}
         position={emojiTrayPosition}
       />
+
+      {/* Floating Action Bar for deleted items */}
+      {((mainView.type === 'editor' && currentNote?.deletedAt) ||
+        (mainView.type === 'folderView' &&
+          mainView.folderId &&
+          folders.find((f) => f.id === mainView.folderId)?.deletedAt) ||
+        (mainView.type === 'tagFilter' &&
+          tagMetadata[mainView.tag]?.deletedAt)) && (
+        <FloatingActionBar
+          message="It will automatically be deleted in 30 days."
+          actions={[
+            <SecondaryButton
+              key="restore"
+              icon={<RotateCcw size={16} />}
+              onClick={handleRestoreDeletedItem}
+              size="medium"
+            >
+              Restore
+            </SecondaryButton>,
+            <PrimaryButton
+              key="delete"
+              icon={<Trash2 size={16} />}
+              onClick={handlePermanentlyDeleteItem}
+              danger
+              size="medium"
+            >
+              Permanently Delete
+            </PrimaryButton>,
+          ]}
+        />
+      )}
     </>
   );
 };
