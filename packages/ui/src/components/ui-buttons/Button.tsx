@@ -231,8 +231,11 @@ export const Button = ({
           // Danger secondary uses rgba hover
           target.style.backgroundColor =
             colors.button.danger.backgroundHoverRgba;
+        } else if (withBackground) {
+          // OVERLAY STRATEGY: Secondary with background uses medium overlay for stronger hover
+          target.style.backgroundColor = colors.overlay.medium;
         } else {
-          // OVERLAY STRATEGY: All secondary buttons use overlay (ghost or with background)
+          // OVERLAY STRATEGY: Ghost secondary uses soft overlay
           target.style.backgroundColor = colors.overlay.soft;
         }
         // Do NOT animate border color or text color (keep consistent with other variants)
@@ -325,8 +328,11 @@ export const Button = ({
           // Danger secondary uses even darker rgba on active
           target.style.backgroundColor =
             colors.button.danger.backgroundHoverRgba; // Keep same as hover for consistency
+        } else if (withBackground) {
+          // OVERLAY STRATEGY: Secondary with background uses strong overlay for active
+          target.style.backgroundColor = colors.overlay.strong;
         } else {
-          // OVERLAY STRATEGY: All secondary buttons use medium overlay for active
+          // OVERLAY STRATEGY: Ghost secondary uses medium overlay for active
           target.style.backgroundColor = colors.overlay.medium;
         }
         break;
@@ -363,8 +369,11 @@ export const Button = ({
         if (danger) {
           target.style.backgroundColor =
             colors.button.danger.backgroundHoverRgba;
+        } else if (withBackground) {
+          // OVERLAY STRATEGY: Secondary with background returns to medium overlay
+          target.style.backgroundColor = colors.overlay.medium;
         } else {
-          // OVERLAY STRATEGY: All secondary buttons return to soft overlay
+          // OVERLAY STRATEGY: Ghost secondary returns to soft overlay
           target.style.backgroundColor = colors.overlay.soft;
         }
         break;
