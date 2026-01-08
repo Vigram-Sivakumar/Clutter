@@ -148,7 +148,8 @@ export const Button = ({
         };
       }
       case 'filled': {
-        // Adapts background based on container context
+        // OVERLAY STRATEGY: Filled buttons have surface backgrounds, use overlay on hover
+        // Base color adapts to container context (background.secondary/tertiary)
         const getFilledBackground = () => {
           if (danger) return colors.button.danger.background;
           if (onBackground === 'default') return colors.background.secondary;
@@ -202,8 +203,9 @@ export const Button = ({
   ]);
 
   // Hover styles - DESIGN SYSTEM COMPLIANT
-  // Solid buttons (primary, filled, danger) → shade ladder
-  // Ghost buttons (secondary without background, tertiary) → overlay strategy
+  // PRIMARY buttons → shade ladder (brand-owned solid colors)
+  // FILLED buttons → overlay strategy (surface-owned backgrounds)
+  // SECONDARY/TERTIARY ghost buttons → overlay strategy (transparent backgrounds)
   const handleMouseEnter = (e: MouseEvent<HTMLButtonElement>) => {
     const target = e.currentTarget;
 
@@ -243,11 +245,11 @@ export const Button = ({
         // Do NOT animate border color
         break;
       case 'filled':
-        // SHADE LADDER: Use explicit hover tokens
+        // OVERLAY STRATEGY: Filled buttons use overlay on top of surface colors
         if (danger) {
           target.style.backgroundColor = colors.button.danger.backgroundHover;
         } else {
-          target.style.backgroundColor = colors.button.primary.backgroundHover;
+          target.style.backgroundColor = colors.overlay.soft;
         }
         break;
       case 'tertiary':
@@ -342,11 +344,11 @@ export const Button = ({
         }
         break;
       case 'filled':
-        // SHADE LADDER: Use explicit active tokens
+        // OVERLAY STRATEGY: Use medium overlay for active
         if (danger) {
           target.style.backgroundColor = colors.button.danger.backgroundActive;
         } else {
-          target.style.backgroundColor = colors.button.primary.backgroundActive;
+          target.style.backgroundColor = colors.overlay.medium;
         }
         break;
       case 'tertiary':
@@ -383,11 +385,11 @@ export const Button = ({
         }
         break;
       case 'filled':
-        // SHADE LADDER: Return to hover state
+        // OVERLAY STRATEGY: Return to hover state (overlay on surface)
         if (danger) {
           target.style.backgroundColor = colors.button.danger.backgroundHover;
         } else {
-          target.style.backgroundColor = colors.button.primary.backgroundHover;
+          target.style.backgroundColor = colors.overlay.soft;
         }
         break;
       case 'tertiary':
