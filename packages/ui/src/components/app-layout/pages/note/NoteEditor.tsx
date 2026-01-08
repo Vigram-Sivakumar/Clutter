@@ -2026,6 +2026,39 @@ export const NoteEditor = ({
             </PageContent>
           </>
         )}
+
+        {/* Floating Action Bar for deleted items - inside AppShell */}
+        {((mainView.type === 'editor' && currentNote?.deletedAt) ||
+          (mainView.type === 'folderView' &&
+            mainView.folderId &&
+            folders.find((f) => f.id === mainView.folderId)?.deletedAt) ||
+          (mainView.type === 'tagFilter' &&
+            tagMetadata[mainView.tag]?.deletedAt)) && (
+          <FloatingActionBar
+            message="It will automatically be deleted in 30 days."
+            actions={[
+              <SecondaryButton
+                key="restore"
+                icon={<RotateCcw size={16} />}
+                onClick={handleRestoreDeletedItem}
+                size="medium"
+                withBackground
+              >
+                Restore
+              </SecondaryButton>,
+              <SecondaryButton
+                key="delete"
+                icon={<Trash2 size={16} />}
+                onClick={handlePermanentlyDeleteItem}
+                danger
+                size="medium"
+                withBackground
+              >
+                Permanently Delete
+              </SecondaryButton>,
+            ]}
+          />
+        )}
       </AppShell>
 
       {children}
@@ -2041,39 +2074,6 @@ export const NoteEditor = ({
         onSelect={handleEmojiSelect}
         position={emojiTrayPosition}
       />
-
-      {/* Floating Action Bar for deleted items */}
-      {((mainView.type === 'editor' && currentNote?.deletedAt) ||
-        (mainView.type === 'folderView' &&
-          mainView.folderId &&
-          folders.find((f) => f.id === mainView.folderId)?.deletedAt) ||
-        (mainView.type === 'tagFilter' &&
-          tagMetadata[mainView.tag]?.deletedAt)) && (
-        <FloatingActionBar
-          message="It will automatically be deleted in 30 days."
-          actions={[
-            <SecondaryButton
-              key="restore"
-              icon={<RotateCcw size={16} />}
-              onClick={handleRestoreDeletedItem}
-              size="medium"
-              withBackground
-            >
-              Restore
-            </SecondaryButton>,
-            <SecondaryButton
-              key="delete"
-              icon={<Trash2 size={16} />}
-              onClick={handlePermanentlyDeleteItem}
-              danger
-              size="medium"
-              withBackground
-            >
-              Permanently Delete
-            </SecondaryButton>,
-          ]}
-        />
-      )}
     </>
   );
 };
