@@ -102,8 +102,8 @@ export const colors = {
         text: stone[100], // Light text on dark background
       },
       danger: {
-        backgroundRgba: 'rgba(220, 38, 38, 0.2)', // red-600 with 20% opacity
-        backgroundHoverRgba: 'rgba(220, 38, 38, 0.4)', // red-600 with 40% opacity
+        background: 'rgba(220, 38, 38, 0.2)', // red-600 with 20% opacity
+        backgroundHover: 'rgba(220, 38, 38, 0.4)', // red-600 with 40% opacity
         text: '#dc2626', // Red text
       },
     },
@@ -187,8 +187,8 @@ export const colors = {
         text: neutral[950], // Dark text on light background
       },
       danger: {
-        backgroundRgba: 'rgba(230, 124, 115, 0.1)', // Notion error red with 10% opacity
-        backgroundHoverRgba: 'rgba(230, 124, 115, 0.2)', // Notion error red with 20% opacity
+        background: 'rgba(230, 124, 115, 0.1)', // Notion error red with 10% opacity
+        backgroundHover: 'rgba(230, 124, 115, 0.2)', // Notion error red with 20% opacity
         text: '#e67c73', // Red text
       },
     },

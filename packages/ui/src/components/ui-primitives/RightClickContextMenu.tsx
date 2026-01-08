@@ -181,7 +181,7 @@ export const RightClickContextMenuProvider = ({
                       ? colors.button.danger.text
                       : colors.text.secondary,
                     backgroundColor: item.danger
-                      ? colors.button.danger.backgroundRgba
+                      ? colors.button.danger.background
                       : 'transparent',
                     cursor: 'pointer',
                     transition: 'background-color 100ms ease',
@@ -191,12 +191,12 @@ export const RightClickContextMenuProvider = ({
                   onMouseEnter={(e) => {
                     // OVERLAY STRATEGY: Menu items are ghost-like
                     e.currentTarget.style.backgroundColor = item.danger
-                      ? colors.button.danger.backgroundHoverRgba
+                      ? colors.button.danger.backgroundHover
                       : colors.overlay.soft;
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.backgroundColor = item.danger
-                      ? colors.button.danger.backgroundRgba
+                      ? colors.button.danger.background
                       : 'transparent';
                   }}
                 >

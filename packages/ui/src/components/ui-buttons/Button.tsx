@@ -127,14 +127,14 @@ export const Button = ({
           background: disabled
             ? colors.background.secondary
             : danger
-              ? colors.button.danger.backgroundRgba // Subtle red background
+              ? colors.button.danger.background // Subtle red background
               : colors.button.primary.background,
           border: 'none',
         };
       case 'secondary': {
         const getSecondaryBackground = () => {
           // Danger buttons always get the subtle red background
-          if (danger) return colors.button.danger.backgroundRgba;
+          if (danger) return colors.button.danger.background;
           if (!withBackground) return 'transparent';
           if (onBackground === 'default') return colors.background.secondary;
           if (onBackground === 'secondary') return colors.background.tertiary;
@@ -153,7 +153,7 @@ export const Button = ({
         // Base color adapts to container context (background.secondary/tertiary)
         const getFilledBackground = () => {
           // Danger filled uses subtle rgba background (matches menu items)
-          if (danger) return colors.button.danger.backgroundRgba;
+          if (danger) return colors.button.danger.background;
           if (onBackground === 'default') return colors.background.secondary;
           if (onBackground === 'secondary') return colors.background.tertiary;
           return colors.background.tertiary;
@@ -224,8 +224,7 @@ export const Button = ({
       case 'primary':
         // OVERLAY STRATEGY: Primary danger uses subtle hover
         if (danger) {
-          target.style.backgroundColor =
-            colors.button.danger.backgroundHoverRgba;
+          target.style.backgroundColor = colors.button.danger.backgroundHover;
         } else {
           target.style.backgroundColor = colors.button.primary.backgroundHover;
         }
@@ -233,8 +232,7 @@ export const Button = ({
       case 'secondary':
         if (danger) {
           // Danger secondary uses rgba hover
-          target.style.backgroundColor =
-            colors.button.danger.backgroundHoverRgba;
+          target.style.backgroundColor = colors.button.danger.backgroundHover;
         } else if (withBackground) {
           // OVERLAY STRATEGY: Secondary with background uses medium overlay for stronger hover
           target.style.backgroundColor = colors.overlay.medium;
@@ -248,8 +246,7 @@ export const Button = ({
         // OVERLAY STRATEGY: Filled buttons use overlay on top of surface colors
         if (danger) {
           // Danger filled uses subtle rgba hover (matches menu items)
-          target.style.backgroundColor =
-            colors.button.danger.backgroundHoverRgba;
+          target.style.backgroundColor = colors.button.danger.backgroundHover;
         } else {
           target.style.backgroundColor = colors.overlay.soft;
         }
@@ -270,13 +267,13 @@ export const Button = ({
       case 'primary':
         // OVERLAY STRATEGY: Primary danger returns to subtle base
         target.style.backgroundColor = danger
-          ? colors.button.danger.backgroundRgba
+          ? colors.button.danger.background
           : colors.button.primary.background;
         break;
       case 'secondary': {
         const getSecondaryBg = () => {
           // Danger buttons always get the subtle red background
-          if (danger) return colors.button.danger.backgroundRgba;
+          if (danger) return colors.button.danger.background;
           // Non-danger buttons: transparent if no background, or use the specified background
           if (!withBackground) return 'transparent';
           if (onBackground === 'default') return colors.background.secondary;
@@ -291,7 +288,7 @@ export const Button = ({
         // OVERLAY STRATEGY: Return to base color
         const getFilledBackground = () => {
           // Danger filled uses subtle rgba background (matches menu items)
-          if (danger) return colors.button.danger.backgroundRgba;
+          if (danger) return colors.button.danger.background;
           if (onBackground === 'default') return colors.background.secondary;
           if (onBackground === 'secondary') return colors.background.tertiary;
           return colors.background.tertiary;
@@ -325,8 +322,7 @@ export const Button = ({
       case 'primary':
         // OVERLAY STRATEGY: Primary danger uses subtle active
         if (danger) {
-          target.style.backgroundColor =
-            colors.button.danger.backgroundHoverRgba;
+          target.style.backgroundColor = colors.button.danger.backgroundHover;
         } else {
           target.style.backgroundColor = colors.button.primary.backgroundActive;
         }
@@ -334,8 +330,7 @@ export const Button = ({
       case 'secondary':
         if (danger) {
           // Danger secondary uses even darker rgba on active
-          target.style.backgroundColor =
-            colors.button.danger.backgroundHoverRgba; // Keep same as hover for consistency
+          target.style.backgroundColor = colors.button.danger.backgroundHover; // Keep same as hover for consistency
         } else if (withBackground) {
           // OVERLAY STRATEGY: Secondary with background uses strong overlay for active
           target.style.backgroundColor = colors.overlay.strong;
@@ -348,8 +343,7 @@ export const Button = ({
         // OVERLAY STRATEGY: Use medium overlay for active
         if (danger) {
           // Danger filled keeps subtle rgba on active (matches menu items)
-          target.style.backgroundColor =
-            colors.button.danger.backgroundHoverRgba;
+          target.style.backgroundColor = colors.button.danger.backgroundHover;
         } else {
           target.style.backgroundColor = colors.overlay.medium;
         }
@@ -370,16 +364,14 @@ export const Button = ({
       case 'primary':
         // OVERLAY STRATEGY: Primary danger returns to subtle hover
         if (danger) {
-          target.style.backgroundColor =
-            colors.button.danger.backgroundHoverRgba;
+          target.style.backgroundColor = colors.button.danger.backgroundHover;
         } else {
           target.style.backgroundColor = colors.button.primary.backgroundHover;
         }
         break;
       case 'secondary':
         if (danger) {
-          target.style.backgroundColor =
-            colors.button.danger.backgroundHoverRgba;
+          target.style.backgroundColor = colors.button.danger.backgroundHover;
         } else if (withBackground) {
           // OVERLAY STRATEGY: Secondary with background returns to medium overlay
           target.style.backgroundColor = colors.overlay.medium;
@@ -392,8 +384,7 @@ export const Button = ({
         // OVERLAY STRATEGY: Return to hover state (overlay on surface)
         if (danger) {
           // Danger filled returns to subtle rgba hover (matches menu items)
-          target.style.backgroundColor =
-            colors.button.danger.backgroundHoverRgba;
+          target.style.backgroundColor = colors.button.danger.backgroundHover;
         } else {
           target.style.backgroundColor = colors.overlay.soft;
         }

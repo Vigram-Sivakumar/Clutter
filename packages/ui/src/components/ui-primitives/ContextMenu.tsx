@@ -42,10 +42,10 @@ const MenuItem = ({
         // OVERLAY STRATEGY: Menu items are ghost-like, use overlay on hover
         backgroundColor: isHovered
           ? danger
-            ? colors.button.danger.backgroundHoverRgba // rgba hover for danger
+            ? colors.button.danger.backgroundHover // rgba hover for danger
             : colors.overlay.soft // overlay for non-danger
           : danger
-            ? colors.button.danger.backgroundRgba // rgba base for danger
+            ? colors.button.danger.background // rgba base for danger
             : 'transparent', // transparent base for non-danger
         transition: 'background-color 100ms ease',
         userSelect: 'none',
