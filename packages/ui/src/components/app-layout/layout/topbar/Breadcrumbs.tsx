@@ -146,8 +146,7 @@ export const Breadcrumbs = ({ items, separator }: BreadcrumbsProps) => {
         display: 'flex',
         alignItems: 'center',
         gap: spacing['4'],
-        minWidth: 0,
-        width: '100%',
+        minWidth: 0, // Enables text truncation
       }}
     >
       {collapsedItems.map((item, index) => {
