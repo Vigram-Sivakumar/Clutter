@@ -231,12 +231,9 @@ export const Button = ({
           // Danger secondary uses rgba hover
           target.style.backgroundColor =
             colors.button.danger.backgroundHoverRgba;
-        } else if (!withBackground) {
-          // OVERLAY STRATEGY: Ghost buttons use overlay
-          target.style.backgroundColor = colors.overlay.soft;
         } else {
-          // SURFACE STRATEGY: Buttons with background use surface hover
-          target.style.backgroundColor = colors.background.hover;
+          // OVERLAY STRATEGY: All secondary buttons use overlay (ghost or with background)
+          target.style.backgroundColor = colors.overlay.soft;
         }
         // Text color change on hover (non-danger only)
         if (!danger) {
@@ -335,12 +332,9 @@ export const Button = ({
           // Danger secondary uses even darker rgba on active
           target.style.backgroundColor =
             colors.button.danger.backgroundHoverRgba; // Keep same as hover for consistency
-        } else if (!withBackground) {
-          // OVERLAY STRATEGY: Use medium overlay for active
-          target.style.backgroundColor = colors.overlay.medium;
         } else {
-          // SURFACE STRATEGY: Use active surface color
-          target.style.backgroundColor = colors.background.active;
+          // OVERLAY STRATEGY: All secondary buttons use medium overlay for active
+          target.style.backgroundColor = colors.overlay.medium;
         }
         break;
       case 'filled':
@@ -376,12 +370,9 @@ export const Button = ({
         if (danger) {
           target.style.backgroundColor =
             colors.button.danger.backgroundHoverRgba;
-        } else if (!withBackground) {
-          // OVERLAY STRATEGY: Return to soft overlay
-          target.style.backgroundColor = colors.overlay.soft;
         } else {
-          // SURFACE STRATEGY: Return to hover state
-          target.style.backgroundColor = colors.background.hover;
+          // OVERLAY STRATEGY: All secondary buttons return to soft overlay
+          target.style.backgroundColor = colors.overlay.soft;
         }
         break;
       case 'filled':
