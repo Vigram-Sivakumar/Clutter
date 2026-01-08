@@ -63,6 +63,7 @@ import { BlockIdGenerator } from '../extensions/BlockIdGenerator';
 import { SelectAll } from '../plugins/SelectAll';
 import { BlockDeletion } from '../plugins/BlockDeletion';
 import { UndoBoundaries } from '../plugins/UndoBoundaries';
+import { ClearNodeSelection } from '../plugins/ClearNodeSelection';
 // import { FocusFade } from '../plugins/FocusFade'; // Disabled for now
 
 // Components
@@ -168,6 +169,7 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
         DoubleSpaceEscape,
         SelectAll, // Progressive Cmd+A: block text → block node → all blocks
         BlockDeletion, // Handle DELETE/Backspace for node-selected blocks
+        ClearNodeSelection, // Clear NodeSelection (highlight) when clicking elsewhere
         HashtagDetection, // Simple #tag detection (moves to metadata)
         HashtagAutocomplete.configure({
           getColors: () => colors,
@@ -307,7 +309,19 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
             editor.view.dispatch(tr);
             editor.view.focus();
 
-            // Selection persists until user manually clicks elsewhere
+            // Auto-clear highlight after 2 seconds for better UX
+            setTimeout(() => {
+              if (!editor.isDestroyed) {
+                // Clear the selection by placing cursor at the end of the highlighted block
+                const currentDoc = editor.state.doc;
+                const currentNode = currentDoc.nodeAt(blockPos);
+                if (currentNode) {
+                  const endPos = blockPos + currentNode.nodeSize;
+                  editor.commands.focus();
+                  editor.commands.setTextSelection(endPos);
+                }
+              }
+            }, 2000);
           }
         },
       }),
