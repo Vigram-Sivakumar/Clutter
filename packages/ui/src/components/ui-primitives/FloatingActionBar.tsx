@@ -1,5 +1,6 @@
 import { ReactNode } from 'react';
 import { useTheme } from '../../hooks/useTheme';
+import { useUIPreferences } from '../../hooks/useUIPreferences';
 import { spacing } from '../../tokens/spacing';
 import { radius } from '../../tokens/radius';
 import { sizing } from '../../tokens/sizing';
@@ -35,14 +36,25 @@ export const FloatingActionBar = ({
   actions,
 }: FloatingActionBarProps) => {
   const { colors } = useTheme();
+  const { preferences } = useUIPreferences();
+
+  // Calculate the horizontal center of the content area (accounting for sidebar)
+  const sidebarWidth = preferences.sidebarCollapsed ? 48 : 280;
+  const contentAreaLeft = sidebarWidth;
+  const contentMaxWidth = 720;
 
   return (
     <div
       style={{
-        position: 'absolute', // Absolute positioning relative to main-content-area
+        position: 'fixed', // Fixed positioning - doesn't scroll with page
         bottom: spacing['24'],
-        left: '50%', // Center relative to parent container (content area)
-        transform: 'translateX(-50%)',
+        // Center within the available content area
+        left: `${contentAreaLeft}px`,
+        right: 0,
+        marginLeft: 'auto',
+        marginRight: 'auto',
+        width: 'fit-content',
+        maxWidth: `min(${contentMaxWidth}px, calc(100vw - ${sidebarWidth}px - ${spacing['24']} * 2))`,
         zIndex: sizing.zIndex.dropdown, // Same as FloatingToolbar
         backgroundColor: colors.background.default, // Same as FloatingToolbar and ContextMenu
         border: `1px solid ${colors.border.default}`, // Same as FloatingToolbar and ContextMenu
@@ -53,7 +65,6 @@ export const FloatingActionBar = ({
         alignItems: 'center',
         gap: spacing['12'],
         userSelect: 'none',
-        maxWidth: `calc(100% - ${spacing['24']} * 2)`, // Constrain to parent width with padding
       }}
     >
       {/* Optional message */}
