@@ -224,19 +224,27 @@ export const Button = ({
             mode === 'light' ? stone[750] : neutral[100];
         }
         break;
-      case 'secondary':
-        target.style.backgroundColor = danger
-          ? colors.button.danger.backgroundHover
-          : colors.background.hover;
+      case 'secondary': {
+        // Use overlay strategy for non-danger buttons (8% ink in light, 6% white in dark)
+        const getSecondaryHoverBg = () => {
+          if (danger) return colors.button.danger.backgroundHover;
+          if (!withBackground) return colors.overlay.soft;
+          // For buttons with background, layer overlay on top
+          if (onBackground === 'default') return colors.background.hover;
+          if (onBackground === 'secondary') return colors.background.hover;
+          return colors.background.hover;
+        };
+        target.style.backgroundColor = getSecondaryHoverBg();
         if (!noBorder) {
           target.style.borderColor = danger
             ? colors.button.danger.text
-            : colors.border.focus; // Use focus border instead of non-existent hover
+            : colors.border.focus;
         }
         target.style.color = danger
           ? colors.button.danger.text
           : colors.text.default;
         break;
+      }
       case 'filled':
         if (danger) {
           target.style.backgroundColor = '#b91c1c'; // Danger hover (red-700)
@@ -266,6 +274,7 @@ export const Button = ({
         const getSecondaryBg = () => {
           // Danger buttons always get the subtle red background
           if (danger) return colors.button.danger.backgroundRgba;
+          // Non-danger buttons: transparent if no background, or use the specified background
           if (!withBackground) return 'transparent';
           if (onBackground === 'default') return colors.background.secondary;
           if (onBackground === 'secondary') return colors.background.tertiary;
