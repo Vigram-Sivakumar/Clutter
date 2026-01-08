@@ -235,11 +235,7 @@ export const Button = ({
           // OVERLAY STRATEGY: All secondary buttons use overlay (ghost or with background)
           target.style.backgroundColor = colors.overlay.soft;
         }
-        // Text color change on hover (non-danger only)
-        if (!danger) {
-          target.style.color = colors.text.default;
-        }
-        // Do NOT animate border color
+        // Do NOT animate border color or text color (keep consistent with other variants)
         break;
       case 'filled':
         // OVERLAY STRATEGY: Filled buttons use overlay on top of surface colors
@@ -279,10 +275,7 @@ export const Button = ({
           return colors.background.tertiary;
         };
         target.style.backgroundColor = getSecondaryBg();
-        // Return text color to secondary
-        target.style.color = danger
-          ? colors.button.danger.text
-          : colors.text.secondary;
+        // Text color stays constant (no change on hover/leave)
         break;
       }
       case 'filled': {

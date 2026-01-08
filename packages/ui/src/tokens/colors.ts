@@ -201,8 +201,8 @@ export const colors = {
 
     // Overlay colors - subtle white overlays for interaction on dark
     overlay: {
-      soft: 'rgba(255, 255, 255, 0.08)', // Subtle hover overlay (increased for visibility)
-      medium: 'rgba(255, 255, 255, 0.12)', // Active/pressed state
+      soft: 'rgba(255, 255, 255, 0.06)', // Subtle hover overlay (Notion-style)
+      medium: 'rgba(255, 255, 255, 0.08)', // Active/pressed state
       default: 'rgba(255, 255, 255, 0.10)', // Default overlay for interaction
       strong: 'rgba(255, 255, 255, 0.15)', // Strong overlay for emphasis
       backdrop: 'rgba(0, 0, 0, 0.7)', // Modal backdrop (70% opacity on true black)
