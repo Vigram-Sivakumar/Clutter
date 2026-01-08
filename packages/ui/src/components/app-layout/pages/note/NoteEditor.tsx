@@ -42,11 +42,7 @@ import { useTheme } from '../../../../hooks/useTheme';
 import { useUIPreferences } from '../../../../hooks/useUIPreferences';
 import { sizing } from '../../../../tokens/sizing';
 import { getTagColor } from '../../../../utils/tagColors';
-import {
-  FilledButton,
-  PrimaryButton,
-  SecondaryButton,
-} from '../../../ui-buttons';
+import { FilledButton, SecondaryButton } from '../../../ui-buttons';
 import { FloatingActionBar } from '../../../ui-primitives';
 // Main view type
 type MainView =
@@ -2061,18 +2057,20 @@ export const NoteEditor = ({
               icon={<RotateCcw size={16} />}
               onClick={handleRestoreDeletedItem}
               size="medium"
+              withBackground
             >
               Restore
             </SecondaryButton>,
-            <PrimaryButton
+            <SecondaryButton
               key="delete"
               icon={<Trash2 size={16} />}
               onClick={handlePermanentlyDeleteItem}
               danger
               size="medium"
+              withBackground
             >
               Permanently Delete
-            </PrimaryButton>,
+            </SecondaryButton>,
           ]}
         />
       )}

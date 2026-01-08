@@ -133,19 +133,19 @@ export const Button = ({
         };
       case 'secondary': {
         const getSecondaryBackground = () => {
+          // Danger buttons always get the subtle red background
+          if (danger) return colors.button.danger.backgroundRgba;
           if (!withBackground) return 'transparent';
           if (onBackground === 'default') return colors.background.secondary;
           if (onBackground === 'secondary') return colors.background.tertiary;
           return colors.background.tertiary;
         };
         return {
-          color: danger
-            ? colors.button.danger.background
-            : colors.text.secondary,
+          color: danger ? colors.button.danger.text : colors.text.secondary,
           background: getSecondaryBackground(),
           border: noBorder
             ? 'none'
-            : `1px solid ${danger ? colors.button.danger.background : colors.border.default}`,
+            : `1px solid ${danger ? colors.button.danger.text : colors.border.default}`,
         };
       }
       case 'filled': {
@@ -220,18 +220,21 @@ export const Button = ({
         if (danger) {
           target.style.backgroundColor = '#b91c1c'; // Danger hover (red-700)
         } else {
-          target.style.backgroundColor = mode === 'light' ? stone[750] : neutral[100];
+          target.style.backgroundColor =
+            mode === 'light' ? stone[750] : neutral[100];
         }
         break;
       case 'secondary':
-        target.style.backgroundColor = colors.background.hover;
+        target.style.backgroundColor = danger
+          ? colors.button.danger.backgroundHover
+          : colors.background.hover;
         if (!noBorder) {
           target.style.borderColor = danger
-            ? colors.button.danger.background
+            ? colors.button.danger.text
             : colors.border.focus; // Use focus border instead of non-existent hover
         }
         target.style.color = danger
-          ? colors.button.danger.background
+          ? colors.button.danger.text
           : colors.text.default;
         break;
       case 'filled':
@@ -261,6 +264,8 @@ export const Button = ({
         break;
       case 'secondary': {
         const getSecondaryBg = () => {
+          // Danger buttons always get the subtle red background
+          if (danger) return colors.button.danger.backgroundRgba;
           if (!withBackground) return 'transparent';
           if (onBackground === 'default') return colors.background.secondary;
           if (onBackground === 'secondary') return colors.background.tertiary;
@@ -269,11 +274,11 @@ export const Button = ({
         target.style.backgroundColor = getSecondaryBg();
         if (!noBorder) {
           target.style.borderColor = danger
-            ? colors.button.danger.background
+            ? colors.button.danger.text
             : colors.border.default;
         }
         target.style.color = danger
-          ? colors.button.danger.background
+          ? colors.button.danger.text
           : colors.text.secondary;
         break;
       }
@@ -314,7 +319,8 @@ export const Button = ({
         if (danger) {
           target.style.backgroundColor = '#b91c1c'; // Danger active (red-700)
         } else {
-          target.style.backgroundColor = mode === 'light' ? stone[875] : neutral[200];
+          target.style.backgroundColor =
+            mode === 'light' ? stone[875] : neutral[200];
         }
         break;
       case 'tertiary':
@@ -335,7 +341,8 @@ export const Button = ({
         if (danger) {
           target.style.backgroundColor = '#b91c1c'; // Danger hover (red-700)
         } else {
-          target.style.backgroundColor = mode === 'light' ? stone[750] : neutral[100];
+          target.style.backgroundColor =
+            mode === 'light' ? stone[750] : neutral[100];
         }
         break;
       case 'tertiary':
