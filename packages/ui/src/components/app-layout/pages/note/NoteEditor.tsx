@@ -6,7 +6,7 @@ import {
   useRef,
   useEffect,
 } from 'react';
-import { Star, StarFilled, Copy, Trash2 } from '../../../../icons';
+import { Star, StarFilled, Copy, Trash2, RotateCcw } from '../../../../icons';
 import { NoteTopBar } from './NoteTopBar';
 import { AppShell } from '../../layout/AppLayout';
 import { PageTitleSection } from '../../shared/content-header';
@@ -137,6 +137,7 @@ export const NoteEditor = ({
     updateNoteMeta,
     duplicateNote,
     deleteNote,
+    restoreNote,
     permanentlyDeleteNote,
     findDailyNoteByDate,
     createDailyNote,
@@ -1274,7 +1275,7 @@ export const NoteEditor = ({
     [createNote, setCurrentNoteId]
   );
 
-  // Note context menu items
+  // Note context menu items - different for deleted vs active notes
   const noteContextMenuItems = useMemo<
     Array<
       | {
@@ -1288,8 +1289,51 @@ export const NoteEditor = ({
           separator: true;
         }
     >
-  >(
-    () => [
+  >(() => {
+    // Check if viewing a deleted note
+    const isDeletedNote =
+      currentNote?.deletedAt || mainView.source === 'deletedItems';
+
+    if (isDeletedNote) {
+      // Context menu for deleted notes
+      return [
+        {
+          icon: <RotateCcw size={sizing.icon.sm} />,
+          label: 'Restore',
+          onClick: () => {
+            if (currentNoteId) {
+              restoreNote(currentNoteId);
+              // Navigate back to the restored note
+              setMainView({ type: 'editor' });
+            }
+          },
+        },
+        { separator: true as const },
+        {
+          icon: <Trash2 size={sizing.icon.sm} />,
+          label: 'Permanently Delete',
+          onClick: () => {
+            if (currentNoteId) {
+              openConfirmation(
+                'Permanent Delete',
+                'Permanently delete this note? This cannot be undone.',
+                true, // isDangerous
+                () => {
+                  permanentlyDeleteNote(currentNoteId);
+                  // Navigate to Recently Deleted view
+                  setMainView({ type: 'deletedItemsView' });
+                },
+                'Delete'
+              );
+            }
+          },
+          danger: true,
+        },
+      ];
+    }
+
+    // Context menu for active notes
+    return [
       {
         icon: isFavorite ? (
           <StarFilled size={sizing.icon.sm} color={colors.accent.gold} />
@@ -1311,15 +1355,21 @@ export const NoteEditor = ({
         onClick: handleDelete,
         danger: true,
       },
-    ],
-    [
-      isFavorite,
-      handleToggleFavorite,
-      handleDuplicate,
-      handleDelete,
-      colors.accent.gold,
-    ]
-  );
+    ];
+  }, [
+    currentNote?.deletedAt,
+    mainView.source,
+    currentNoteId,
+    isFavorite,
+    handleToggleFavorite,
+    handleDuplicate,
+    handleDelete,
+    colors.accent.gold,
+    restoreNote,
+    openConfirmation,
+    permanentlyDeleteNote,
+    setMainView,
+  ]);
 
   // Tag context menu items (for tag filtered view)
   const tagContextMenuItems = useMemo<
