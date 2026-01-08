@@ -51,7 +51,7 @@ export const FloatingActionBar = ({
         alignItems: 'center',
         gap: spacing['12'],
         userSelect: 'none',
-        maxWidth: '600px',
+        maxWidth: '90vw', // Responsive to viewport width
       }}
     >
       {/* Optional message */}
@@ -60,7 +60,7 @@ export const FloatingActionBar = ({
           style={{
             fontSize: '14px',
             color: colors.text.secondary,
-            whiteSpace: 'nowrap',
+            flexShrink: 1, // Allow message to shrink if needed
           }}
         >
           {message}
@@ -73,6 +73,7 @@ export const FloatingActionBar = ({
           display: 'flex',
           alignItems: 'center',
           gap: spacing['8'],
+          flexShrink: 0, // Never shrink buttons
         }}
       >
         {actions}
