@@ -71,32 +71,32 @@ export const Breadcrumbs = ({ items, separator }: BreadcrumbsProps) => {
     const currentIndex = items.length - 1;
     const parentIndex = items.length - 2;
 
-    // Ultra narrow: only show current
-    if (containerWidth < 150) {
+    // Ultra narrow: only show current (< 200px)
+    if (containerWidth < 200) {
       for (let i = 0; i < currentIndex; i++) {
         hidden.add(i);
       }
       return hidden;
     }
 
-    // Very narrow: show parent + current
-    if (containerWidth < 250) {
+    // Very narrow: show parent + current (< 300px)
+    if (containerWidth < 300) {
       for (let i = 0; i < parentIndex; i++) {
         hidden.add(i);
       }
       return hidden;
     }
 
-    // Narrow: show first + parent + current, hide middle
-    if (items.length > 3 && containerWidth < 400) {
+    // Narrow: show first + parent + current, hide middle (< 450px and more than 3 items)
+    if (items.length > 3 && containerWidth < 450) {
       for (let i = 1; i < parentIndex; i++) {
         hidden.add(i);
       }
       return hidden;
     }
 
-    // Medium: progressively hide middle items
-    if (items.length > 4 && containerWidth < 500) {
+    // Medium: progressively hide middle items only for very long paths (> 5 items and < 600px)
+    if (items.length > 5 && containerWidth < 600) {
       // Hide items 1, 2, 3... (keep first, parent, current)
       const hideCount = Math.ceil((items.length - 3) / 2);
       for (let i = 1; i <= hideCount && i < parentIndex; i++) {

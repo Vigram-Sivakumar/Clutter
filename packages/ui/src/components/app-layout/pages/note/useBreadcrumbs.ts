@@ -114,6 +114,14 @@ export const useBreadcrumbs = (
           };
         }
 
+        // Note is in Daily Notes folder (fallback for notes without dailyNoteDate)
+        if (note.folderId === DAILY_NOTES_FOLDER_ID) {
+          return {
+            path: ['Daily notes'],
+            currentPageTitle: note.title || 'Untitled',
+          };
+        }
+
         // Note is in a specific folder
         const folderHierarchy = getFolderPath(note.folderId);
         return {
@@ -149,6 +157,13 @@ export const useBreadcrumbs = (
           // Special case: Cluttered folder
           return {
             path: ['Folders', 'Cluttered'],
+          };
+        }
+
+        if (mainView.folderId === DAILY_NOTES_FOLDER_ID) {
+          // Special case: Daily notes folder
+          return {
+            path: ['Daily notes'],
           };
         }
 
