@@ -12,6 +12,8 @@ export const ConfirmationDialog = () => {
   const title = useConfirmationStore((state) => state.title);
   const description = useConfirmationStore((state) => state.description);
   const isDangerous = useConfirmationStore((state) => state.isDangerous);
+  const confirmLabel = useConfirmationStore((state) => state.confirmLabel);
+  const actions = useConfirmationStore((state) => state.actions);
   const onConfirm = useConfirmationStore((state) => state.onConfirm);
   const close = useConfirmationStore((state) => state.close);
 
@@ -58,9 +60,8 @@ export const ConfirmationDialog = () => {
             backgroundColor: colors.background.default,
             borderRadius: radius['12'],
             padding: spacing['16'],
-            width: '256px',
-            minWidth: '220px',
-            maxWidth: '256px',
+            minWidth: '256px',
+            maxWidth: '320px',
             boxShadow: `0 20px 25px -5px ${colors.shadow.md}, 0 10px 10px -5px ${colors.shadow.sm}`,
             border: `1px solid ${colors.border.default}`,
           }}
@@ -84,30 +85,69 @@ export const ConfirmationDialog = () => {
                 color: colors.text.secondary,
                 lineHeight: typography.lineHeight.normal,
                 marginBottom: spacing['16'],
+                whiteSpace: 'pre-line',
               }}
             >
               {description}
             </div>
           )}
 
-          {/* Buttons */}
-          <div
-            style={{
-              display: 'flex',
-              gap: spacing['8'],
-              justifyContent: 'flex-end',
-            }}
-          >
-            <SecondaryButton size="medium" fullWidth onClick={close}>
-              Cancel
-            </SecondaryButton>
-            <PrimaryButton size="medium" fullWidth danger={isDangerous} onClick={handleConfirm}>
-              {isDangerous ? 'Delete' : 'Confirm'}
-            </PrimaryButton>
-          </div>
+          {/* Multi-action buttons (3+) */}
+          {actions && (
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: spacing['8'],
+              }}
+            >
+              {actions.map((action, index) => {
+                const Button =
+                  action.variant === 'secondary'
+                    ? SecondaryButton
+                    : PrimaryButton;
+                return (
+                  <Button
+                    key={index}
+                    size="medium"
+                    fullWidth
+                    danger={action.variant === 'danger'}
+                    onClick={() => {
+                      action.onClick();
+                      close();
+                    }}
+                  >
+                    {action.label}
+                  </Button>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Standard two-button layout */}
+          {!actions && (
+            <div
+              style={{
+                display: 'flex',
+                gap: spacing['8'],
+                justifyContent: 'flex-end',
+              }}
+            >
+              <SecondaryButton size="medium" fullWidth onClick={close}>
+                Cancel
+              </SecondaryButton>
+              <PrimaryButton
+                size="medium"
+                fullWidth
+                danger={isDangerous}
+                onClick={handleConfirm}
+              >
+                {confirmLabel || (isDangerous ? 'Delete' : 'Confirm')}
+              </PrimaryButton>
+            </div>
+          )}
         </div>
       </div>
     </>
   );
 };
-

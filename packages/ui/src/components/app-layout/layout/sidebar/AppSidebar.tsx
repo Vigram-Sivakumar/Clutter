@@ -37,7 +37,7 @@ import {
   useAllTags,
   useUIStateStore,
 } from '@clutter/state';
-import { sortByOrder } from '@clutter/shared';
+import { sortByOrder, useConfirmation } from '@clutter/shared';
 import { Note, Folder } from '@clutter/domain';
 import { getFolderIcon, getNoteIcon } from '../../../../utils/itemIcons';
 import { handleTagRenameWithColorPreservation } from '../../../../utils/tagRenameHelpers';
@@ -126,6 +126,7 @@ export const AppSidebar = ({
   currentView,
 }: AppSidebarProps) => {
   const { mode, colors } = useTheme();
+  const { openMultiActionConfirmation } = useConfirmation();
 
   // Connect to stores
   const {
@@ -1481,28 +1482,13 @@ export const AppSidebar = ({
   );
 
   const handleDeleteNote = useCallback(
-    async (noteId: string) => {
-      try {
-        // Use Tauri dialog.confirm for proper UX
-        const { confirm } = await import('@tauri-apps/api/dialog');
-        const confirmed = await confirm('Move this note to trash?', {
-          title: 'Delete Note',
-          type: 'warning',
-          okLabel: 'Move to Trash',
-          cancelLabel: 'Cancel',
-        });
+    (noteId: string) => {
+      // Delete note immediately without confirmation
+      deleteNote(noteId);
 
-        if (confirmed) {
-          // Soft delete the note (move to trash)
-          deleteNote(noteId);
-
-          // If deleting the currently open note, keep it open but update context
-          // The parent component (NoteEditor) will handle updating the view context
-          // No navigation needed - user stays on the same note
-        }
-      } catch (error) {
-        console.error('❌ Error showing confirmation dialog:', error);
-      }
+      // If deleting the currently open note, keep it open but update context
+      // The parent component (NoteEditor) will handle updating the view context
+      // No navigation needed - user stays on the same note
     },
     [deleteNote]
   );
@@ -1611,7 +1597,7 @@ export const AppSidebar = ({
   }, []);
 
   const handleDeleteFolder = useCallback(
-    async (folderId: string) => {
+    (folderId: string) => {
       // Count notes in folder (including subfolders)
       const countNotesInFolder = (id: string): number => {
         const directNotes = notes.filter(
@@ -1631,45 +1617,35 @@ export const AppSidebar = ({
       const folder = storeFolders.find((f) => f.id === folderId);
       const folderName = folder?.name || 'this folder';
 
-      try {
-        // Use Tauri dialog.confirm for better UX
-        const { confirm } = await import('@tauri-apps/api/dialog');
-
-        if (noteCount === 0) {
-          // No notes - simple confirmation
-          const confirmed = await confirm(`Delete "${folderName}"?`, {
-            title: 'Delete Folder',
-            type: 'warning',
-          });
-
-          if (confirmed) {
-            deleteFolder(folderId);
-          }
-        } else {
-          // Has notes - show options
-          const message = `"${folderName}" contains ${noteCount} ${noteCount === 1 ? 'note' : 'notes'}.\n\nDelete folder only (notes move to Cluttered) or delete everything?`;
-
-          const deleteAll = await confirm(message, {
-            title: 'Delete Folder',
-            type: 'warning',
-            okLabel: 'Delete All',
-            cancelLabel: 'Delete Folder Only',
-          });
-
-          if (deleteAll) {
-            // Delete folder and notes together
-            deleteFolder(folderId, { keepNotes: false });
-          } else {
-            // User clicked "Delete Folder Only" (cancel button)
-            // Delete folder but keep notes (move to Cluttered)
-            deleteFolder(folderId, { keepNotes: true });
-          }
-        }
-      } catch (error) {
-        console.error('❌ Error showing folder deletion dialog:', error);
+      if (noteCount === 0) {
+        // Empty folder - delete immediately without confirmation
+        deleteFolder(folderId);
+      } else {
+        // Has notes - show confirmation with 3 options
+        openMultiActionConfirmation(
+          'Delete Folder',
+          `"${folderName}" contains ${noteCount} note${noteCount === 1 ? '' : 's'}.\n\nWhat would you like to do?`,
+          [
+            {
+              label: 'Cancel',
+              variant: 'secondary',
+              onClick: () => {}, // Just closes
+            },
+            {
+              label: 'Delete Folder Only',
+              variant: 'primary',
+              onClick: () => deleteFolder(folderId, { keepNotes: true }),
+            },
+            {
+              label: 'Delete All',
+              variant: 'danger',
+              onClick: () => deleteFolder(folderId, { keepNotes: false }),
+            },
+          ]
+        );
       }
     },
-    [notes, storeFolders, deleteFolder]
+    [notes, storeFolders, deleteFolder, openMultiActionConfirmation]
   );
 
   // Cache folder actions to prevent re-creating JSX elements on every render

@@ -828,7 +828,7 @@ export const NoteEditor = ({
   }, [currentNoteId, deleteNote]);
 
   // Clear all deleted items handler
-  const { openConfirmation } = useConfirmation();
+  const { openConfirmation, openMultiActionConfirmation } = useConfirmation();
 
   // Check if there are any deleted items
   const hasDeletedItems = useMemo(() => {
@@ -1410,35 +1410,72 @@ export const NoteEditor = ({
       {
         icon: <Trash2 size={sizing.icon.sm} />,
         label: 'Delete folder',
-        onClick: async () => {
-          try {
-            // Use Tauri dialog.confirm for proper UX
-            const { confirm } = await import('@tauri-apps/api/dialog');
-            const confirmed = await confirm(
-              `Move "${currentFolder.name || 'this folder'}" to trash?`,
-              {
-                title: 'Delete Folder',
-                type: 'warning',
-                okLabel: 'Move to Trash',
-                cancelLabel: 'Cancel',
-              }
-            );
+        onClick: () => {
+          if (!currentFolder) return;
 
-            if (confirmed) {
-              // Soft delete the folder
-              deleteFolder(currentFolder.id);
-              // Navigate to parent folder or all folders view
-              if (currentFolder.parentId) {
-                setMainView({
-                  type: 'folderView',
-                  folderId: currentFolder.parentId,
-                });
-              } else {
-                setMainView({ type: 'allFoldersView' });
-              }
+          // Count notes in this folder (including subfolders)
+          const countNotesInFolder = (id: string): number => {
+            const directNotes = notes.filter(
+              (n) => n.folderId === id && !n.deletedAt
+            ).length;
+            const childFolders = folders.filter(
+              (f) => f.parentId === id && !f.deletedAt
+            );
+            const childNotes = childFolders.reduce(
+              (sum, child) => sum + countNotesInFolder(child.id),
+              0
+            );
+            return directNotes + childNotes;
+          };
+
+          const noteCount = countNotesInFolder(currentFolder.id);
+          const folderName = currentFolder.name || 'this folder';
+
+          // Navigate to parent after deletion
+          const navigateAfterDelete = () => {
+            if (currentFolder.parentId) {
+              setMainView({
+                type: 'folderView',
+                folderId: currentFolder.parentId,
+              });
+            } else {
+              setMainView({ type: 'allFoldersView' });
             }
-          } catch (error) {
-            console.error('❌ Error showing folder deletion dialog:', error);
+          };
+
+          if (noteCount === 0) {
+            // Empty folder - delete immediately without confirmation
+            deleteFolder(currentFolder.id);
+            navigateAfterDelete();
+          } else {
+            // Has notes - show confirmation with 3 options
+            openMultiActionConfirmation(
+              'Delete Folder',
+              `"${folderName}" contains ${noteCount} note${noteCount === 1 ? '' : 's'}.\n\nWhat would you like to do?`,
+              [
+                {
+                  label: 'Cancel',
+                  variant: 'secondary',
+                  onClick: () => {}, // Just closes
+                },
+                {
+                  label: 'Delete Folder Only',
+                  variant: 'primary',
+                  onClick: () => {
+                    deleteFolder(currentFolder.id, { keepNotes: true });
+                    navigateAfterDelete();
+                  },
+                },
+                {
+                  label: 'Delete All',
+                  variant: 'danger',
+                  onClick: () => {
+                    deleteFolder(currentFolder.id, { keepNotes: false });
+                    navigateAfterDelete();
+                  },
+                },
+              ]
+            );
           }
         },
         danger: true,

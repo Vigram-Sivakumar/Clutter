@@ -1,6 +1,7 @@
 import { useMemo, useState, useCallback } from 'react';
 import { useTheme } from '../../../../hooks/useTheme';
 import { useNotesStore, useFoldersStore, useTagsStore } from '@clutter/state';
+import { useConfirmation } from '@clutter/shared';
 import { PageTitleSection } from '../../shared/content-header';
 import { ListViewLayout } from '../../shared/list-view-layout';
 import { NotesListView } from '../../shared/notes-list';
@@ -46,6 +47,7 @@ export const DeletedItemsListView = ({
   onTagClick,
 }: DeletedItemsListViewProps) => {
   const { colors } = useTheme();
+  const { openConfirmation } = useConfirmation();
 
   // Notes
   const notes = useNotesStore((state) => state.notes);
@@ -218,36 +220,19 @@ export const DeletedItemsListView = ({
   );
 
   const handlePermanentlyDeleteTag = useCallback(
-    async (tagName: string, event?: React.MouseEvent) => {
-      console.log('🏷️ handlePermanentlyDeleteTag called for:', tagName);
+    (tagName: string, event?: React.MouseEvent) => {
       event?.stopPropagation();
 
-      try {
-        console.log('🏷️ Showing confirmation dialog for tag...');
-        // Use Tauri dialog.confirm for proper UX
-        const { confirm } = await import('@tauri-apps/api/dialog');
-        const confirmed = await confirm(
-          'Permanently delete this tag? This cannot be undone.',
-          {
-            title: 'Permanent Delete',
-            type: 'warning',
-            okLabel: 'Delete',
-            cancelLabel: 'Cancel',
-          }
-        );
-
-        console.log(
-          `🏷️ User ${confirmed ? 'CONFIRMED' : 'CANCELLED'} tag deletion`
-        );
-        if (confirmed) {
-          console.log('🏷️ Calling permanentlyDeleteTag:', tagName);
-          permanentlyDeleteTag(tagName);
-        }
-      } catch (error) {
-        console.error('❌ Error showing confirmation dialog:', error);
-      }
+      // Show confirmation dialog
+      openConfirmation(
+        'Permanent Delete',
+        'Permanently delete this tag? This cannot be undone.',
+        true, // isDangerous
+        () => permanentlyDeleteTag(tagName),
+        'Delete' // confirmLabel
+      );
     },
-    [permanentlyDeleteTag]
+    [permanentlyDeleteTag, openConfirmation]
   );
 
   // Context menu actions are inline in the UI now, keeping these callbacks for potential future use
