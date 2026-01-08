@@ -526,6 +526,34 @@ export const NoteEditor = ({
     }
   }, [currentNote, currentNoteId, tags]); // Watch for currentNote changes
 
+  // 🔄 Sync editor content when it changes externally (e.g., task toggle from sidebar)
+  // This handles updates to the current note's content from outside the editor
+  useEffect(() => {
+    if (!currentNote || !currentNoteId || !isHydrated) {
+      return;
+    }
+
+    // Only apply if this is the current note in the editor
+    if (currentNote.id !== currentNoteId) {
+      return;
+    }
+
+    // Get current content from store and editor
+    const storeContent =
+      currentNote.content && currentNote.content.trim() !== ''
+        ? currentNote.content
+        : EMPTY_DOC;
+    const editorContent = editorEngine.getDocument();
+
+    // If content differs and editor is not hydrating, it's an external change
+    if (storeContent !== editorContent && !editorEngine.isHydratingDocument()) {
+      console.log(
+        '[NoteEditor] Detected external content change, updating editor'
+      );
+      editorEngine.setDocument(storeContent, currentNote.id);
+    }
+  }, [currentNote?.content, currentNoteId, isHydrated]); // Watch for content changes
+
   // Update view context when current note is deleted
   useEffect(() => {
     if (
