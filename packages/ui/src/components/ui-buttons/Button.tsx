@@ -152,16 +152,15 @@ export const Button = ({
         // OVERLAY STRATEGY: Filled buttons have surface backgrounds, use overlay on hover
         // Base color adapts to container context (background.secondary/tertiary)
         const getFilledBackground = () => {
-          if (danger) return colors.button.danger.background;
+          // Danger filled uses subtle rgba background (matches menu items)
+          if (danger) return colors.button.danger.backgroundRgba;
           if (onBackground === 'default') return colors.background.secondary;
           if (onBackground === 'secondary') return colors.background.tertiary;
           return colors.background.tertiary;
         };
         return {
-          // Danger filled buttons use textOnSolid (white/dark) on solid danger background
-          color: danger
-            ? colors.button.danger.textOnSolid
-            : colors.text.secondary,
+          // Danger filled buttons use red text on subtle red background (matches menu style)
+          color: danger ? colors.button.danger.text : colors.text.secondary,
           background: getFilledBackground(),
           border: 'none',
         };
@@ -247,7 +246,9 @@ export const Button = ({
       case 'filled':
         // OVERLAY STRATEGY: Filled buttons use overlay on top of surface colors
         if (danger) {
-          target.style.backgroundColor = colors.button.danger.backgroundHover;
+          // Danger filled uses subtle rgba hover (matches menu items)
+          target.style.backgroundColor =
+            colors.button.danger.backgroundHoverRgba;
         } else {
           target.style.backgroundColor = colors.overlay.soft;
         }
@@ -286,9 +287,10 @@ export const Button = ({
         break;
       }
       case 'filled': {
-        // SHADE LADDER: Return to base color
+        // OVERLAY STRATEGY: Return to base color
         const getFilledBackground = () => {
-          if (danger) return colors.button.danger.background;
+          // Danger filled uses subtle rgba background (matches menu items)
+          if (danger) return colors.button.danger.backgroundRgba;
           if (onBackground === 'default') return colors.background.secondary;
           if (onBackground === 'secondary') return colors.background.tertiary;
           return colors.background.tertiary;
@@ -343,7 +345,9 @@ export const Button = ({
       case 'filled':
         // OVERLAY STRATEGY: Use medium overlay for active
         if (danger) {
-          target.style.backgroundColor = colors.button.danger.backgroundActive;
+          // Danger filled keeps subtle rgba on active (matches menu items)
+          target.style.backgroundColor =
+            colors.button.danger.backgroundHoverRgba;
         } else {
           target.style.backgroundColor = colors.overlay.medium;
         }
@@ -384,7 +388,9 @@ export const Button = ({
       case 'filled':
         // OVERLAY STRATEGY: Return to hover state (overlay on surface)
         if (danger) {
-          target.style.backgroundColor = colors.button.danger.backgroundHover;
+          // Danger filled returns to subtle rgba hover (matches menu items)
+          target.style.backgroundColor =
+            colors.button.danger.backgroundHoverRgba;
         } else {
           target.style.backgroundColor = colors.overlay.soft;
         }
