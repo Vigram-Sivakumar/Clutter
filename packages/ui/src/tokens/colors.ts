@@ -93,16 +93,20 @@ export const colors = {
       calendarAccent: '#FD4E00', // Calendar today/selected highlight
     },
 
-    // Button colors (behavior derived in components, not tokenized)
+    // Button colors - explicit state tokens for solid buttons
     button: {
       primary: {
         background: stone[800], // Primary button default
+        backgroundHover: stone[750], // Hover state (darker)
+        backgroundActive: stone[875], // Active/pressed state (darkest)
         text: stone[100], // Light text on dark background
       },
       danger: {
         background: '#dc2626', // red-600
-        backgroundRgba: 'rgba(220, 38, 38, 0.2)', // red-600 with 20% opacity
-        backgroundHover: 'rgba(220, 38, 38, 0.4)', // red-600 with 40% opacity
+        backgroundHover: '#b91c1c', // red-700 (hover state)
+        backgroundActive: '#991b1b', // red-800 (active state)
+        backgroundRgba: 'rgba(220, 38, 38, 0.2)', // red-600 with 20% opacity (for secondary variant)
+        backgroundHoverRgba: 'rgba(220, 38, 38, 0.4)', // red-600 with 40% opacity (for secondary variant hover)
         text: '#dc2626', // Red text color
       },
     },
@@ -110,6 +114,7 @@ export const colors = {
     // Overlay colors
     overlay: {
       soft: `${stone[900]}14`, // ink overlay at 8% (subtle hover)
+      medium: `${stone[900]}1F`, // ink overlay at 12% (active/pressed state)
       default: `${stone[900]}29`, // ink overlay at 16% (default interaction)
       strong: `${stone[900]}66`, // ink overlay at 40% (strong emphasis)
       backdrop: 'rgba(37, 36, 32, 0.5)', // modal backdrop (50% opacity)
@@ -176,23 +181,28 @@ export const colors = {
       calendarAccent: '#FD4E00', // Calendar today/selected highlight
     },
 
-    // Button colors
+    // Button colors - explicit state tokens for solid buttons
     button: {
       primary: {
         background: neutral[50], // Primary button default (light in dark mode)
+        backgroundHover: neutral[100], // Hover state (brighter)
+        backgroundActive: neutral[200], // Active/pressed state (brightest)
         text: neutral[950], // Dark text on light background
       },
       danger: {
         background: '#e67c73', // Notion error red
-        backgroundRgba: 'rgba(230, 124, 115, 0.1)', // Notion error red with 20% opacity
-        backgroundHover: 'rgba(230, 124, 115, 0.2)', // Notion error red with 40% opacity
-        text: '#e67c73', // Dark text on red background
+        backgroundHover: '#f28b82', // Lighter red (hover state)
+        backgroundActive: '#ff9b92', // Lightest red (active state)
+        backgroundRgba: 'rgba(230, 124, 115, 0.1)', // Notion error red with 10% opacity (for secondary variant)
+        backgroundHoverRgba: 'rgba(230, 124, 115, 0.2)', // Notion error red with 20% opacity (for secondary variant hover)
+        text: '#e67c73', // Red text color
       },
     },
 
     // Overlay colors - subtle white overlays for interaction on dark
     overlay: {
       soft: 'rgba(255, 255, 255, 0.06)', // Subtle hover overlay (Notion-style)
+      medium: 'rgba(255, 255, 255, 0.08)', // Active/pressed state
       default: 'rgba(255, 255, 255, 0.10)', // Default overlay for interaction
       strong: 'rgba(255, 255, 255, 0.15)', // Strong overlay for emphasis
       backdrop: 'rgba(0, 0, 0, 0.7)', // Modal backdrop (70% opacity on true black)

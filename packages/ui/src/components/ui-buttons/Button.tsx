@@ -11,7 +11,6 @@ import { useTheme } from '../../hooks/useTheme';
 import { sizing } from '../../tokens/sizing';
 import { radius } from '../../tokens/radius';
 import { KeyboardShortcut } from '../ui-primitives/KeyboardShortcut';
-import { stone, neutral } from '../../tokens/colors';
 
 interface ButtonProps {
   variant?: 'primary' | 'secondary' | 'tertiary' | 'filled';
@@ -60,7 +59,7 @@ export const Button = ({
   gap,
   noHoverBackground = false,
 }: ButtonProps) => {
-  const { colors, mode } = useTheme();
+  const { colors } = useTheme();
   const buttonRef = useRef<HTMLButtonElement>(null);
 
   const sizeMap = {
@@ -122,7 +121,7 @@ export const Button = ({
           color: disabled
             ? colors.text.tertiary
             : danger
-              ? colors.button.danger.text
+              ? colors.button.primary.text
               : colors.button.primary.text,
           background: disabled
             ? colors.background.secondary
@@ -187,7 +186,7 @@ export const Button = ({
       buttonRef.current.style.color = variantStyles.color as string;
       if (variant === 'secondary' && !noBorder) {
         buttonRef.current.style.borderColor = danger
-          ? colors.button.danger.background
+          ? colors.button.danger.text
           : colors.border.default;
       }
     }
@@ -198,11 +197,13 @@ export const Button = ({
     variant,
     noBorder,
     danger,
-    colors.button.danger.background,
+    colors.button.danger.text,
     colors.border.default,
   ]);
 
-  // Hover styles
+  // Hover styles - DESIGN SYSTEM COMPLIANT
+  // Solid buttons (primary, filled, danger) → shade ladder
+  // Ghost buttons (secondary without background, tertiary) → overlay strategy
   const handleMouseEnter = (e: MouseEvent<HTMLButtonElement>) => {
     const target = e.currentTarget;
 
@@ -216,46 +217,43 @@ export const Button = ({
 
     switch (variant) {
       case 'primary':
-        // Use precision hover shades
+        // SHADE LADDER: Use explicit hover tokens
         if (danger) {
-          target.style.backgroundColor = '#b91c1c'; // Danger hover (red-700)
+          target.style.backgroundColor = colors.button.danger.backgroundHover;
         } else {
+          target.style.backgroundColor = colors.button.primary.backgroundHover;
+        }
+        break;
+      case 'secondary':
+        if (danger) {
+          // Danger secondary uses rgba hover
           target.style.backgroundColor =
-            mode === 'light' ? stone[750] : neutral[100];
-        }
-        break;
-      case 'secondary': {
-        // Use overlay strategy for non-danger buttons (8% ink in light, 6% white in dark)
-        const getSecondaryHoverBg = () => {
-          if (danger) return colors.button.danger.backgroundHover;
-          if (!withBackground) return colors.overlay.soft;
-          // For buttons with background, layer overlay on top
-          if (onBackground === 'default') return colors.background.hover;
-          if (onBackground === 'secondary') return colors.background.hover;
-          return colors.background.hover;
-        };
-        target.style.backgroundColor = getSecondaryHoverBg();
-        if (!noBorder) {
-          target.style.borderColor = danger
-            ? colors.button.danger.text
-            : colors.border.focus;
-        }
-        target.style.color = danger
-          ? colors.button.danger.text
-          : colors.text.default;
-        break;
-      }
-      case 'filled':
-        if (danger) {
-          target.style.backgroundColor = '#b91c1c'; // Danger hover (red-700)
+            colors.button.danger.backgroundHoverRgba;
+        } else if (!withBackground) {
+          // OVERLAY STRATEGY: Ghost buttons use overlay
+          target.style.backgroundColor = colors.overlay.soft;
         } else {
+          // SURFACE STRATEGY: Buttons with background use surface hover
           target.style.backgroundColor = colors.background.hover;
+        }
+        // Text color change on hover (non-danger only)
+        if (!danger) {
+          target.style.color = colors.text.default;
+        }
+        // Do NOT animate border color
+        break;
+      case 'filled':
+        // SHADE LADDER: Use explicit hover tokens
+        if (danger) {
+          target.style.backgroundColor = colors.button.danger.backgroundHover;
+        } else {
+          target.style.backgroundColor = colors.button.primary.backgroundHover;
         }
         break;
       case 'tertiary':
       default:
+        // OVERLAY STRATEGY: Always use overlay for tertiary
         if (!active) {
-          // Use overlay.soft for tertiary button hover
           target.style.backgroundColor = colors.overlay.soft;
         }
         break;
@@ -266,6 +264,7 @@ export const Button = ({
     const target = e.currentTarget;
     switch (variant) {
       case 'primary':
+        // SHADE LADDER: Return to base color
         target.style.backgroundColor = danger
           ? colors.button.danger.background
           : colors.button.primary.background;
@@ -281,17 +280,14 @@ export const Button = ({
           return colors.background.tertiary;
         };
         target.style.backgroundColor = getSecondaryBg();
-        if (!noBorder) {
-          target.style.borderColor = danger
-            ? colors.button.danger.text
-            : colors.border.default;
-        }
+        // Return text color to secondary
         target.style.color = danger
           ? colors.button.danger.text
           : colors.text.secondary;
         break;
       }
       case 'filled': {
+        // SHADE LADDER: Return to base color
         const getFilledBackground = () => {
           if (danger) return colors.button.danger.background;
           if (onBackground === 'default') return colors.background.secondary;
@@ -303,6 +299,7 @@ export const Button = ({
       }
       case 'tertiary':
       default:
+        // OVERLAY STRATEGY: Return to transparent
         if (!active) {
           target.style.backgroundColor = 'transparent';
         } else {
@@ -324,18 +321,38 @@ export const Button = ({
 
     switch (variant) {
       case 'primary':
-        // Use precision active shades
+        // SHADE LADDER: Use explicit active tokens
         if (danger) {
-          target.style.backgroundColor = '#b91c1c'; // Danger active (red-700)
+          target.style.backgroundColor = colors.button.danger.backgroundActive;
         } else {
+          target.style.backgroundColor = colors.button.primary.backgroundActive;
+        }
+        break;
+      case 'secondary':
+        if (danger) {
+          // Danger secondary uses even darker rgba on active
           target.style.backgroundColor =
-            mode === 'light' ? stone[875] : neutral[200];
+            colors.button.danger.backgroundHoverRgba; // Keep same as hover for consistency
+        } else if (!withBackground) {
+          // OVERLAY STRATEGY: Use medium overlay for active
+          target.style.backgroundColor = colors.overlay.medium;
+        } else {
+          // SURFACE STRATEGY: Use active surface color
+          target.style.backgroundColor = colors.background.active;
+        }
+        break;
+      case 'filled':
+        // SHADE LADDER: Use explicit active tokens
+        if (danger) {
+          target.style.backgroundColor = colors.button.danger.backgroundActive;
+        } else {
+          target.style.backgroundColor = colors.button.primary.backgroundActive;
         }
         break;
       case 'tertiary':
-        // Use overlay.default for tertiary button active state
+        // OVERLAY STRATEGY: Use medium overlay for active
         if (!active) {
-          target.style.backgroundColor = colors.overlay.default;
+          target.style.backgroundColor = colors.overlay.medium;
         }
         break;
     }
@@ -346,16 +363,35 @@ export const Button = ({
 
     switch (variant) {
       case 'primary':
-        // Return to hover state after mouse up
+        // SHADE LADDER: Return to hover state after mouse up
         if (danger) {
-          target.style.backgroundColor = '#b91c1c'; // Danger hover (red-700)
+          target.style.backgroundColor = colors.button.danger.backgroundHover;
         } else {
+          target.style.backgroundColor = colors.button.primary.backgroundHover;
+        }
+        break;
+      case 'secondary':
+        if (danger) {
           target.style.backgroundColor =
-            mode === 'light' ? stone[750] : neutral[100];
+            colors.button.danger.backgroundHoverRgba;
+        } else if (!withBackground) {
+          // OVERLAY STRATEGY: Return to soft overlay
+          target.style.backgroundColor = colors.overlay.soft;
+        } else {
+          // SURFACE STRATEGY: Return to hover state
+          target.style.backgroundColor = colors.background.hover;
+        }
+        break;
+      case 'filled':
+        // SHADE LADDER: Return to hover state
+        if (danger) {
+          target.style.backgroundColor = colors.button.danger.backgroundHover;
+        } else {
+          target.style.backgroundColor = colors.button.primary.backgroundHover;
         }
         break;
       case 'tertiary':
-        // Return to hover state (overlay.soft) after mouse up
+        // OVERLAY STRATEGY: Return to soft overlay
         if (!active) {
           target.style.backgroundColor = colors.overlay.soft;
         }
