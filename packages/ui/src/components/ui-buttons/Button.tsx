@@ -119,11 +119,7 @@ export const Button = ({
     switch (variant) {
       case 'primary':
         return {
-          color: disabled
-            ? colors.text.tertiary
-            : danger
-              ? colors.button.primary.text
-              : colors.button.primary.text,
+          color: disabled ? colors.text.tertiary : colors.button.primary.text, // Always use light text (for both normal and danger)
           background: disabled
             ? colors.background.secondary
             : danger
@@ -158,7 +154,8 @@ export const Button = ({
           return colors.background.tertiary;
         };
         return {
-          color: danger ? colors.button.danger.text : colors.text.secondary,
+          // Danger filled buttons need white text on red background for contrast
+          color: danger ? colors.button.primary.text : colors.text.secondary,
           background: getFilledBackground(),
           border: 'none',
         };
