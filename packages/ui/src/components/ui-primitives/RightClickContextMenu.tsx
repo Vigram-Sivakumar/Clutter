@@ -216,7 +216,9 @@ export const RightClickContextMenuProvider = ({
                     >
                       {item.icon}
                     </div>
-                    <span>{item.label}</span>
+                    <span style={{ textTransform: 'capitalize' }}>
+                      {item.label}
+                    </span>
                   </div>
                   {item.shortcut && (
                     <span

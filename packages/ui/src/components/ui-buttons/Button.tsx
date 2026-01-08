@@ -106,6 +106,7 @@ export const Button = ({
     alignItems: 'center',
     justifyContent: isIconOnly ? 'center' : 'flex-start',
     gap: gap || '4px',
+    textTransform: 'capitalize', // Automatically capitalize button labels
     transition:
       'background-color 150ms cubic-bezier(0.2, 0, 0, 1), color 150ms cubic-bezier(0.2, 0, 0, 1), opacity 150ms cubic-bezier(0.2, 0, 0, 1), border-color 150ms cubic-bezier(0.2, 0, 0, 1)',
     boxSizing: 'border-box',

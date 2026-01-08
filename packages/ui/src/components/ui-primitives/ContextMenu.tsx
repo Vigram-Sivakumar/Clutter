@@ -76,6 +76,7 @@ const MenuItem = ({
           whiteSpace: 'nowrap',
           overflow: 'hidden',
           textOverflow: 'ellipsis',
+          textTransform: 'capitalize', // Automatically capitalize menu item labels
         }}
       >
         {label}
