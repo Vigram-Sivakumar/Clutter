@@ -10,18 +10,29 @@ interface MenuItemProps {
   label: string;
   shortcut?: string;
   danger?: boolean;
-  onClick: (e: React.MouseEvent) => void;
+  onClick: (_e: React.MouseEvent) => void;
   colors: any;
 }
 
-const MenuItem = ({ icon, label, shortcut, danger, onClick, colors }: MenuItemProps) => {
+const MenuItem = ({
+  icon,
+  label,
+  shortcut,
+  danger,
+  onClick,
+  colors,
+}: MenuItemProps) => {
   const [isHovered, setIsHovered] = useState(false);
+
+  // Softer red for hover (less intense than blood red)
+  const dangerHoverBg = '#8B3A3A'; // Deep red-brown, less intense
+  const dangerHoverText = '#FFE5E5'; // Light pink text for contrast
 
   return (
     <div
-      onClick={(e) => {
-        e.stopPropagation();
-        onClick(e);
+      onClick={(_e) => {
+        _e.stopPropagation();
+        onClick(_e);
       }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -32,7 +43,11 @@ const MenuItem = ({ icon, label, shortcut, danger, onClick, colors }: MenuItemPr
         padding: '6px 8px',
         borderRadius: radius['3'],
         cursor: 'pointer',
-        backgroundColor: isHovered ? colors.background.tertiary : 'transparent',
+        backgroundColor: isHovered
+          ? danger
+            ? dangerHoverBg
+            : colors.background.tertiary
+          : 'transparent',
         transition: 'background-color 100ms ease',
         userSelect: 'none',
       }}
@@ -46,7 +61,11 @@ const MenuItem = ({ icon, label, shortcut, danger, onClick, colors }: MenuItemPr
           alignItems: 'center',
           justifyContent: 'center',
           flexShrink: 0,
-          color: danger ? colors.semantic.error : colors.text.secondary,
+          color: danger
+            ? isHovered
+              ? dangerHoverText
+              : colors.semantic.error
+            : colors.text.secondary,
         }}
       >
         {icon}
@@ -58,7 +77,11 @@ const MenuItem = ({ icon, label, shortcut, danger, onClick, colors }: MenuItemPr
           flex: 1,
           fontSize: '14px',
           fontWeight: 400,
-          color: danger ? colors.semantic.error : colors.text.secondary,
+          color: danger
+            ? isHovered
+              ? dangerHoverText
+              : colors.semantic.error
+            : colors.text.secondary,
           whiteSpace: 'nowrap',
           overflow: 'hidden',
           textOverflow: 'ellipsis',
@@ -90,7 +113,7 @@ interface ContextMenuProps {
     | {
         icon: ReactNode;
         label: string;
-        onClick: (e?: React.MouseEvent) => void;
+        onClick: (_e?: React.MouseEvent) => void;
         danger?: boolean;
         shortcut?: string;
       }
@@ -104,12 +127,19 @@ interface ContextMenuProps {
         buttonGroup: ReactNode[]; // Array of Button components to stack horizontally
       }
   >;
-  onOpenChange?: (isOpen: boolean) => void;
+  onOpenChange?: (_isOpen: boolean) => void;
 }
 
-export const ContextMenu = ({ children, items, onOpenChange }: ContextMenuProps) => {
+export const ContextMenu = ({
+  children,
+  items,
+  onOpenChange,
+}: ContextMenuProps) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [menuPosition, setMenuPosition] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+  const [menuPosition, setMenuPosition] = useState<{
+    top: number;
+    left: number;
+  }>({ top: 0, left: 0 });
   const menuRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const { colors } = useTheme();
@@ -126,7 +156,7 @@ export const ContextMenu = ({ children, items, onOpenChange }: ContextMenuProps)
     if (isOpen) {
       const originalOverflow = document.body.style.overflow;
       document.body.style.overflow = 'hidden';
-      
+
       return () => {
         document.body.style.overflow = originalOverflow;
       };
@@ -150,7 +180,7 @@ export const ContextMenu = ({ children, items, onOpenChange }: ContextMenuProps)
       // Position to the right of the button (horizontally)
       const spaceRight = viewportWidth - buttonRect.right - gap;
       const spaceLeft = buttonRect.left - gap;
-      
+
       if (spaceRight >= menuWidth) {
         // Position to the right
         left = buttonRect.right + gap;
@@ -163,7 +193,7 @@ export const ContextMenu = ({ children, items, onOpenChange }: ContextMenuProps)
       }
 
       // Vertically center the menu with the button
-      top = buttonRect.top + (buttonRect.height / 2) - (menuHeight / 2);
+      top = buttonRect.top + buttonRect.height / 2 - menuHeight / 2;
 
       // Ensure menu stays within viewport bounds
       if (left < padding) {
@@ -188,7 +218,7 @@ export const ContextMenu = ({ children, items, onOpenChange }: ContextMenuProps)
     const handleClickOutside = (event: MouseEvent) => {
       // Don't interfere with scrollbars or drag operations
       const target = event.target as HTMLElement;
-      
+
       if (
         isOpen &&
         containerRef.current &&
@@ -206,7 +236,7 @@ export const ContextMenu = ({ children, items, onOpenChange }: ContextMenuProps)
       const timeoutId = setTimeout(() => {
         document.addEventListener('click', handleClickOutside);
       }, 0);
-      
+
       return () => {
         clearTimeout(timeoutId);
         document.removeEventListener('click', handleClickOutside);
@@ -214,8 +244,11 @@ export const ContextMenu = ({ children, items, onOpenChange }: ContextMenuProps)
     }
   }, [isOpen]);
 
-  const handleItemClick = (onClick: (e?: React.MouseEvent) => void, e: React.MouseEvent) => {
-    onClick(e);
+  const handleItemClick = (
+    onClick: (_e?: React.MouseEvent) => void,
+    _e: React.MouseEvent
+  ) => {
+    onClick(_e);
     setIsOpen(false); // Close menu after clicking an item
   };
 
@@ -238,53 +271,53 @@ export const ContextMenu = ({ children, items, onOpenChange }: ContextMenuProps)
         maxWidth: '240px',
       }}
     >
-          {items.map((item, index) => {
-            if ('separator' in item && item.separator) {
-              return (
-                <div
-                  key={index}
-                  style={{
-                    width: '100%',
-                    height: '1px',
-                    backgroundColor: colors.border.divider,
-                    margin: '4px 0',
-                  }}
-                />
-              );
-            }
-            if ('buttonGroup' in item) {
-              return (
-                <div
-                  key={index}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: spacing['4'],
-                    width: '100%',
-                  }}
-                >
-                  {item.buttonGroup}
-                </div>
-              );
-            }
-            if ('content' in item) {
-              return <div key={index}>{item.content}</div>;
-            }
-            if ('icon' in item && 'onClick' in item) {
-              return (
-                <MenuItem
-                  key={index}
-                  icon={item.icon}
-                  label={item.label}
-                  shortcut={item.shortcut}
-                  danger={item.danger}
-                  onClick={(e) => handleItemClick(item.onClick, e)}
-                  colors={colors}
-                />
-              );
-            }
-            return null;
-          })}
+      {items.map((item, index) => {
+        if ('separator' in item && item.separator) {
+          return (
+            <div
+              key={index}
+              style={{
+                width: '100%',
+                height: '1px',
+                backgroundColor: colors.border.divider,
+                margin: '4px 0',
+              }}
+            />
+          );
+        }
+        if ('buttonGroup' in item) {
+          return (
+            <div
+              key={index}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: spacing['4'],
+                width: '100%',
+              }}
+            >
+              {item.buttonGroup}
+            </div>
+          );
+        }
+        if ('content' in item) {
+          return <div key={index}>{item.content}</div>;
+        }
+        if ('icon' in item && 'onClick' in item) {
+          return (
+            <MenuItem
+              key={index}
+              icon={item.icon}
+              label={item.label}
+              shortcut={item.shortcut}
+              danger={item.danger}
+              onClick={(e) => handleItemClick(item.onClick, e)}
+              colors={colors}
+            />
+          );
+        }
+        return null;
+      })}
     </div>
   );
 
@@ -301,8 +334,9 @@ export const ContextMenu = ({ children, items, onOpenChange }: ContextMenuProps)
           {children}
         </div>
       </div>
-      {isOpen && typeof document !== 'undefined' && createPortal(menuContent, document.body)}
+      {isOpen &&
+        typeof document !== 'undefined' &&
+        createPortal(menuContent, document.body)}
     </>
   );
 };
-
