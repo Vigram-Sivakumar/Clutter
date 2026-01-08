@@ -5,7 +5,7 @@
  * All list-like components (sidebar items, table rows, cards) should follow this interaction model.
  *
  * Interaction States:
- * - Hover: colors.background.hover (overlay on transparent background)
+ * - Hover: colors.overlay.soft (translucent overlay on transparent background)
  * - Selected/Active: colors.background.active (slightly darker than hover)
  * - Disabled: colors.text.disabled (text color only, background unchanged)
  *
@@ -201,8 +201,9 @@ export const SidebarItem = ({
   const expandTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // CSS Variables for theming (hover effects)
+  // OVERLAY STRATEGY: Sidebar items are ghost-like, use overlay not solid colors
   const cssVars = {
-    '--sidebar-hover-bg': colors.background.hover,
+    '--sidebar-hover-bg': colors.overlay.soft,
     '--sidebar-selected-bg': colors.background.tertiary,
     '--sidebar-transition': sidebarStyles.transitions.hover,
   } as React.CSSProperties;

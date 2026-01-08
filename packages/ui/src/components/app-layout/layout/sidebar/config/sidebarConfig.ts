@@ -1,14 +1,14 @@
 /**
  * Sidebar Configuration
  * Single source of truth for all sidebar behavior and styling rules
- * 
+ *
  * This configuration centralizes:
  * - Selection rules (context-aware, multi-select)
  * - Hover behavior (CSS-driven, no JS state)
  * - Action visibility rules (quick add, context menu)
  * - Variant-specific behavior (header, folder, note, tag)
  * - Styling tokens (colors, transitions, layout)
- * 
+ *
  * Philosophy:
  * - Declarative over imperative
  * - CSS-driven hover (no React state)
@@ -31,10 +31,10 @@ export const sidebarBehavior = {
   selection: {
     /** Highlight only where clicked (not duplicates in other sections) */
     contextAware: true,
-    
+
     /** Enable multi-select with Cmd/Ctrl + click and Shift + click */
     multiSelect: true,
-    
+
     /** Clear all selections when clicking empty space */
     clearOnEmptyClick: true,
   },
@@ -46,19 +46,19 @@ export const sidebarBehavior = {
   hover: {
     /** Variants that show chevron on LEFT when hovered (replacing icon/emoji) */
     showChevronOnLeft: ['folder'],
-    
+
     /** Variants that hide icon/emoji when hovered (to show chevron) */
     hideIconOnHover: ['folder'],
-    
+
     /** Show action buttons (+/⋮) on hover */
     showActionsOnHover: true,
-    
+
     /** GLOBAL: Hide badge/count on hover for ALL variants (notes, folders, tags, headers) */
     hideBadgeOnHover: true,
-    
+
     /** Badge and context menu use absolute positioning for clean 1:1 swap */
     badgeContextMenuSwap: 'absolute',
-    
+
     /** Background color changes on hover (CSS-driven) */
     backgroundOnHover: true,
   },
@@ -75,14 +75,14 @@ export const sidebarBehavior = {
     quickAdd: {
       /** Which variants can show the + button */
       show: ['folder', 'header'],
-      
+
       /** Contexts where + button should NOT appear */
       exclude: ['favourites'],
-      
+
       /** System folders that get + button (excluding Daily Notes - date-based auto-creation) */
       systemFolders: ['__cluttered__', 'all-tasks'],
     },
-    
+
     /**
      * Context Menu (⋮)
      * Shows more actions in a dropdown
@@ -90,10 +90,10 @@ export const sidebarBehavior = {
     contextMenu: {
       /** Which variants can show context menu */
       show: ['note', 'folder', 'tag'],
-      
+
       /** Contexts where context menu should NOT appear */
       exclude: ['favourites'],
-      
+
       /** System folders only get + button, no context menu */
       excludeSystemFolders: true,
     },
@@ -111,20 +111,20 @@ export const sidebarBehavior = {
     header: {
       /** Chevron stays on right (doesn't swap on hover) */
       chevronPosition: 'right',
-      
+
       /** Show icon if provided */
       showIcon: true,
-      
+
       /** Text transformation - removed per user request */
       uppercase: false,
-      
+
       /** Can be toggled to expand/collapse */
       collapsible: true,
-      
+
       /** Auto-expand when dragging over (for drop targets) */
       autoExpandOnDragOver: true,
     },
-    
+
     /**
      * Folder Variant
      * User folders and system folders (Cluttered, Daily Notes)
@@ -132,20 +132,20 @@ export const sidebarBehavior = {
     folder: {
       /** Chevron appears on LEFT when hovered (replaces icon) */
       chevronPosition: 'left',
-      
+
       /** No auto-expand on click (removed per user request) */
       autoExpand: false,
-      
+
       /** No auto-collapse when empty (removed per user request) */
       autoCollapse: false,
-      
+
       /** Show nested count badge */
       showBadge: true,
-      
+
       /** Can be expanded to show nested items */
       collapsible: true,
     },
-    
+
     /**
      * Note Variant
      * Individual notes in sidebar
@@ -153,20 +153,20 @@ export const sidebarBehavior = {
     note: {
       /** Notes don't have quick add button */
       showQuickAdd: false,
-      
+
       /** Notes show context menu for rename/delete */
       showContextMenu: true,
-      
+
       /** Show emoji/icon */
       showIcon: true,
-      
+
       /** Show special icon for daily notes (calendar icon) */
       dailyNoteIcon: true,
-      
+
       /** Show blank note icon if no content */
       blankNoteIcon: true,
     },
-    
+
     /**
      * Tag Variant
      * Tags displayed as colored pills
@@ -174,17 +174,17 @@ export const sidebarBehavior = {
     tag: {
       /** Tags don't have quick add button */
       showQuickAdd: false,
-      
+
       /** Tags show context menu for rename/delete */
       showContextMenu: true,
-      
+
       /** Tags use colored background (pill style) */
       coloredBackground: true,
-      
+
       /** Show usage count badge */
       showBadge: true,
     },
-    
+
     /**
      * Group Variant
      * Non-interactive grouping titles for visual organization
@@ -192,17 +192,17 @@ export const sidebarBehavior = {
     group: {
       /** Groups don't have icons unless explicitly provided */
       showIcon: false,
-      
+
       /** Groups are not collapsible */
       collapsible: false,
-      
+
       /** No hover effects */
       showHoverEffects: false,
-      
+
       /** Groups don't have actions */
       showQuickAdd: false,
       showContextMenu: false,
-      
+
       /** Groups are visual only, not interactive */
       clickable: false,
     },
@@ -215,16 +215,16 @@ export const sidebarBehavior = {
   systemFolders: {
     /** System folder IDs */
     ids: ['__cluttered__', '__daily_notes__', 'all-tasks'],
-    
+
     /** System folders cannot be renamed */
     allowRename: false,
-    
+
     /** System folders cannot be deleted */
     allowDelete: false,
-    
+
     /** System folders cannot have emoji changed (use Phosphor icons) */
     allowEmojiChange: false,
-    
+
     /** System folders can have notes added */
     allowAddNotes: true,
   },
@@ -236,10 +236,10 @@ export const sidebarBehavior = {
   favourites: {
     /** Favourite folders are fully functional (not just bookmarks) */
     foldersAreFullyFunctional: true,
-    
+
     /** Show context menu for unfavoriting */
     showContextMenu: true,
-    
+
     /** Don't show quick add button */
     showQuickAdd: false,
   },
@@ -258,38 +258,38 @@ export const sidebarStyles = {
     background: {
       /** Default background (transparent) */
       default: 'transparent',
-      
-      /** Hover background - function receives theme */
-      hover: (theme: any) => theme.colors.background.hover,
-      
+
+      /** Hover background - OVERLAY STRATEGY for ghost-like sidebar items */
+      hover: (theme: any) => theme.colors.overlay.soft,
+
       /** Selected background - function receives theme */
       selected: (theme: any) => theme.colors.background.tertiary,
-      
+
       /** Dragging background - function receives theme */
       dragging: (theme: any) => theme.colors.background.hover,
-      
+
       /** Drop target background - function receives theme */
       dropTarget: (theme: any) => theme.colors.background.hover,
     },
-    
+
     text: {
       /** Primary text color - function receives theme */
       default: (theme: any) => theme.colors.text.primary,
-      
+
       /** Secondary text color - function receives theme */
       secondary: (theme: any) => theme.colors.text.secondary,
-      
+
       /** Muted text color - function receives theme */
       muted: (theme: any) => theme.colors.text.tertiary,
     },
-    
+
     border: {
       /** Default border (transparent) */
       default: 'transparent',
-      
+
       /** Drop target border - function receives theme */
       dropTarget: (theme: any) => theme.colors.semantic.info,
-      
+
       /** Scroll indicator border - function receives theme */
       scrollIndicator: (theme: any) => theme.colors.border.divider,
     },
@@ -301,20 +301,24 @@ export const sidebarStyles = {
    */
   transitions: {
     /** Hover transitions (background, opacity) */
-    hover: animations.transition.backgroundColor + ', ' + animations.transition.opacity,
-    
+    hover:
+      animations.transition.backgroundColor +
+      ', ' +
+      animations.transition.opacity,
+
     /** Selection transition (background only) */
     selection: animations.transition.backgroundColor,
-    
+
     /** Collapse/expand animation */
     collapse: {
       height: animations.presets.collapse.height,
       content: animations.presets.collapse.content,
     },
-    
+
     /** Drag & drop transitions */
-    drag: animations.transition.transform + ', ' + animations.transition.opacity,
-    
+    drag:
+      animations.transition.transform + ', ' + animations.transition.opacity,
+
     /** Standard UI transitions */
     standard: animations.transition.default,
   },
@@ -332,32 +336,32 @@ export const sidebarStyles = {
   classes: {
     /** Main item container */
     item: 'sidebar-item',
-    
+
     /** Icon/emoji wrapper */
     iconWrapper: 'sidebar-item__icon-wrapper',
     icon: 'sidebar-item__icon',
-    
+
     /** Chevron (left position, shown on hover for folders) */
     chevronLeft: 'sidebar-item__chevron-left',
-    
+
     /** Label/text */
     label: 'sidebar-item__label',
-    
+
     /** Actions container (quick add + context menu) */
     actions: 'sidebar-item__actions',
-    
+
     /** Badge/count */
     badge: 'sidebar-item__badge',
-    
+
     /** Chevron (right position, for headers) */
     chevronRight: 'sidebar-item__chevron-right',
-    
+
     /** Selected state */
     selected: 'sidebar-item--selected',
-    
+
     /** Dragging state */
     dragging: 'sidebar-item--dragging',
-    
+
     /** Drop target state */
     dropTarget: 'sidebar-item--drop-target',
   },
@@ -369,16 +373,16 @@ export const sidebarStyles = {
   cssVariables: {
     /** Background color on hover */
     hoverBg: '--sidebar-hover-bg',
-    
+
     /** Background color when selected */
     selectedBg: '--sidebar-selected-bg',
-    
+
     /** Transition timing */
     transition: '--sidebar-transition',
-    
+
     /** Icon size */
     iconSize: '--sidebar-icon-size',
-    
+
     /** Item height */
     itemHeight: '--sidebar-item-height',
   },
@@ -401,17 +405,17 @@ export function shouldShowQuickAdd(
   if (!sidebarBehavior.actions.quickAdd.show.includes(variant)) {
     return false;
   }
-  
+
   // Check if context is excluded
   if (context && sidebarBehavior.actions.quickAdd.exclude.includes(context)) {
     return false;
   }
-  
+
   // Allow for system folders if specified
   if (isSystemFolder) {
     return true;
   }
-  
+
   return true;
 }
 
@@ -427,17 +431,23 @@ export function shouldShowContextMenu(
   if (!sidebarBehavior.actions.contextMenu.show.includes(variant)) {
     return false;
   }
-  
+
   // System folders don't get context menu
-  if (isSystemFolder && sidebarBehavior.actions.contextMenu.excludeSystemFolders) {
+  if (
+    isSystemFolder &&
+    sidebarBehavior.actions.contextMenu.excludeSystemFolders
+  ) {
     return false;
   }
-  
+
   // Check if context is excluded (e.g., favourites)
-  if (context && sidebarBehavior.actions.contextMenu.exclude.includes(context)) {
+  if (
+    context &&
+    sidebarBehavior.actions.contextMenu.exclude.includes(context)
+  ) {
     return false;
   }
-  
+
   return true;
 }
 
@@ -478,4 +488,3 @@ export function shouldHideIconOnHover(
 export type SidebarBehavior = typeof sidebarBehavior;
 export type SidebarStyles = typeof sidebarStyles;
 export type SidebarVariant = 'note' | 'folder' | 'tag' | 'header' | 'group';
-

@@ -41,11 +41,11 @@ export const SidebarSectionHeader = ({
   const handleDragEnter = (e: React.DragEvent) => {
     if (!enableAutoExpand) return;
     e.preventDefault();
-    
+
     // Only highlight if collapsed
     if (isCollapsed) {
       setIsDragOver(true);
-      
+
       // Auto-expand collapsed section after hovering for 800ms
       if (onClick) {
         expandTimeoutRef.current = setTimeout(() => {
@@ -58,7 +58,7 @@ export const SidebarSectionHeader = ({
   const handleDragOver = (e: React.DragEvent) => {
     if (!enableAutoExpand) return;
     e.preventDefault();
-    
+
     // Only highlight if collapsed
     if (isCollapsed) {
       setIsDragOver(true);
@@ -67,9 +67,9 @@ export const SidebarSectionHeader = ({
 
   const handleDragLeave = (_e: React.DragEvent) => {
     if (!enableAutoExpand) return;
-    
+
     setIsDragOver(false);
-    
+
     // Clear the expand timeout when leaving
     if (expandTimeoutRef.current) {
       clearTimeout(expandTimeoutRef.current);
@@ -80,9 +80,9 @@ export const SidebarSectionHeader = ({
   const handleDrop = (e: React.DragEvent) => {
     if (!enableAutoExpand) return;
     e.preventDefault();
-    
+
     setIsDragOver(false);
-    
+
     // Clear the expand timeout on drop
     if (expandTimeoutRef.current) {
       clearTimeout(expandTimeoutRef.current);
@@ -104,37 +104,47 @@ export const SidebarSectionHeader = ({
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
       onDragEnd={handleDragEnd}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        height: '28px',
-        paddingLeft: '8px',
-        paddingRight: '4px',
-        cursor: onHeaderClick ? 'pointer' : 'default',
-        userSelect: 'none',
-        WebkitUserSelect: 'none',
-        borderRadius: radius['6'],
-        gap: '0px',
-        backgroundColor: (isDragOver && isCollapsed) ? colors.background.tertiary : (isHovered ? colors.background.hover : 'transparent'),
-        transition: 'background-color 150ms ease',
-      } as any}
+      style={
+        {
+          display: 'flex',
+          alignItems: 'center',
+          height: '28px',
+          paddingLeft: '8px',
+          paddingRight: '4px',
+          cursor: onHeaderClick ? 'pointer' : 'default',
+          userSelect: 'none',
+          WebkitUserSelect: 'none',
+          borderRadius: radius['6'],
+          gap: '0px',
+          // OVERLAY STRATEGY: Sidebar items are ghost-like, use overlay not solid colors
+          backgroundColor:
+            isDragOver && isCollapsed
+              ? colors.background.tertiary
+              : isHovered
+                ? colors.overlay.soft
+                : 'transparent',
+          transition: 'background-color 150ms ease',
+        } as any
+      }
     >
       {/* Title - clickable if onHeaderClick is provided */}
       <span
         onClick={onHeaderClick}
-        style={{
-          fontSize: '12px',
-          fontWeight: 600,
-          textTransform: 'uppercase',
-          letterSpacing: '0.5px',
-          color: colors.text.tertiary,
-          textWrap: 'nowrap',
-          textOverflow: 'ellipsis',
-          userSelect: 'none',
-          WebkitUserSelect: 'none',
-          cursor: onHeaderClick ? 'pointer' : 'default',
-          flex: 1,
-        } as any}
+        style={
+          {
+            fontSize: '12px',
+            fontWeight: 600,
+            textTransform: 'uppercase',
+            letterSpacing: '0.5px',
+            color: colors.text.tertiary,
+            textWrap: 'nowrap',
+            textOverflow: 'ellipsis',
+            userSelect: 'none',
+            WebkitUserSelect: 'none',
+            cursor: onHeaderClick ? 'pointer' : 'default',
+            flex: 1,
+          } as any
+        }
       >
         {title}
       </span>
@@ -167,17 +177,19 @@ export const SidebarSectionHeader = ({
         {/* Badge - show only when NOT hovered (chevron shows on hover) OR during drag */}
         {badge && (isDragOver || !isHovered) && (
           <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '12px',
-              color: colors.text.tertiary,
-              userSelect: 'none',
-              WebkitUserSelect: 'none',
-            } as any}
+            style={
+              {
+                position: 'absolute',
+                inset: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '12px',
+                color: colors.text.tertiary,
+                userSelect: 'none',
+                WebkitUserSelect: 'none',
+              } as any
+            }
           >
             {badge}
           </div>
@@ -191,9 +203,9 @@ export const SidebarSectionHeader = ({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            opacity: (isHovered && !isDragOver) ? 1 : 0,
+            opacity: isHovered && !isDragOver ? 1 : 0,
             transition: 'opacity 150ms ease',
-            pointerEvents: (isHovered && !isDragOver) ? 'auto' : 'none',
+            pointerEvents: isHovered && !isDragOver ? 'auto' : 'none',
           }}
         >
           <TertiaryButton
@@ -217,4 +229,3 @@ export const SidebarSectionHeader = ({
     </div>
   );
 };
-

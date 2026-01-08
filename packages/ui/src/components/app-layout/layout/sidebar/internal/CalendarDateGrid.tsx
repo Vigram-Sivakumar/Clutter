@@ -3,11 +3,10 @@ import { useTheme } from '../../../../../hooks/useTheme';
 import { spacing } from '../../../../../tokens/spacing';
 import { sidebarLayout } from '../../../../../tokens/sidebar';
 
-
 interface CalendarDateGridProps {
   view?: 'week' | 'month';
   weekStart: Date; // Start of the week to display
-  onDateClick?: (date: Date) => void;
+  onDateClick?: (_date: Date) => void;
   selectedDate?: Date;
 }
 
@@ -29,28 +28,42 @@ export const CalendarDateGrid = ({
   useEffect(() => {
     const scheduleNextDayCheck = () => {
       const now = new Date();
-      const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0); // 00:00:00 tomorrow
+      const tomorrow = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate() + 1,
+        0,
+        0,
+        0
+      ); // 00:00:00 tomorrow
       const msUntilMidnight = tomorrow.getTime() - now.getTime();
-      
+
       // Set timeout to trigger at exactly 00:00:00
       const timeoutId = setTimeout(() => {
         const newToday = new Date();
-        const normalizedToday = new Date(newToday.getFullYear(), newToday.getMonth(), newToday.getDate());
-        
-        console.log('📅 CalendarDateGrid: Day changed! Updating today to', normalizedToday.toLocaleDateString());
-        
+        const normalizedToday = new Date(
+          newToday.getFullYear(),
+          newToday.getMonth(),
+          newToday.getDate()
+        );
+
+        console.log(
+          '📅 CalendarDateGrid: Day changed! Updating today to',
+          normalizedToday.toLocaleDateString()
+        );
+
         // Update today
         setToday(normalizedToday);
-        
+
         // Schedule next day check
         scheduleNextDayCheck();
       }, msUntilMidnight);
-      
+
       return timeoutId;
     };
-    
+
     const timeoutId = scheduleNextDayCheck();
-    
+
     return () => clearTimeout(timeoutId);
   }, []);
 
@@ -125,62 +138,63 @@ export const CalendarDateGrid = ({
           borderRadius: sidebarLayout.calendarBorderRadius, // ✅ Controlled by global token
         }}
       >
-      {weekDays.map((date, index) => {
-        const isToday = isSameDay(date, today);
-        const isSelected = isSameDay(date, selectedDate);
-        // Use Thursday (4th day) to determine the "current" month - ISO week date standard
-        const thursday = new Date(weekStart);
-        thursday.setDate(thursday.getDate() + 4);
-        const currentMonth = thursday.getMonth();
-        const isCurrentMonth = date.getMonth() === currentMonth;
+        {weekDays.map((date, index) => {
+          const isToday = isSameDay(date, today);
+          const isSelected = isSameDay(date, selectedDate);
+          // Use Thursday (4th day) to determine the "current" month - ISO week date standard
+          const thursday = new Date(weekStart);
+          thursday.setDate(thursday.getDate() + 4);
+          const currentMonth = thursday.getMonth();
+          const isCurrentMonth = date.getMonth() === currentMonth;
 
-        return (
-          <button
-            key={index}
-            onClick={() => handleDateClick(date)}
-            style={{
-              height: sidebarLayout.calendarCellHeight, // ✅ Controlled by global token
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '12px',
-              fontWeight: isToday || isSelected ? 600 : 400,
-              color: isSelected
-                ? '#FFFFFF' // Selected: white text
-                : isToday
-                ? colors.semantic.calendarAccent // ✅ Today (not selected): orange text
-                : isCurrentMonth
-                ? colors.text.default // Current month: normal text
-                : colors.text.tertiary, // Other month: faded text
-              backgroundColor: isSelected
-                ? colors.semantic.calendarAccent // Selected: orange background
-                : 'transparent', // ✅ Today/others: no background
-              border: '1px solid transparent',
-              borderRadius: sidebarLayout.calendarBorderRadius, // ✅ Controlled by global token
-              cursor: 'pointer',
-              transition: 'all 150ms ease',
-              padding: '4px 0',
-              boxSizing: 'border-box',
-            }}
-            onMouseEnter={(e) => {
-              if (!isSelected) {
-                e.currentTarget.style.backgroundColor = colors.background.hover;
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (isSelected) {
-                e.currentTarget.style.backgroundColor = colors.semantic.calendarAccent;
-              } else {
-                e.currentTarget.style.backgroundColor = 'transparent';
-              }
-            }}
-          >
-            {date.getDate()}
-          </button>
-        );
-      })}
+          return (
+            <button
+              key={index}
+              onClick={() => handleDateClick(date)}
+              style={{
+                height: sidebarLayout.calendarCellHeight, // ✅ Controlled by global token
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '12px',
+                fontWeight: isToday || isSelected ? 600 : 400,
+                color: isSelected
+                  ? '#FFFFFF' // Selected: white text
+                  : isToday
+                    ? colors.semantic.calendarAccent // ✅ Today (not selected): orange text
+                    : isCurrentMonth
+                      ? colors.text.default // Current month: normal text
+                      : colors.text.tertiary, // Other month: faded text
+                backgroundColor: isSelected
+                  ? colors.semantic.calendarAccent // Selected: orange background
+                  : 'transparent', // ✅ Today/others: no background
+                border: '1px solid transparent',
+                borderRadius: sidebarLayout.calendarBorderRadius, // ✅ Controlled by global token
+                cursor: 'pointer',
+                transition: 'all 150ms ease',
+                padding: '4px 0',
+                boxSizing: 'border-box',
+              }}
+              onMouseEnter={(e) => {
+                // OVERLAY STRATEGY: Calendar dates are ghost-like
+                if (!isSelected) {
+                  e.currentTarget.style.backgroundColor = colors.overlay.soft;
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (isSelected) {
+                  e.currentTarget.style.backgroundColor =
+                    colors.semantic.calendarAccent;
+                } else {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                }
+              }}
+            >
+              {date.getDate()}
+            </button>
+          );
+        })}
       </div>
     </div>
   );
 };
-

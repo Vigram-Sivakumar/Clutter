@@ -97,8 +97,9 @@ export const SidebarItemLayout = memo(
         : Math.min(level, maxIndent) * parseInt(sidebarLayout.indentPerLevel);
 
     // CSS Variables for theming
+    // OVERLAY STRATEGY: Sidebar items are ghost-like, use overlay not solid colors
     const cssVars = {
-      '--sidebar-hover-bg': colors.background.hover,
+      '--sidebar-hover-bg': colors.overlay.soft,
       '--sidebar-selected-bg': colors.background.tertiary,
     } as React.CSSProperties;
 

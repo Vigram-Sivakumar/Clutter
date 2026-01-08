@@ -5,13 +5,18 @@ import { spacing } from '../../../../../tokens/spacing';
 import { radius } from '../../../../../tokens/radius';
 
 interface SidebarCalendarProps {
-  onDateSelect?: (date: Date) => void;
+  onDateSelect?: (_date: Date) => void;
   selectedDate?: Date;
   noPadding?: boolean; // Option to remove padding for compact views
   datesWithNotes?: Set<string>; // Set of YYYY-MM-DD strings that have notes
 }
 
-export const SidebarCalendar = ({ onDateSelect, selectedDate, noPadding = false, datesWithNotes }: SidebarCalendarProps) => {
+export const SidebarCalendar = ({
+  onDateSelect,
+  selectedDate,
+  noPadding = false,
+  datesWithNotes,
+}: SidebarCalendarProps) => {
   const { colors } = useTheme();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [today, setToday] = useState(() => {
@@ -23,31 +28,47 @@ export const SidebarCalendar = ({ onDateSelect, selectedDate, noPadding = false,
   useEffect(() => {
     const scheduleNextDayCheck = () => {
       const now = new Date();
-      const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0); // 00:00:00 tomorrow
+      const tomorrow = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate() + 1,
+        0,
+        0,
+        0
+      ); // 00:00:00 tomorrow
       const msUntilMidnight = tomorrow.getTime() - now.getTime();
-      
+
       // Set timeout to trigger at exactly 00:00:00
       const timeoutId = setTimeout(() => {
         const newToday = new Date();
-        const normalizedToday = new Date(newToday.getFullYear(), newToday.getMonth(), newToday.getDate());
-        
-        console.log('📅 Day changed! Updating calendar to', normalizedToday.toLocaleDateString());
-        
+        const normalizedToday = new Date(
+          newToday.getFullYear(),
+          newToday.getMonth(),
+          newToday.getDate()
+        );
+
+        console.log(
+          '📅 Day changed! Updating calendar to',
+          normalizedToday.toLocaleDateString()
+        );
+
         // Update today
         setToday(normalizedToday);
-        
+
         // Auto-scroll calendar to the new month
-        setCurrentMonth(new Date(newToday.getFullYear(), newToday.getMonth(), 1));
-        
+        setCurrentMonth(
+          new Date(newToday.getFullYear(), newToday.getMonth(), 1)
+        );
+
         // Schedule next day check
         scheduleNextDayCheck();
       }, msUntilMidnight);
-      
+
       return timeoutId;
     };
-    
+
     const timeoutId = scheduleNextDayCheck();
-    
+
     return () => clearTimeout(timeoutId);
   }, []);
 
@@ -83,14 +104,21 @@ export const SidebarCalendar = ({ onDateSelect, selectedDate, noPadding = false,
     return days;
   }, [currentMonth]);
 
-  const monthName = currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' });
+  const monthName = currentMonth.toLocaleString('default', {
+    month: 'long',
+    year: 'numeric',
+  });
 
   const handlePreviousMonth = () => {
-    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
+    setCurrentMonth(
+      new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1)
+    );
   };
 
   const handleNextMonth = () => {
-    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
+    setCurrentMonth(
+      new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1)
+    );
   };
 
   const handleDateClick = (date: Date) => {
@@ -99,11 +127,16 @@ export const SidebarCalendar = ({ onDateSelect, selectedDate, noPadding = false,
     }
   };
 
-  const isSameDay = (date1: Date | null | undefined, date2: Date | null | undefined) => {
+  const isSameDay = (
+    date1: Date | null | undefined,
+    date2: Date | null | undefined
+  ) => {
     if (!date1 || !date2) return false;
-    return date1.getFullYear() === date2.getFullYear() &&
-           date1.getMonth() === date2.getMonth() &&
-           date1.getDate() === date2.getDate();
+    return (
+      date1.getFullYear() === date2.getFullYear() &&
+      date1.getMonth() === date2.getMonth() &&
+      date1.getDate() === date2.getDate()
+    );
   };
 
   return (
@@ -138,7 +171,8 @@ export const SidebarCalendar = ({ onDateSelect, selectedDate, noPadding = false,
             transition: 'background-color 150ms ease',
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = colors.background.hover;
+            // OVERLAY STRATEGY: Sidebar calendar elements are ghost-like
+            e.currentTarget.style.backgroundColor = colors.overlay.soft;
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.backgroundColor = 'transparent';
@@ -171,7 +205,8 @@ export const SidebarCalendar = ({ onDateSelect, selectedDate, noPadding = false,
             transition: 'background-color 150ms ease',
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = colors.background.hover;
+            // OVERLAY STRATEGY: Sidebar calendar elements are ghost-like
+            e.currentTarget.style.backgroundColor = colors.overlay.soft;
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.backgroundColor = 'transparent';
@@ -218,7 +253,7 @@ export const SidebarCalendar = ({ onDateSelect, selectedDate, noPadding = false,
           const isToday = isSameDay(date, today);
           const isSelected = isSameDay(date, selectedDate);
           const isCurrentMonth = date.getMonth() === currentMonth.getMonth();
-          
+
           // Check if this date has a note
           const year = date.getFullYear();
           const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -239,17 +274,19 @@ export const SidebarCalendar = ({ onDateSelect, selectedDate, noPadding = false,
                 gap: spacing['2'],
                 fontSize: '12px',
                 fontWeight: isToday || isSelected ? 600 : 400,
-                color: isSelected 
+                color: isSelected
                   ? colors.text.default
-                  : isToday 
-                  ? colors.text.default
-                  : isCurrentMonth
-                  ? colors.text.default
-                  : colors.text.disabled,
-                backgroundColor: isSelected 
+                  : isToday
+                    ? colors.text.default
+                    : isCurrentMonth
+                      ? colors.text.default
+                      : colors.text.disabled,
+                backgroundColor: isSelected
                   ? colors.background.tertiary
                   : 'transparent',
-                border: isToday ? `1px solid ${colors.border.default}` : '1px solid transparent',
+                border: isToday
+                  ? `1px solid ${colors.border.default}`
+                  : '1px solid transparent',
                 borderRadius: radius['3'],
                 cursor: 'pointer',
                 transition: 'all 150ms ease',
@@ -258,12 +295,15 @@ export const SidebarCalendar = ({ onDateSelect, selectedDate, noPadding = false,
               }}
               onMouseEnter={(e) => {
                 if (!isSelected) {
-                  e.currentTarget.style.backgroundColor = colors.background.hover;
+                  // OVERLAY STRATEGY: Sidebar calendar elements are ghost-like
+                  e.currentTarget.style.backgroundColor = colors.overlay.soft;
                 }
               }}
               onMouseLeave={(e) => {
                 if (!isSelected) {
-                  e.currentTarget.style.backgroundColor = isSelected ? colors.background.tertiary : 'transparent';
+                  e.currentTarget.style.backgroundColor = isSelected
+                    ? colors.background.tertiary
+                    : 'transparent';
                 }
               }}
             >
@@ -286,4 +326,3 @@ export const SidebarCalendar = ({ onDateSelect, selectedDate, noPadding = false,
     </div>
   );
 };
-
