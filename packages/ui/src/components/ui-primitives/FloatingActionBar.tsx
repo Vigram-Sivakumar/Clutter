@@ -39,7 +39,7 @@ export const FloatingActionBar = ({
   return (
     <div
       style={{
-        position: 'fixed',
+        position: 'absolute', // Absolute positioning relative to main-content-area
         bottom: spacing['24'],
         left: '50%', // Center relative to parent container (content area)
         transform: 'translateX(-50%)',
