@@ -263,7 +263,7 @@ export const NoteEditor = ({
   const [targetBlockId, setTargetBlockId] = useState<string | null>(null);
 
   // Centralized breadcrumb generation
-  const breadcrumbs = useBreadcrumbs(mainView, currentNote);
+  const breadcrumbs = useBreadcrumbs(mainView, currentNote, currentNoteId);
   const folderPathIds = useBreadcrumbFolderIds(mainView, currentNote);
 
   // Restore last viewed note or open today's daily note on first load (only in editor mode)

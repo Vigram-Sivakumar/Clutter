@@ -8,6 +8,7 @@ import { sidebarLayout } from '../../../../../tokens/sidebar';
 
 interface SidebarSectionProps {
   title: string;
+  titleColor?: string; // Optional color override for the section title
   isCollapsed: boolean;
   onToggle: () => void;
   isToggleDisabled?: boolean; // Whether the toggle/chevron is disabled (e.g., empty section)
@@ -21,29 +22,30 @@ interface SidebarSectionProps {
   emptyMessage?: string; // Message to show when section is empty
   emptyShortcut?: string | string[] | readonly string[] | null; // Optional keyboard shortcut to show in empty state
   emptySuffix?: string | null; // Optional text after shortcut
-  
+
   // Drop target props (for section body)
   isDropTarget?: boolean;
   onDragOver?: () => void;
   onDragLeave?: () => void;
   onDrop?: () => void;
-  
+
   // Reorder state management
   onClearAllReorderIndicators?: () => void; // Clear all reorder indicators when entering section drop zone
-  
+
   // Auto-expand section header on drag
   enableAutoExpandHeader?: boolean;
-  
+
   // Data-driven rendering (NEW)
   items?: any[];
   renderItem?: (_item: any, _index: number) => ReactNode;
-  
+
   // OR manual children (backwards compatible)
   children?: ReactNode;
 }
 
 export const SidebarSection = ({
   title,
+  titleColor,
   isCollapsed,
   onToggle,
   isToggleDisabled = false,
@@ -72,13 +74,13 @@ export const SidebarSection = ({
 
   // Note: isDropTarget prop already controls visual feedback
   // No need for internal hover state - drag events are sufficient
-  
+
   // Auto-render items if provided, otherwise use children
   const content = (
-    <div 
-      style={{ 
-        display: 'flex', 
-        flexDirection: 'column', 
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
         gap: sidebarLayout.itemToItemGap,
         width: '100%',
         minWidth: 0, // Allow shrinking below content size
@@ -103,12 +105,12 @@ export const SidebarSection = ({
     if (!onDragOver) return;
     e.preventDefault();
     e.stopPropagation();
-    
+
     // Clear all reorder indicators when entering section drop zone
     if (onClearAllReorderIndicators) {
       onClearAllReorderIndicators();
     }
-    
+
     onDragOver();
   };
 
@@ -117,12 +119,12 @@ export const SidebarSection = ({
     e.preventDefault();
     e.stopPropagation();
     e.dataTransfer.dropEffect = 'move';
-    
+
     // Clear all reorder indicators when hovering over section drop zone
     if (onClearAllReorderIndicators) {
       onClearAllReorderIndicators();
     }
-    
+
     onDragOver();
   };
 
@@ -140,21 +142,21 @@ export const SidebarSection = ({
     if (!onDrop) return;
     e.preventDefault();
     e.stopPropagation();
-    
+
     // Clear all reorder indicators after section drop
     if (onClearAllReorderIndicators) {
       onClearAllReorderIndicators();
     }
-    
+
     onDrop();
   };
 
   const dragHandlers = onDragOver
     ? {
-    onDragEnter: handleDragEnter,
-    onDragOver: handleDragOver,
-    onDragLeave: handleDragLeave,
-    onDrop: handleDrop,
+        onDragEnter: handleDragEnter,
+        onDragOver: handleDragOver,
+        onDragLeave: handleDragLeave,
+        onDrop: handleDrop,
       }
     : {};
 
@@ -174,20 +176,21 @@ export const SidebarSection = ({
       }}
     >
       {/* Section Header - using SidebarItem with variant='header' */}
-        <SidebarItem
-          variant="header"
-          id={title}
-          label={title}
-          badge={badge}
-          icon={icon}
-          isOpen={!isCollapsed}
-          onClick={onHeaderClick || (() => {})}
-          onToggle={onToggle}
+      <SidebarItem
+        variant="header"
+        id={title}
+        label={title}
+        labelColor={titleColor}
+        badge={badge}
+        icon={icon}
+        isOpen={!isCollapsed}
+        onClick={onHeaderClick || (() => {})}
+        onToggle={onToggle}
         isToggleDisabled={isToggleDisabled}
-          actions={actions}
-          enableAutoExpandHeader={enableAutoExpandHeader}
+        actions={actions}
+        enableAutoExpandHeader={enableAutoExpandHeader}
         sticky={sticky}
-        />
+      />
 
       {/* Section Content - collapsible with slide + fade */}
       <div

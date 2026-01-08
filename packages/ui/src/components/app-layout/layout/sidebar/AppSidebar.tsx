@@ -49,8 +49,8 @@ import type { SidebarNote, SidebarFolder, GlobalSelection } from './types';
  */
 const DESIGN = {
   sizing: {
-    minWidth: 256, // Minimum sidebar width (resizable)
-    maxWidth: 320, // Maximum sidebar width (resizable)
+    minWidth: 220, // Minimum sidebar width (resizable)
+    maxWidth: 400, // Maximum sidebar width (resizable)
     defaultWidth: 256, // Default sidebar width
     collapsedWidth: sizing.layout.sidebarCollapsedWidth, // Width when sidebar is collapsed
     iconSize: sizing.icon.sm, // Size of icons in footer buttons

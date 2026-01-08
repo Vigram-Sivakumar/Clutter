@@ -16,6 +16,7 @@ export { X } from './X';
 export { Keyboard } from './Keyboard';
 export { Smile } from './Smile';
 export { MoreVertical } from './MoreVertical';
+export { MoreHorizontal } from './MoreHorizontal';
 export { Star } from './Star';
 export { StarFilled } from './StarFilled';
 export { Note } from './Note';
@@ -81,4 +82,3 @@ export { DragHandle } from './DragHandle';
 export { AlignLeft } from './AlignLeft';
 export { FoldHorizontal } from './FoldHorizontal';
 export { UnfoldHorizontal } from './UnfoldHorizontal';
-

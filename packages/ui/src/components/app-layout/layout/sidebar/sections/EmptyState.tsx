@@ -17,11 +17,10 @@ export const SidebarEmptyState = ({
 }: SidebarEmptyStateProps) => {
   const { colors } = useTheme();
 
-  // Level 0 and level 1 have the same indent (treat level 0 as level 1)
-  const effectiveLevel = Math.max(level, 1);
+  // Respect the actual level (level 0 = no extra indent beyond base padding)
   const paddingLeft =
     parseInt(sidebarLayout.emptyStatePaddingLeft) +
-    Math.min(effectiveLevel, sidebarLayout.maxVisualIndent) *
+    Math.min(level, sidebarLayout.maxVisualIndent) *
       parseInt(sidebarLayout.indentPerLevel);
 
   return (

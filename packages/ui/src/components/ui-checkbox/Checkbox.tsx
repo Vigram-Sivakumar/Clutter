@@ -67,9 +67,7 @@ export const Checkbox = ({
         MozAppearance: 'none',
         border: `1.5px solid ${checked ? colors.text.default : colors.text.tertiary}`,
         borderRadius: '50%',
-        backgroundColor: checked
-          ? colors.text.default
-          : 'transparent',
+        backgroundColor: checked ? colors.text.default : 'transparent',
         transition: 'background-color 0.15s ease, border-color 0.15s ease',
         outline: 'none',
         // SVG checkmark when checked (dynamic color based on theme)

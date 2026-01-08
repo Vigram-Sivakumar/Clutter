@@ -63,7 +63,7 @@ export const SIDEBAR_EMPTY_STATES = {
     suffix: 'to create a new task.',
   },
   completed: {
-    message: 'No completed tasks yet. Press',
+    message: 'No completed tasks yet',
     shortcut: null,
     suffix: null,
   },

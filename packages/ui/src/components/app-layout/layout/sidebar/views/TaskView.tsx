@@ -1,12 +1,12 @@
-import { useMemo, useState, useCallback, ReactNode } from 'react';
+import { useMemo, useCallback, ReactNode } from 'react';
 import {
   useNotesStore,
   useUIStateStore,
   useCurrentDateStore,
 } from '@clutter/state';
-import { 
-  getTodayDateString, 
-  formatTaskDateLabel, 
+import {
+  getTodayDateString,
+  formatTaskDateLabel,
   compareDates,
   extractTasksFromNote,
   toggleTaskInNote,
@@ -22,7 +22,7 @@ import { SidebarListGroup } from '../sections/ListGroup';
 import { sidebarLayout } from '../../../../../tokens/sidebar';
 import { Note } from '@clutter/domain';
 import { GlobalSelection } from '../types';
-import { SECTIONS, renderIcon } from '../../../../../config/sidebarConfig';
+import { SECTIONS } from '../../../../../config/sidebarConfig';
 
 // Use shared Task type
 export type TaskWithDate = Task;
@@ -45,19 +45,19 @@ const MONTH_NAMES = [
 
 interface TaskViewProps {
   onTaskClick?: (_noteId: string, _taskId: string) => void;
-  
+
   // Selection
   selection: GlobalSelection;
   openContextMenuId?: string | null;
   onClearSelection?: () => void;
-  
+
   // Actions
   getTaskActions?: (_taskId: string, _noteId: string) => ReactNode[];
-  
+
   // Multi-select
   selectedTaskIds?: Set<string>;
   onTaskMultiSelect?: (_taskId: string, _event?: React.MouseEvent) => void;
-  
+
   // Header click handlers for navigation to full page views
   onTodayHeaderClick?: () => void;
   onUpcomingHeaderClick?: () => void;
@@ -92,14 +92,6 @@ export const TaskView = ({
     return `Today, ${currentDate} ${monthAbbr}`;
   }, [currentDate, currentMonth]);
 
-  // Track tasks that are currently completing (for animation)
-  const [completingTasks, setCompletingTasks] = useState<Set<string>>(
-    new Set()
-  );
-
-  // Track tasks that are in the removal animation phase (height collapse)
-  const [removingTasks, setRemovingTasks] = useState<Set<string>>(new Set());
-  
   // Get collapse states from UI state store
   const {
     taskTodayCollapsed,
@@ -111,41 +103,41 @@ export const TaskView = ({
     setTaskUnplannedCollapsed,
     setTaskCompletedCollapsed,
   } = useUIStateStore();
-  
+
   const todayDateString = useMemo(() => getTodayDateString(), []);
-  
+
   // Extract all tasks from all active notes
   const allTasks = useMemo(() => {
     const activeNotes = notes.filter((n: Note) => !n.deletedAt);
     const tasks: Task[] = [];
-    
+
     activeNotes.forEach((note) => {
       const noteTasks = extractTasksFromNote(note);
       tasks.push(...noteTasks);
     });
-    
+
     return tasks;
   }, [notes]);
-  
+
   // Categorize tasks into sections using centralized logic
   const { todayTasks, upcomingTasks, unplannedTasks, completedTasks } =
     useMemo(() => {
-    // Use centralized categorization (SINGLE SOURCE OF TRUTH)
-    const categorized = categorizeTasks(allTasks, todayDateString);
-    
-    return {
-      todayTasks: sortTasksByDateAndCreation(categorized.today),
-      upcomingTasks: sortTasksByDateAndCreation(categorized.upcoming),
-      unplannedTasks: sortTasksByCreation(categorized.inbox),
-      completedTasks: sortTasksByCreation(categorized.completed),
-    };
-  }, [allTasks, todayDateString]);
-  
+      // Use centralized categorization (SINGLE SOURCE OF TRUTH)
+      const categorized = categorizeTasks(allTasks, todayDateString);
+
+      return {
+        todayTasks: sortTasksByDateAndCreation(categorized.today),
+        upcomingTasks: sortTasksByDateAndCreation(categorized.upcoming),
+        unplannedTasks: sortTasksByCreation(categorized.inbox),
+        completedTasks: sortTasksByCreation(categorized.completed),
+      };
+    }, [allTasks, todayDateString]);
+
   // Group today tasks by date with "Overdue" grouping
   const groupedTodayTasks = useMemo(() => {
     const overdueGroup: Task[] = [];
     const todayGroup: Task[] = [];
-    
+
     todayTasks.forEach((task) => {
       const effectiveDate = task.date || task.dailyNoteDate;
       if (effectiveDate && compareDates(effectiveDate, todayDateString) < 0) {
@@ -154,7 +146,7 @@ export const TaskView = ({
         todayGroup.push(task);
       }
     });
-    
+
     // Sort overdue tasks by date (oldest to newest)
     overdueGroup.sort((a, b) => {
       const dateA = a.date || a.dailyNoteDate || '';
@@ -163,7 +155,7 @@ export const TaskView = ({
       if (dateComparison !== 0) return dateComparison;
       return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
     });
-    
+
     const grouped = new Map<string, Task[]>();
     // Today's tasks come first (no group title needed)
     if (todayGroup.length > 0) {
@@ -173,14 +165,14 @@ export const TaskView = ({
     if (overdueGroup.length > 0) {
       grouped.set('__overdue__', overdueGroup);
     }
-    
+
     return grouped;
   }, [todayTasks, todayDateString]);
-  
+
   // Group upcoming tasks by date (only future dates, excluding today and overdue)
   const groupedUpcomingTasks = useMemo(() => {
     const dateGroups = new Map<string, Task[]>();
-    
+
     upcomingTasks.forEach((task) => {
       const effectiveDate = task.date || task.dailyNoteDate;
       if (effectiveDate) {
@@ -193,7 +185,7 @@ export const TaskView = ({
         }
       }
     });
-    
+
     // Build final map with sorted dates
     const grouped = new Map<string, Task[]>();
     const sortedDates = Array.from(dateGroups.entries()).sort((a, b) =>
@@ -202,10 +194,19 @@ export const TaskView = ({
     sortedDates.forEach(([date, tasks]) => {
       grouped.set(date, tasks);
     });
-    
+
     return grouped;
   }, [upcomingTasks, todayDateString]);
-  
+
+  // Calculate actual count of tasks in grouped upcoming (for accurate badge)
+  const upcomingTasksCount = useMemo(() => {
+    let count = 0;
+    groupedUpcomingTasks.forEach((tasks) => {
+      count += tasks.length;
+    });
+    return count;
+  }, [groupedUpcomingTasks]);
+
   // Group completed tasks by completion date (when they were actually completed)
   const groupedCompletedTasks = useMemo(() => {
     const dateGroups = new Map<string, Task[]>();
@@ -248,70 +249,34 @@ export const TaskView = ({
     return grouped;
   }, [completedTasks, todayDateString]);
 
-  // Handle checkbox toggle with animation
+  // Handle checkbox toggle
   const handleToggleTask = useCallback(
     (taskId: string) => {
       const task = allTasks.find((t) => t.id === taskId);
-    if (!task) return;
-    
+      if (!task) return;
+
       const note = notes.find((n) => n.id === task.noteId);
-    if (!note) return;
-    
-      // If completing a task (unchecked -> checked)
-      if (!task.checked) {
-        // Add to completing set for animation
-        setCompletingTasks((prev) => new Set(prev).add(taskId));
+      if (!note) return;
 
-        // Wait for animation, then start removal animation
-        setTimeout(() => {
-          // Move to removing phase (height collapse animation)
-          setRemovingTasks((prev) => new Set(prev).add(taskId));
-
-          // Wait for height collapse animation, then persist
-          setTimeout(() => {
-            const updatedContent = toggleTaskInNote(note, taskId);
-            updateNoteContent(note.id, updatedContent);
-
-            // Remove from both sets after persistence
-            setCompletingTasks((prev) => {
-              const next = new Set(prev);
-              next.delete(taskId);
-              return next;
-            });
-            setRemovingTasks((prev) => {
-              const next = new Set(prev);
-              next.delete(taskId);
-              return next;
-            });
-          }, 300); // 300ms for height collapse
-        }, 800); // 800ms animation duration
-      } else {
-        // If uncompleting (checked -> unchecked), update immediately
-    const updatedContent = toggleTaskInNote(note, taskId);
-    updateNoteContent(note.id, updatedContent);
-      }
+      // Update note content immediately (keeps editor in sync)
+      const updatedContent = toggleTaskInNote(note, taskId);
+      updateNoteContent(note.id, updatedContent);
     },
-    [
-      allTasks,
-      notes,
-      updateNoteContent,
-      taskCompletedCollapsed,
-      setTaskCompletedCollapsed,
-    ]
+    [allTasks, notes, updateNoteContent]
   );
-  
+
   // Handle task navigation
   const handleTaskNavigate = (noteId: string, blockId: string) => {
     onTaskClick?.(noteId, blockId);
   };
-  
+
   // Handle task selection
   const handleTaskClick = (taskId: string, event?: React.MouseEvent) => {
     if (onTaskMultiSelect) {
       onTaskMultiSelect(taskId, event);
     }
   };
-  
+
   // Render grouped tasks with timeline connectors
   const renderGroupedTasks = (
     groupedTasks: Map<string, Task[]>,
@@ -336,46 +301,33 @@ export const TaskView = ({
           const isOverdue = date === '__overdue__';
           const isNoDate = date === '__no_date__';
           const isToday = date === todayDateString;
-          
+
           // Skip group title for today's tasks in Today section (clean hierarchy)
           if (isToday && sectionPrefix === 'today') {
             return (
               <div key={date}>
-                {tasks.map((task) => {
-                  const isCompleting = completingTasks.has(task.id);
-                  const isRemoving = removingTasks.has(task.id);
-          
-          return (
-            <div 
-                      key={task.id}
-              style={{ 
-                        opacity: isCompleting ? 0.5 : 1,
-                        maxHeight: isRemoving ? '0px' : '32px',
-                        overflow: 'hidden',
-                        transition:
-                          'opacity 0.3s ease, max-height 0.3s ease, margin-bottom 0.3s ease',
-                        marginBottom: isRemoving
-                          ? '0px'
-                          : sidebarLayout.itemToItemGap,
-                      }}
-                    >
-                      <SidebarItemTask
-                        id={task.id}
-                        noteId={task.noteId}
-                        noteTitle={task.noteTitle}
-                        text={task.text}
-                        checked={task.checked || isCompleting}
-                        isSelected={selectedTaskIds?.has(task.id)}
-                        hasOpenContextMenu={openContextMenuId === task.id}
-                        onClick={(e) => handleTaskClick(task.id, e)}
-                        onToggle={handleToggleTask}
-                        onNavigate={handleTaskNavigate}
-                        actions={getTaskActions?.(task.id, task.noteId)}
-                        isCompleting={isCompleting}
-                      />
-                    </div>
-                  );
-                })}
+                {tasks.map((task) => (
+                  <div
+                    key={task.id}
+                    style={{
+                      marginBottom: sidebarLayout.itemToItemGap,
+                    }}
+                  >
+                    <SidebarItemTask
+                      id={task.id}
+                      noteId={task.noteId}
+                      noteTitle={task.noteTitle}
+                      text={task.text}
+                      checked={task.checked}
+                      isSelected={selectedTaskIds?.has(task.id)}
+                      hasOpenContextMenu={openContextMenuId === task.id}
+                      onClick={(e) => handleTaskClick(task.id, e)}
+                      onToggle={handleToggleTask}
+                      onNavigate={handleTaskNavigate}
+                      actions={getTaskActions?.(task.id, task.noteId)}
+                    />
+                  </div>
+                ))}
               </div>
             );
           }
@@ -390,13 +342,16 @@ export const TaskView = ({
             label = formatTaskDateLabel(date, todayDateString);
           }
 
-          const connectorColor = isToday
-            ? colors.semantic.calendarAccent
-            : colors.border.default;
+          // Only show calendar accent for "Today" in active sections (not Completed)
+          const connectorColor =
+            isToday && sectionPrefix !== 'completed'
+              ? colors.semantic.calendarAccent
+              : colors.border.default;
 
-          const labelColor = isToday
-            ? colors.semantic.calendarAccent
-            : undefined;
+          const labelColor =
+            isToday && sectionPrefix !== 'completed'
+              ? colors.semantic.calendarAccent
+              : undefined;
 
           return (
             <SidebarListGroup
@@ -410,93 +365,83 @@ export const TaskView = ({
               showDivider={false}
             >
               {tasks.map((task) => {
-                    // Show date badge for overdue tasks only
-                    const taskDate = task.date || task.dailyNoteDate;
+                // Show date badge for overdue tasks only
+                const taskDate = task.date || task.dailyNoteDate;
                 const badge =
                   isOverdue && taskDate
-                      ? formatTaskDateLabel(taskDate, todayDateString) 
-                      : undefined;
-                    
-                const isCompleting = completingTasks.has(task.id);
-                const isRemoving = removingTasks.has(task.id);
+                    ? formatTaskDateLabel(taskDate, todayDateString)
+                    : undefined;
 
-                    return (
+                return (
                   <div
                     key={task.id}
                     style={{
-                      opacity: isCompleting ? 0.5 : 1,
-                      maxHeight: isRemoving ? '0px' : '32px',
-                      overflow: 'hidden',
-                      transition:
-                        'opacity 0.3s ease, max-height 0.3s ease, margin-bottom 0.3s ease',
-                      marginBottom: isRemoving
-                        ? '0px'
-                        : sidebarLayout.itemToItemGap,
+                      marginBottom: sidebarLayout.itemToItemGap,
                     }}
                   >
-                        <SidebarItemTask
-                          id={task.id}
-                          noteId={task.noteId}
-                          noteTitle={task.noteTitle}
-                          text={task.text}
-                      checked={task.checked || isCompleting}
-                          badge={badge}
-                          isSelected={selectedTaskIds?.has(task.id)}
-                          hasOpenContextMenu={openContextMenuId === task.id}
-                          onClick={(e) => handleTaskClick(task.id, e)}
-                          onToggle={handleToggleTask}
-                          onNavigate={handleTaskNavigate}
-                          actions={getTaskActions?.(task.id, task.noteId)}
-                      isCompleting={isCompleting}
-                        />
-                      </div>
-                    );
-                  })}
+                    <SidebarItemTask
+                      id={task.id}
+                      noteId={task.noteId}
+                      noteTitle={task.noteTitle}
+                      text={task.text}
+                      checked={task.checked}
+                      badge={badge}
+                      isSelected={selectedTaskIds?.has(task.id)}
+                      hasOpenContextMenu={openContextMenuId === task.id}
+                      onClick={(e) => handleTaskClick(task.id, e)}
+                      onToggle={handleToggleTask}
+                      onNavigate={handleTaskNavigate}
+                      actions={getTaskActions?.(task.id, task.noteId)}
+                    />
+                  </div>
+                );
+              })}
             </SidebarListGroup>
           );
         })}
       </div>
     );
   };
-  
+
   return (
-    <div 
+    <div
       onClick={onClearSelection}
-      style={{ 
-        display: 'flex', 
-        flexDirection: 'column', 
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
         gap: sidebarLayout.sectionToSectionGap,
       }}
     >
       {/* Today Section */}
       <SidebarSection
         title={todaySectionTitle}
-        icon={renderIcon(SECTIONS.today.iconName, 16, colors.text.default)}
+        titleColor={
+          todayTasks.length > 0 ? colors.semantic.calendarAccent : undefined
+        }
         isCollapsed={taskTodayCollapsed}
-          onToggle={() => setTaskTodayCollapsed(!taskTodayCollapsed)}
+        onToggle={() => setTaskTodayCollapsed(!taskTodayCollapsed)}
         isToggleDisabled={todayTasks.length === 0 && taskTodayCollapsed} // Only disable when empty AND collapsed
         onHeaderClick={onTodayHeaderClick}
         emptyMessage={SECTIONS.today.emptyMessage}
         emptyShortcut={SECTIONS.today.emptyShortcut}
         emptySuffix={SECTIONS.today.emptySuffix}
-          badge={todayTasks.length > 0 ? todayTasks.length.toString() : undefined}
+        badge={todayTasks.length > 0 ? todayTasks.length.toString() : undefined}
       >
         {renderGroupedTasks(groupedTodayTasks, 'today')}
       </SidebarSection>
-      
+
       {/* Upcoming Section */}
       <SidebarSection
         title={SECTIONS.upcoming.label}
-        icon={renderIcon(SECTIONS.upcoming.iconName, 16, colors.text.default)}
         isCollapsed={taskUpcomingCollapsed}
-          onToggle={() => setTaskUpcomingCollapsed(!taskUpcomingCollapsed)}
-        isToggleDisabled={upcomingTasks.length === 0 && taskUpcomingCollapsed} // Only disable when empty AND collapsed
+        onToggle={() => setTaskUpcomingCollapsed(!taskUpcomingCollapsed)}
+        isToggleDisabled={upcomingTasksCount === 0 && taskUpcomingCollapsed} // Only disable when empty AND collapsed
         onHeaderClick={onUpcomingHeaderClick}
         emptyMessage={SECTIONS.upcoming.emptyMessage}
         emptyShortcut={SECTIONS.upcoming.emptyShortcut}
         emptySuffix={SECTIONS.upcoming.emptySuffix}
         badge={
-          upcomingTasks.length > 0 ? upcomingTasks.length.toString() : undefined
+          upcomingTasksCount > 0 ? upcomingTasksCount.toString() : undefined
         }
       >
         {renderGroupedTasks(groupedUpcomingTasks, 'upcoming')}
@@ -505,7 +450,6 @@ export const TaskView = ({
       {/* Someday Section */}
       <SidebarSection
         title={SECTIONS.inbox.label}
-        icon={renderIcon(SECTIONS.inbox.iconName, 16, colors.text.default)}
         isCollapsed={taskUnplannedCollapsed}
         onToggle={() => setTaskUnplannedCollapsed(!taskUnplannedCollapsed)}
         isToggleDisabled={unplannedTasks.length === 0 && taskUnplannedCollapsed} // Only disable when empty AND collapsed
@@ -519,45 +463,33 @@ export const TaskView = ({
             : undefined
         }
       >
-        {unplannedTasks.map((task) => {
-          const isCompleting = completingTasks.has(task.id);
-          const isRemoving = removingTasks.has(task.id);
-
-          return (
-            <div
-              key={task.id}
-              style={{
-                opacity: isCompleting ? 0.5 : 1,
-                maxHeight: isRemoving ? '0px' : '32px',
-              overflow: 'hidden',
-                transition:
-                  'opacity 0.3s ease, max-height 0.3s ease, margin-bottom 0.3s ease',
-                marginBottom: isRemoving ? '0px' : sidebarLayout.itemToItemGap,
-              }}
-            >
-                  <SidebarItemTask
-                    id={task.id}
-                    noteId={task.noteId}
-                    noteTitle={task.noteTitle}
-                    text={task.text}
-                checked={task.checked || isCompleting}
-                    isSelected={selectedTaskIds?.has(task.id)}
-                    hasOpenContextMenu={openContextMenuId === task.id}
-                    onClick={(e) => handleTaskClick(task.id, e)}
-                    onToggle={handleToggleTask}
-                    onNavigate={handleTaskNavigate}
-                    actions={getTaskActions?.(task.id, task.noteId)}
-                isCompleting={isCompleting}
-                  />
-            </div>
-          );
-        })}
+        {unplannedTasks.map((task) => (
+          <div
+            key={task.id}
+            style={{
+              marginBottom: sidebarLayout.itemToItemGap,
+            }}
+          >
+            <SidebarItemTask
+              id={task.id}
+              noteId={task.noteId}
+              noteTitle={task.noteTitle}
+              text={task.text}
+              checked={task.checked}
+              isSelected={selectedTaskIds?.has(task.id)}
+              hasOpenContextMenu={openContextMenuId === task.id}
+              onClick={(e) => handleTaskClick(task.id, e)}
+              onToggle={handleToggleTask}
+              onNavigate={handleTaskNavigate}
+              actions={getTaskActions?.(task.id, task.noteId)}
+            />
+          </div>
+        ))}
       </SidebarSection>
 
       {/* Completed Section */}
       <SidebarSection
         title={SECTIONS.completed.label}
-        icon={renderIcon(SECTIONS.completed.iconName, 16, colors.text.default)}
         isCollapsed={taskCompletedCollapsed}
         onToggle={() => setTaskCompletedCollapsed(!taskCompletedCollapsed)}
         isToggleDisabled={completedTasks.length === 0 && taskCompletedCollapsed} // Only disable when empty AND collapsed

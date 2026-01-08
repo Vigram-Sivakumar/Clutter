@@ -210,10 +210,8 @@ export const SidebarItem = ({
   const paddingLeft =
     variant === 'tag' || variant === 'header'
       ? 0
-      : variant === 'group'
-        ? 3 // Group headers have 3px left padding for alignment
-        : Math.min(level, DESIGN.limits.maxVisualIndent) *
-          parseInt(DESIGN.spacing.indentPerLevel);
+      : Math.min(level, DESIGN.limits.maxVisualIndent) *
+        parseInt(DESIGN.spacing.indentPerLevel);
 
   // Focus input when entering edit mode
   useEffect(() => {
@@ -908,7 +906,7 @@ export const SidebarItem = ({
               fontSize: sidebarLayout.headerFontSize,
               fontWeight: sidebarLayout.headerFontWeight,
               letterSpacing: sidebarLayout.headerLetterSpacing,
-              color: colors.text.default,
+              color: labelColor || colors.text.default,
               flex: '1 1 0',
               minWidth: 0,
               overflow: 'hidden',
@@ -1316,7 +1314,10 @@ export const SidebarItem = ({
               alignItems: 'center',
               width: '100%',
               height: DESIGN.sizing.height,
-              paddingLeft: DESIGN.spacing.paddingX,
+              paddingLeft:
+                variant === 'header' && !icon
+                  ? `calc(${DESIGN.spacing.paddingX} + 0px)`
+                  : DESIGN.spacing.paddingX,
               paddingRight: DESIGN.spacing.paddingX,
               boxSizing: 'border-box',
               cursor: isDragging

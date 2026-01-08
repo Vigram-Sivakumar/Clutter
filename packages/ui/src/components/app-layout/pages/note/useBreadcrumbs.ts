@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { CLUTTERED_FOLDER_ID, DAILY_NOTES_FOLDER_ID } from '@clutter/domain';
-import { useFoldersStore } from '@clutter/state';
+import { useFoldersStore, useNotesStore } from '@clutter/state';
 import { Note } from '@clutter/domain';
 import { SECTIONS } from '../../../../config/sidebarConfig';
 
@@ -42,38 +42,47 @@ interface BreadcrumbPath {
  *
  * @param mainView - The current main view type and context
  * @param currentNote - The currently open note (if in editor mode)
+ * @param currentNoteId - The ID of the currently open note (used to look up deleted notes)
  * @returns BreadcrumbPath object with path array and optional current page title
  */
 export const useBreadcrumbs = (
   mainView: MainView,
-  currentNote?: Note | null
+  currentNote?: Note | null,
+  currentNoteId?: string | null
 ): BreadcrumbPath => {
-  const { getFolderPath } = useFoldersStore();
+  const { getFolderPath, folders } = useFoldersStore();
+  const notes = useNotesStore((state) => state.notes);
 
   return useMemo(() => {
     switch (mainView.type) {
       case 'editor': {
         // Editor mode: viewing/editing a note
-        if (!currentNote) {
+
+        // ✅ Look up fresh note from store (including deleted) using currentNoteId
+        // currentNote prop may be null if filtered out by parent when deletedAt is set
+        const freshNote = currentNoteId
+          ? notes.find((n) => n.id === currentNoteId)
+          : currentNote;
+
+        if (!freshNote && !currentNote) {
           // No note selected - shouldn't normally happen, but handle gracefully
           return { path: [] };
         }
 
-        // Check if viewing a deleted note
-        if (mainView.source === 'deletedItems') {
+        const note = freshNote || currentNote!;
+
+        // ✅ Auto-detect if note is deleted (works for any delete method)
+        if (note.deletedAt || mainView.source === 'deletedItems') {
           return {
             path: ['Recently deleted'],
-            currentPageTitle: currentNote.title || 'Untitled',
+            currentPageTitle: note.title || 'Untitled',
           };
         }
 
         // Note is a daily note
-        if (
-          currentNote.folderId === DAILY_NOTES_FOLDER_ID &&
-          currentNote.dailyNoteDate
-        ) {
+        if (note.folderId === DAILY_NOTES_FOLDER_ID && note.dailyNoteDate) {
           // Extract year and month from the daily note date
-          const date = new Date(currentNote.dailyNoteDate + 'T00:00:00');
+          const date = new Date(note.dailyNoteDate + 'T00:00:00');
           const year = date.getFullYear().toString();
           const monthNames = [
             'January',
@@ -93,23 +102,23 @@ export const useBreadcrumbs = (
 
           return {
             path: ['Daily notes', year, month],
-            currentPageTitle: currentNote.title || 'Untitled',
+            currentPageTitle: note.title || 'Untitled',
           };
         }
 
         // Note is in Cluttered (no folder)
-        if (!currentNote.folderId) {
+        if (!note.folderId) {
           return {
             path: ['Folders', 'Cluttered'],
-            currentPageTitle: currentNote.title || 'Untitled',
+            currentPageTitle: note.title || 'Untitled',
           };
         }
 
         // Note is in a specific folder
-        const folderHierarchy = getFolderPath(currentNote.folderId);
+        const folderHierarchy = getFolderPath(note.folderId);
         return {
           path: ['Folders', ...folderHierarchy],
-          currentPageTitle: currentNote.title || 'Untitled',
+          currentPageTitle: note.title || 'Untitled',
         };
       }
 
@@ -125,11 +134,11 @@ export const useBreadcrumbs = (
       case 'folderView': {
         // Folder view: showing contents of a specific folder
 
-        // Check if viewing a deleted folder
-        if (mainView.source === 'deletedItems') {
-          // Get folder name for the breadcrumb
-          const folders = useFoldersStore.getState().folders;
-          const folder = folders.find((f) => f.id === mainView.folderId);
+        // Get current folder
+        const folder = folders.find((f) => f.id === mainView.folderId);
+
+        // ✅ Auto-detect if folder is deleted (works for any delete method)
+        if (folder?.deletedAt || mainView.source === 'deletedItems') {
           return {
             path: ['Recently deleted'],
             currentPageTitle: folder?.name || 'Untitled Folder',
@@ -237,7 +246,7 @@ export const useBreadcrumbs = (
       default:
         return { path: [] };
     }
-  }, [mainView, currentNote, getFolderPath]);
+  }, [mainView, currentNote, currentNoteId, getFolderPath, notes, folders]);
 };
 
 /**
