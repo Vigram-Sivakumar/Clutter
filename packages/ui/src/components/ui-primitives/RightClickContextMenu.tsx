@@ -189,9 +189,10 @@ export const RightClickContextMenuProvider = ({
                     WebkitUserSelect: 'none',
                   }}
                   onMouseEnter={(e) => {
+                    // OVERLAY STRATEGY: Menu items are ghost-like
                     e.currentTarget.style.backgroundColor = item.danger
-                      ? colors.button.danger.backgroundHover
-                      : colors.background.hover;
+                      ? colors.button.danger.backgroundHoverRgba
+                      : colors.overlay.soft;
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.backgroundColor = item.danger

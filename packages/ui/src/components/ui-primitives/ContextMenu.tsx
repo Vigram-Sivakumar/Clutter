@@ -39,13 +39,14 @@ const MenuItem = ({
         padding: '6px 8px',
         borderRadius: radius['3'],
         cursor: 'pointer',
+        // OVERLAY STRATEGY: Menu items are ghost-like, use overlay on hover
         backgroundColor: isHovered
           ? danger
-            ? colors.button.danger.backgroundHover
-            : colors.background.tertiary
+            ? colors.button.danger.backgroundHoverRgba // rgba hover for danger
+            : colors.overlay.soft // overlay for non-danger
           : danger
-            ? colors.button.danger.backgroundRgba
-            : 'transparent',
+            ? colors.button.danger.backgroundRgba // rgba base for danger
+            : 'transparent', // transparent base for non-danger
         transition: 'background-color 100ms ease',
         userSelect: 'none',
       }}
