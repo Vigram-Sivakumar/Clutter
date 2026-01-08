@@ -122,12 +122,12 @@ export const Button = ({
           color: disabled
             ? colors.text.tertiary
             : danger
-              ? colors.button.danger.textOnSolid // White/dark text on solid danger background
+              ? colors.button.danger.text // Red text on subtle background
               : colors.button.primary.text,
           background: disabled
             ? colors.background.secondary
             : danger
-              ? colors.button.danger.background
+              ? colors.button.danger.backgroundRgba // Subtle red background
               : colors.button.primary.background,
           border: 'none',
         };
@@ -222,9 +222,10 @@ export const Button = ({
 
     switch (variant) {
       case 'primary':
-        // SHADE LADDER: Use explicit hover tokens
+        // OVERLAY STRATEGY: Primary danger uses subtle hover
         if (danger) {
-          target.style.backgroundColor = colors.button.danger.backgroundHover;
+          target.style.backgroundColor =
+            colors.button.danger.backgroundHoverRgba;
         } else {
           target.style.backgroundColor = colors.button.primary.backgroundHover;
         }
@@ -267,9 +268,9 @@ export const Button = ({
     const target = e.currentTarget;
     switch (variant) {
       case 'primary':
-        // SHADE LADDER: Return to base color
+        // OVERLAY STRATEGY: Primary danger returns to subtle base
         target.style.backgroundColor = danger
-          ? colors.button.danger.background
+          ? colors.button.danger.backgroundRgba
           : colors.button.primary.background;
         break;
       case 'secondary': {
@@ -322,9 +323,10 @@ export const Button = ({
 
     switch (variant) {
       case 'primary':
-        // SHADE LADDER: Use explicit active tokens
+        // OVERLAY STRATEGY: Primary danger uses subtle active
         if (danger) {
-          target.style.backgroundColor = colors.button.danger.backgroundActive;
+          target.style.backgroundColor =
+            colors.button.danger.backgroundHoverRgba;
         } else {
           target.style.backgroundColor = colors.button.primary.backgroundActive;
         }
@@ -366,9 +368,10 @@ export const Button = ({
 
     switch (variant) {
       case 'primary':
-        // SHADE LADDER: Return to hover state after mouse up
+        // OVERLAY STRATEGY: Primary danger returns to subtle hover
         if (danger) {
-          target.style.backgroundColor = colors.button.danger.backgroundHover;
+          target.style.backgroundColor =
+            colors.button.danger.backgroundHoverRgba;
         } else {
           target.style.backgroundColor = colors.button.primary.backgroundHover;
         }
