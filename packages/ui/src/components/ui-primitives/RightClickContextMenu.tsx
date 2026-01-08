@@ -1,4 +1,11 @@
-import { createContext, useContext, useState, useRef, useEffect, ReactNode } from 'react';
+import {
+  createContext,
+  useContext,
+  useState,
+  useRef,
+  useEffect,
+  ReactNode,
+} from 'react';
 import { useTheme } from '../../hooks/useTheme';
 import { createPortal } from 'react-dom';
 import { spacing } from '../../tokens/spacing';
@@ -6,7 +13,7 @@ import { sizing } from '../../tokens/sizing';
 import { typography } from '../../tokens/typography';
 
 // Menu item types
-export type RightClickMenuItem = 
+export type RightClickMenuItem =
   | {
       icon: ReactNode;
       label: string;
@@ -26,14 +33,19 @@ interface RightClickContextMenuState {
 }
 
 interface RightClickContextMenuContextValue {
-  showMenu: (x: number, y: number, items: RightClickMenuItem[]) => void;
+  showMenu: (_x: number, _y: number, _items: RightClickMenuItem[]) => void;
   hideMenu: () => void;
 }
 
-const RightClickContextMenuContext = createContext<RightClickContextMenuContextValue | null>(null);
+const RightClickContextMenuContext =
+  createContext<RightClickContextMenuContextValue | null>(null);
 
 // Provider component
-export const RightClickContextMenuProvider = ({ children }: { children: ReactNode }) => {
+export const RightClickContextMenuProvider = ({
+  children,
+}: {
+  children: ReactNode;
+}) => {
   const [menuState, setMenuState] = useState<RightClickContextMenuState>({
     isOpen: false,
     position: { x: 0, y: 0 },
@@ -116,89 +128,111 @@ export const RightClickContextMenuProvider = ({ children }: { children: ReactNod
   return (
     <RightClickContextMenuContext.Provider value={{ showMenu, hideMenu }}>
       {children}
-      
+
       {/* Global context menu portal */}
-      {menuState.isOpen && createPortal(
-        <div
-          ref={menuRef}
-          style={{
-            position: 'fixed',
-            top: menuState.position.y,
-            left: menuState.position.x,
-            zIndex: 10000,
-            minWidth: '200px',
-            backgroundColor: colors.background.elevated,
-            border: `1px solid ${colors.border.default}`,
-            borderRadius: sizing.radius.md,
-            boxShadow: `0 8px 24px ${colors.shadow.lg}`,
-            padding: `${spacing['4']} 0`,
-            fontFamily: typography.fontFamily.sans,
-          }}
-        >
-          {menuState.items.map((item, index) => {
-            if ('separator' in item && item.separator) {
+      {menuState.isOpen &&
+        createPortal(
+          <div
+            ref={menuRef}
+            style={{
+              position: 'fixed',
+              top: menuState.position.y,
+              left: menuState.position.x,
+              zIndex: 10000,
+              minWidth: '200px',
+              backgroundColor: colors.background.elevated,
+              border: `1px solid ${colors.border.default}`,
+              borderRadius: sizing.radius.md,
+              boxShadow: `0 8px 24px ${colors.shadow.lg}`,
+              padding: `${spacing['4']} 0`,
+              fontFamily: typography.fontFamily.sans,
+            }}
+          >
+            {menuState.items.map((item, index) => {
+              if ('separator' in item && item.separator) {
+                return (
+                  <div
+                    key={`separator-${index}`}
+                    style={{
+                      height: '1px',
+                      backgroundColor: colors.border.divider,
+                      margin: `${spacing['4']} 0`,
+                    }}
+                  />
+                );
+              }
+
               return (
                 <div
-                  key={`separator-${index}`}
-                  style={{
-                    height: '1px',
-                    backgroundColor: colors.border.divider,
-                    margin: `${spacing['4']} 0`,
+                  key={index}
+                  onClick={() => {
+                    item.onClick();
+                    hideMenu();
                   }}
-                />
-              );
-            }
-
-            return (
-              <div
-                key={index}
-                onClick={() => {
-                  item.onClick();
-                  hideMenu();
-                }}
-                onMouseDown={(e) => e.preventDefault()} // Prevent menu from closing before click
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: spacing['12'],
-                  padding: `${spacing['4']} ${spacing['12']}`,
-                  fontSize: '14px',
-                  color: item.danger ? colors.semantic.error : colors.text.secondary,
-                  cursor: 'pointer',
-                  transition: 'background-color 100ms ease',
-                  userSelect: 'none',
-                  WebkitUserSelect: 'none',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = colors.background.hover;
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'transparent';
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: spacing['6'] }}>
-                  <div style={{ display: 'flex', alignItems: 'center', width: '16px' }}>
-                    {item.icon}
-                  </div>
-                  <span>{item.label}</span>
-                </div>
-                {item.shortcut && (
-                  <span
+                  onMouseDown={(e) => e.preventDefault()} // Prevent menu from closing before click
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: spacing['12'],
+                    padding: `${spacing['4']} ${spacing['12']}`,
+                    fontSize: '14px',
+                    color: item.danger
+                      ? colors.button.danger.text
+                      : colors.text.secondary,
+                    backgroundColor: item.danger
+                      ? colors.button.danger.backgroundRgba
+                      : 'transparent',
+                    cursor: 'pointer',
+                    transition: 'background-color 100ms ease',
+                    userSelect: 'none',
+                    WebkitUserSelect: 'none',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = item.danger
+                      ? colors.button.danger.backgroundHover
+                      : colors.background.hover;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = item.danger
+                      ? colors.button.danger.backgroundRgba
+                      : 'transparent';
+                  }}
+                >
+                  <div
                     style={{
-                      fontSize: '12px',
-                      color: colors.text.tertiary,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: spacing['6'],
                     }}
                   >
-                    {item.shortcut}
-                  </span>
-                )}
-              </div>
-            );
-          })}
-        </div>,
-        document.body
-      )}
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        width: '16px',
+                      }}
+                    >
+                      {item.icon}
+                    </div>
+                    <span>{item.label}</span>
+                  </div>
+                  {item.shortcut && (
+                    <span
+                      style={{
+                        fontSize: '12px',
+                        color: colors.text.tertiary,
+                      }}
+                    >
+                      {item.shortcut}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>,
+          document.body
+        )}
     </RightClickContextMenuContext.Provider>
   );
 };
@@ -207,14 +241,16 @@ export const RightClickContextMenuProvider = ({ children }: { children: ReactNod
 export const useRightClickMenu = () => {
   const context = useContext(RightClickContextMenuContext);
   if (!context) {
-    throw new Error('useRightClickMenu must be used within RightClickContextMenuProvider');
+    throw new Error(
+      'useRightClickMenu must be used within RightClickContextMenuProvider'
+    );
   }
   return context;
 };
 
 // Helper function to create right-click handler
 export const createRightClickHandler = (
-  showMenu: (x: number, y: number, items: RightClickMenuItem[]) => void,
+  showMenu: (_x: number, _y: number, _items: RightClickMenuItem[]) => void,
   items: RightClickMenuItem[]
 ) => {
   return (e: React.MouseEvent) => {
@@ -223,4 +259,3 @@ export const createRightClickHandler = (
     showMenu(e.clientX, e.clientY, items);
   };
 };
-

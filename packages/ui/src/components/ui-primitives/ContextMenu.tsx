@@ -24,10 +24,6 @@ const MenuItem = ({
 }: MenuItemProps) => {
   const [isHovered, setIsHovered] = useState(false);
 
-  // Softer red for hover (less intense than blood red)
-  const dangerHoverBg = '#8B3A3A'; // Deep red-brown, less intense
-  const dangerHoverText = '#FFE5E5'; // Light pink text for contrast
-
   return (
     <div
       onClick={(_e) => {
@@ -45,9 +41,11 @@ const MenuItem = ({
         cursor: 'pointer',
         backgroundColor: isHovered
           ? danger
-            ? dangerHoverBg
+            ? colors.button.danger.backgroundHover
             : colors.background.tertiary
-          : 'transparent',
+          : danger
+            ? colors.button.danger.backgroundRgba
+            : 'transparent',
         transition: 'background-color 100ms ease',
         userSelect: 'none',
       }}
@@ -61,11 +59,7 @@ const MenuItem = ({
           alignItems: 'center',
           justifyContent: 'center',
           flexShrink: 0,
-          color: danger
-            ? isHovered
-              ? dangerHoverText
-              : colors.semantic.error
-            : colors.text.secondary,
+          color: danger ? colors.button.danger.text : colors.text.secondary,
         }}
       >
         {icon}
@@ -77,11 +71,7 @@ const MenuItem = ({
           flex: 1,
           fontSize: '14px',
           fontWeight: 400,
-          color: danger
-            ? isHovered
-              ? dangerHoverText
-              : colors.semantic.error
-            : colors.text.secondary,
+          color: danger ? colors.button.danger.text : colors.text.secondary,
           whiteSpace: 'nowrap',
           overflow: 'hidden',
           textOverflow: 'ellipsis',
