@@ -456,15 +456,19 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
         
         /* Show placeholder via CSS ::before 
          * Hook only adds data-placeholder when block should show it
+         * 
+         * INLINE PLACEHOLDER (NOT OVERLAY):
+         * - No absolute positioning (was covering text selection)
+         * - Inline flow (participates in layout)
+         * - Auto-hides when text selection exists
+         * - Never overlaps browser selection highlight
          */
         .ProseMirror [data-placeholder]::before {
           content: attr(data-placeholder);
           color: ${colors.text.placeholder};
           pointer-events: none;
           user-select: none;
-          position: absolute;
-          left: 0;
-          top: 0;
+          /* NO position: absolute - must be inline */
           white-space: nowrap;
         }
 
