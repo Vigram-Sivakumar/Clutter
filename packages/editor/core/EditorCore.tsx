@@ -54,6 +54,7 @@ import { SlashCommands } from '../plugins/SlashCommands';
 import { TaskPriority } from '../plugins/TaskPriority';
 import { BackspaceHandler } from '../plugins/BackspaceHandler';
 import { TabHandler } from '../plugins/TabHandler';
+import { KeyboardShortcuts } from '../plugins/KeyboardShortcuts';
 import { EscapeMarks } from '../plugins/EscapeMarks';
 import { DoubleSpaceEscape } from '../plugins/DoubleSpaceEscape';
 import { HashtagDetection } from '../plugins/HashtagDetection';
@@ -163,7 +164,8 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
         SlashCommands,
         TaskPriority, // Highlight priority indicators (!, !!, !!!) in tasks
         BackspaceHandler,
-        TabHandler, // Global Tab handler - prevents focus navigation
+        KeyboardShortcuts, // Centralized Tab/Shift+Tab → indent/outdent intents
+        TabHandler, // Fallback Tab handler - prevents focus navigation
         EscapeMarks,
         DoubleSpaceEscape,
         SelectAll, // Progressive Cmd+A: block text → block node → all blocks
