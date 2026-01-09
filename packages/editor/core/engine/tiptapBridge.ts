@@ -51,11 +51,33 @@ function tiptapJsonToBlockTree(tiptapJson: any): BlockTree {
     content: null,
   };
 
+  // DEBUG: Log what we're actually seeing from TipTap
+  console.log('[Bridge] tiptapJsonToBlockTree input:', {
+    hasContent: !!tiptapJson.content,
+    isArray: Array.isArray(tiptapJson.content),
+    contentLength: tiptapJson.content?.length,
+  });
+
   // Convert TipTap blocks to engine blocks
   if (tiptapJson.content && Array.isArray(tiptapJson.content)) {
     for (const block of tiptapJson.content) {
-      const blockId =
-        block.attrs?.blockId || `block-${Date.now()}-${Math.random()}`;
+      const blockId = block.attrs?.blockId;
+
+      // DEBUG: Log each block we're processing
+      console.log('[Bridge] Processing block:', {
+        type: block.type,
+        hasBlockId: !!blockId,
+        blockId: blockId || 'MISSING',
+        attrs: block.attrs,
+      });
+
+      if (!blockId) {
+        console.error(
+          '[Bridge] CRITICAL: Block missing blockId attribute!',
+          block
+        );
+        continue; // Skip blocks without blockId
+      }
 
       nodes[blockId] = {
         id: blockId,
