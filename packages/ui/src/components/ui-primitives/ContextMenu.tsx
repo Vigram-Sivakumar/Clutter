@@ -145,18 +145,6 @@ export const ContextMenu = ({
     }
   }, [isOpen, onOpenChange]);
 
-  // Disable body scroll when menu is open
-  useEffect(() => {
-    if (isOpen) {
-      const originalOverflow = document.body.style.overflow;
-      document.body.style.overflow = 'hidden';
-
-      return () => {
-        document.body.style.overflow = originalOverflow;
-      };
-    }
-  }, [isOpen]);
-
   // Smart positioning with collision detection (using portal + fixed positioning)
   useEffect(() => {
     if (isOpen && containerRef.current && menuRef.current) {
