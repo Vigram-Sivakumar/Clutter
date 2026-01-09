@@ -1,6 +1,6 @@
 /**
  * ToggleHeader - React node view for toggle headers
- * 
+ *
  * Flat sibling structure (like ListBlock):
  * - [Chevron 24px] [Content flex:1]
  * - Children are siblings in the document, not nested in DOM
@@ -51,16 +51,19 @@ function getChildrenCount(
     if (foundSelf) {
       // Check if this block references our toggle
       const parentToggleId = node.attrs.parentToggleId;
-      
+
       if (parentToggleId === toggleId) {
         count++;
-      } else if (parentToggleId !== toggleId && node.type.name !== 'toggleHeader') {
+      } else if (
+        parentToggleId !== toggleId &&
+        node.type.name !== 'toggleHeader'
+      ) {
         // If we hit a block that doesn't belong to us and isn't a nested toggle, stop
         // (This handles the case where next toggle's children start)
         stopped = true;
         return false;
       }
-      
+
       // If we hit another toggle header at same or lower level, stop
       if (node.type.name === 'toggleHeader') {
         const otherAttrs = node.attrs as ToggleHeaderAttrs;
@@ -103,17 +106,18 @@ function getPreviewText(
 
     if (foundSelf) {
       const parentToggleId = node.attrs.parentToggleId;
-      
+
       if (parentToggleId === toggleId) {
         // Found first child - get its text content
         const text = node.textContent || '';
         if (text) {
-          previewText = text.length > 50 ? text.slice(0, 50) + '...' : text + '...';
+          previewText =
+            text.length > 50 ? text.slice(0, 50) + '...' : text + '...';
         }
         foundFirstChild = true;
         return false;
       }
-      
+
       // Stop if we hit another toggle or non-child block
       if (node.type.name === 'toggleHeader' || !parentToggleId) {
         return false;
@@ -134,18 +138,22 @@ export function ToggleHeader({
   const { colors } = useTheme();
   const attrs = node.attrs as ToggleHeaderAttrs;
   const { collapsed, level, toggleId, parentToggleId } = attrs;
-  
+
   // Check if this block is selected
-  const isSelected = useBlockSelection({ editor, getPos, nodeSize: node.nodeSize });
-  
+  const isSelected = useBlockSelection({
+    editor,
+    getPos,
+    nodeSize: node.nodeSize,
+  });
+
   // Force re-render when document updates (for reactive children info)
   const [, forceUpdate] = useState(0);
-  
+
   useEffect(() => {
     const handleUpdate = () => {
-      forceUpdate(prev => prev + 1);
+      forceUpdate((prev) => prev + 1);
     };
-    
+
     editor.on('update', handleUpdate);
     editor.on('selectionUpdate', handleUpdate); // Re-render on selection change for placeholder focus detection
     editor.on('focus', handleUpdate);
@@ -169,20 +177,26 @@ export function ToggleHeader({
     return getPreviewText(editor, getPos, toggleId);
   }, [collapsed, childrenCount, editor, getPos, toggleId, editor.state.doc]);
 
-  // Get placeholder text (CSS handles visibility) - use custom text for toggles
-  const placeholderText = usePlaceholder({ 
-    node, 
-    editor, 
+  // Canonical emptiness check (ProseMirror source of truth)
+  const isEmpty = node.content.size === 0;
+
+  // Placeholder text (includes focus detection via usePlaceholder)
+  const placeholderText = usePlaceholder({
+    node,
+    editor,
     getPos,
-    customText: 'Toggle'
+    customText: 'Toggle',
   });
 
   // Handle collapse toggle
-  const handleToggleCollapse = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    updateAttributes({ collapsed: !collapsed });
-  }, [collapsed, updateAttributes]);
+  const handleToggleCollapse = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      updateAttributes({ collapsed: !collapsed });
+    },
+    [collapsed, updateAttributes]
+  );
 
   // Calculate indent (hierarchy + toggle grouping)
   const hierarchyIndent = level * spacing.indent;
@@ -195,6 +209,8 @@ export function ToggleHeader({
       data-collapsed={collapsed}
       data-level={level}
       data-toggle-id={toggleId}
+      data-empty={isEmpty ? 'true' : undefined}
+      data-placeholder={placeholderText || undefined}
       className="block-handle-wrapper"
       style={{
         position: 'relative',
@@ -217,12 +233,18 @@ export function ToggleHeader({
           pointerEvents: 'auto',
         }}
       />
-      
+
       {/* Block handle (⋮⋮) - shows on hover */}
       <BlockHandle editor={editor} getPos={getPos} indent={indent} />
 
       {/* Main row: chevron (24px) + gap (4px) + content */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: spacing.inline }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: spacing.inline,
+        }}
+      >
         {/* Chevron marker */}
         <div style={{ color: colors.text.tertiary }}>
           <MarkerContainer>
@@ -266,15 +288,10 @@ export function ToggleHeader({
             </div>
           </MarkerContainer>
         </div>
-        
+
         {/* Content with placeholder */}
-        <div style={{ flex: 1, minWidth: 0, position: 'relative' }}>
-          <NodeViewContent 
-            as="div"
-            data-placeholder={placeholderText || undefined}
-            style={{ position: 'relative' }} 
-          />
-          {/* Placeholder now handled by CSS via data-placeholder attribute */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <NodeViewContent as="div" />
         </div>
       </div>
 
@@ -311,4 +328,3 @@ export function ToggleHeader({
     </NodeViewWrapper>
   );
 }
-

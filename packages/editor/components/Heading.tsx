@@ -1,6 +1,6 @@
 /**
  * Heading - React node view for headings
- * 
+ *
  * PHASE 3 REFACTOR: Uses shared hooks and components.
  * No marker area - just content with heading-specific typography.
  * Includes inline placeholder support for empty headings.
@@ -43,21 +43,28 @@ export function Heading({ node, editor, getPos }: NodeViewProps) {
   const styles = headingStyles[headingLevel];
   const parentToggleId = node.attrs.parentToggleId || null;
   const indentLevel = node.attrs.level || 0;
-  
-  // Get placeholder text (CSS handles visibility)
+
+  // Canonical emptiness check (ProseMirror source of truth)
+  const isEmpty = node.content.size === 0;
+
+  // Placeholder text (includes focus detection via usePlaceholder)
   const placeholderText = usePlaceholder({ node, editor, getPos });
 
   // Check if this block is selected
-  const isSelected = useBlockSelection({ editor, getPos, nodeSize: node.nodeSize });
+  const isSelected = useBlockSelection({
+    editor,
+    getPos,
+    nodeSize: node.nodeSize,
+  });
 
   // Force re-render when document updates (to react to parent toggle collapse)
   const [, forceUpdate] = useState(0);
-  
+
   useEffect(() => {
     const handleUpdate = () => {
-      forceUpdate(prev => prev + 1);
+      forceUpdate((prev) => prev + 1);
     };
-    
+
     editor.on('update', handleUpdate);
     editor.on('selectionUpdate', handleUpdate); // Re-render on selection change for placeholder focus detection
     editor.on('focus', handleUpdate);
@@ -90,6 +97,8 @@ export function Heading({ node, editor, getPos }: NodeViewProps) {
       data-level={indentLevel}
       data-parent-toggle-id={parentToggleId}
       data-hidden={isHidden}
+      data-empty={isEmpty ? 'true' : undefined}
+      data-placeholder={placeholderText || undefined}
       className="block-handle-wrapper"
       style={{
         display: isHidden ? 'none' : 'flex',
@@ -111,24 +120,21 @@ export function Heading({ node, editor, getPos }: NodeViewProps) {
           pointerEvents: 'auto',
         }}
       />
-      
+
       {/* Block handle (⋮⋮) - shows on hover */}
       <BlockHandle editor={editor} getPos={getPos} indent={indent} />
 
       <NodeViewContent
         as={`h${headingLevel}` as any}
-        data-placeholder={placeholderText || undefined}
         style={{
           flex: 1,
           minWidth: 0,
-          position: 'relative', // For CSS ::before placeholder
           fontSize: styles.fontSize,
           fontWeight: styles.fontWeight,
           lineHeight: styles.lineHeight,
           margin: 0,
         }}
       />
-      {/* Placeholder now handled by CSS via data-placeholder attribute */}
 
       {/* Block selection halo */}
       <BlockSelectionHalo isSelected={isSelected} indent={indent} />
@@ -143,4 +149,3 @@ export function Heading({ node, editor, getPos }: NodeViewProps) {
     </NodeViewWrapper>
   );
 }
-

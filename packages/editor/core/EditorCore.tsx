@@ -462,22 +462,26 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
          * JavaScript hook handles all logic for when to show
          * ============================================ */
         
-        /* Show placeholder via CSS ::before 
-         * Hook only adds data-placeholder when block should show it
+        /* ============================================
+         * CANONICAL PLACEHOLDER (Apple / Notion / Craft Pattern)
+         * ============================================
          * 
-         * INLINE PLACEHOLDER (NOT OVERLAY):
-         * - No absolute positioning (was covering text selection)
-         * - Inline flow (participates in layout)
-         * - Auto-hides when text selection exists
-         * - Never overlaps browser selection highlight
+         * PLACEHOLDER LAW:
+         * - Placeholder NEVER creates DOM structure
+         * - Rendered via CSS ::before on content element
+         * - data-empty on wrapper (node.content.size === 0)
+         * - data-placeholder on wrapper (text, controlled by focus logic)
+         * - ::before painted on [data-node-view-content] where caret lives
+         * 
+         * Result: Placeholder appears inline in text area, like native <input placeholder>
          */
-        .ProseMirror [data-placeholder]::before {
+        .ProseMirror [data-empty="true"][data-placeholder] [data-node-view-content]::before {
           content: attr(data-placeholder);
           color: ${colors.text.placeholder};
           pointer-events: none;
           user-select: none;
-          /* NO position: absolute - must be inline */
           white-space: nowrap;
+          /* Inline placement - same visual plane as text */
         }
 
         /* Focus styles */

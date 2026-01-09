@@ -1,12 +1,12 @@
 /**
  * Blockquote - React node view for blockquotes
- * 
+ *
  * PHASE 3 REFACTOR: Uses shared hooks and components.
  * Uses uniform block structure with marker area (border line).
  * No margin - parent handles spacing via gap.
  */
 
-import React, { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { NodeViewWrapper, NodeViewContent } from '@tiptap/react';
 import type { NodeViewProps } from '@tiptap/react';
 import { spacing, sizing, typography } from '../tokens';
@@ -22,21 +22,28 @@ export function Blockquote({ node, editor, getPos }: NodeViewProps) {
   const { colors } = useTheme();
   const parentToggleId = node.attrs.parentToggleId || null;
   const level = node.attrs.level || 0;
-  
+
+  // Canonical emptiness check (ProseMirror source of truth)
+  const isEmpty = node.content.size === 0;
+
   // Check if this block is selected
-  const isSelected = useBlockSelection({ editor, getPos, nodeSize: node.nodeSize });
-  
-  // Get placeholder text (CSS handles visibility)
+  const isSelected = useBlockSelection({
+    editor,
+    getPos,
+    nodeSize: node.nodeSize,
+  });
+
+  // Placeholder text (includes focus detection via usePlaceholder)
   const placeholderText = usePlaceholder({ node, editor, getPos });
 
   // Force re-render when document updates (to react to parent toggle collapse)
   const [, forceUpdate] = useState(0);
-  
+
   useEffect(() => {
     const handleUpdate = () => {
-      forceUpdate(prev => prev + 1);
+      forceUpdate((prev) => prev + 1);
     };
-    
+
     editor.on('update', handleUpdate);
     editor.on('selectionUpdate', handleUpdate); // Re-render on selection change for placeholder focus detection
     editor.on('focus', handleUpdate);
@@ -60,7 +67,7 @@ export function Blockquote({ node, editor, getPos }: NodeViewProps) {
   const hasNextBlockquote = useMemo(() => {
     const pos = getPos();
     if (pos === undefined) return false;
-    
+
     try {
       const nextPos = pos + node.nodeSize;
       const nextNode = editor.state.doc.nodeAt(nextPos);
@@ -74,13 +81,15 @@ export function Blockquote({ node, editor, getPos }: NodeViewProps) {
   const hierarchyIndent = level * spacing.indent;
   const toggleIndent = parentToggleId ? spacing.toggleIndent : 0;
   const indent = hierarchyIndent + toggleIndent;
-  
+
   return (
     <NodeViewWrapper
       as="div"
       data-type="blockquote"
       data-parent-toggle-id={parentToggleId}
       data-level={level}
+      data-empty={isEmpty ? 'true' : undefined}
+      data-placeholder={placeholderText || undefined}
       data-hidden={isHidden}
       className="block-handle-wrapper"
       style={{
@@ -106,7 +115,7 @@ export function Blockquote({ node, editor, getPos }: NodeViewProps) {
           pointerEvents: 'auto',
         }}
       />
-      
+
       {/* Block handle (⋮⋮) - shows on hover */}
       <BlockHandle editor={editor} getPos={getPos} indent={indent} />
 
@@ -129,16 +138,13 @@ export function Blockquote({ node, editor, getPos }: NodeViewProps) {
         />
       </div>
       {/* Content area with placeholder */}
-      <div style={{ flex: 1, minWidth: 0, position: 'relative' }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
         <NodeViewContent
           as="div"
-          data-placeholder={placeholderText || undefined}
           style={{
             color: colors.text.secondary,
-            position: 'relative', // For CSS ::before placeholder
           }}
         />
-        {/* Placeholder now handled by CSS via data-placeholder attribute */}
       </div>
 
       {/* Craft-style connector: bridge gap to next blockquote */}
@@ -146,7 +152,7 @@ export function Blockquote({ node, editor, getPos }: NodeViewProps) {
         <div
           style={{
             position: 'absolute',
-            left: indent + (sizing.markerContainer / 2) - 2, // Center of marker area (4px / 2)
+            left: indent + sizing.markerContainer / 2 - 2, // Center of marker area (4px / 2)
             bottom: -spacing.gap - 2, // Extend 2px up to overlap
             width: 4,
             height: spacing.gap + 4, // Extend 2px up and 2px down
@@ -168,4 +174,3 @@ export function Blockquote({ node, editor, getPos }: NodeViewProps) {
     </NodeViewWrapper>
   );
 }
-

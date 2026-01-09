@@ -1,17 +1,17 @@
 /**
  * ParagraphBlock - Top-level paragraph with block handle
- * 
+ *
  * This component is for TOP-LEVEL paragraphs (standalone blocks).
  * It duplicates the Paragraph logic but adds the block handle (⋮⋮).
- * 
+ *
  * For NESTED paragraphs (inside lists, toggles, etc.), see Paragraph.tsx
  * which has the same logic without the handle.
- * 
+ *
  * Note: We can't wrap Paragraph in a div because NodeViewWrapper must be
  * the outermost element for TipTap keyboard events to work properly.
  */
 
-import React, { useCallback, useMemo, useState, useEffect } from 'react';
+import { useCallback, useMemo, useState, useEffect } from 'react';
 import { NodeViewWrapper, NodeViewContent } from '@tiptap/react';
 import type { NodeViewProps } from '@tiptap/react';
 import { typography, spacing } from '../tokens';
@@ -23,31 +23,43 @@ import { BlockHandle } from './BlockHandle';
 import { BlockSelectionHalo } from './BlockSelectionHalo';
 import { isHiddenByCollapsedToggle } from '../utils/collapseHelpers';
 
-export function ParagraphBlock({ node, editor, getPos, updateAttributes }: NodeViewProps) {
+export function ParagraphBlock({
+  node,
+  editor,
+  getPos,
+  updateAttributes,
+}: NodeViewProps) {
   const tags = node.attrs.tags || [];
   const hasTags = tags.length > 0;
   const parentToggleId = node.attrs.parentToggleId || null;
   const level = node.attrs.level || 0;
-  
-  // Get placeholder text (CSS handles visibility)
-  const placeholderText = usePlaceholder({ 
-    node, 
-    editor, 
+
+  // Canonical emptiness check (ProseMirror source of truth)
+  const isEmpty = node.content.size === 0;
+
+  // Placeholder text (includes focus detection via usePlaceholder)
+  const placeholderText = usePlaceholder({
+    node,
+    editor,
     getPos,
-    customText: hasTags ? 'Start typing...' : undefined
+    customText: hasTags ? 'Start typing...' : undefined,
   });
 
   // Check if this block is selected
-  const isSelected = useBlockSelection({ editor, getPos, nodeSize: node.nodeSize });
+  const isSelected = useBlockSelection({
+    editor,
+    getPos,
+    nodeSize: node.nodeSize,
+  });
 
   // Force re-render when document updates (to react to parent toggle collapse and selection changes)
   const [, forceUpdate] = useState(0);
-  
+
   useEffect(() => {
     const handleUpdate = () => {
-      forceUpdate(prev => prev + 1);
+      forceUpdate((prev) => prev + 1);
     };
-    
+
     editor.on('update', handleUpdate);
     editor.on('selectionUpdate', handleUpdate); // Re-render on selection change for placeholder focus detection
     editor.on('focus', handleUpdate); // Re-render when editor gains focus
@@ -67,9 +79,12 @@ export function ParagraphBlock({ node, editor, getPos, updateAttributes }: NodeV
     return isHiddenByCollapsedToggle(editor.state.doc, pos, parentToggleId);
   }, [editor, editor.state.doc, getPos, parentToggleId]);
 
-  const handleUpdateTags = useCallback((newTags: string[]) => {
-    updateAttributes({ tags: newTags });
-  }, [updateAttributes]);
+  const handleUpdateTags = useCallback(
+    (newTags: string[]) => {
+      updateAttributes({ tags: newTags });
+    },
+    [updateAttributes]
+  );
 
   // Calculate indent based on level (hierarchy + toggle grouping)
   const hierarchyIndent = level * spacing.indent;
@@ -83,6 +98,8 @@ export function ParagraphBlock({ node, editor, getPos, updateAttributes }: NodeV
       data-parent-toggle-id={parentToggleId}
       data-level={level}
       data-hidden={isHidden}
+      data-empty={isEmpty ? 'true' : undefined}
+      data-placeholder={placeholderText || undefined}
       className="block-handle-wrapper"
       style={{
         display: isHidden ? 'none' : 'block',
@@ -104,25 +121,22 @@ export function ParagraphBlock({ node, editor, getPos, updateAttributes }: NodeV
           pointerEvents: 'auto',
         }}
       />
-      
+
       {/* Block handle (⋮⋮) - shows on hover */}
       <BlockHandle editor={editor} getPos={getPos} indent={indent} />
 
       <NodeViewContent
         as="div"
-        data-placeholder={placeholderText || undefined}
         style={{
           display: 'inline',
           minWidth: '1ch',
-          position: 'relative', // For CSS ::before placeholder
         }}
       />
-      <BlockTagEditor 
-        tags={tags} 
+      <BlockTagEditor
+        tags={tags}
         onUpdate={handleUpdateTags}
         onTagClick={(editor as any).onTagClick}
       />
-      {/* Placeholder now handled by CSS via data-placeholder attribute */}
 
       {/* Block selection halo */}
       <BlockSelectionHalo isSelected={isSelected} indent={indent} />
@@ -137,4 +151,3 @@ export function ParagraphBlock({ node, editor, getPos, updateAttributes }: NodeV
     </NodeViewWrapper>
   );
 }
-

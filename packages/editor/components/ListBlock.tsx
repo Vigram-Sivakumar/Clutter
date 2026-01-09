@@ -333,7 +333,10 @@ export function ListBlock({
     return hiddenByTask || hiddenByToggle;
   }, [editor, getPos, level, parentToggleId, editor.state.doc]);
 
-  // Get placeholder text (CSS handles visibility)
+  // Canonical emptiness check (ProseMirror source of truth)
+  const isEmpty = node.content.size === 0;
+
+  // Placeholder text (includes focus detection via usePlaceholder)
   const placeholderText = usePlaceholder({ node, editor, getPos });
 
   // Get priority level from attribute (set when user types ! and presses space)
@@ -588,6 +591,8 @@ export function ListBlock({
       data-collapsed={collapsed}
       data-parent-toggle-id={parentToggleId}
       data-hidden={isHidden}
+      data-empty={isEmpty ? 'true' : undefined}
+      data-placeholder={placeholderText || undefined}
       className="block-handle-wrapper"
       style={{
         position: 'relative',
@@ -646,13 +651,9 @@ export function ListBlock({
           <MarkerContainer>{renderMarkerContent()}</MarkerContainer>
         </div>
 
-        {/* Content with placeholder */}
-        <div style={{ ...contentStyle, position: 'relative' }}>
-          <NodeViewContent
-            as="div"
-            data-placeholder={placeholderText || undefined}
-          />
-          {/* Placeholder now handled by CSS via data-placeholder attribute */}
+        {/* Content */}
+        <div style={contentStyle}>
+          <NodeViewContent as="div" />
         </div>
       </div>
 

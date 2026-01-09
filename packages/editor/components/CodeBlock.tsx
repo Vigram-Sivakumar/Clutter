@@ -6,7 +6,7 @@
  * No margin - parent handles spacing via gap.
  */
 
-import React, { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { NodeViewWrapper, NodeViewContent } from '@tiptap/react';
 import type { NodeViewProps } from '@tiptap/react';
 import { useTheme } from '@clutter/ui';
@@ -48,7 +48,10 @@ export function CodeBlock({
     nodeSize: node.nodeSize,
   });
 
-  // Get placeholder text (CSS handles visibility) - use custom text for code blocks
+  // Canonical emptiness check (ProseMirror source of truth)
+  const isEmpty = node.content.size === 0;
+
+  // Placeholder text (includes focus detection via usePlaceholder)
   const placeholderText = usePlaceholder({
     node,
     editor,
@@ -94,6 +97,8 @@ export function CodeBlock({
       data-type="codeBlock"
       data-language={language}
       data-parent-toggle-id={parentToggleId}
+      data-empty={isEmpty ? 'true' : undefined}
+      data-placeholder={placeholderText || undefined}
       data-level={level}
       data-hidden={isHidden}
       className="block-handle-wrapper"
@@ -146,14 +151,12 @@ export function CodeBlock({
       >
         <CodeIcon size={16} />
       </div>
-      {/* Code content with placeholder */}
-      <div style={{ position: 'relative', flex: 1 }}>
+      {/* Code content */}
+      <div style={{ flex: 1 }}>
         <NodeViewContent
           as="code"
-          data-placeholder={placeholderText || undefined}
           style={{
             display: 'block',
-            position: 'relative', // For CSS ::before placeholder
             fontFamily:
               'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace',
             fontSize: 14,
@@ -162,7 +165,6 @@ export function CodeBlock({
             whiteSpace: 'pre',
           }}
         />
-        {/* Placeholder now handled by CSS via data-placeholder attribute */}
       </div>
 
       {/* Block selection halo */}
