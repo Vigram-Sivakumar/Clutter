@@ -397,6 +397,9 @@ export class MoveBlockCommand implements EditorCommand {
   /**
    * Update ProseMirror node's parentBlockId attribute
    * BlockIdGenerator will automatically sync level based on this
+   *
+   * CRITICAL: Also restores cursor to the moved block to prevent
+   * selection from becoming stale/stuck in child blocks
    */
   private updatePMParentBlockId(
     blockId: BlockId,
@@ -406,7 +409,7 @@ export class MoveBlockCommand implements EditorCommand {
 
     const { state, view } = this.editor;
     const tr = state.tr;
-    let found = false;
+    let blockPos: number | null = null;
 
     state.doc.descendants((node: any, pos: number) => {
       if (node.attrs?.blockId === blockId) {
@@ -414,14 +417,23 @@ export class MoveBlockCommand implements EditorCommand {
           ...node.attrs,
           parentBlockId: newParentId,
         });
-        found = true;
+        blockPos = pos;
         return false; // Stop traversing
       }
       return true;
     });
 
-    if (found) {
+    if (blockPos !== null) {
       view.dispatch(tr);
+
+      // Restore cursor to the moved block after PM processes the change
+      requestAnimationFrame(() => {
+        if (!this.editor) return;
+
+        // Use TipTap's high-level command to set cursor position
+        this.editor.commands.focus();
+        this.editor.commands.setTextSelection(blockPos + 1);
+      });
     }
   }
 
