@@ -434,7 +434,7 @@ export class IntentResolver {
     this._engine.dispatch(
       new MoveBlockCommand(
         blockId,
-        parent.id,
+        parent.id || null,
         index,
         previousSiblingId,
         newIndex
@@ -502,9 +502,9 @@ export class IntentResolver {
     this._engine.dispatch(
       new MoveBlockCommand(
         blockId,
-        parent.id,
+        parent.id || null,
         currentIndex,
-        grandParent.id,
+        grandParent.id || null,
         parentIndex + 1
       )
     );
