@@ -1,6 +1,6 @@
 /**
  * BlockIdGenerator Extension
- * 
+ *
  * Automatically generates blockId for all blocks that don't have one.
  * Runs as a ProseMirror plugin that intercepts every transaction.
  */
@@ -12,9 +12,7 @@ import { Plugin, PluginKey } from '@tiptap/pm/state';
 const MAX_INDENT_LEVEL = 4;
 
 // Blocks that should NOT be counted as structural parents for level computation
-const NON_STRUCTURAL_PARENTS = new Set([
-  'toggleHeader',
-]);
+const NON_STRUCTURAL_PARENTS = new Set(['toggleHeader']);
 
 export const BlockIdGenerator = Extension.create({
   name: 'blockIdGenerator',
@@ -23,21 +21,21 @@ export const BlockIdGenerator = Extension.create({
     return [
       new Plugin({
         key: new PluginKey('blockIdGenerator'),
-        
+
         appendTransaction: (transactions, _oldState, newState) => {
           // Only process transactions that actually changed the document
-          const docChanged = transactions.some(tr => tr.docChanged);
+          const docChanged = transactions.some((tr) => tr.docChanged);
           if (!docChanged) return null;
-          
+
           // SAFETY: Skip if this is our own transaction (prevent infinite loop)
-          if (transactions.some(tr => tr.getMeta('blockIdGenerator'))) {
+          if (transactions.some((tr) => tr.getMeta('blockIdGenerator'))) {
             return null;
           }
 
           const tr = newState.tr;
-          tr.setMeta('blockIdGenerator', true);  // Mark as our transaction
+          tr.setMeta('blockIdGenerator', true); // Mark as our transaction
           let modified = false;
-          
+
           // Track level updates within this transaction
           // This ensures children use parent's NEW level, not old level from document
           const levelUpdates = new Map<string, number>();
@@ -45,17 +43,18 @@ export const BlockIdGenerator = Extension.create({
           // Helper: Compute level as parent's level + 1
           const computeLevel = (blockNode: any): number => {
             const parentBlockId = blockNode.attrs.parentBlockId;
-            
-            // No parent → level 0 (root)
-            if (!parentBlockId) return 0;
-            
+
+            // No parent OR parent is root → level 0
+            // Root is a virtual container, not a real block, so don't attempt lookup
+            if (!parentBlockId || parentBlockId === 'root') return 0;
+
             // Check if parent's level was updated in THIS transaction
             if (levelUpdates.has(parentBlockId)) {
               const parentLevel = levelUpdates.get(parentBlockId)!;
               const computedLevel = parentLevel + 1;
               return Math.min(computedLevel, MAX_INDENT_LEVEL);
             }
-            
+
             // Find the immediate parent in the document
             let parentNode: any = null;
             newState.doc.descendants((node: any) => {
@@ -90,21 +89,21 @@ export const BlockIdGenerator = Extension.create({
           newState.doc.descendants((node, pos) => {
             // Only process nodes that have blockId attribute defined in their schema
             if (!node.attrs || node.attrs.blockId === undefined) return;
-            
+
             // Add blockId if missing
             const currentBlockId = node.attrs.blockId;
             if (!currentBlockId || currentBlockId === '') {
               const newBlockId = crypto.randomUUID();
-              
+
               tr.setNodeMarkup(pos, undefined, {
                 ...node.attrs,
                 blockId: newBlockId,
               });
-              
+
               modified = true;
-              return;  // Skip level sync for this node (do it next time)
+              return; // Skip level sync for this node (do it next time)
             }
-            
+
             // HARD CLEANUP: illegal parentBlockId
             if (node.attrs.parentBlockId === node.attrs.blockId) {
               tr.setNodeMarkup(pos, undefined, {
@@ -121,17 +120,17 @@ export const BlockIdGenerator = Extension.create({
             // - If parentBlockId is null: level = 0 (root)
             const correctLevel = computeLevel(node);
             const currentLevel = node.attrs.level || 0;
-            
+
             // Only sync if different
             if (currentLevel !== correctLevel) {
               tr.setNodeMarkup(pos, undefined, {
                 ...node.attrs,
                 level: correctLevel,
               });
-              
+
               // Track this level update so children can use the new value
               levelUpdates.set(node.attrs.blockId, correctLevel);
-              
+
               modified = true;
             } else {
               // Track current level so children can reference it
@@ -153,24 +152,25 @@ export const BlockIdGenerator = Extension.create({
       const { state } = this.editor;
       const tr = state.tr;
       let modified = false;
-      
+
       // Track level updates within this transaction
       const levelUpdates = new Map<string, number>();
 
       // Helper: Compute level as parent's level + 1, capped at MAX_INDENT_LEVEL
       const computeLevel = (blockNode: any): number => {
         const parentBlockId = blockNode.attrs.parentBlockId;
-        
-        // No parent → level 0 (root)
-        if (!parentBlockId) return 0;
-        
+
+        // No parent OR parent is root → level 0
+        // Root is a virtual container, not a real block, so don't attempt lookup
+        if (!parentBlockId || parentBlockId === 'root') return 0;
+
         // Check if parent's level was updated in THIS transaction
         if (levelUpdates.has(parentBlockId)) {
           const parentLevel = levelUpdates.get(parentBlockId)!;
           const computedLevel = parentLevel + 1;
           return Math.min(computedLevel, MAX_INDENT_LEVEL);
         }
-        
+
         // Find the immediate parent in the document
         let parentNode: any = null;
         state.doc.descendants((node: any) => {
@@ -204,37 +204,37 @@ export const BlockIdGenerator = Extension.create({
       state.doc.descendants((node, pos) => {
         // Only process nodes that have blockId attribute defined in their schema
         if (!node.attrs || node.attrs.blockId === undefined) return;
-        
+
         const currentBlockId = node.attrs.blockId;
-        
+
         // Add blockId if missing
         if (!currentBlockId || currentBlockId === '') {
           const newBlockId = crypto.randomUUID();
-          
+
           tr.setNodeMarkup(pos, undefined, {
             ...node.attrs,
             blockId: newBlockId,
           });
-          
+
           modified = true;
         }
-        
+
         // ✅ ALWAYS sync level based on parentBlockId
         // - If parentBlockId exists: level = parent's level + 1
         // - If parentBlockId is null: level = 0 (root)
         if (node.attrs.level !== undefined) {
           const correctLevel = computeLevel(node);
           const currentLevel = node.attrs.level || 0;
-          
+
           if (currentLevel !== correctLevel) {
             tr.setNodeMarkup(pos, undefined, {
               ...node.attrs,
               level: correctLevel,
             });
-            
+
             // Track this level update so children can use the new value
             levelUpdates.set(node.attrs.blockId, correctLevel);
-            
+
             modified = true;
           } else {
             // Track current level so children can reference it
