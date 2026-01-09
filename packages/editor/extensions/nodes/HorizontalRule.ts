@@ -1,19 +1,33 @@
 /**
  * HorizontalRule Node - Divider line
- * 
+ *
  * Block element that creates a horizontal divider.
  * - Markdown: --- (plain) or *** (wavy)
  * - Not editable (void node)
  * - Supports two styles: 'plain' and 'wavy'
- * 
+ *
+ * INTEGRATION STATUS: ✅ Uses engine.deleteBlock() primitive
+ * - Routes deletions through EditorEngine (Editor Law #8)
+ * - Children are promoted (never orphaned)
+ *
  * Uses React NodeView with inline SVG for theme-aware colors.
  */
 
 import { Node } from '@tiptap/core';
 import { ReactNodeViewRenderer } from '@tiptap/react';
 import { HorizontalRule as HorizontalRuleComponent } from '../../components/HorizontalRule';
+import type { EditorEngine } from '../../core/engine/EditorEngine';
+import { DeleteBlockCommand } from '../../core/engine/command';
+
+/**
+ * Get EditorEngine from TipTap editor instance
+ */
+function getEngine(editor: any): EditorEngine | null {
+  return editor._engine || null;
+}
 
 declare module '@tiptap/core' {
+  // eslint-disable-next-line no-unused-vars
   interface Commands<ReturnType> {
     horizontalRule: {
       /**
@@ -53,8 +67,11 @@ export const HorizontalRule = Node.create({
       },
       fullWidth: {
         default: true,
-        parseHTML: (element) => element.getAttribute('data-full-width') === 'true',
-        renderHTML: (attributes) => ({ 'data-full-width': attributes.fullWidth }),
+        parseHTML: (element) =>
+          element.getAttribute('data-full-width') === 'true',
+        renderHTML: (attributes) => ({
+          'data-full-width': attributes.fullWidth,
+        }),
       },
       color: {
         default: 'default',
@@ -71,13 +88,17 @@ export const HorizontalRule = Node.create({
         default: null,
         parseHTML: (element) => element.getAttribute('data-parent-block-id'),
         renderHTML: (attributes) =>
-          attributes.parentBlockId ? { 'data-parent-block-id': attributes.parentBlockId } : {},
+          attributes.parentBlockId
+            ? { 'data-parent-block-id': attributes.parentBlockId }
+            : {},
       },
       parentToggleId: {
         default: null,
         parseHTML: (element) => element.getAttribute('data-parent-toggle-id'),
         renderHTML: (attributes) =>
-          attributes.parentToggleId ? { 'data-parent-toggle-id': attributes.parentToggleId } : {},
+          attributes.parentToggleId
+            ? { 'data-parent-toggle-id': attributes.parentToggleId }
+            : {},
       },
     };
   },
@@ -108,7 +129,10 @@ export const HorizontalRule = Node.create({
           const endPos = $from.end();
 
           return chain()
-            .insertContentAt(endPos, { type: this.name, attrs: { style: 'plain' } })
+            .insertContentAt(endPos, {
+              type: this.name,
+              attrs: { style: 'plain' },
+            })
             .run();
         },
 
@@ -120,7 +144,10 @@ export const HorizontalRule = Node.create({
           const endPos = $from.end();
 
           return chain()
-            .insertContentAt(endPos, { type: this.name, attrs: { style: 'wavy' } })
+            .insertContentAt(endPos, {
+              type: this.name,
+              attrs: { style: 'wavy' },
+            })
             .run();
         },
     };
@@ -133,7 +160,24 @@ export const HorizontalRule = Node.create({
         const { selection } = this.editor.state;
         // Check if HR is selected (NodeSelection)
         if (selection.node?.type.name === this.name) {
-          this.editor.commands.deleteSelection();
+          const blockId = selection.node.attrs?.blockId;
+          const engine = getEngine(this.editor);
+
+          if (!engine) {
+            console.error('[HorizontalRule.Backspace] EditorEngine not found');
+            return false;
+          }
+
+          if (!blockId) {
+            console.warn('[HorizontalRule.Backspace] No blockId found');
+            return false;
+          }
+
+          // ✅ USE ENGINE PRIMITIVE: Delete HR via DeleteBlockCommand
+          // This ensures children are promoted (Editor Law #8)
+          console.log(`[HorizontalRule.Backspace] Deleting HR: ${blockId}`);
+          const cmd = new DeleteBlockCommand(blockId);
+          engine.dispatch(cmd);
           return true;
         }
         return false;
@@ -141,7 +185,24 @@ export const HorizontalRule = Node.create({
       Delete: () => {
         const { selection } = this.editor.state;
         if (selection.node?.type.name === this.name) {
-          this.editor.commands.deleteSelection();
+          const blockId = selection.node.attrs?.blockId;
+          const engine = getEngine(this.editor);
+
+          if (!engine) {
+            console.error('[HorizontalRule.Delete] EditorEngine not found');
+            return false;
+          }
+
+          if (!blockId) {
+            console.warn('[HorizontalRule.Delete] No blockId found');
+            return false;
+          }
+
+          // ✅ USE ENGINE PRIMITIVE: Delete HR via DeleteBlockCommand
+          // This ensures children are promoted (Editor Law #8)
+          console.log(`[HorizontalRule.Delete] Deleting HR: ${blockId}`);
+          const cmd = new DeleteBlockCommand(blockId);
+          engine.dispatch(cmd);
           return true;
         }
         return false;
