@@ -25,7 +25,10 @@ import {
 } from './command';
 
 export class IntentResolver {
-  constructor(private _engine: EditorEngine) {}
+  constructor(
+    private _engine: EditorEngine,
+    private _editor?: any // Optional TipTap editor for PM sync
+  ) {}
 
   /**
    * Resolve an intent into commands
@@ -477,6 +480,7 @@ export class IntentResolver {
         newIndex,
         intentCategory: 'block-indent',
         engine: this._engine,
+        editor: this._editor, // 🔥 Pass editor to update PM attributes
       })
     );
 
@@ -547,6 +551,7 @@ export class IntentResolver {
         newIndex: parentIndex + 1,
         intentCategory: 'block-outdent',
         engine: this._engine,
+        editor: this._editor, // 🔥 Pass editor to update PM attributes
       })
     );
 

@@ -290,6 +290,7 @@ export class MoveBlockCommand implements EditorCommand {
     newIndex: number;
     intentCategory?: IntentCategory;
     engine: EditorEngine;
+    editor?: any; // Optional TipTap editor to sync PM attributes
   }) {
     const {
       blockId,
@@ -299,7 +300,10 @@ export class MoveBlockCommand implements EditorCommand {
       newIndex,
       intentCategory = 'block-move',
       engine,
+      editor,
     } = params;
+
+    this.editor = editor;
 
     this.description = `Move block ${blockId} from ${oldParentId}[${oldIndex}] to ${newParentId}[${newIndex}]`;
 
@@ -356,6 +360,7 @@ export class MoveBlockCommand implements EditorCommand {
   private oldIndex: number;
   private newParentId: BlockId | null;
   private newIndex: number;
+  private editor?: any; // Optional TipTap editor
 
   apply(engine: EditorEngine): void {
     const block = engine.tree.nodes[this.blockId];
@@ -377,10 +382,47 @@ export class MoveBlockCommand implements EditorCommand {
 
     block.parentId = this.newParentId;
 
+    // 🔥 SYNC TO PROSEMIRROR: Update parentBlockId attribute
+    // BlockIdGenerator will automatically update level based on this
+    if (this.editor && this.editor.state) {
+      this.updatePMParentBlockId(this.blockId, this.newParentId);
+    }
+
     // Restore after-state (cursor + selection)
     engine.selection = this.metadata.afterSelection;
     engine.focus = this.metadata.afterFocus;
     engine.cursor = this.metadata.afterCursor;
+  }
+
+  /**
+   * Update ProseMirror node's parentBlockId attribute
+   * BlockIdGenerator will automatically sync level based on this
+   */
+  private updatePMParentBlockId(
+    blockId: BlockId,
+    newParentId: BlockId | null
+  ): void {
+    if (!this.editor) return;
+
+    const { state, view } = this.editor;
+    const tr = state.tr;
+    let found = false;
+
+    state.doc.descendants((node: any, pos: number) => {
+      if (node.attrs?.blockId === blockId) {
+        tr.setNodeMarkup(pos, undefined, {
+          ...node.attrs,
+          parentBlockId: newParentId,
+        });
+        found = true;
+        return false; // Stop traversing
+      }
+      return true;
+    });
+
+    if (found) {
+      view.dispatch(tr);
+    }
   }
 
   undo(engine: EditorEngine): void {
@@ -402,6 +444,11 @@ export class MoveBlockCommand implements EditorCommand {
     }
 
     block.parentId = this.oldParentId;
+
+    // 🔥 SYNC TO PROSEMIRROR: Restore old parentBlockId
+    if (this.editor && this.editor.state) {
+      this.updatePMParentBlockId(this.blockId, this.oldParentId);
+    }
 
     // Restore before-state (cursor + selection)
     engine.selection = this.metadata.beforeSelection;

@@ -336,7 +336,7 @@ function createBridge(editor: Editor): BridgeState {
   // Initialize engine with current ProseMirror document
   const initialTree = proseMirrorDocToBlockTree(editor.state.doc);
   const engine = new EditorEngine(initialTree);
-  const resolver = new IntentResolver(engine);
+  const resolver = new IntentResolver(engine, editor); // Pass editor for PM sync
 
   // Update source tracker
   const updateSource: { current: UpdateSource } = { current: null };
