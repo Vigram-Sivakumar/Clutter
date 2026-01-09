@@ -14,11 +14,11 @@ import {
   createSiblingAttrs,
   findAncestorNode,
   handleEmptyBlockInToggle,
-  indentBlock,
-  outdentBlock,
 } from '../../utils/keyboardHelpers';
 import { HASHTAG_REGEX, insertTag } from '@clutter/ui';
 import { BackspaceRules } from '../../utils/keyboardRules';
+
+// NOTE: indentBlock/outdentBlock removed - now handled via keyboard rules
 import {
   handleArrowLeft,
   handleArrowRight,
@@ -148,33 +148,9 @@ export const Paragraph = Node.create({
       // Cmd/Ctrl+Alt+0 to convert to paragraph
       'Mod-Alt-0': () => this.editor.commands.setParagraph(),
 
-      // Tab: Indent paragraph
-      Tab: ({ editor }) => {
-        const { state } = editor;
-        const { $from } = state.selection;
-
-        // Find paragraph position
-        if ($from.parent.type.name === 'paragraph') {
-          const paragraphPos = $from.before();
-          const paragraphNode = $from.parent;
-          return indentBlock(editor, paragraphPos, paragraphNode);
-        }
-        return false;
-      },
-
-      // Shift-Tab: Outdent paragraph
-      'Shift-Tab': ({ editor }) => {
-        const { state } = editor;
-        const { $from } = state.selection;
-
-        // Find paragraph position
-        if ($from.parent.type.name === 'paragraph') {
-          const paragraphPos = $from.before();
-          const paragraphNode = $from.parent;
-          return outdentBlock(editor, paragraphPos, paragraphNode);
-        }
-        return false;
-      },
+      // NOTE: Tab / Shift+Tab behavior is centrally handled
+      // via keyboard rules emitting indent-block / outdent-block intents.
+      // Node extensions must not handle structural keyboard logic.
 
       // Shift+Enter: Insert line break (soft break)
       'Shift-Enter': ({ editor }) => {

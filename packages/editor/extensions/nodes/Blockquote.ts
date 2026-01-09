@@ -15,10 +15,10 @@ import {
   createShiftEnterHandler, 
   createWrapperEnterHandler, 
   createWrapperBackspaceHandler,
-  indentBlock,
-  outdentBlock
 } from '../../utils/keyboardHelpers';
 import { EnterRules } from '../../utils/keyboardRules';
+
+// NOTE: indentBlock/outdentBlock removed - now handled via keyboard rules
 
 declare module '@tiptap/core' {
   interface Commands<ReturnType> {
@@ -134,21 +134,9 @@ export const Blockquote = Node.create({
     return {
       'Mod-Shift-b': () => this.editor.commands.toggleBlockquote(),
 
-      // Tab: Indent blockquote
-      Tab: ({ editor }) => {
-        const context = EnterRules.getWrapperBlockContext(editor, 'blockquote');
-        if (!context.inWrapper) return false;
-        
-        return indentBlock(editor, context.wrapperPos!, context.wrapperNode!);
-      },
-
-      // Shift-Tab: Outdent blockquote
-      'Shift-Tab': ({ editor }) => {
-        const context = EnterRules.getWrapperBlockContext(editor, 'blockquote');
-        if (!context.inWrapper) return false;
-        
-        return outdentBlock(editor, context.wrapperPos!, context.wrapperNode!);
-      },
+      // NOTE: Tab / Shift+Tab behavior is centrally handled
+      // via keyboard rules emitting indent-block / outdent-block intents.
+      // Node extensions must not handle structural keyboard logic.
 
       // Shift+Enter: Insert line break (hard break)
       'Shift-Enter': createShiftEnterHandler('blockquote'),

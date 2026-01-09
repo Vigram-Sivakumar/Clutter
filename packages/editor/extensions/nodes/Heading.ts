@@ -18,10 +18,10 @@ import {
   convertEmptyBlockToParagraph,
   insertParagraphAfterBlock,
   handleEmptyBlockInToggle,
-  indentBlock,
-  outdentBlock,
 } from '../../utils/keyboardHelpers';
 import { EnterRules, BackspaceRules } from '../../utils/keyboardRules';
+
+// NOTE: indentBlock/outdentBlock removed - now handled via keyboard rules
 import {
   handleArrowLeft,
   handleArrowRight,
@@ -167,29 +167,9 @@ export const Heading = Node.create({
       'Mod-Alt-3': () =>
         this.editor.commands.toggleHeading({ headingLevel: 3 }),
 
-      // Tab: Indent heading
-      Tab: ({ editor }) => {
-        const headingContext = EnterRules.isInHeading(editor);
-        if (!headingContext.inHeading) return false;
-
-        return indentBlock(
-          editor,
-          headingContext.headingPos!,
-          headingContext.headingNode!
-        );
-      },
-
-      // Shift-Tab: Outdent heading
-      'Shift-Tab': ({ editor }) => {
-        const headingContext = EnterRules.isInHeading(editor);
-        if (!headingContext.inHeading) return false;
-
-        return outdentBlock(
-          editor,
-          headingContext.headingPos!,
-          headingContext.headingNode!
-        );
-      },
+      // NOTE: Tab / Shift+Tab behavior is centrally handled
+      // via keyboard rules emitting indent-block / outdent-block intents.
+      // Node extensions must not handle structural keyboard logic.
 
       // Shift+Enter: Insert line break (soft break)
       'Shift-Enter': ({ editor }) => {

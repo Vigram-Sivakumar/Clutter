@@ -7,11 +7,13 @@
  * - Dark background
  */
 
-import { Node, mergeAttributes, textblockTypeInputRule } from '@tiptap/core';
+import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer } from '@tiptap/react';
 import { TextSelection } from '@tiptap/pm/state';
 import { CodeBlock as CodeBlockComponent } from '../../components/CodeBlock';
-import { createSiblingAttrs, handleEmptyBlockInToggle, indentBlock, outdentBlock } from '../../utils/keyboardHelpers';
+import { createSiblingAttrs, handleEmptyBlockInToggle } from '../../utils/keyboardHelpers';
+
+// NOTE: indentBlock/outdentBlock removed - now handled via keyboard rules
 
 declare module '@tiptap/core' {
   interface Commands<ReturnType> {
@@ -141,38 +143,12 @@ export const CodeBlock = Node.create({
     return {
       'Mod-Alt-c': () => this.editor.commands.toggleCodeBlock(),
       
-      // Tab inside code block inserts actual tab
+      // NOTE: Tab inside code blocks has special behavior (inserts literal tab).
+      // This is preserved as it's content editing, not structural.
+      // Structural indent/outdent via keyboard rules (indent-block/outdent-block intents).
       Tab: ({ editor }) => {
         if (!editor.isActive('codeBlock')) return false;
         return editor.commands.insertContent('\t');
-      },
-
-      // Alt-Tab: Indent the whole code block
-      'Alt-Tab': ({ editor }) => {
-        if (!editor.isActive('codeBlock')) return false;
-        
-        const { state } = editor;
-        const { $from } = state.selection;
-        const codeBlockDepth = $from.depth;
-        const codeBlockPos = $from.before(codeBlockDepth);
-        const codeBlockNode = state.doc.nodeAt(codeBlockPos);
-        
-        if (!codeBlockNode) return false;
-        return indentBlock(editor, codeBlockPos, codeBlockNode);
-      },
-
-      // Alt-Shift-Tab: Outdent the whole code block
-      'Alt-Shift-Tab': ({ editor }) => {
-        if (!editor.isActive('codeBlock')) return false;
-        
-        const { state } = editor;
-        const { $from } = state.selection;
-        const codeBlockDepth = $from.depth;
-        const codeBlockPos = $from.before(codeBlockDepth);
-        const codeBlockNode = state.doc.nodeAt(codeBlockPos);
-        
-        if (!codeBlockNode) return false;
-        return outdentBlock(editor, codeBlockPos, codeBlockNode);
       },
 
       // Shift+Enter: Insert newline (same as Enter for code blocks)

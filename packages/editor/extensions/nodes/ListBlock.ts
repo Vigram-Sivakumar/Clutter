@@ -19,12 +19,14 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer } from '@tiptap/react';
 import { TextSelection } from '@tiptap/pm/state';
-import { spacing, sizing } from '../../tokens';
+import { spacing } from '../../tokens';
 import type { ListType, ListBlockAttrs } from '../../types';
 import { ListBlock as ListBlockComponent } from '../../components/ListBlock';
-import { createShiftEnterHandler, createSiblingAttrs, findAncestorNode, handleEmptyBlockInToggle, indentBlock, outdentBlock } from '../../utils/keyboardHelpers';
-import { EnterRules, BackspaceRules } from '../../utils/keyboardRules';
-import { handleEnter, handleArrowLeft, handleArrowRight, handleArrowUp, handleArrowDown } from '../../plugins/keyboard'; // NEW: Use rule engine
+import { createShiftEnterHandler, createSiblingAttrs } from '../../utils/keyboardHelpers';
+import { BackspaceRules } from '../../utils/keyboardRules';
+import { handleEnter, handleArrowLeft, handleArrowRight, handleArrowUp, handleArrowDown } from '../../plugins/keyboard';
+
+// NOTE: indentBlock/outdentBlock removed - now handled via keyboard rules
 
 declare module '@tiptap/core' {
   interface Commands<ReturnType> {
@@ -195,34 +197,9 @@ export const ListBlock = Node.create({
       // Shift+Enter: Insert line break (soft break)
       'Shift-Enter': createShiftEnterHandler('listBlock'),
 
-      Tab: ({ editor }) => {
-        const { state } = editor;
-        const { $from } = state.selection;
-        
-        // Find listBlock position
-        for (let d = $from.depth; d >= 1; d--) {
-          const pos = $from.before(d);
-          const node = state.doc.nodeAt(pos);
-          if (node && node.type.name === 'listBlock') {
-            return indentBlock(editor, pos, node);
-          }
-        }
-        return false;
-      },
-      'Shift-Tab': ({ editor }) => {
-        const { state } = editor;
-        const { $from } = state.selection;
-        
-        // Find listBlock position
-        for (let d = $from.depth; d >= 1; d--) {
-          const pos = $from.before(d);
-          const node = state.doc.nodeAt(pos);
-          if (node && node.type.name === 'listBlock') {
-            return outdentBlock(editor, pos, node);
-          }
-        }
-        return false;
-      },
+      // NOTE: Tab / Shift+Tab behavior is centrally handled
+      // via keyboard rules emitting indent-block / outdent-block intents.
+      // Node extensions must not handle structural keyboard logic.
 
       Enter: ({ editor }) => {
         // NEW: Use rule engine for Enter behavior
@@ -262,8 +239,9 @@ export const ListBlock = Node.create({
         const listBlockNode = listBlock.node;
 
         // Case 1: Should outdent (level > 0)
+        // NOTE: This is now handled via keyboard rules (outdent-block intent)
         if (context.shouldOutdent) {
-          return outdentBlock(editor, listBlockPos, listBlockNode);
+          return false; // Let keyboard rules handle it
         }
 
         // Case 2: Should convert to paragraph (level 0, empty)

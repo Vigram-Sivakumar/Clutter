@@ -5,18 +5,17 @@
  * Contains inline content (text with marks).
  */
 
-import { Node, mergeAttributes } from '@tiptap/core';
+import { Node, mergeAttributes } from '@tiptap/react';
 import { ReactNodeViewRenderer } from '@tiptap/react';
-import { TextSelection } from '@tiptap/pm/state';
 import { Callout as CalloutComponent } from '../../components/Callout';
 import { 
   createShiftEnterHandler, 
   createWrapperEnterHandler, 
   createWrapperBackspaceHandler,
-  indentBlock,
-  outdentBlock
 } from '../../utils/keyboardHelpers';
 import { EnterRules } from '../../utils/keyboardRules';
+
+// NOTE: indentBlock/outdentBlock removed - now handled via keyboard rules
 
 export interface CalloutAttrs {
   type: 'info' | 'warning' | 'error' | 'success';
@@ -106,22 +105,10 @@ export const Callout = Node.create({
     };
   },
   addKeyboardShortcuts() {
+    // NOTE: Tab / Shift+Tab behavior is centrally handled
+    // via keyboard rules emitting indent-block / outdent-block intents.
+    // Node extensions must not handle structural keyboard logic.
     return {
-      // Tab: Indent callout
-      Tab: ({ editor }) => {
-        const context = EnterRules.getWrapperBlockContext(editor, 'callout');
-        if (!context.inWrapper) return false;
-        
-        return indentBlock(editor, context.wrapperPos!, context.wrapperNode!);
-      },
-
-      // Shift-Tab: Outdent callout
-      'Shift-Tab': ({ editor }) => {
-        const context = EnterRules.getWrapperBlockContext(editor, 'callout');
-        if (!context.inWrapper) return false;
-        
-        return outdentBlock(editor, context.wrapperPos!, context.wrapperNode!);
-      },
 
       'Shift-Enter': createShiftEnterHandler('callout'),
       

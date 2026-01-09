@@ -15,10 +15,12 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer } from '@tiptap/react';
 import { TextSelection } from '@tiptap/pm/state';
-import { spacing, sizing } from '../../tokens';
+import { spacing } from '../../tokens';
 import { ToggleHeader as ToggleHeaderComponent } from '../../components/ToggleHeader';
-import { createShiftEnterHandler, createSiblingAttrs, indentBlock, outdentBlock } from '../../utils/keyboardHelpers';
-import { EnterRules, BackspaceRules } from '../../utils/keyboardRules';
+import { createShiftEnterHandler, createSiblingAttrs } from '../../utils/keyboardHelpers';
+import { BackspaceRules } from '../../utils/keyboardRules';
+
+// NOTE: indentBlock/outdentBlock removed - now handled via keyboard rules
 
 export interface ToggleHeaderAttrs {
   blockId: string;
@@ -189,16 +191,9 @@ export const ToggleHeader = Node.create({
       // Shift+Enter: Insert line break (soft break)
       'Shift-Enter': createShiftEnterHandler('toggleHeader'),
 
-      Tab: ({ editor }) => {
-        const context = EnterRules.getWrapperBlockContext(editor, 'toggleHeader');
-        if (!context.inWrapper) return false;
-        return indentBlock(editor, context.wrapperPos!, context.wrapperNode!);
-      },
-      'Shift-Tab': ({ editor }) => {
-        const context = EnterRules.getWrapperBlockContext(editor, 'toggleHeader');
-        if (!context.inWrapper) return false;
-        return outdentBlock(editor, context.wrapperPos!, context.wrapperNode!);
-      },
+      // NOTE: Tab / Shift+Tab behavior is centrally handled
+      // via keyboard rules emitting indent-block / outdent-block intents.
+      // Node extensions must not handle structural keyboard logic.
 
       Enter: ({ editor }) => {
         const { state } = editor;
