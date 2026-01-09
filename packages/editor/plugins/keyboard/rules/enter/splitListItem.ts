@@ -67,27 +67,24 @@ export const splitListItem = defineRule({
     // Split the content at cursor
     const contentAfter = listBlockNode.content.cut(cursorPosInBlock);
 
+    // FIXED: Single atomic transaction to prevent extra block creation
     return editor
       .chain()
-      .command(({ tr }) => {
-        // Update current block with "before" content
-        tr.setNodeMarkup(listBlockPos, undefined, attrs);
-
-        // Delete content after cursor in current block
+      .command(({ tr, state: cmdState }) => {
+        // Step 1: Delete content after cursor in current block
         if (contentAfter.size > 0) {
           const deleteFrom = listBlockPos + 1 + cursorPosInBlock;
           const deleteTo = deleteFrom + contentAfter.size;
           tr.delete(deleteFrom, deleteTo);
         }
 
-        return true;
-      })
-      .command(({ tr }) => {
-        // Insert new list item after current one with "after" content
-        const insertPos =
-          listBlockPos + listBlockNode.nodeSize - contentAfter.size;
+        // Step 2: Calculate insert position AFTER deletion
+        // Current block now ends at: listBlockPos + 1 + cursorPosInBlock + 1 (closing)
+        // We want to insert right after the current block
+        const currentBlockEndPos = listBlockPos + cursorPosInBlock + 2;
 
-        const newListBlock = state.schema.nodes.listBlock.create(
+        // Step 3: Create and insert new list item with "after" content
+        const newListBlock = cmdState.schema.nodes.listBlock.create(
           {
             blockId: crypto.randomUUID(),
             listType: attrs.listType,
@@ -99,14 +96,20 @@ export const splitListItem = defineRule({
           contentAfter
         );
 
-        tr.insert(insertPos, newListBlock);
+        tr.insert(currentBlockEndPos, newListBlock);
 
-        // Move cursor to start of new list item
-        tr.setSelection(
-          state.schema.nodes.listBlock.spec.content
-            ? state.selection.constructor.near(tr.doc.resolve(insertPos + 1))
-            : state.selection
-        );
+        // Step 4: Position cursor at start of new list item (inside the content)
+        // New block starts at currentBlockEndPos
+        // Content starts at currentBlockEndPos + 1
+        const newCursorPos = currentBlockEndPos + 1;
+
+        try {
+          const $pos = tr.doc.resolve(newCursorPos);
+          tr.setSelection(cmdState.selection.constructor.near($pos));
+        } catch (e) {
+          // Fallback: just put cursor at the position
+          console.warn('[splitListItem] Could not set selection:', e);
+        }
 
         return true;
       })
