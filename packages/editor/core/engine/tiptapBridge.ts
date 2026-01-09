@@ -56,12 +56,26 @@ function proseMirrorDocToBlockTree(pmDoc: any): BlockTree {
   };
 
   // Recursively walk the ProseMirror document
-  function walkPMNode(pmNode: any, parentId: BlockId = rootId): void {
+  function walkPMNode(
+    pmNode: any,
+    parentId: BlockId = rootId,
+    depth: number = 0
+  ): void {
+    // DEBUG: Log every node we encounter
+    const indent = '  '.repeat(depth);
+    console.log(`[Bridge] ${indent}Walking node:`, {
+      type: pmNode.type.name,
+      hasBlockId: !!pmNode.attrs?.blockId,
+      blockId: pmNode.attrs?.blockId || 'none',
+      contentSize: pmNode.content?.size || 0,
+      childCount: pmNode.content?.childCount || 0,
+    });
+
     // Check if this node has a blockId (it's a block-level node)
     if (pmNode.attrs?.blockId) {
       const blockId = pmNode.attrs.blockId;
 
-      console.log('[Bridge] Found block:', {
+      console.log(`[Bridge] ${indent}✓ Found block:`, {
         type: pmNode.type.name,
         blockId,
       });
@@ -84,7 +98,7 @@ function proseMirrorDocToBlockTree(pmDoc: any): BlockTree {
       // (this handles nested structures like lists, toggles, etc.)
       if (pmNode.content && pmNode.content.size > 0) {
         pmNode.content.forEach((child: any) => {
-          walkPMNode(child, blockId);
+          walkPMNode(child, blockId, depth + 1);
         });
       }
     } else {
@@ -92,7 +106,7 @@ function proseMirrorDocToBlockTree(pmDoc: any): BlockTree {
       // Keep walking with the SAME parent
       if (pmNode.content && pmNode.content.size > 0) {
         pmNode.content.forEach((child: any) => {
-          walkPMNode(child, parentId);
+          walkPMNode(child, parentId, depth + 1);
         });
       }
     }
