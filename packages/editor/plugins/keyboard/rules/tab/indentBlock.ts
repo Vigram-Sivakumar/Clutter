@@ -47,10 +47,28 @@ export const indentBlock = defineRule({
   execute(ctx: KeyboardContext): EditorIntent {
     const { state } = ctx;
 
+    // DEBUG: Log what we're actually seeing in ProseMirror state
+    console.log('[indentBlock] DEBUG state:', {
+      hasDoc: !!state.doc,
+      hasSelection: !!state.selection,
+      stateKeys: Object.keys(state),
+    });
+
+    // Walk through document to see all blockIds
+    const allBlockIds: string[] = [];
+    state.doc.descendants((node) => {
+      if (node.attrs?.blockId) {
+        allBlockIds.push(node.attrs.blockId);
+      }
+    });
+    console.log('[indentBlock] All blockIds in ProseMirror doc:', allBlockIds);
+
     // BLOCK IDENTITY LAW: Derive blockId from ProseMirror selection
     // This ensures we're reading from the CURRENT document state,
     // not from cached/stale data
     const blockId = getBlockIdFromSelection(state);
+
+    console.log('[indentBlock] blockId from selection:', blockId);
 
     if (!blockId) {
       console.warn('[indentBlock] No blockId found from selection');
