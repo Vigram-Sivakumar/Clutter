@@ -35,8 +35,11 @@ interface BridgeState {
 /**
  * Convert TipTap JSON to BlockTree
  *
- * This is the initial hydration only.
- * After this, we do incremental updates.
+ * CRITICAL: This must recursively walk the entire TipTap document tree
+ * to find ALL blocks with blockId attributes, not just top-level content.
+ *
+ * Why: ProseMirror can nest blocks inside wrappers, lists, toggles, etc.
+ * We must index every block that exists in the document.
  */
 function tiptapJsonToBlockTree(tiptapJson: any): BlockTree {
   const nodes: Record<BlockId, BlockNode> = {};
@@ -51,43 +54,53 @@ function tiptapJsonToBlockTree(tiptapJson: any): BlockTree {
     content: null,
   };
 
-  // DEBUG: Log what we're actually seeing from TipTap
-  console.log('[Bridge] tiptapJsonToBlockTree input:', {
-    hasContent: !!tiptapJson.content,
-    isArray: Array.isArray(tiptapJson.content),
-    contentLength: tiptapJson.content?.length,
-  });
+  // Recursively walk the TipTap JSON tree to find all blocks
+  function walkNode(node: any, parentId: BlockId = rootId): void {
+    // Check if this node has a blockId (it's a block-level node)
+    if (node.attrs?.blockId) {
+      const blockId = node.attrs.blockId;
 
-  // Convert TipTap blocks to engine blocks
-  if (tiptapJson.content && Array.isArray(tiptapJson.content)) {
-    for (const block of tiptapJson.content) {
-      const blockId = block.attrs?.blockId;
-
-      // DEBUG: Log each block we're processing
-      console.log('[Bridge] Processing block:', {
-        type: block.type,
-        hasBlockId: !!blockId,
-        blockId: blockId || 'MISSING',
-        attrs: block.attrs,
+      console.log('[Bridge] Found block:', {
+        type: node.type,
+        blockId,
       });
 
-      if (!blockId) {
-        console.error(
-          '[Bridge] CRITICAL: Block missing blockId attribute!',
-          block
-        );
-        continue; // Skip blocks without blockId
-      }
-
+      // Add to engine's block index
       nodes[blockId] = {
         id: blockId,
-        type: block.type,
-        parentId: rootId,
+        type: node.type,
+        parentId,
         children: [],
-        content: block, // Store full TipTap JSON for now
+        content: node,
       };
 
-      nodes[rootId].children.push(blockId);
+      // Add to parent's children
+      if (nodes[parentId]) {
+        nodes[parentId].children.push(blockId);
+      }
+
+      // Continue walking children with THIS block as parent
+      // (this handles nested structures like lists, toggles, etc.)
+      if (node.content && Array.isArray(node.content)) {
+        for (const child of node.content) {
+          walkNode(child, blockId);
+        }
+      }
+    } else {
+      // Not a block node, but might contain blocks
+      // Keep walking with the SAME parent
+      if (node.content && Array.isArray(node.content)) {
+        for (const child of node.content) {
+          walkNode(child, parentId);
+        }
+      }
+    }
+  }
+
+  // Start recursive walk from document root
+  if (tiptapJson.content && Array.isArray(tiptapJson.content)) {
+    for (const topLevelNode of tiptapJson.content) {
+      walkNode(topLevelNode);
     }
   }
 
