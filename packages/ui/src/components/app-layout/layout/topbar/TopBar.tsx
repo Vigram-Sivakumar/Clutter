@@ -248,7 +248,7 @@ export const TopBar = ({
 
         {/* Three dot menu */}
         {contextMenuItems && contextMenuItems.length > 0 && (
-          <ContextMenu items={contextMenuItems}>
+          <ContextMenu items={contextMenuItems} align="right">
             <TertiaryButton
               icon={<MoreVertical size={DESIGN.sizing.iconSize} />}
               size={DESIGN.sizing.buttonSize}

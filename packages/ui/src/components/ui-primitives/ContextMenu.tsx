@@ -120,12 +120,14 @@ interface ContextMenuProps {
       }
   >;
   onOpenChange?: (_isOpen: boolean) => void;
+  align?: 'left' | 'right'; // Align menu to left or right edge of trigger button
 }
 
 export const ContextMenu = ({
   children,
   items,
   onOpenChange,
+  align = 'left',
 }: ContextMenuProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [menuPosition, setMenuPosition] = useState<{
@@ -169,35 +171,52 @@ export const ContextMenu = ({
       let top: number;
       let left: number;
 
-      // Position to the right of the button (horizontally)
-      const spaceRight = viewportWidth - buttonRect.right - gap;
-      const spaceLeft = buttonRect.left - gap;
+      // Position based on alignment prop
+      if (align === 'right') {
+        // Dropdown mode: Align right edge of menu with right edge of button, drop down
+        left = buttonRect.right - menuWidth;
+        top = buttonRect.bottom + gap;
 
-      if (spaceRight >= menuWidth) {
-        // Position to the right
-        left = buttonRect.right + gap;
-      } else if (spaceLeft >= menuWidth) {
-        // Position to the left if no space on right
-        left = buttonRect.left - menuWidth - gap;
+        // Ensure menu stays within viewport
+        if (left < padding) {
+          left = padding;
+        }
+        // If menu would go off bottom, position above button instead
+        if (top + menuHeight > viewportHeight - padding) {
+          top = buttonRect.top - menuHeight - gap;
+        }
       } else {
-        // Not enough space on either side, align to right edge of viewport
-        left = viewportWidth - menuWidth - padding;
+        // Sidebar mode: Position to the right or left of the button (horizontally)
+        const spaceRight = viewportWidth - buttonRect.right - gap;
+        const spaceLeft = buttonRect.left - gap;
+
+        if (spaceRight >= menuWidth) {
+          // Position to the right
+          left = buttonRect.right + gap;
+        } else if (spaceLeft >= menuWidth) {
+          // Position to the left if no space on right
+          left = buttonRect.left - menuWidth - gap;
+        } else {
+          // Not enough space on either side, align to right edge of viewport
+          left = viewportWidth - menuWidth - padding;
+        }
+
+        // Vertically center the menu with the button
+        top = buttonRect.top + buttonRect.height / 2 - menuHeight / 2;
       }
 
-      // Vertically center the menu with the button
-      top = buttonRect.top + buttonRect.height / 2 - menuHeight / 2;
-
-      // Ensure menu stays within viewport bounds
-      if (left < padding) {
-        left = padding;
-      }
+      // Final viewport bounds check (for both modes)
       if (left + menuWidth > viewportWidth - padding) {
         left = viewportWidth - menuWidth - padding;
+      }
+      if (left < padding) {
+        left = padding;
       }
       if (top < padding) {
         top = padding;
       }
-      if (top + menuHeight > viewportHeight - padding) {
+      if (top + menuHeight > viewportHeight - padding && align !== 'right') {
+        // Only adjust bottom overflow for sidebar mode (right mode already handles this)
         top = viewportHeight - menuHeight - padding;
       }
 
