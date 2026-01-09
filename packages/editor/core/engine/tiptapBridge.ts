@@ -280,17 +280,16 @@ function createBridge(editor: Editor): BridgeState {
   const updateSource: { current: UpdateSource } = { current: null };
 
   // TipTap → Engine sync (on document changes)
-  const unsubscribeUpdate = editor.on('update', ({ editor: updatedEditor }) => {
+  const handleUpdate = ({ editor: updatedEditor }: any) => {
     syncTipTapToEngine(updatedEditor, engine, updateSource);
-  });
+  };
+  editor.on('update', handleUpdate);
 
   // TipTap → Engine sync (on selection changes)
-  const unsubscribeSelectionUpdate = editor.on(
-    'selectionUpdate',
-    ({ editor: updatedEditor }) => {
-      syncSelectionToEngine(updatedEditor, engine);
-    }
-  );
+  const handleSelectionUpdate = ({ editor: updatedEditor }: any) => {
+    syncSelectionToEngine(updatedEditor, engine);
+  };
+  editor.on('selectionUpdate', handleSelectionUpdate);
 
   // Engine → TipTap sync (on engine changes)
   const unsubscribeEngine = engine.onChange(() => {
@@ -311,8 +310,8 @@ function createBridge(editor: Editor): BridgeState {
   // Cleanup function
   const cleanup = () => {
     console.log('[Bridge] Cleaning up bridge');
-    unsubscribeUpdate();
-    unsubscribeSelectionUpdate();
+    editor.off('update', handleUpdate);
+    editor.off('selectionUpdate', handleSelectionUpdate);
     unsubscribeEngine();
   };
 
