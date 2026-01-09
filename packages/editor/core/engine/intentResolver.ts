@@ -74,6 +74,9 @@ export class IntentResolver {
         case 'split-block':
           return this.handleSplitBlock(intent);
 
+        case 'convert-block':
+          return this.handleConvertBlock(intent);
+
         case 'move-block':
           return this.handleMoveBlock(intent);
 
@@ -320,6 +323,29 @@ export class IntentResolver {
       success: false,
       intent,
       reason: 'Not implemented yet',
+    };
+  }
+
+  private handleConvertBlock(
+    intent: Extract<EditorIntent, { type: 'convert-block' }>
+  ): IntentResult {
+    // TODO: Implement ConvertBlockCommand
+    //
+    // This should:
+    // 1. Create a new block of target type at same position
+    // 2. Copy content from old block (if compatible)
+    // 3. Delete old block
+    // 4. Update engine.tree
+    // 5. TipTap bridge will sync to TipTap document
+    //
+    // For now, keyboard rules handle conversion directly via TipTap commands.
+    // This is a temporary bridge until ConvertBlockCommand is implemented.
+
+    return {
+      success: false,
+      intent,
+      reason:
+        'ConvertBlockCommand not implemented yet (keyboard rules handle it directly)',
     };
   }
 

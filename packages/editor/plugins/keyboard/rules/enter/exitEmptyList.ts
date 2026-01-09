@@ -52,11 +52,43 @@ export const exitEmptyList = defineRule({
     const listBlock = findAncestorNode(editor, 'listBlock');
     if (!listBlock) return false;
 
-    // Convert list to paragraph
-    return {
-      type: 'convert-block',
-      blockId: listBlock.node.attrs.blockId,
-      to: 'paragraph',
-    };
+    // TEMPORARY: Direct TipTap command until ConvertBlockCommand is implemented
+    // This converts the list block to a paragraph
+    return editor
+      .chain()
+      .command(({ tr, state }) => {
+        const { pos } = listBlock;
+
+        // Convert the listBlock node to a paragraph node
+        // Preserve the blockId for consistency
+        const paragraph = state.schema.nodes.paragraph.create(
+          {
+            blockId: listBlock.node.attrs.blockId,
+          },
+          listBlock.node.content // Keep any content (though it should be empty)
+        );
+
+        // Replace the list block with paragraph
+        tr.replaceWith(pos, pos + listBlock.node.nodeSize, paragraph);
+
+        // Set cursor to start of new paragraph (inside the content)
+        const newCursorPos = pos + 1;
+        try {
+          const $pos = tr.doc.resolve(newCursorPos);
+          tr.setSelection(state.selection.constructor.near($pos));
+        } catch (e) {
+          console.warn('[exitEmptyList] Could not set selection:', e);
+        }
+
+        return true;
+      })
+      .run();
+
+    // TODO: Once ConvertBlockCommand is implemented, use this instead:
+    // return {
+    //   type: 'convert-block',
+    //   blockId: listBlock.node.attrs.blockId,
+    //   to: 'paragraph',
+    // };
   },
 });
