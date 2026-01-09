@@ -35,16 +35,19 @@ export const Breadcrumbs = ({ items, separator }: BreadcrumbsProps) => {
     <ChevronRight size={sizing.icon.sm} style={{ flexShrink: 0 }} />
   );
 
-  // Measure container width for responsive behavior
+  // Measure parent container width (available space) for responsive behavior
   useEffect(() => {
     const observer = new ResizeObserver((entries) => {
       if (entries[0]) {
-        setContainerWidth(entries[0].contentRect.width);
+        // Measure parent's width to know available space
+        const parentWidth = entries[0].contentRect.width;
+        setContainerWidth(parentWidth);
       }
     });
 
-    if (containerRef.current) {
-      observer.observe(containerRef.current);
+    // Observe the parent container, not the breadcrumbs container
+    if (containerRef.current?.parentElement) {
+      observer.observe(containerRef.current.parentElement);
     }
 
     return () => observer.disconnect();
@@ -147,7 +150,7 @@ export const Breadcrumbs = ({ items, separator }: BreadcrumbsProps) => {
         alignItems: 'center',
         gap: spacing['4'],
         minWidth: 0, // Enables text truncation
-        flex: 1, // Grow to fill available space, but still leave drag area
+        // No width or flex - take natural width, but measure parent for collapse logic
       }}
     >
       {collapsedItems.map((item, index) => {
