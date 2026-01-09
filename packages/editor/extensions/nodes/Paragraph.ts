@@ -17,6 +17,8 @@ import {
 } from '../../utils/keyboardHelpers';
 import { HASHTAG_REGEX, insertTag } from '@clutter/ui';
 import { BackspaceRules } from '../../utils/keyboardRules';
+import type { EditorEngine } from '../../core/engine/EditorEngine';
+import { DeleteBlockCommand } from '../../core/engine/command';
 
 // NOTE: indentBlock/outdentBlock removed - now handled via keyboard rules
 import {
@@ -25,6 +27,14 @@ import {
   handleArrowUp,
   handleArrowDown,
 } from '../../plugins/keyboard';
+
+/**
+ * Get EditorEngine from TipTap editor instance
+ * Engine is attached by EditorCore during initialization
+ */
+function getEngine(editor: any): EditorEngine | null {
+  return editor._engine || null;
+}
 
 declare module '@tiptap/core' {
   // eslint-disable-next-line no-unused-vars
@@ -345,7 +355,6 @@ export const Paragraph = Node.create({
           const currentParagraph = $from.parent;
           const paragraphPos = $from.before($from.depth);
           const beforePos = paragraphPos - 1;
-          const { tr } = state;
 
           // 🔒 EDITOR INVARIANT: Document must always contain ≥ 1 block
           // Count total blocks in document
@@ -364,25 +373,43 @@ export const Paragraph = Node.create({
             return false; // noop - preserve document invariant
           }
 
-          // Delete current empty paragraph
-          tr.delete(paragraphPos, paragraphPos + currentParagraph.nodeSize);
+          // ✅ USE ENGINE PRIMITIVE: Delete paragraph via DeleteBlockCommand
+          // This ensures children are promoted (Editor Law #8)
+          const blockId = currentParagraph.attrs?.blockId;
+          const engine = getEngine(editor);
 
-          // Position cursor at the end of the structural block's content
-          // Use the position right before where the paragraph was (now mapped through deletion)
-          const targetPos = tr.mapping.map(beforePos);
-
-          // Use TextSelection.near with backward bias to find valid position inside the block
-          try {
-            const $pos = tr.doc.resolve(targetPos);
-            const selection = TextSelection.near($pos, -1);
-            tr.setSelection(selection);
-          } catch (e) {
-            // Fallback: just use near without bias
-            const $pos = tr.doc.resolve(Math.max(0, targetPos));
-            tr.setSelection(TextSelection.near($pos));
+          if (!engine) {
+            console.error('[Paragraph.Backspace] EditorEngine not found');
+            return false;
           }
 
-          editor.view.dispatch(tr);
+          if (!blockId) {
+            console.warn('[Paragraph.Backspace] No blockId found');
+            return false;
+          }
+
+          console.log(
+            `[Paragraph.Backspace] Deleting empty paragraph: ${blockId}`
+          );
+          const cmd = new DeleteBlockCommand(blockId);
+          engine.dispatch(cmd);
+
+          // Position cursor after engine processes deletion
+          requestAnimationFrame(() => {
+            const targetPos = Math.max(0, beforePos);
+            try {
+              const $pos = editor.state.tr.doc.resolve(targetPos);
+              const selection = TextSelection.near($pos, -1);
+              const tr = editor.state.tr.setSelection(selection);
+              editor.view.dispatch(tr);
+            } catch (e) {
+              const $pos = editor.state.tr.doc.resolve(Math.max(0, targetPos));
+              const selection = TextSelection.near($pos);
+              const tr = editor.state.tr.setSelection(selection);
+              editor.view.dispatch(tr);
+            }
+          });
+
           return true;
         }
 
@@ -424,14 +451,12 @@ export const Paragraph = Node.create({
         // Check if there's a next block
         let hasNextBlock = false;
         let nextBlockNode = null;
-        let nextBlockPos = null;
 
         try {
           const $after = state.doc.resolve(afterPos);
           if ($after.nodeAfter) {
             hasNextBlock = true;
             nextBlockNode = $after.nodeAfter;
-            nextBlockPos = afterPos;
           }
         } catch (e) {
           // No next block (we're at document end)
@@ -456,30 +481,49 @@ export const Paragraph = Node.create({
             return false; // noop - preserve document invariant
           }
 
-          // Delete empty paragraph (merge up into previous block)
-          const { tr } = state;
-          tr.delete(paragraphPos, paragraphPos + currentParagraph.nodeSize);
+          // ✅ USE ENGINE PRIMITIVE: Delete paragraph via DeleteBlockCommand
+          // This ensures children are promoted (Editor Law #8)
+          const blockId = currentParagraph.attrs?.blockId;
+          const engine = getEngine(editor);
 
-          // Try to position cursor at end of previous block
-          const beforePos = Math.max(0, paragraphPos - 1);
-          try {
-            const $pos = tr.doc.resolve(beforePos);
-            const selection = TextSelection.near($pos, -1);
-            tr.setSelection(selection);
-          } catch (e) {
-            // Fallback
-            const $pos = tr.doc.resolve(Math.max(0, beforePos));
-            tr.setSelection(TextSelection.near($pos));
+          if (!engine) {
+            console.error('[Paragraph.Delete] EditorEngine not found');
+            return false;
           }
 
-          editor.view.dispatch(tr);
+          if (!blockId) {
+            console.warn('[Paragraph.Delete] No blockId found');
+            return false;
+          }
+
+          console.log(
+            `[Paragraph.Delete] Deleting empty paragraph: ${blockId}`
+          );
+          const cmd = new DeleteBlockCommand(blockId);
+          engine.dispatch(cmd);
+
+          // Position cursor after engine processes deletion
+          requestAnimationFrame(() => {
+            const beforePos = Math.max(0, paragraphPos - 1);
+            try {
+              const $pos = editor.state.tr.doc.resolve(beforePos);
+              const selection = TextSelection.near($pos, -1);
+              const tr = editor.state.tr.setSelection(selection);
+              editor.view.dispatch(tr);
+            } catch (e) {
+              const $pos = editor.state.tr.doc.resolve(Math.max(0, beforePos));
+              const selection = TextSelection.near($pos);
+              const tr = editor.state.tr.setSelection(selection);
+              editor.view.dispatch(tr);
+            }
+          });
+
           return true;
         }
 
         // CASE 2: At end of non-empty paragraph
         if (atEnd && hasNextBlock) {
           // Merge with next block
-          const { tr } = state;
 
           // Check if next block is structural (code, divider, etc.)
           const isStructuralNext =
@@ -499,20 +543,52 @@ export const Paragraph = Node.create({
 
           // Merge: Delete next block's wrapper, keep its content
           if (nextBlockNode) {
-            // Extract next block's content
-            const nextContent = nextBlockNode.content;
+            const nextBlockId = nextBlockNode.attrs?.blockId;
+            const engine = getEngine(editor);
 
-            // Delete next block entirely
-            tr.delete(nextBlockPos, nextBlockPos + nextBlockNode.nodeSize);
-
-            // Insert next block's content at end of current paragraph
-            if (nextContent.size > 0) {
-              tr.insert(mergePos, nextContent);
+            if (!engine) {
+              console.error(
+                '[Paragraph.Delete] EditorEngine not found for merge'
+              );
+              return false;
             }
 
-            // Position cursor at merge point
-            tr.setSelection(TextSelection.create(tr.doc, mergePos));
-            editor.view.dispatch(tr);
+            if (!nextBlockId) {
+              console.warn(
+                '[Paragraph.Delete] Next block has no blockId, cannot merge safely'
+              );
+              return false;
+            }
+
+            // Extract next block's content BEFORE deletion
+            const nextContent = nextBlockNode.content;
+
+            // ✅ USE ENGINE PRIMITIVE: Delete next block via DeleteBlockCommand
+            // This ensures children are promoted (Editor Law #8)
+            console.log(
+              `[Paragraph.Delete] Merging with next block: ${nextBlockId}`
+            );
+            const cmd = new DeleteBlockCommand(nextBlockId);
+            engine.dispatch(cmd);
+
+            // After engine deletion, insert content into current paragraph
+            requestAnimationFrame(() => {
+              const { tr: newTr } = editor.state;
+              // Re-resolve merge position in new document
+              const newMergePos = Math.min(
+                mergePos,
+                newTr.doc.content.size - 1
+              );
+
+              if (nextContent.size > 0) {
+                newTr.insert(newMergePos, nextContent);
+              }
+
+              // Position cursor at merge point
+              newTr.setSelection(TextSelection.create(newTr.doc, newMergePos));
+              editor.view.dispatch(newTr);
+            });
+
             return true;
           }
         }
