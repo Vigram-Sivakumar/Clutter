@@ -88,29 +88,36 @@ function rebuildEngineFromPMDoc(pmDoc: any, engine: any): void {
     content: null,
   };
 
-  function walk(pmNode: any, parentId: string = rootId): void {
-    if (pmNode.attrs?.blockId) {
-      const blockId = pmNode.attrs.blockId;
-      nodes[blockId] = {
-        id: blockId,
-        type: pmNode.type.name,
-        parentId,
-        children: [],
-        content: pmNode.toJSON(),
-      };
-      nodes[parentId].children.push(blockId);
+  // First pass: collect all blocks
+  const blockList: any[] = [];
+  pmDoc.descendants((node: any) => {
+    if (node.attrs?.blockId) {
+      blockList.push({
+        id: node.attrs.blockId,
+        type: node.type.name,
+        parentBlockId: node.attrs.parentBlockId || null,
+        content: node.toJSON(),
+      });
+    }
+  });
 
-      if (pmNode.content && pmNode.content.size > 0) {
-        pmNode.content.forEach((child: any) => walk(child, blockId));
-      }
-    } else {
-      if (pmNode.content && pmNode.content.size > 0) {
-        pmNode.content.forEach((child: any) => walk(child, parentId));
-      }
+  // Second pass: build tree from parentBlockId attributes
+  for (const block of blockList) {
+    const parentId = block.parentBlockId || rootId;
+
+    nodes[block.id] = {
+      id: block.id,
+      type: block.type,
+      parentId,
+      children: [],
+      content: block.content,
+    };
+
+    // Add to parent's children
+    if (nodes[parentId]) {
+      nodes[parentId].children.push(block.id);
     }
   }
-
-  pmDoc.content.forEach((child: any) => walk(child));
 
   engine.tree = {
     rootId,
