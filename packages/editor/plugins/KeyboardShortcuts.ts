@@ -28,13 +28,19 @@ export const KeyboardShortcuts = Extension.create({
     return {
       // Tab / Shift+Tab: Indent / Outdent blocks
       // These emit indent-block / outdent-block intents
+      //
+      // OWNERSHIP CONTRACT:
+      // - If result.handled === true → TipTap returns true (prevents default)
+      // - If result.handled === false → TipTap returns false (let PM handle)
       Tab: ({ editor }) => {
         console.log(
           '🔑 [KeyboardShortcuts] Tab pressed - calling handleTab(false)'
         );
         const result = handleTab(editor, false); // isShift = false
         console.log('🔑 [KeyboardShortcuts] handleTab returned:', result);
-        return result;
+
+        // ENFORCE: If intent was emitted, browser must never see the key
+        return result.handled;
       },
       'Shift-Tab': ({ editor }) => {
         console.log(
@@ -42,7 +48,9 @@ export const KeyboardShortcuts = Extension.create({
         );
         const result = handleTab(editor, true); // isShift = true
         console.log('🔑 [KeyboardShortcuts] handleTab returned:', result);
-        return result;
+
+        // ENFORCE: If intent was emitted, browser must never see the key
+        return result.handled;
       },
     };
   },

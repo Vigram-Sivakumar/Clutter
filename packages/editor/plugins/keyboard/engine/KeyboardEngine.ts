@@ -12,6 +12,8 @@ import type { KeyboardRule } from '../types/KeyboardRule';
 import type { KeyboardContext } from '../types/KeyboardContext';
 import { createKeyboardContext } from '../types/KeyboardContext';
 import type { IntentResolver } from '../../../core/engine';
+import type { KeyHandlingResult } from '../types/KeyHandlingResult';
+import { handled, notHandled } from '../types/KeyHandlingResult';
 
 /**
  * KeyboardEngine - Evaluates rules and routes intents
@@ -53,9 +55,14 @@ export class KeyboardEngine {
   /**
    * Handle a key press
    *
-   * Returns true if a rule handled it, false if no rule matched
+   * OWNERSHIP CONTRACT:
+   * - If handled: true → preventDefault + stopPropagation MUST be called by caller
+   * - If handled: false → let ProseMirror/browser handle it
+   *
+   * CRITICAL: If an intent is emitted (even if it fails), key is ALWAYS handled.
+   * This prevents state corruption from double-handling.
    */
-  handle(editor: Editor, key: KeyboardContext['key']): boolean {
+  handle(editor: Editor, key: KeyboardContext['key']): KeyHandlingResult {
     const ctx = createKeyboardContext(editor, key);
 
     console.log(
@@ -84,7 +91,7 @@ export class KeyboardEngine {
           console.log(`   ✅ Rule succeeded (legacy boolean): ${rule.id}`);
           if (rule.stopPropagation !== false) {
             console.log(`   🛑 Stopping propagation`);
-            return true;
+            return handled(undefined, `Legacy rule: ${rule.id}`);
           }
           console.log(`   ⏩ Continuing to next rule (fallthrough)`);
         } else {
@@ -106,6 +113,8 @@ export class KeyboardEngine {
 
       // Route intents through resolver
       let allSucceeded = true;
+      let failureReason: string | undefined;
+
       for (const intent of intents) {
         console.log(`      → Intent: ${intent.type}`);
 
@@ -121,6 +130,7 @@ export class KeyboardEngine {
               intentResult.reason
             );
             allSucceeded = false;
+            failureReason = intentResult.reason;
           }
         } else {
           // NO RESOLVER: Log warning but continue
@@ -128,21 +138,32 @@ export class KeyboardEngine {
             `      ⚠️  No resolver set - intent not executed: ${intent.type}`
           );
           allSucceeded = false;
+          failureReason = 'No resolver available';
         }
       }
 
-      if (allSucceeded && intents.length > 0) {
-        console.log(`   ✅ All intents succeeded: ${rule.id}`);
+      // CRITICAL: Even if intent failed, key is HANDLED
+      // This prevents browser from also processing the key
+      if (intents.length > 0) {
+        if (allSucceeded) {
+          console.log(`   ✅ All intents succeeded: ${rule.id}`);
+        } else {
+          console.log(`   ⚠️  Intent emitted but failed: ${rule.id}`);
+        }
+
         if (rule.stopPropagation !== false) {
           console.log(`   🛑 Stopping propagation`);
-          return true;
+          return handled(
+            intents[0].type,
+            allSucceeded ? 'Success' : failureReason
+          );
         }
         console.log(`   ⏩ Continuing to next rule (fallthrough)`);
       }
     }
 
     console.log(`❌ [KeyboardEngine] No rule handled ${key}`);
-    return false;
+    return notHandled('No matching rule');
   }
 
   /**

@@ -17,6 +17,7 @@
 import type { Editor } from '@tiptap/core';
 import { createKeyboardEngine } from '../engine/KeyboardEngine';
 import type { IntentResolver } from '../../../core/engine';
+import type { KeyHandlingResult } from '../types/KeyHandlingResult';
 import {
   exitEmptyBlockInToggle,
   splitListItem,
@@ -46,10 +47,14 @@ const enterEngine = createKeyboardEngine(enterRules);
 /**
  * Handle Enter key press
  *
+ * OWNERSHIP CONTRACT:
+ * - Returns KeyHandlingResult with explicit handled status
+ * - Caller must check result.handled and prevent default if true
+ *
  * @param editor - TipTap editor instance
- * @returns true if handled, false to allow default behavior
+ * @returns KeyHandlingResult indicating whether key was handled
  */
-export function handleEnter(editor: Editor): boolean {
+export function handleEnter(editor: Editor): KeyHandlingResult {
   // Get resolver from editor instance (attached by EditorCore)
   const resolver = (editor as any)._resolver as IntentResolver | undefined;
 
@@ -58,6 +63,5 @@ export function handleEnter(editor: Editor): boolean {
     enterEngine.setResolver(resolver);
   }
 
-  const handled = enterEngine.handle(editor, 'Enter');
-  return handled;
+  return enterEngine.handle(editor, 'Enter');
 }

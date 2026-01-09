@@ -1,6 +1,6 @@
 /**
  * ListBlock Node - Unified list item (bullet, numbered, task)
- * 
+ *
  * Notion-style flat list structure where each list item is a top-level block.
  * - No nesting of <ul>/<li> - each item is independent
  * - Level attribute controls indentation (unlimited nesting)
@@ -8,7 +8,7 @@
  * - checked attribute for task lists
  * - collapsed attribute for tasks with subtasks
  * - Contains inline content (text with marks)
- * 
+ *
  * Features:
  * - Tab: Indent (max 1 level deeper than previous item - Notion-style)
  * - Shift+Tab: Outdent (cascades to children)
@@ -22,23 +22,33 @@ import { TextSelection } from '@tiptap/pm/state';
 import { spacing } from '../../tokens';
 import type { ListType, ListBlockAttrs } from '../../types';
 import { ListBlock as ListBlockComponent } from '../../components/ListBlock';
-import { createShiftEnterHandler, createSiblingAttrs } from '../../utils/keyboardHelpers';
+import {
+  createShiftEnterHandler,
+  createSiblingAttrs,
+} from '../../utils/keyboardHelpers';
 import { BackspaceRules } from '../../utils/keyboardRules';
-import { handleEnter, handleArrowLeft, handleArrowRight, handleArrowUp, handleArrowDown } from '../../plugins/keyboard';
+import {
+  handleEnter,
+  handleArrowLeft,
+  handleArrowRight,
+  handleArrowUp,
+  handleArrowDown,
+} from '../../plugins/keyboard';
 
 // NOTE: indentBlock/outdentBlock removed - now handled via keyboard rules
 
 declare module '@tiptap/core' {
+  // eslint-disable-next-line no-unused-vars
   interface Commands<ReturnType> {
     listBlock: {
       /**
        * Set a list block with specified type
        */
-      setListBlock: (listType: ListType, checked?: boolean) => ReturnType;
+      setListBlock: (_listType: ListType, _checked?: boolean) => ReturnType;
       /**
        * Toggle list block type
        */
-      toggleListBlock: (listType: ListType) => ReturnType;
+      toggleListBlock: (_listType: ListType) => ReturnType;
     };
   }
 }
@@ -63,7 +73,8 @@ export const ListBlock = Node.create({
     return {
       blockId: {
         default: null,
-        parseHTML: (element) => element.getAttribute('data-block-id') || crypto.randomUUID(),
+        parseHTML: (element) =>
+          element.getAttribute('data-block-id') || crypto.randomUUID(),
         renderHTML: (attributes) => {
           const blockId = attributes.blockId || crypto.randomUUID();
           return { 'data-block-id': blockId };
@@ -71,7 +82,8 @@ export const ListBlock = Node.create({
       },
       parentBlockId: {
         default: null,
-        parseHTML: (element) => element.getAttribute('data-parent-block-id') || null,
+        parseHTML: (element) =>
+          element.getAttribute('data-parent-block-id') || null,
         renderHTML: (attributes) => {
           if (attributes.parentBlockId) {
             return { 'data-parent-block-id': attributes.parentBlockId };
@@ -81,12 +93,14 @@ export const ListBlock = Node.create({
       },
       listType: {
         default: 'bullet' as ListType,
-        parseHTML: (element) => element.getAttribute('data-list-type') || 'bullet',
+        parseHTML: (element) =>
+          element.getAttribute('data-list-type') || 'bullet',
         renderHTML: (attributes) => ({ 'data-list-type': attributes.listType }),
       },
       level: {
         default: 0,
-        parseHTML: (element) => parseInt(element.getAttribute('data-level') || '0', 10),
+        parseHTML: (element) =>
+          parseInt(element.getAttribute('data-level') || '0', 10),
         renderHTML: (attributes) => ({ 'data-level': attributes.level || 0 }),
       },
       checked: {
@@ -102,7 +116,8 @@ export const ListBlock = Node.create({
       },
       collapsed: {
         default: false,
-        parseHTML: (element) => element.getAttribute('data-collapsed') === 'true',
+        parseHTML: (element) =>
+          element.getAttribute('data-collapsed') === 'true',
         renderHTML: (attributes) => {
           if (!attributes.collapsed) return {};
           return { 'data-collapsed': 'true' };
@@ -110,7 +125,8 @@ export const ListBlock = Node.create({
       },
       parentToggleId: {
         default: null,
-        parseHTML: (element) => element.getAttribute('data-parent-toggle-id') || null,
+        parseHTML: (element) =>
+          element.getAttribute('data-parent-toggle-id') || null,
         renderHTML: (attributes) => {
           if (attributes.parentToggleId) {
             return { 'data-parent-toggle-id': attributes.parentToggleId };
@@ -120,7 +136,8 @@ export const ListBlock = Node.create({
       },
       priority: {
         default: 0,
-        parseHTML: (element) => parseInt(element.getAttribute('data-priority') || '0', 10),
+        parseHTML: (element) =>
+          parseInt(element.getAttribute('data-priority') || '0', 10),
         renderHTML: (attributes) => {
           if (!attributes.priority) return {};
           return { 'data-priority': attributes.priority };
@@ -150,7 +167,9 @@ export const ListBlock = Node.create({
         style: `
           margin: ${spacing.margin}px 0;
           padding-left: ${indent}px;
-        `.replace(/\s+/g, ' ').trim(),
+        `
+          .replace(/\s+/g, ' ')
+          .trim(),
       }),
       0,
     ];
@@ -180,7 +199,11 @@ export const ListBlock = Node.create({
           if (editor.isActive(this.name, { listType })) {
             return commands.setNode('paragraph');
           }
-          return commands.setNode(this.name, { listType, level: 0, checked: listType === 'task' ? false : null });
+          return commands.setNode(this.name, {
+            listType,
+            level: 0,
+            checked: listType === 'task' ? false : null,
+          });
         },
     };
   },
@@ -193,7 +216,7 @@ export const ListBlock = Node.create({
       ArrowRight: ({ editor }) => handleArrowRight(editor),
       ArrowUp: ({ editor }) => handleArrowUp(editor),
       ArrowDown: ({ editor }) => handleArrowDown(editor),
-      
+
       // Shift+Enter: Insert line break (soft break)
       'Shift-Enter': createShiftEnterHandler('listBlock'),
 
@@ -208,12 +231,14 @@ export const ListBlock = Node.create({
         // - exitEmptyListInWrapper (priority 100)
         // - outdentEmptyList (priority 90)
         // All other exit/split behaviors
-        const handled = handleEnter(editor);
-        
-        if (handled) {
-          return true;
+        //
+        // OWNERSHIP CONTRACT: Check result.handled and return boolean to TipTap
+        const result = handleEnter(editor);
+
+        if (result.handled) {
+          return true; // Prevent default TipTap behavior
         }
-        
+
         // Fallback: default TipTap behavior (shouldn't reach here for lists)
         return false;
       },
@@ -227,7 +252,8 @@ export const ListBlock = Node.create({
         if (!empty) return false;
 
         // PHASE 1 REFACTOR: Use detector for empty listBlock backspace context
-        const context = BackspaceRules.getEmptyListBlockBackspaceContext(editor);
+        const context =
+          BackspaceRules.getEmptyListBlockBackspaceContext(editor);
 
         if (!context.isEmpty) {
           return false;
@@ -248,32 +274,41 @@ export const ListBlock = Node.create({
         // Converts in place - works both inside and outside wrappers
         if (context.shouldConvertToParagraph) {
           // (KEEP ALL EXECUTION CODE)
-        const { tr } = state;
+          const { tr } = state;
           // ListBlock now has inline* content directly (no nested paragraph)
           const content = listBlockNode.content;
           const listBlockAttrs = listBlockNode.attrs as ListBlockAttrs;
-        
-        console.log('🟠 ListBlock Enter: Converting to paragraph with attrs', {
-          parentToggleId: listBlockAttrs.parentToggleId,
-          level: listBlockAttrs.level,
-        });
-        
-        const paragraphType = state.schema.nodes.paragraph;
-        if (!paragraphType) return false;
-        
-        // ✅ Preserve structural context when converting to paragraph
-        const siblingAttrs = createSiblingAttrs(listBlockAttrs);
-        
-        const paragraphNode = paragraphType.create({
-          blockId: crypto.randomUUID(),  // Generate blockId immediately
-          level: listBlockAttrs.level || 0,  // Preserve current level
-          ...siblingAttrs,  // ✅ Copy parentBlockId + parentToggleId
-        }, content);
-        tr.replaceRangeWith(listBlockPos, listBlockPos + listBlockNode.nodeSize, paragraphNode);
-        // Set cursor at start of paragraph
-        tr.setSelection(TextSelection.near(tr.doc.resolve(listBlockPos + 1)));
-        editor.view.dispatch(tr);
-        return true;
+
+          console.log(
+            '🟠 ListBlock Enter: Converting to paragraph with attrs',
+            {
+              parentToggleId: listBlockAttrs.parentToggleId,
+              level: listBlockAttrs.level,
+            }
+          );
+
+          const paragraphType = state.schema.nodes.paragraph;
+          if (!paragraphType) return false;
+
+          // ✅ Preserve structural context when converting to paragraph
+          const siblingAttrs = createSiblingAttrs(listBlockAttrs);
+
+          const paragraphNode = paragraphType.create(
+            {
+              blockId: crypto.randomUUID(), // Generate blockId immediately
+              ...siblingAttrs, // ✅ Copy parentBlockId + parentToggleId + level
+            },
+            content
+          );
+          tr.replaceRangeWith(
+            listBlockPos,
+            listBlockPos + listBlockNode.nodeSize,
+            paragraphNode
+          );
+          // Set cursor at start of paragraph
+          tr.setSelection(TextSelection.near(tr.doc.resolve(listBlockPos + 1)));
+          editor.view.dispatch(tr);
+          return true;
         }
 
         return false;
@@ -281,4 +316,3 @@ export const ListBlock = Node.create({
     };
   },
 });
-

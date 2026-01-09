@@ -14,12 +14,16 @@ import type { Editor } from '@tiptap/core';
 import { createKeyboardEngine } from '../engine/KeyboardEngine';
 import type { IntentResolver } from '../../../core/engine';
 import { indentBlock, outdentBlock } from '../rules/tab';
+import type { KeyHandlingResult } from '../types/KeyHandlingResult';
 
 const tabRules = [indentBlock, outdentBlock];
 
 const tabEngine = createKeyboardEngine(tabRules);
 
-export function handleTab(editor: Editor, isShift: boolean = false): boolean {
+export function handleTab(
+  editor: Editor,
+  isShift: boolean = false
+): KeyHandlingResult {
   console.log('📋 [handleTab] Called, isShift:', isShift);
 
   // Get resolver and engine from editor instance (attached by EditorCore)
@@ -60,9 +64,9 @@ export function handleTab(editor: Editor, isShift: boolean = false): boolean {
   // Pass modifier info through the context by storing it on the editor
   (editor as any)._shiftPressed = isShift;
 
-  const handled = tabEngine.handle(editor, 'Tab');
-  console.log('📋 [handleTab] Result:', handled);
-  return handled;
+  const result = tabEngine.handle(editor, 'Tab');
+  console.log('📋 [handleTab] Result:', result);
+  return result;
 }
 
 // Temporary helper: Count blocks in PM doc
