@@ -166,6 +166,13 @@ function syncEngineToTipTap(
 function syncSelectionToEngine(editor: Editor, engine: EditorEngine): void {
   const { selection } = editor.state;
 
+  // TEMPORARY: Selection debug logging (remove after placeholder fix verified)
+  console.log('[Selection Debug]', {
+    dom: window.getSelection()?.toString(),
+    tiptap: selection.toJSON(),
+    engine: engine.selection,
+  });
+
   // Text selection
   if (selection.empty) {
     // Cursor position
