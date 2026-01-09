@@ -68,39 +68,16 @@ export const BlockDeletion = Extension.create({
               // Dispatch transaction (this will trigger onUpdate with docChanged=true)
               view.dispatch(tr);
 
-              // CRITICAL FIX: Prevent blue highlight on empty paragraphs after multi-block deletion
-              // When deleting all blocks, ProseMirror may place DOM selection on the wrapper div,
-              // causing an unwanted blue highlight. We detect and correct this.
-              requestAnimationFrame(() => {
-                // Force React components to re-check their isSelected state
-                editor.emit('selectionUpdate', {
-                  editor,
-                  transaction: view.state.tr,
-                });
-
-                // Check if DOM selection is on a wrapper div (causes blue highlight)
-                const sel = window.getSelection();
-                let clearedSelection = false;
-                if (sel && sel.rangeCount > 0 && sel.isCollapsed) {
-                  const anchorNode = sel.anchorNode;
-                  const isOnWrapperDiv =
-                    anchorNode?.nodeType === Node.ELEMENT_NODE &&
-                    (anchorNode as Element).hasAttribute?.(
-                      'data-node-view-wrapper'
-                    );
-
-                  if (isOnWrapperDiv) {
-                    // Clear the problematic selection on wrapper div
-                    sel.removeAllRanges();
-                    clearedSelection = true;
-                  }
-                }
-
-                // If we cleared the selection, force ProseMirror to restore it correctly
-                if (clearedSelection) {
-                  view.focus();
-                }
-              });
+              // ✅ REMOVED: DOM selection surgery (window.getSelection().removeAllRanges())
+              //
+              // Previous code manually cleared DOM selection to "fix" blue wrapper highlight.
+              // This violated Selection Ownership Law:
+              // - Browser owns text selection rendering
+              // - Editor owns structural selection rendering
+              // - Never manually clear DOM selection
+              //
+              // The real fix was removing CSS that suppressed ::selection on [data-node-view-wrapper].
+              // Let browser + TipTap reconcile selection naturally.
 
               return true; // Prevent default behavior
             }
