@@ -625,10 +625,296 @@ if (blockCount <= 1) {
 
 ---
 
-## NEXT SECTION: Enter Semantics
+---
 
-⏳ **NOT AUDITED YET**
+## B.5. Child Promotion (Engine-Level Audit)
+
+### FORENSIC QUESTION
+
+**When a block is deleted today, what actually happens to its children — and where?**
 
 ---
 
-**Section B Audit Complete. Awaiting instructions for Section C (Enter) or fix prioritization.**
+### SEARCH METHODOLOGY
+
+**Target**: EditorEngine + Commands  
+**Looking for**:
+
+1. Code that iterates over `block.children`
+2. Code that reassigns `parentBlockId`
+3. Code that promotes children on delete
+4. Any deletion or cleanup logic
+
+**Files Audited**:
+
+- `EditorEngine.ts` (full file, 405 lines)
+- `command.ts` (DeleteBlockCommand, MoveBlockCommand)
+- `intentResolver.ts` (delete intent handling)
+- All engine files (grep for promote/orphan/children)
+
+---
+
+### FINDINGS: DeleteBlockCommand (Lines 545-603)
+
+**Location**: `/packages/editor/core/engine/command.ts`
+
+**apply() Method** (lines 574-589):
+
+```typescript
+apply(engine: EditorEngine): void {
+  const block = engine.tree.nodes[this._blockId];
+  if (!block) return;
+
+  // Store for undo
+  this.deletedBlock = { ...block };
+
+  // Remove from parent's children
+  if (block.parentId) {
+    const parent = engine.tree.nodes[block.parentId];
+    parent.children = parent.children.filter((id) => id !== this._blockId);
+  }
+
+  // Delete the block
+  delete engine.tree.nodes[this._blockId];
+}
+```
+
+**CRITICAL FINDING**: ❌ **NO CHILD HANDLING**
+
+**What it DOES**:
+
+1. ✅ Stores block for undo
+2. ✅ Removes block from parent's children array
+3. ✅ Deletes block from tree
+
+**What it DOES NOT do**:
+
+- ❌ Check if block has children (`block.children`)
+- ❌ Iterate over `block.children`
+- ❌ Reassign children's `parentBlockId`
+- ❌ Promote children to parent's level
+- ❌ Move children to grandparent
+- ❌ Delete children recursively
+- ❌ Anything with children AT ALL
+
+---
+
+### CONSEQUENCE: ORPHANED CHILDREN
+
+**When DeleteBlockCommand executes**:
+
+```
+BEFORE:
+root
+├─ Block A (parent)
+│  ├─ Child 1 (parentBlockId: A)
+│  └─ Child 2 (parentBlockId: A)
+└─ Block B
+
+DELETE Block A
+
+AFTER:
+root
+└─ Block B
+
+ORPHANS (still in engine.tree.nodes):
+Child 1 { parentBlockId: "A" }  // ❌ A no longer exists
+Child 2 { parentBlockId: "A" }  // ❌ A no longer exists
+```
+
+**State Corruption**:
+
+- Children still exist in `engine.tree.nodes`
+- Their `parentBlockId` points to deleted block
+- They are NOT in any parent's `children` array
+- They are invisible ghosts in the tree
+
+---
+
+### FINDINGS: MoveBlockCommand (Lines 365-395)
+
+**apply() Method** (lines 365-395):
+
+```typescript
+apply(engine: EditorEngine): void {
+  const block = engine.tree.nodes[this.blockId];
+  if (!block) return;
+
+  // Remove from old parent
+  if (this.oldParentId) {
+    const oldParent = engine.tree.nodes[this.oldParentId];
+    oldParent.children = oldParent.children.filter(
+      (id) => id !== this.blockId
+    );
+  }
+
+  // Add to new parent
+  if (this.newParentId) {
+    const newParent = engine.tree.nodes[this.newParentId];
+    newParent.children.splice(this.newIndex, 0, this.blockId);
+  }
+
+  block.parentId = this.newParentId;
+  // ... (PM sync, cursor restore)
+}
+```
+
+**Finding**: ✅ **CORRECT - Children Follow Parent**
+
+**What it DOES**:
+
+- Moves block from old parent to new parent
+- Updates block's `parentBlockId`
+- Does NOT touch block's children
+
+**Why this is CORRECT**:
+
+- Children still have `parentBlockId` pointing to moved block (correct)
+- Moved block still has children in its `children` array (correct)
+- Hierarchy moves as a unit (Section A contract: "Children Follow Parent")
+
+**Verdict**: MoveBlockCommand is NOT the problem.
+
+---
+
+### FINDINGS: EditorEngine (Full File Audit)
+
+**Methods Found**:
+
+- `getBlock()` - read block
+- `getChildren()` - read children array
+- `getParent()` - read parent
+- `getSiblings()` - read siblings
+- `hasChildren()` - check if children exist
+- `dispatch()` - execute commands
+- `canNest()` - policy check
+- `canOutdent()` - policy check
+
+**Methods NOT Found**:
+
+- ❌ `deleteBlock()`
+- ❌ `removeBlock()`
+- ❌ `promoteChildren()`
+- ❌ `reassignParent()`
+- ❌ Any deletion logic
+- ❌ Any child promotion logic
+
+**Verdict**: EditorEngine has NO deletion methods. All deletion happens via `DeleteBlockCommand`.
+
+---
+
+### GREP SEARCH: "promote" or "orphan"
+
+**Command**: `grep -r "promote\|orphan" packages/editor/core/engine`
+
+**Result**: ❌ **ZERO MATCHES**
+
+No code anywhere mentions:
+
+- "promote"
+- "orphan"
+- Child promotion
+- Child reassignment
+
+---
+
+### ANSWERS TO FORENSIC QUESTIONS
+
+#### 1. Is there any code that iterates over `block.children`?
+
+**Answer**: ❌ NO
+
+**Evidence**:
+
+- DeleteBlockCommand does not access `block.children`
+- No iteration found in any command
+- Only `getChildren()` reads children (for display, not mutation)
+
+---
+
+#### 2. Is there any code that reassigns `parentBlockId`?
+
+**Answer**: ✅ YES - but only for THE MOVED BLOCK, not for children
+
+**Evidence**:
+
+- `MoveBlockCommand` line 383: `block.parentId = this.newParentId;`
+- This updates the MOVED block's parent, not its children's parents
+- No code updates children's `parentBlockId` when parent is deleted
+
+---
+
+#### 3. Is there any code that promotes children on delete?
+
+**Answer**: ❌ **ABSOLUTELY NOT**
+
+**Evidence**:
+
+- DeleteBlockCommand has zero child handling
+- No Engine method for child promotion
+- No intent resolver logic for child promotion
+- grep "promote" → zero matches
+- grep "orphan" → zero matches
+
+---
+
+### FINAL VERDICT: CRITICAL BUG CONFIRMED 🚨
+
+**Status**: ❌ **MISSING - CHILDREN ARE ORPHANED**
+
+**Evidence Summary**:
+
+1. ❌ DeleteBlockCommand does NOT handle children
+2. ❌ EditorEngine has NO deletion methods
+3. ❌ No "promote" or "orphan" code exists
+4. ❌ No child iteration in deletion path
+5. ❌ No `parentBlockId` reassignment on delete
+
+**What Actually Happens**:
+
+- Block deleted → removed from tree
+- Children remain in tree with invalid `parentBlockId`
+- Children are ghost blocks - exist but unreachable
+- Undo restores parent, children reconnect (accidental fix)
+- But redo breaks again
+
+**Severity**: 🔴 **CRITICAL**
+
+**Contract Violation**:
+
+- Contract (Section B2): "Children promoted before deletion (never orphaned)"
+- Reality: Children ARE orphaned, ALWAYS
+
+**Expected Failures**:
+
+1. Delete nested list item → children vanish from UI
+2. Undo → children reappear (tree reconnects)
+3. Redo → children vanish again
+4. Editor rebuild → orphans cause tree corruption
+5. Multi-level nesting → cascade orphaning
+
+---
+
+## SECTION B.5 COMPLETE
+
+**Child promotion is COMPLETELY MISSING from the codebase.**
+
+**This affects**:
+
+- ✅ ListBlock (currently broken)
+- ✅ Toggle (not yet audited, but will be broken)
+- ✅ Any hierarchical block
+- ✅ Undo/redo correctness
+- ✅ Tree integrity
+
+**Next Actions** (user will decide):
+
+- Design canonical child promotion primitive
+- Decide where it lives (Command? Engine method?)
+- Decide WHEN it's called (before delete? as part of delete?)
+- Fix DeleteBlockCommand
+- Add child promotion tests
+
+---
+
+**Section B Complete (including B.5 Engine audit). Awaiting fix prioritization.**
