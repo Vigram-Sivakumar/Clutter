@@ -47,15 +47,17 @@
 
 ### A3. Ctrl+A / Cmd+A (Selection Escalation)
 
-| Press Count | Expected            | Implementation | Status       |
-| ----------- | ------------------- | -------------- | ------------ |
-| 1st         | Select text inside  | ?              | ❌ NOT FOUND |
-| 2nd         | Select entire block | ?              | ❌ NOT FOUND |
-| 3rd         | Select entire doc   | ?              | ❌ NOT FOUND |
+| Press Count | Expected            | Implementation        | Status      |
+| ----------- | ------------------- | --------------------- | ----------- |
+| 1st         | Select text inside  | SelectAll.ts (global) | ✅ VERIFIED |
+| 2nd         | Select entire block | SelectAll.ts (global) | ✅ VERIFIED |
+| 3rd         | Select entire doc   | SelectAll.ts (global) | ✅ VERIFIED |
 
-**VIOLATION**: Selection escalation not implemented in Paragraph node  
-**Severity**: HIGH - Core interaction missing  
-**Action Required**: Implement Ctrl+A escalation or verify it's handled globally
+**VERIFIED**: Selection escalation FULLY IMPLEMENTED globally  
+**Location**: `/packages/editor/plugins/SelectAll.ts` (lines 168-192)  
+**Registration**: EditorCore.tsx line 171  
+**Contract Compliance**: ✅ EXACT MATCH (Text → Block → Document)  
+**Action Required**: NONE - Paragraph does not need to handle this
 
 ---
 
@@ -289,19 +291,22 @@
 
 ## SUMMARY - Critical Issues
 
-### 🔴 HIGH SEVERITY (Must Fix)
+### ✅ HIGH SEVERITY (ALL RESOLVED)
 
-1. **Delete Key Not Implemented**
-   - Contract requires symmetric Delete behavior
-   - Completely missing
+1. **Document Must Have ≥1 Block** - ✅ FIXED
+   - Added guard in Backspace handler
+   - `blockCount <= 1` → noop
+   - Document invariant enforced
 
-2. **Ctrl+A Selection Escalation Missing**
-   - Core interaction not found in Paragraph
-   - Might be global, needs verification
+2. **Delete Key Not Implemented** - ✅ FIXED
+   - Implemented Delete handler (lines 391-526)
+   - Symmetric to Backspace, directionally consistent
+   - All edge cases explicitly handled
 
-3. **Document Must Have ≥1 Block**
-   - Line 351 can delete only paragraph
-   - Violates core document invariant
+3. **Ctrl+A Selection Escalation** - ✅ VERIFIED
+   - Globally implemented in SelectAll.ts
+   - Contract compliant (Text → Block → Document)
+   - No Paragraph-level action needed
 
 ### 🟡 MEDIUM SEVERITY (Should Fix)
 
@@ -331,14 +336,20 @@
 
 ## NEXT ACTIONS (Priority Order)
 
-1. ✅ **Audit arrow key handlers** (`handleArrowLeft/Right/Up/Down`)
-2. ❌ **Implement Delete key** (symmetric to Backspace)
-3. ❌ **Fix "only paragraph" deletion** (document must have ≥1 block)
-4. ⚠️ **Verify/Implement Ctrl+A escalation**
+### ✅ CRITICAL FIXES COMPLETE (Phase 2.2.2)
+
+1. ✅ **Fix "only paragraph" deletion** - DONE (Fix #1)
+2. ✅ **Implement Delete key** - DONE (Fix #2)
+3. ✅ **Verify Ctrl+A escalation** - VERIFIED (exists globally)
+
+### ⏭️ DEFERRED (Future Phases)
+
+4. ⚠️ **Audit arrow key handlers** (`handleArrowLeft/Right/Up/Down`)
 5. ⚠️ **Simplify Enter handler** (move hashtag/toggle to rules)
 6. ⚠️ **Make Backspace merge explicit**
 7. ⚠️ **Verify undo/redo blockId preservation**
 
 ---
 
-**Audit Complete. Awaiting fix instructions.**
+**Phase 2.2.2 Complete. All critical violations resolved.**  
+**Status**: Ready for next phase.
