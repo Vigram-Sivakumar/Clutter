@@ -78,7 +78,14 @@ function tiptapJsonToBlockTree(tiptapJson: any): BlockTree {
 /**
  * Sync TipTap document changes to engine
  *
- * Only updates blocks that actually changed.
+ * BLOCK IDENTITY LAW:
+ * - Engine is authoritative on block identity
+ * - TipTap is authoritative on block existence
+ * - Therefore: rebuild engine block index from TipTap after every change
+ *
+ * This is NOT incremental. This is a full rebuild.
+ * Performance is fine - trust > micro-optimization.
+ * This is how Notion / Craft / Tana work.
  */
 function syncTipTapToEngine(
   editor: Editor,
@@ -93,7 +100,7 @@ function syncTipTapToEngine(
     return;
   }
 
-  console.log('[Bridge] Syncing TipTap→Engine');
+  console.log('[Bridge] Syncing TipTap→Engine (full rebuild)');
 
   // Mark as TipTap update
   updateSource.current = 'tiptap';
@@ -101,12 +108,16 @@ function syncTipTapToEngine(
   try {
     const tiptapJson = editor.getJSON();
 
-    // TODO: Implement incremental updates
-    // For now, we just log that content changed
-    // The engine.tree will be updated by commands
+    // FULL REBUILD: Convert entire TipTap document to BlockTree
+    // This ensures engine always knows about all blocks that exist
+    const newTree = tiptapJsonToBlockTree(tiptapJson);
 
-    console.log('[Bridge] TipTap content changed:', {
-      blockCount: tiptapJson.content?.length || 0,
+    // Replace engine's tree entirely
+    engine.tree = newTree;
+
+    console.log('[Bridge] Engine block index rebuilt:', {
+      blockCount: Object.keys(newTree.nodes).length - 1, // -1 for root
+      blocks: Object.keys(newTree.nodes).filter((id) => id !== 'root'),
     });
   } finally {
     // Reset source after a tick
