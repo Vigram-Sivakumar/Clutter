@@ -46,11 +46,30 @@ export const outdentBlock = defineRule({
   },
 
   execute(ctx: KeyboardContext): EditorIntent {
-    const { currentNode } = ctx;
+    const { $from } = ctx;
+
+    // BLOCK IDENTITY LAW: Derive blockId from ProseMirror selection, not Engine state
+    // Walk up from cursor position to find first node with blockId attribute
+    let blockId: string | null = null;
+    for (let depth = $from.depth; depth > 0; depth--) {
+      const node = $from.node(depth);
+      if (node.attrs?.blockId) {
+        blockId = node.attrs.blockId;
+        break;
+      }
+    }
+
+    if (!blockId) {
+      console.warn(
+        '✨ [outdentBlock.execute] No blockId found in selection hierarchy'
+      );
+      // Return noop intent instead of crashing
+      return { type: 'noop' };
+    }
 
     return {
       type: 'outdent-block',
-      blockId: currentNode.attrs.blockId,
+      blockId,
     };
   },
 });
