@@ -28,13 +28,22 @@ export const indentBlock = defineRule({
   priority: 100,
 
   when(ctx: KeyboardContext): boolean {
-    const { key } = ctx;
+    const { key, editor } = ctx;
 
     console.log('🔍 [indentBlock.when] Checking, key:', key);
 
     // Must be Tab key (no shift)
     if (key !== 'Tab') {
       console.log('🔍 [indentBlock.when] Not Tab, skipping');
+      return false;
+    }
+
+    // Must NOT have shift modifier (that's outdent)
+    const isShift = (editor as any)._shiftPressed;
+    if (isShift) {
+      console.log(
+        '🔍 [indentBlock.when] Shift pressed, skipping (outdent instead)'
+      );
       return false;
     }
 

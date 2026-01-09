@@ -28,18 +28,20 @@ export const outdentBlock = defineRule({
   priority: 100,
 
   when(ctx: KeyboardContext): boolean {
-    const { key } = ctx;
+    const { key, editor } = ctx;
 
     // Must be Tab key
     if (key !== 'Tab') {
       return false;
     }
 
-    // Must have shift modifier
-    const event = (ctx as any).event; // Access raw event if available
-    if (!event || !event.shiftKey) {
+    // Must have shift modifier (stored on editor by handleTab)
+    const isShift = (editor as any)._shiftPressed;
+    if (!isShift) {
       return false;
     }
+
+    console.log('🔍 [outdentBlock.when] Shift+Tab detected');
 
     // For now, always match Shift+Tab
     // Resolver will decide if intent is valid

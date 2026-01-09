@@ -19,8 +19,8 @@ const tabRules = [indentBlock, outdentBlock];
 
 const tabEngine = createKeyboardEngine(tabRules);
 
-export function handleTab(editor: Editor): boolean {
-  console.log('📋 [handleTab] Called');
+export function handleTab(editor: Editor, isShift: boolean = false): boolean {
+  console.log('📋 [handleTab] Called, isShift:', isShift);
 
   // Get resolver and engine from editor instance (attached by EditorCore)
   const resolver = (editor as any)._resolver as IntentResolver | undefined;
@@ -56,6 +56,9 @@ export function handleTab(editor: Editor): boolean {
       );
     }
   }
+
+  // Pass modifier info through the context by storing it on the editor
+  (editor as any)._shiftPressed = isShift;
 
   const handled = tabEngine.handle(editor, 'Tab');
   console.log('📋 [handleTab] Result:', handled);
