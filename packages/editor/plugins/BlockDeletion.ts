@@ -2,7 +2,12 @@
  * Block Deletion Plugin
  *
  * Handles DELETE and Backspace keys when blocks are node-selected (halo)
- * Ensures deletions properly trigger onUpdate and save to database
+ *
+ * INTEGRATION STATUS: ✅ Uses engine.deleteBlock() primitive
+ * - Routes all deletions through EditorEngine (Editor Law #8)
+ * - Children are promoted (never orphaned)
+ * - Undo/redo restores structure + relationships
+ * - No PM default deletion (tr.delete removed)
  */
 
 import { Extension } from '@tiptap/core';
@@ -12,6 +17,8 @@ import {
   isMultiBlockSelection,
   getSelectedBlocks,
 } from '../utils/multiSelection';
+import type { EditorEngine } from '../core/engine/EditorEngine';
+import { DeleteBlockCommand } from '../core/engine/command';
 
 /**
  * Check if selection is a NodeSelection on a single block
@@ -19,6 +26,14 @@ import {
 function isNodeSelected(state: any): boolean {
   const { selection } = state;
   return selection instanceof NodeSelection;
+}
+
+/**
+ * Get EditorEngine from TipTap editor instance
+ * Engine is attached by EditorCore during initialization
+ */
+function getEngine(editor: any): EditorEngine | null {
+  return editor._engine || null;
 }
 
 export const BlockDeletion = Extension.create({
@@ -47,37 +62,50 @@ export const BlockDeletion = Extension.create({
             // Case 1: Multi-block selection (Cmd+A, Shift+Click)
             if (isMultiBlockSelection(editor)) {
               const blocks = getSelectedBlocks(editor);
+              const engine = getEngine(editor);
 
-              // Delete in reverse order to preserve positions
-              let tr = state.tr;
-              for (let i = blocks.length - 1; i >= 0; i--) {
-                const block = blocks[i];
-                tr = tr.delete(block.pos, block.pos + block.nodeSize);
-              }
-
-              // Position cursor inside the first block, not at document boundary
-              // After deleting all blocks, an empty paragraph is created at position 0
-              // We need to position the cursor INSIDE that paragraph (position 1), not before it (position 0)
-              if (tr.doc.content.size > 0 && tr.doc.firstChild) {
-                const firstBlockStart = 1;
-                tr = tr.setSelection(
-                  TextSelection.create(tr.doc, firstBlockStart)
+              if (!engine) {
+                console.error(
+                  '[BlockDeletion] EditorEngine not found on editor instance'
                 );
+                return false;
               }
 
-              // Dispatch transaction (this will trigger onUpdate with docChanged=true)
-              view.dispatch(tr);
+              console.log(
+                `[BlockDeletion] Multi-block delete: ${blocks.length} blocks`
+              );
 
-              // ✅ REMOVED: DOM selection surgery (window.getSelection().removeAllRanges())
-              //
-              // Previous code manually cleared DOM selection to "fix" blue wrapper highlight.
-              // This violated Selection Ownership Law:
-              // - Browser owns text selection rendering
-              // - Editor owns structural selection rendering
-              // - Never manually clear DOM selection
-              //
-              // The real fix was removing CSS that suppressed ::selection on [data-node-view-wrapper].
-              // Let browser + TipTap reconcile selection naturally.
+              // ✅ USE ENGINE PRIMITIVE: Delete blocks via DeleteBlockCommand
+              // This ensures children are promoted (Editor Law #8)
+              // Delete in document order (engine handles child promotion per block)
+              for (const block of blocks) {
+                const blockId = block.node.attrs?.blockId;
+                if (blockId) {
+                  const cmd = new DeleteBlockCommand(blockId);
+                  engine.dispatch(cmd);
+                  console.log(
+                    `[BlockDeletion] ✅ Deleted block ${blockId} (children promoted)`
+                  );
+                } else {
+                  console.warn(
+                    '[BlockDeletion] Block has no blockId, skipping',
+                    block
+                  );
+                }
+              }
+
+              // After engine deletions, position cursor in first remaining block
+              // Wait for next frame for PM to sync with engine changes
+              requestAnimationFrame(() => {
+                const { state: newState } = editor;
+                if (newState.doc.content.size > 0 && newState.doc.firstChild) {
+                  const firstBlockStart = 1;
+                  const tr = newState.tr.setSelection(
+                    TextSelection.create(newState.doc, firstBlockStart)
+                  );
+                  editor.view.dispatch(tr);
+                }
+              });
 
               return true; // Prevent default behavior
             }
@@ -88,23 +116,53 @@ export const BlockDeletion = Extension.create({
               const node = state.doc.nodeAt(pos);
 
               if (node) {
-                // Delete the block and trigger onUpdate
-                let tr = state.tr.delete(pos, pos + node.nodeSize);
+                const blockId = node.attrs?.blockId;
+                const engine = getEngine(editor);
 
-                // Position cursor inside a valid block, not at document boundary
-                let cursorPos = pos;
-                if (cursorPos >= tr.doc.content.size) {
-                  cursorPos = tr.doc.content.size - 1;
-                }
-                // Ensure we're inside a block, not at document boundaries
-                if (cursorPos <= 0 && tr.doc.firstChild) {
-                  cursorPos = 1; // Inside the first block
-                }
-                if (cursorPos > 0) {
-                  tr = tr.setSelection(TextSelection.create(tr.doc, cursorPos));
+                if (!engine) {
+                  console.error(
+                    '[BlockDeletion] EditorEngine not found on editor instance'
+                  );
+                  return false;
                 }
 
-                view.dispatch(tr);
+                if (!blockId) {
+                  console.warn(
+                    '[BlockDeletion] Node has no blockId, skipping',
+                    node
+                  );
+                  return false;
+                }
+
+                console.log(`[BlockDeletion] Single node delete: ${blockId}`);
+
+                // ✅ USE ENGINE PRIMITIVE: Delete block via DeleteBlockCommand
+                // This ensures children are promoted (Editor Law #8)
+                const cmd = new DeleteBlockCommand(blockId);
+                engine.dispatch(cmd);
+                console.log(
+                  `[BlockDeletion] ✅ Deleted block ${blockId} (children promoted)`
+                );
+
+                // After engine deletion, position cursor in a valid block
+                // Wait for next frame for PM to sync with engine changes
+                requestAnimationFrame(() => {
+                  const { state: newState } = editor;
+                  let cursorPos = pos;
+                  if (cursorPos >= newState.doc.content.size) {
+                    cursorPos = newState.doc.content.size - 1;
+                  }
+                  // Ensure we're inside a block, not at document boundaries
+                  if (cursorPos <= 0 && newState.doc.firstChild) {
+                    cursorPos = 1; // Inside the first block
+                  }
+                  if (cursorPos > 0) {
+                    const tr = newState.tr.setSelection(
+                      TextSelection.create(newState.doc, cursorPos)
+                    );
+                    editor.view.dispatch(tr);
+                  }
+                });
 
                 return true; // Prevent default behavior
               }
