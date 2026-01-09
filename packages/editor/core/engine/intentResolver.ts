@@ -355,13 +355,15 @@ export class IntentResolver {
       }
     }
 
-    const command = new MoveBlockCommand(
+    const command = new MoveBlockCommand({
       blockId,
       oldParentId,
       oldIndex,
       newParentId,
-      newIndex
-    );
+      newIndex,
+      intentCategory: 'block-move',
+      engine: this._engine,
+    });
     this._engine.dispatch(command);
 
     return {
@@ -410,6 +412,15 @@ export class IntentResolver {
 
     const previousSiblingId = siblings[index - 1];
 
+    // Guard: previousSiblingId must exist (should never fail due to index > 0 check)
+    if (!previousSiblingId) {
+      return {
+        success: false,
+        intent,
+        reason: 'Previous sibling not found in siblings array',
+      };
+    }
+
     // 4. Policy check
     if (!this._engine.canNest(blockId, previousSiblingId)) {
       return {
@@ -432,13 +443,15 @@ export class IntentResolver {
     const newIndex = previousSibling.children.length;
 
     this._engine.dispatch(
-      new MoveBlockCommand(
+      new MoveBlockCommand({
         blockId,
-        parent.id || null,
-        index,
-        previousSiblingId,
-        newIndex
-      )
+        oldParentId: parent.id || null,
+        oldIndex: index,
+        newParentId: previousSiblingId,
+        newIndex,
+        intentCategory: 'block-indent',
+        engine: this._engine,
+      })
     );
 
     // 6. Cursor placement
@@ -500,13 +513,15 @@ export class IntentResolver {
     const parentIndex = this._engine.getIndexInParent(parent.id);
 
     this._engine.dispatch(
-      new MoveBlockCommand(
+      new MoveBlockCommand({
         blockId,
-        parent.id || null,
-        currentIndex,
-        grandParent.id || null,
-        parentIndex + 1
-      )
+        oldParentId: parent.id || null,
+        oldIndex: currentIndex,
+        newParentId: grandParent.id || null,
+        newIndex: parentIndex + 1,
+        intentCategory: 'block-outdent',
+        engine: this._engine,
+      })
     );
 
     // 6. Cursor placement
