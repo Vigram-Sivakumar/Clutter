@@ -126,7 +126,12 @@ export const AppSidebar = ({
   currentView,
 }: AppSidebarProps) => {
   const { mode, colors } = useTheme();
-  const { openMultiActionConfirmation } = useConfirmation();
+  const confirmationHook = useConfirmation();
+  const openMultiActionConfirmation =
+    confirmationHook.openMultiActionConfirmation;
+
+  // Debug: Log confirmation functions to verify they exist
+  console.log('[AppSidebar] Confirmation hook:', confirmationHook);
 
   // Connect to stores
   const {
