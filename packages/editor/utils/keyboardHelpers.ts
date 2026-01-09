@@ -526,6 +526,36 @@ export function createSiblingAttrs(sourceAttrs: any): {
 }
 
 /**
+ * BLOCK IDENTITY LAW: Get blockId from current ProseMirror selection
+ *
+ * This is the ONLY legal way to derive blockId for keyboard intents.
+ *
+ * Rule: Walk up from selection position to find first node with blockId attribute.
+ * This ensures the blockId comes from the ACTUAL document state, not cached/stale data.
+ *
+ * Why this matters:
+ * - Engine rebuilds its index from TipTap document on every update
+ * - Keyboard rules must derive blockId from the SAME source (ProseMirror state)
+ * - Using cached blockIds causes "Block not found" errors
+ */
+export function getBlockIdFromSelection(state: any): string | null {
+  const { selection } = state;
+
+  // Use NodeSelection if present, otherwise use anchor position
+  const $from = (selection as any).$from || selection.$anchor;
+
+  // Walk up from cursor depth to find first node with blockId
+  for (let depth = $from.depth; depth > 0; depth--) {
+    const node = $from.node(depth);
+    if (node.attrs && typeof node.attrs.blockId === 'string') {
+      return node.attrs.blockId;
+    }
+  }
+
+  return null;
+}
+
+/**
  * Find an ancestor node by name
  */
 export function findAncestorNode(

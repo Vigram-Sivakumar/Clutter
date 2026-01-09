@@ -20,6 +20,7 @@
 import { defineRule } from '../../types/KeyboardRule';
 import type { KeyboardContext } from '../../types/KeyboardContext';
 import type { EditorIntent } from '../../../../core/engine';
+import { getBlockIdFromSelection } from '../../../../utils/keyboardHelpers';
 
 export const outdentBlock = defineRule({
   id: 'tab:outdentBlock',
@@ -46,26 +47,22 @@ export const outdentBlock = defineRule({
   },
 
   execute(ctx: KeyboardContext): EditorIntent {
-    const { $from } = ctx;
+    const { state } = ctx;
 
-    // BLOCK IDENTITY LAW: Derive blockId from ProseMirror selection, not Engine state
-    // Walk up from cursor position to find first node with blockId attribute
-    let blockId: string | null = null;
-    for (let depth = $from.depth; depth > 0; depth--) {
-      const node = $from.node(depth);
-      if (node.attrs?.blockId) {
-        blockId = node.attrs.blockId;
-        break;
-      }
-    }
+    // BLOCK IDENTITY LAW: Derive blockId from ProseMirror selection
+    // This ensures we're reading from the CURRENT document state,
+    // not from cached/stale data
+    const blockId = getBlockIdFromSelection(state);
 
     if (!blockId) {
-      console.warn(
-        '✨ [outdentBlock.execute] No blockId found in selection hierarchy'
-      );
-      // Return noop intent instead of crashing
+      console.warn('[outdentBlock] No blockId found from selection');
       return { type: 'noop' };
     }
+
+    console.log(
+      '✨ [outdentBlock.execute] Emitting outdent-block intent for:',
+      blockId
+    );
 
     return {
       type: 'outdent-block',
