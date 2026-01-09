@@ -374,32 +374,148 @@ export class IntentResolver {
   private handleIndentBlock(
     intent: Extract<EditorIntent, { type: 'indent-block' }>
   ): IntentResult {
-    // TODO: Implement indent logic
-    // Resolver responsibility:
-    // - Increase list level
-    // - Nest toggles
-    // - Apply structural hierarchy rules
-    // - Move cursor appropriately
+    const { blockId } = intent;
+
+    // 1. Get block
+    const block = this._engine.getBlock(blockId);
+    if (!block) {
+      return {
+        success: false,
+        intent,
+        reason: `Block ${blockId} not found`,
+      };
+    }
+
+    // 2. Get parent and siblings
+    const parent = this._engine.getParent(blockId);
+    if (!parent) {
+      return {
+        success: false,
+        intent,
+        reason: 'Block has no parent (cannot indent root)',
+      };
+    }
+
+    const siblings = parent.children;
+    const index = siblings.indexOf(blockId);
+
+    // 3. Must have a previous sibling
+    if (index <= 0) {
+      return {
+        success: false,
+        intent,
+        reason: 'No previous sibling to nest under',
+      };
+    }
+
+    const previousSiblingId = siblings[index - 1];
+
+    // 4. Policy check
+    if (!this._engine.canNest(blockId, previousSiblingId)) {
+      return {
+        success: false,
+        intent,
+        reason: 'Nesting not allowed by policy',
+      };
+    }
+
+    // 5. Move block under previous sibling (append as last child)
+    const previousSibling = this._engine.getBlock(previousSiblingId);
+    if (!previousSibling) {
+      return {
+        success: false,
+        intent,
+        reason: 'Previous sibling not found',
+      };
+    }
+
+    const newIndex = previousSibling.children.length;
+
+    this._engine.dispatch(
+      new MoveBlockCommand(
+        blockId,
+        parent.id,
+        index,
+        previousSiblingId,
+        newIndex
+      )
+    );
+
+    // 6. Cursor placement
+    this._engine.setCursorAfterStructuralMove(blockId);
+
     return {
-      success: false,
+      success: true,
       intent,
-      reason: 'Not implemented yet',
+      mode: this._engine.getMode(),
     };
   }
 
   private handleOutdentBlock(
     intent: Extract<EditorIntent, { type: 'outdent-block' }>
   ): IntentResult {
-    // TODO: Implement outdent logic
-    // Resolver responsibility:
-    // - Decrease list level
-    // - Unnest toggles
-    // - Convert to paragraph if at root level
-    // - Move cursor appropriately
+    const { blockId } = intent;
+
+    // 1. Get block
+    const block = this._engine.getBlock(blockId);
+    if (!block) {
+      return {
+        success: false,
+        intent,
+        reason: `Block ${blockId} not found`,
+      };
+    }
+
+    // 2. Get parent
+    const parent = this._engine.getParent(blockId);
+    if (!parent) {
+      return {
+        success: false,
+        intent,
+        reason: 'Block has no parent (already at root)',
+      };
+    }
+
+    // 3. Get grandparent
+    const grandParent = this._engine.getParent(parent.id);
+    if (!grandParent) {
+      return {
+        success: false,
+        intent,
+        reason: 'Parent is root (cannot outdent further)',
+      };
+    }
+
+    // 4. Policy check
+    if (!this._engine.canOutdent(blockId)) {
+      return {
+        success: false,
+        intent,
+        reason: 'Outdent not allowed by policy',
+      };
+    }
+
+    // 5. Insert after parent (lift one level)
+    const currentIndex = this._engine.getIndexInParent(blockId);
+    const parentIndex = this._engine.getIndexInParent(parent.id);
+
+    this._engine.dispatch(
+      new MoveBlockCommand(
+        blockId,
+        parent.id,
+        currentIndex,
+        grandParent.id,
+        parentIndex + 1
+      )
+    );
+
+    // 6. Cursor placement
+    this._engine.setCursorAfterStructuralMove(blockId);
+
     return {
-      success: false,
+      success: true,
       intent,
-      reason: 'Not implemented yet',
+      mode: this._engine.getMode(),
     };
   }
 

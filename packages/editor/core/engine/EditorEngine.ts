@@ -330,4 +330,90 @@ export class EditorEngine {
       },
     };
   }
+
+  // ===== STATE SETTERS =====
+
+  /**
+   * Set cursor position
+   */
+  setCursor(cursor: EditorCursor | null): void {
+    this.cursor = cursor;
+  }
+
+  /**
+   * Set selection state
+   */
+  setSelection(selection: EditorSelection): void {
+    this.selection = selection;
+  }
+
+  /**
+   * Set focus block
+   */
+  setFocus(focus: EditorFocus): void {
+    this.focus = focus;
+  }
+
+  /**
+   * Update entire block tree
+   */
+  updateBlockTree(tree: BlockTree): void {
+    this.tree = tree;
+  }
+
+  // ===== STRUCTURAL POLICIES =====
+
+  /**
+   * Check if a block can be nested under another block
+   *
+   * Policy hook for indent operations.
+   * Returns false if nesting would violate structural rules.
+   */
+  canNest(_childId: BlockId, _parentId: BlockId): boolean {
+    // For now, allow all nesting
+    // Future: check block type policies (e.g., can't nest heading under heading)
+    return true;
+  }
+
+  /**
+   * Check if a block can be outdented
+   *
+   * Policy hook for outdent operations.
+   * Returns false if outdenting would violate structural rules.
+   */
+  canOutdent(blockId: BlockId): boolean {
+    const parent = this.getParent(blockId);
+    if (!parent) return false; // Already at root
+
+    const grandParent = this.getParent(parent.id);
+    if (!grandParent) return false; // Parent is root, can't outdent
+
+    return true;
+  }
+
+  /**
+   * Set cursor position after a structural move
+   *
+   * Conservative cursor placement: keep cursor in same block, same offset if possible.
+   * Never jumps to parent or sibling.
+   */
+  setCursorAfterStructuralMove(blockId: BlockId): void {
+    const block = this.getBlock(blockId);
+    if (!block) return;
+
+    // Keep cursor in the moved block
+    // If cursor was already there, preserve offset
+    if (this.cursor && this.cursor.blockId === blockId) {
+      // Cursor stays where it was (offset preserved)
+      return;
+    }
+
+    // Otherwise, place cursor at start of block
+    this.setCursor({
+      blockId,
+      offset: 0,
+    });
+
+    this.setFocus({ blockId });
+  }
 }
