@@ -62,7 +62,7 @@ import { AtMention } from '../plugins/AtMention';
 import { BlockIdGenerator } from '../extensions/BlockIdGenerator';
 import { SelectAll } from '../plugins/SelectAll';
 import { BlockDeletion } from '../plugins/BlockDeletion';
-import { UndoBoundaries } from '../plugins/UndoBoundaries';
+import { UndoRedo } from '../plugins/UndoRedo';
 // import { FocusFade } from '../plugins/FocusFade'; // Disabled for now
 
 // Components
@@ -81,9 +81,6 @@ import { useEditorContext } from '../context/EditorContext';
 
 // Editor Engine
 import { useEditorEngine } from './engine';
-
-// History extension for undo/redo
-import History from '@tiptap/extension-history';
 
 // HardBreak extension for line breaks (Shift+Enter)
 import HardBreak from '@tiptap/extension-hard-break';
@@ -171,6 +168,7 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
         DoubleSpaceEscape,
         SelectAll, // Progressive Cmd+A: block text → block node → all blocks
         BlockDeletion, // Handle DELETE/Backspace for node-selected blocks
+        UndoRedo, // Cmd+Z / Cmd+Shift+Z → EditorEngine.undoController
         HashtagDetection, // Simple #tag detection (moves to metadata)
         HashtagAutocomplete.configure({
           getColors: () => colors,
@@ -181,14 +179,11 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
         }),
         // FocusFade, // Fade text before cursor for better focus - Disabled for now
 
-        // Built-in extensions
-        History.configure({
-          depth: 100,
-          // Extremely short delay for granular undo (like Notion) - creates new group after 1ms pause
-          // This ensures each rapid action can potentially be its own undo step
-          newGroupDelay: 1,
-        }),
-        UndoBoundaries, // Create undo boundaries on spaces and line breaks (Notion-like behavior)
+        // DISABLED: TipTap History - We use UndoController for emotional undo
+        // History and UndoBoundaries have been removed in favor of:
+        // - EditorEngine.undoController (handles grouping per UNDO_GROUPING_LAW.md)
+        // - Full state restoration (cursor + selection)
+        // - Time-based and intent-based grouping
 
         // DISABLED: TipTap Placeholder uses CSS ::before which shows placeholder BEFORE markers
         // We use React-based placeholders in each component instead
@@ -236,6 +231,19 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
 
     // Initialize EditorEngine bridge
     const { engine, resolver } = useEditorEngine(editor);
+
+    // Attach engine to editor instance for UndoRedo plugin
+    useEffect(() => {
+      if (editor && engine) {
+        (editor as any).engine = engine;
+        (editor as any).resolver = resolver;
+
+        console.log('[EditorCore] Engine and resolver attached to editor', {
+          engine,
+          resolver,
+        });
+      }
+    }, [editor, engine, resolver]);
 
     // Store onTagClick callback in editor instance so node views can access it
     useEffect(() => {
