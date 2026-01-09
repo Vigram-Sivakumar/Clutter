@@ -2,14 +2,16 @@
  * Outdent Empty List Rule (Backspace)
  *
  * When: At start of empty list block
- * Do: Outdent (if level > 0) or convert to paragraph (if level = 0)
+ * Do: Emit outdent-block intent
  *
- * LEGACY: Requires dedicated indent-block / outdent-block intent pair.
- * Will be migrated during Tab / Shift+Tab phase.
+ * Resolver decides:
+ * - If level > 0: decrease level (outdent)
+ * - If level = 0: convert to paragraph
  */
 
 import { defineRule } from '../../types/KeyboardRule';
 import type { KeyboardContext } from '../../types/KeyboardContext';
+import type { EditorIntent } from '../../../../core/engine';
 import { findAncestorNode } from '../../../../utils/keyboardHelpers';
 
 export const outdentEmptyList = defineRule({
@@ -35,29 +37,15 @@ export const outdentEmptyList = defineRule({
     return listBlock.node.textContent === '';
   },
 
-  execute(ctx: KeyboardContext): boolean {
+  execute(ctx: KeyboardContext): EditorIntent | boolean {
     const { editor } = ctx;
 
     const listBlock = findAncestorNode(editor, 'listBlock');
     if (!listBlock) return false;
 
-    const currentLevel = listBlock.node.attrs.level;
-
-    if (currentLevel > 0) {
-      // Outdent
-      return editor
-        .chain()
-        .command(({ tr }) => {
-          tr.setNodeMarkup(listBlock.pos, undefined, {
-            ...listBlock.node.attrs,
-            level: currentLevel - 1,
-          });
-          return true;
-        })
-        .run();
-    } else {
-      // Convert to paragraph
-      return editor.chain().setNode('paragraph').run();
-    }
+    return {
+      type: 'outdent-block',
+      blockId: listBlock.node.attrs.blockId,
+    };
   },
 });

@@ -2,11 +2,14 @@
  * Outdent Empty List Rule (Enter)
  *
  * When: Empty list block at level > 0
- * Do: Outdent the list (decrease level)
+ * Do: Emit outdent-block intent
+ *
+ * Resolver decides how to decrease level or convert to paragraph.
  */
 
 import { defineRule } from '../../types/KeyboardRule';
 import type { KeyboardContext } from '../../types/KeyboardContext';
+import type { EditorIntent } from '../../../../core/engine';
 import { findAncestorNode } from '../../../../utils/keyboardHelpers';
 
 export const outdentEmptyList = defineRule({
@@ -33,27 +36,15 @@ export const outdentEmptyList = defineRule({
     return attrs.level > 0;
   },
 
-  execute(ctx: KeyboardContext): boolean {
+  execute(ctx: KeyboardContext): EditorIntent | boolean {
     const { editor } = ctx;
 
-    // TODO: Convert to 'outdent-block' intent once indent/outdent intents are designed
-    // This is structural hierarchy manipulation, not conversion
-    // Needs coordinated design with Tab handler's 'indent-block' intent
+    const listBlock = findAncestorNode(editor, 'listBlock');
+    if (!listBlock) return false;
 
-    // Outdent the list
-    return editor
-      .chain()
-      .command(({ tr }) => {
-        const listBlock = findAncestorNode(editor, 'listBlock');
-        if (!listBlock) return false;
-
-        const currentLevel = listBlock.node.attrs.level;
-        tr.setNodeMarkup(listBlock.pos, undefined, {
-          ...listBlock.node.attrs,
-          level: Math.max(0, currentLevel - 1),
-        });
-        return true;
-      })
-      .run();
+    return {
+      type: 'outdent-block',
+      blockId: listBlock.node.attrs.blockId,
+    };
   },
 });
