@@ -401,4 +401,96 @@ export class EditorEngine {
 
     this.setFocus({ blockId });
   }
+
+  // ===== DELETION PRIMITIVES =====
+
+  /**
+   * Delete a block with automatic child promotion
+   *
+   * EDITOR LAW #8: Child Promotion Invariant
+   * - When a block is deleted, its direct children are promoted to the deleted block's parent
+   * - No child is ever orphaned
+   * - No subtree is deleted implicitly
+   *
+   * This is the ONLY way blocks should be deleted in the editor.
+   *
+   * @param blockId - The block to delete
+   * @returns Deletion metadata for undo (or null if deletion failed)
+   *
+   * IMPLEMENTATION FOLLOWS: ENGINE_CHILD_DELETION_CONTRACT.md
+   * Order of operations (atomic):
+   * 1. Get block to delete
+   * 2. Get block's children (if any)
+   * 3. Get block's parent
+   * 4. Get block's index in parent.children
+   * 5. Remove block from parent.children
+   * 6. Insert children at same index in parent.children
+   * 7. Update each child's parentBlockId to new parent
+   * 8. Store original state for undo
+   * 9. Delete block from tree
+   */
+  deleteBlock(blockId: BlockId): {
+    deletedBlock: import('./types').BlockNode;
+    promotedChildren: BlockId[];
+    originalParentId: BlockId | null;
+    originalIndex: number;
+  } | null {
+    // Step 1: Get block to delete
+    const block = this.getBlock(blockId);
+    if (!block) {
+      console.warn(`[Engine.deleteBlock] Block ${blockId} not found`);
+      return null;
+    }
+
+    // Step 2: Get block's children (if any)
+    const children = [...block.children]; // Clone array for safety
+
+    // Step 3: Get block's parent
+    const parent = this.getParent(blockId);
+    if (!parent) {
+      console.warn(`[Engine.deleteBlock] Block ${blockId} has no parent`);
+      return null;
+    }
+
+    // Step 4: Get block's index in parent.children
+    const indexInParent = parent.children.indexOf(blockId);
+    if (indexInParent === -1) {
+      console.warn(
+        `[Engine.deleteBlock] Block ${blockId} not found in parent.children`
+      );
+      return null;
+    }
+
+    // Store original state for undo
+    const deletionMetadata = {
+      deletedBlock: { ...block },
+      promotedChildren: children,
+      originalParentId: block.parentId,
+      originalIndex: indexInParent,
+    };
+
+    // Step 5: Remove block from parent.children
+    parent.children = parent.children.filter((id) => id !== blockId);
+
+    // Step 6: Insert children at same index in parent.children
+    // Children replace the deleted block's position
+    parent.children.splice(indexInParent, 0, ...children);
+
+    // Step 7: Update each child's parentBlockId to new parent
+    for (const childId of children) {
+      const child = this.tree.nodes[childId];
+      if (child) {
+        child.parentId = parent.id;
+      }
+    }
+
+    // Step 9: Delete block from tree
+    delete this.tree.nodes[blockId];
+
+    console.log(
+      `[Engine.deleteBlock] ✅ Deleted ${blockId}, promoted ${children.length} children`
+    );
+
+    return deletionMetadata;
+  }
 }

@@ -538,15 +538,30 @@ export class CreateBlockCommand implements EditorCommand {
 }
 
 /**
- * DeleteBlockCommand - Delete a block
+ * DeleteBlockCommand - Delete a block with child promotion
  *
- * TODO: Upgrade to full metadata implementation
+ * UPGRADED: Now uses engine.deleteBlock() primitive which implements
+ * Editor Law #8: Child Promotion Invariant
+ *
+ * When a block is deleted:
+ * - Direct children are promoted to the deleted block's parent
+ * - No child is ever orphaned
+ * - Undo restores exact original state (block + child relationships)
+ *
+ * See: ENGINE_CHILD_DELETION_CONTRACT.md
  */
 export class DeleteBlockCommand implements EditorCommand {
   readonly id = 'delete-block';
   readonly description: string;
   readonly metadata: CommandMetadata;
-  private deletedBlock: import('./types').BlockNode | null = null;
+
+  // Deletion metadata for undo
+  private deletionMetadata: {
+    deletedBlock: import('./types').BlockNode;
+    promotedChildren: BlockId[];
+    originalParentId: BlockId | null;
+    originalIndex: number;
+  } | null = null;
 
   constructor(private _blockId: BlockId) {
     this.description = `Delete block ${_blockId}`;
@@ -572,33 +587,62 @@ export class DeleteBlockCommand implements EditorCommand {
   }
 
   apply(engine: EditorEngine): void {
-    const block = engine.tree.nodes[this._blockId];
-    if (!block) return;
+    // Use engine primitive which implements child promotion
+    this.deletionMetadata = engine.deleteBlock(this._blockId);
 
-    // Store for undo
-    this.deletedBlock = { ...block };
-
-    // Remove from parent's children
-    if (block.parentId) {
-      const parent = engine.tree.nodes[block.parentId];
-      parent.children = parent.children.filter((id) => id !== this._blockId);
+    if (!this.deletionMetadata) {
+      console.error(
+        `[DeleteBlockCommand] Failed to delete block ${this._blockId}`
+      );
     }
-
-    // Delete the block
-    delete engine.tree.nodes[this._blockId];
   }
 
   undo(engine: EditorEngine): void {
-    if (!this.deletedBlock) return;
-
-    // Restore the block
-    engine.tree.nodes[this._blockId] = { ...this.deletedBlock };
-
-    // Add back to parent's children
-    if (this.deletedBlock.parentId) {
-      const parent = engine.tree.nodes[this.deletedBlock.parentId];
-      parent.children.push(this._blockId);
+    if (!this.deletionMetadata) {
+      console.warn('[DeleteBlockCommand] No deletion metadata for undo');
+      return;
     }
+
+    const { deletedBlock, promotedChildren, originalParentId, originalIndex } =
+      this.deletionMetadata;
+
+    // Step 1: Restore the deleted block to tree
+    engine.tree.nodes[this._blockId] = { ...deletedBlock };
+
+    // Step 2: Get parent
+    if (!originalParentId) {
+      console.warn('[DeleteBlockCommand] No original parent for undo');
+      return;
+    }
+
+    const parent = engine.tree.nodes[originalParentId];
+    if (!parent) {
+      console.warn(
+        `[DeleteBlockCommand] Parent ${originalParentId} not found for undo`
+      );
+      return;
+    }
+
+    // Step 3: Remove promoted children from parent.children
+    // (They were inserted where the deleted block was)
+    parent.children = parent.children.filter(
+      (id) => !promotedChildren.includes(id)
+    );
+
+    // Step 4: Restore block at original position
+    parent.children.splice(originalIndex, 0, this._blockId);
+
+    // Step 5: Restore children's parentBlockId to point back to deleted block
+    for (const childId of promotedChildren) {
+      const child = engine.tree.nodes[childId];
+      if (child) {
+        child.parentId = this._blockId;
+      }
+    }
+
+    console.log(
+      `[DeleteBlockCommand] ✅ Undo: Restored ${this._blockId} with ${promotedChildren.length} children`
+    );
   }
 }
 
