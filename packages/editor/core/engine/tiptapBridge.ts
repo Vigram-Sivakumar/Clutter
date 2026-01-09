@@ -33,15 +33,16 @@ interface BridgeState {
 }
 
 /**
- * Convert TipTap JSON to BlockTree
+ * Convert ProseMirror document to BlockTree
  *
- * CRITICAL: This must recursively walk the entire TipTap document tree
- * to find ALL blocks with blockId attributes, not just top-level content.
+ * CRITICAL: This walks the actual ProseMirror document nodes, not JSON.
+ * We recursively traverse the entire document tree to find ALL blocks
+ * with blockId attributes.
  *
  * Why: ProseMirror can nest blocks inside wrappers, lists, toggles, etc.
  * We must index every block that exists in the document.
  */
-function tiptapJsonToBlockTree(tiptapJson: any): BlockTree {
+function proseMirrorDocToBlockTree(pmDoc: any): BlockTree {
   const nodes: Record<BlockId, BlockNode> = {};
   const rootId = 'root';
 
@@ -54,24 +55,24 @@ function tiptapJsonToBlockTree(tiptapJson: any): BlockTree {
     content: null,
   };
 
-  // Recursively walk the TipTap JSON tree to find all blocks
-  function walkNode(node: any, parentId: BlockId = rootId): void {
+  // Recursively walk the ProseMirror document
+  function walkPMNode(pmNode: any, parentId: BlockId = rootId): void {
     // Check if this node has a blockId (it's a block-level node)
-    if (node.attrs?.blockId) {
-      const blockId = node.attrs.blockId;
+    if (pmNode.attrs?.blockId) {
+      const blockId = pmNode.attrs.blockId;
 
       console.log('[Bridge] Found block:', {
-        type: node.type,
+        type: pmNode.type.name,
         blockId,
       });
 
       // Add to engine's block index
       nodes[blockId] = {
         id: blockId,
-        type: node.type,
+        type: pmNode.type.name,
         parentId,
         children: [],
-        content: node,
+        content: pmNode.toJSON(), // Store JSON for now
       };
 
       // Add to parent's children
@@ -81,27 +82,27 @@ function tiptapJsonToBlockTree(tiptapJson: any): BlockTree {
 
       // Continue walking children with THIS block as parent
       // (this handles nested structures like lists, toggles, etc.)
-      if (node.content && Array.isArray(node.content)) {
-        for (const child of node.content) {
-          walkNode(child, blockId);
-        }
+      if (pmNode.content && pmNode.content.size > 0) {
+        pmNode.content.forEach((child: any) => {
+          walkPMNode(child, blockId);
+        });
       }
     } else {
       // Not a block node, but might contain blocks
       // Keep walking with the SAME parent
-      if (node.content && Array.isArray(node.content)) {
-        for (const child of node.content) {
-          walkNode(child, parentId);
-        }
+      if (pmNode.content && pmNode.content.size > 0) {
+        pmNode.content.forEach((child: any) => {
+          walkPMNode(child, parentId);
+        });
       }
     }
   }
 
   // Start recursive walk from document root
-  if (tiptapJson.content && Array.isArray(tiptapJson.content)) {
-    for (const topLevelNode of tiptapJson.content) {
-      walkNode(topLevelNode);
-    }
+  if (pmDoc.content && pmDoc.content.size > 0) {
+    pmDoc.content.forEach((child: any) => {
+      walkPMNode(child);
+    });
   }
 
   return {
@@ -117,6 +118,9 @@ function tiptapJsonToBlockTree(tiptapJson: any): BlockTree {
  * - Engine is authoritative on block identity
  * - TipTap is authoritative on block existence
  * - Therefore: rebuild engine block index from TipTap after every change
+ *
+ * CRITICAL: We walk editor.state.doc directly, NOT editor.getJSON()
+ * because getJSON() returns serialized data that may not match runtime state.
  *
  * This is NOT incremental. This is a full rebuild.
  * Performance is fine - trust > micro-optimization.
@@ -141,11 +145,9 @@ function syncTipTapToEngine(
   updateSource.current = 'tiptap';
 
   try {
-    const tiptapJson = editor.getJSON();
-
-    // FULL REBUILD: Convert entire TipTap document to BlockTree
-    // This ensures engine always knows about all blocks that exist
-    const newTree = tiptapJsonToBlockTree(tiptapJson);
+    // CRITICAL: Walk the actual ProseMirror document, not JSON serialization
+    const pmDoc = editor.state.doc;
+    const newTree = proseMirrorDocToBlockTree(pmDoc);
 
     // Replace engine's tree entirely
     engine.tree = newTree;
@@ -317,8 +319,8 @@ function syncSelectionToTipTap(
 function createBridge(editor: Editor): BridgeState {
   console.log('[Bridge] Creating TipTap ↔ Engine bridge');
 
-  // Initialize engine with current TipTap content
-  const initialTree = tiptapJsonToBlockTree(editor.getJSON());
+  // Initialize engine with current ProseMirror document
+  const initialTree = proseMirrorDocToBlockTree(editor.state.doc);
   const engine = new EditorEngine(initialTree);
   const resolver = new IntentResolver(engine);
 
