@@ -29,6 +29,7 @@ import type {
 } from './types';
 import type { EditorCommand } from './command';
 import { ModeManager } from './mode';
+import { UndoController } from './undoController';
 
 export type EngineChangeListener = (_engine: EditorEngine) => void;
 
@@ -46,9 +47,7 @@ export class EditorEngine {
   private modeManager: ModeManager;
 
   // ===== HISTORY =====
-  private history: EditorCommand[] = [];
-  private future: EditorCommand[] = [];
-  private maxHistorySize = 100;
+  public undoController: UndoController;
 
   // ===== LISTENERS =====
   private listeners: Set<EngineChangeListener> = new Set();
@@ -76,6 +75,7 @@ export class EditorEngine {
     this.focus = { blockId: null };
     this.cursor = null;
     this.modeManager = new ModeManager();
+    this.undoController = new UndoController(this);
 
     // Log mode changes
     this.modeManager.onModeChange((newMode, oldMode) => {
@@ -117,34 +117,18 @@ export class EditorEngine {
    * This is the ONLY way to mutate engine state.
    *
    * Every command:
-   * - Goes through history
+   * - Goes through UndoController (grouping logic)
    * - Can be undone
    * - Triggers change listeners
    */
   dispatch(command: EditorCommand): void {
     console.log(`[Engine] Dispatch: ${command.description}`);
 
-    // Try to merge with last command (for typing)
-    const lastCommand = this.history[this.history.length - 1];
-    if (lastCommand && lastCommand.canMerge?.(command)) {
-      const merged = lastCommand.merge!(command);
-      this.history[this.history.length - 1] = merged;
-      merged.apply(this);
-    } else {
-      // Apply the command
-      command.apply(this);
+    // Apply the command
+    command.apply(this);
 
-      // Add to history
-      this.history.push(command);
-
-      // Clear future (new branch)
-      this.future = [];
-
-      // Limit history size
-      if (this.history.length > this.maxHistorySize) {
-        this.history.shift();
-      }
-    }
+    // Add to undo controller (handles grouping automatically)
+    this.undoController.addCommand(command);
 
     // Notify listeners (unless batching)
     if (!this.isBatching) {
@@ -155,47 +139,48 @@ export class EditorEngine {
   }
 
   /**
-   * Undo last command
+   * Undo last command (or group)
+   *
+   * Delegates to UndoController which handles:
+   * - Group flushing
+   * - State restoration (cursor + selection)
+   * - History management
    */
   undo(): boolean {
-    const command = this.history.pop();
-    if (!command) return false;
-
-    console.log(`[Engine] Undo: ${command.description}`);
-    command.undo(this);
-    this.future.push(command);
-
-    this.notifyListeners();
-    return true;
+    const success = this.undoController.undo();
+    if (success) {
+      this.notifyListeners();
+    }
+    return success;
   }
 
   /**
-   * Redo last undone command
+   * Redo last undone command (or group)
+   *
+   * Delegates to UndoController which handles:
+   * - State restoration (cursor + selection)
+   * - History management
    */
   redo(): boolean {
-    const command = this.future.pop();
-    if (!command) return false;
-
-    console.log(`[Engine] Redo: ${command.description}`);
-    command.apply(this);
-    this.history.push(command);
-
-    this.notifyListeners();
-    return true;
+    const success = this.undoController.redo();
+    if (success) {
+      this.notifyListeners();
+    }
+    return success;
   }
 
   /**
    * Check if undo is available
    */
   canUndo(): boolean {
-    return this.history.length > 0;
+    return this.undoController.canUndo();
   }
 
   /**
    * Check if redo is available
    */
   canRedo(): boolean {
-    return this.future.length > 0;
+    return this.undoController.canRedo();
   }
 
   // ===== BATCH UPDATES =====
