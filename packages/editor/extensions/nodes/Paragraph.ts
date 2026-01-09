@@ -347,6 +347,23 @@ export const Paragraph = Node.create({
           const beforePos = paragraphPos - 1;
           const { tr } = state;
 
+          // 🔒 EDITOR INVARIANT: Document must always contain ≥ 1 block
+          // Count total blocks in document
+          let blockCount = 0;
+          state.doc.descendants((node) => {
+            if (node.isBlock && node.type.name !== 'doc') {
+              blockCount++;
+            }
+          });
+
+          // If this is the only block, DO NOT delete it
+          if (blockCount <= 1) {
+            console.log(
+              '🔒 [Paragraph.Backspace] Cannot delete only block in document'
+            );
+            return false; // noop - preserve document invariant
+          }
+
           // Delete current empty paragraph
           tr.delete(paragraphPos, paragraphPos + currentParagraph.nodeSize);
 
