@@ -174,26 +174,20 @@ export const SelectAll = Extension.create({
         // GUARD: Allow native browser select-all in text context (Case A)
         // This lets the browser paint the visible text highlight
         if (shouldAllowNativeSelectAll(state)) {
-          console.log('[SelectAll] Allowing native browser select-all');
           return false; // Let browser handle it
         }
 
-        console.log('[SelectAll] Progressive selection active');
-
         // Step 1: Check if block is fully selected as text → select as node
         if (isBlockFullySelected(state)) {
-          console.log('[SelectAll] Block fully selected → NodeSelection');
           return selectCurrentBlockAsNode(state, dispatch);
         }
 
         // Step 2: Check if block is selected as a node → select all blocks
         if (isNodeSelected(state)) {
-          console.log('[SelectAll] Node selected → AllSelection');
           return selectAllBlocks(state, dispatch);
         }
 
         // Step 3: Fallback (shouldn't hit this due to guard, but safety)
-        console.log('[SelectAll] Fallback → select current block text');
         return selectCurrentBlock(state, dispatch);
       },
     };
