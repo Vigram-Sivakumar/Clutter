@@ -200,6 +200,19 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
         attributes: {
           class: 'editor-content',
         },
+        // 🔑 Prevent Tab from moving focus outside the editor
+        // Browser default: Tab in contenteditable = focus navigation
+        // We need: Tab = structural indentation (indent-block intent)
+        handleKeyDown(view, event) {
+          if (event.key === 'Tab') {
+            console.log(
+              '🚨 [EditorCore.handleKeyDown] Preventing Tab default behavior'
+            );
+            event.preventDefault(); // Stop browser focus navigation
+            return false; // Allow TipTap extensions + KeyboardEngine to handle
+          }
+          return false;
+        },
         handleDOMEvents: {
           // ❌ REMOVED mousedown preventDefault - it prevented clicking into empty blocks
           // ProseMirror handles its own selection and mousedown behavior
