@@ -29,18 +29,27 @@ export const indentBlock = defineRule({
   when(ctx: KeyboardContext): boolean {
     const { key } = ctx;
 
+    console.log('🔍 [indentBlock.when] Checking, key:', key);
+
     // Must be Tab key (no shift)
     if (key !== 'Tab') {
+      console.log('🔍 [indentBlock.when] Not Tab, skipping');
       return false;
     }
 
     // For now, always match Tab
     // Resolver will decide if intent is valid
+    console.log('🔍 [indentBlock.when] Match! Will execute');
     return true;
   },
 
   execute(ctx: KeyboardContext): EditorIntent {
     const { currentNode } = ctx;
+
+    console.log(
+      '✨ [indentBlock.execute] Emitting indent-block intent for:',
+      currentNode.attrs.blockId
+    );
 
     return {
       type: 'indent-block',

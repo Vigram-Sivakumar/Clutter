@@ -24,8 +24,14 @@ export const KeyboardShortcuts = Extension.create({
     return {
       // Tab / Shift+Tab: Indent / Outdent blocks
       // These emit indent-block / outdent-block intents
-      Tab: ({ editor }) => handleTab(editor),
-      'Shift-Tab': ({ editor }) => handleTab(editor),
+      Tab: ({ editor }) => {
+        console.log('🔑 [KeyboardShortcuts] Tab pressed');
+        return handleTab(editor);
+      },
+      'Shift-Tab': ({ editor }) => {
+        console.log('🔑 [KeyboardShortcuts] Shift+Tab pressed');
+        return handleTab(editor);
+      },
     };
   },
 });
