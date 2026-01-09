@@ -503,12 +503,17 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
           background-color: transparent;
         }
 
-        /* CRITICAL FIX: Prevent selection highlight on empty wrapper divs */
-        .ProseMirror [data-node-view-wrapper]::selection {
-          background-color: transparent !important;
-        }
+        /* ❌ REMOVED: This was making ALL text selection invisible!
+         * Previous rule: .ProseMirror [data-node-view-wrapper]::selection
+         * Made selection transparent inside ALL blocks (every block uses NodeViewWrapper)
+         * 
+         * SELECTION OWNERSHIP LAW:
+         * - Browser owns text selection rendering
+         * - Editor owns structural selection rendering (halos)
+         * - Never suppress browser text selection with CSS
+         */
         
-        /* Also prevent selection on br placeholders */
+        /* Prevent selection on br placeholders only */
         .ProseMirror br.ProseMirror-trailingBreak::selection {
           background-color: transparent !important;
         }
