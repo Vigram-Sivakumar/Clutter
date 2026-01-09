@@ -35,12 +35,15 @@ interface BridgeState {
 /**
  * Convert ProseMirror document to BlockTree
  *
- * CRITICAL: This walks the actual ProseMirror document nodes, not JSON.
- * We recursively traverse the entire document tree to find ALL blocks
- * with blockId attributes.
+ * CRITICAL: Reads parentBlockId attributes, NOT DOM traversal structure!
  *
- * Why: ProseMirror can nest blocks inside wrappers, lists, toggles, etc.
- * We must index every block that exists in the document.
+ * Uses two-pass algorithm:
+ * 1. Collect all blocks with their parentBlockId attributes
+ * 2. Build tree from those attributes
+ *
+ * Why: ProseMirror stores hierarchy in parentBlockId ATTRIBUTES, not DOM nesting.
+ * DOM structure is flat - all blocks are siblings in the document flow.
+ * The logical parent-child relationships live in the parentBlockId attribute.
  */
 function proseMirrorDocToBlockTree(pmDoc: any): BlockTree {
   const nodes: Record<BlockId, BlockNode> = {};
@@ -55,68 +58,47 @@ function proseMirrorDocToBlockTree(pmDoc: any): BlockTree {
     content: null,
   };
 
-  // Recursively walk the ProseMirror document
-  function walkPMNode(
-    pmNode: any,
-    parentId: BlockId = rootId,
-    depth: number = 0
-  ): void {
-    // DEBUG: Log every node we encounter
-    const indent = '  '.repeat(depth);
-    console.log(`[Bridge] ${indent}Walking node:`, {
-      type: pmNode.type.name,
-      hasBlockId: !!pmNode.attrs?.blockId,
-      blockId: pmNode.attrs?.blockId || 'none',
-      contentSize: pmNode.content?.size || 0,
-      childCount: pmNode.content?.childCount || 0,
-    });
+  // PASS 1: Collect all blocks with their parentBlockId attributes
+  const blockList: Array<{
+    id: BlockId;
+    type: string;
+    parentBlockId: BlockId | null;
+    content: any;
+  }> = [];
 
-    // Check if this node has a blockId (it's a block-level node)
-    if (pmNode.attrs?.blockId) {
-      const blockId = pmNode.attrs.blockId;
-
-      console.log(`[Bridge] ${indent}✓ Found block:`, {
-        type: pmNode.type.name,
-        blockId,
+  pmDoc.descendants((node: any) => {
+    if (node.attrs?.blockId) {
+      blockList.push({
+        id: node.attrs.blockId,
+        type: node.type.name,
+        parentBlockId: node.attrs.parentBlockId || null,
+        content: node.toJSON(),
       });
 
-      // Add to engine's block index
-      nodes[blockId] = {
-        id: blockId,
-        type: pmNode.type.name,
-        parentId,
-        children: [],
-        content: pmNode.toJSON(), // Store JSON for now
-      };
-
-      // Add to parent's children
-      if (nodes[parentId]) {
-        nodes[parentId].children.push(blockId);
-      }
-
-      // Continue walking children with THIS block as parent
-      // (this handles nested structures like lists, toggles, etc.)
-      if (pmNode.content && pmNode.content.size > 0) {
-        pmNode.content.forEach((child: any) => {
-          walkPMNode(child, blockId, depth + 1);
-        });
-      }
-    } else {
-      // Not a block node, but might contain blocks
-      // Keep walking with the SAME parent
-      if (pmNode.content && pmNode.content.size > 0) {
-        pmNode.content.forEach((child: any) => {
-          walkPMNode(child, parentId, depth + 1);
-        });
-      }
+      console.log('[Bridge] Found block:', {
+        type: node.type.name,
+        blockId: node.attrs.blockId,
+        parentBlockId: node.attrs.parentBlockId || 'root',
+      });
     }
-  }
+  });
 
-  // Start recursive walk from document root
-  if (pmDoc.content && pmDoc.content.size > 0) {
-    pmDoc.content.forEach((child: any) => {
-      walkPMNode(child);
-    });
+  // PASS 2: Build tree from parentBlockId attributes (not DOM structure!)
+  for (const block of blockList) {
+    const parentId = block.parentBlockId || rootId;
+
+    nodes[block.id] = {
+      id: block.id,
+      type: block.type,
+      parentId,
+      children: [],
+      content: block.content,
+    };
+
+    // Add to parent's children
+    if (nodes[parentId]) {
+      nodes[parentId].children.push(block.id);
+    }
   }
 
   return {
