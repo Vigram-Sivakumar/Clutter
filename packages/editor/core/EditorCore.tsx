@@ -79,6 +79,9 @@ import { useTheme } from '@clutter/ui';
 // Editor Context
 import { useEditorContext } from '../context/EditorContext';
 
+// Editor Engine
+import { useEditorEngine } from './engine';
+
 // History extension for undo/redo
 import History from '@tiptap/extension-history';
 
@@ -231,12 +234,27 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
       },
     });
 
+    // Initialize EditorEngine bridge
+    const { engine, resolver } = useEditorEngine(editor);
+
     // Store onTagClick callback in editor instance so node views can access it
     useEffect(() => {
       if (editor) {
         (editor as any).onTagClick = onTagClick;
       }
     }, [editor, onTagClick]);
+
+    // Store engine and resolver in editor instance for access by plugins
+    useEffect(() => {
+      if (editor && engine && resolver) {
+        (editor as any)._engine = engine;
+        (editor as any)._resolver = resolver;
+        console.log('[EditorCore] Engine and resolver attached to editor', {
+          mode: engine.getMode(),
+          blockCount: engine.getChildren(engine.tree.rootId).length,
+        });
+      }
+    }, [editor, engine, resolver]);
 
     // Expose methods to parent via ref
     useImperativeHandle(

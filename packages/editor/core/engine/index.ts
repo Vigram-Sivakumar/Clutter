@@ -38,3 +38,6 @@ export { EditorEngine } from './EditorEngine';
 
 // Intent resolver
 export { IntentResolver } from './intentResolver';
+
+// TipTap bridge
+export { useEditorEngine, getResolverForEditor } from './tiptapBridge';
