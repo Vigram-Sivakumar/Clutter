@@ -5,7 +5,7 @@
 
 import { create } from 'zustand';
 
-interface ConfirmationAction {
+export interface ConfirmationAction {
   label: string;
   onClick: () => void;
   variant: 'primary' | 'secondary' | 'danger';

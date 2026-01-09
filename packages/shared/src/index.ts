@@ -33,3 +33,6 @@ export type { CategorizedTasks } from './utils/taskCategorization';
 // Hooks (used by UI components)
 export { useTheme } from './hooks/useTheme';
 export { useConfirmation } from './hooks/useConfirmation';
+
+// Re-export ConfirmationAction type for use in components
+export type { ConfirmationAction } from '@clutter/state';
