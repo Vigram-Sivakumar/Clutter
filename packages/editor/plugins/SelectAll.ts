@@ -2,9 +2,14 @@
  * Progressive Select All Plugin
  *
  * Implements Notion/Craft-style Cmd+A behavior:
- * 1. First Cmd+A: Select all text in current block
+ * 1. First Cmd+A: Browser native select-all (visible highlight)
  * 2. Second Cmd+A: Select the entire current block (NodeSelection)
- * 3. Third Cmd+A: Select all blocks in the document
+ * 3. Third Cmd+A: Select all blocks in the document (AllSelection)
+ *
+ * SELECTION OWNERSHIP LAW:
+ * - Text selection = browser renders (native highlight)
+ * - Structural selection = editor renders (halos)
+ * - Never replace each other
  */
 
 import {
@@ -17,6 +22,36 @@ import {
 import { Extension } from '@tiptap/core';
 
 export const SelectAllPluginKey = new PluginKey('selectAll');
+
+/**
+ * Check if we should allow native browser select-all
+ *
+ * CTRL+A LAW - Case A: Text editing context
+ * - Editor is focused
+ * - TextSelection or empty selection exists
+ * - User expects native browser highlight
+ *
+ * Result: DO NOT preventDefault, let browser paint selection
+ */
+function shouldAllowNativeSelectAll(state: any): boolean {
+  const { selection } = state;
+
+  // If we already have a NodeSelection or AllSelection,
+  // user is in structural mode (Case B)
+  if (selection instanceof NodeSelection || selection instanceof AllSelection) {
+    return false;
+  }
+
+  // If block is fully selected as text, allow progressive behavior
+  // (this is the second Ctrl+A press)
+  if (isBlockFullySelected(state)) {
+    return false;
+  }
+
+  // Otherwise: first Ctrl+A in text context
+  // Let browser handle it natively
+  return true;
+}
 
 /**
  * Check if selection covers all text in the current block
@@ -136,17 +171,29 @@ export const SelectAll = Extension.create({
         const { state, view } = editor;
         const { dispatch } = view;
 
-        // Step 1: Check if block is fully selected as text
+        // GUARD: Allow native browser select-all in text context (Case A)
+        // This lets the browser paint the visible text highlight
+        if (shouldAllowNativeSelectAll(state)) {
+          console.log('[SelectAll] Allowing native browser select-all');
+          return false; // Let browser handle it
+        }
+
+        console.log('[SelectAll] Progressive selection active');
+
+        // Step 1: Check if block is fully selected as text → select as node
         if (isBlockFullySelected(state)) {
+          console.log('[SelectAll] Block fully selected → NodeSelection');
           return selectCurrentBlockAsNode(state, dispatch);
         }
 
-        // Step 2: Check if block is selected as a node
+        // Step 2: Check if block is selected as a node → select all blocks
         if (isNodeSelected(state)) {
+          console.log('[SelectAll] Node selected → AllSelection');
           return selectAllBlocks(state, dispatch);
         }
 
-        // Step 3: Otherwise, select all text in current block
+        // Step 3: Fallback (shouldn't hit this due to guard, but safety)
+        console.log('[SelectAll] Fallback → select current block text');
         return selectCurrentBlock(state, dispatch);
       },
     };
