@@ -389,6 +389,143 @@ export const Paragraph = Node.create({
         // Let default behavior handle other cases
         return false;
       },
+
+      // Delete: Forward delete (symmetric to Backspace, directionally opposite)
+      Delete: ({ editor }) => {
+        const { state } = editor;
+        const { selection } = state;
+        const { $from } = selection;
+
+        // Only handle specific cases - let PM handle character deletion in middle
+        const currentParagraph = $from.parent;
+        if (currentParagraph.type.name !== 'paragraph') {
+          return false; // Not in paragraph
+        }
+
+        // Check if we're at end of paragraph
+        const atEnd = $from.parentOffset === currentParagraph.content.size;
+        const isEmpty = currentParagraph.content.size === 0;
+
+        // If not at end and not empty, let PM handle character deletion
+        if (!atEnd && !isEmpty) {
+          return false; // PM default: delete character ahead
+        }
+
+        // Check if wrapper block should handle this
+        if (BackspaceRules.shouldLetWrapperHandleBackspace(editor)) {
+          return false;
+        }
+
+        // We're at end of paragraph or paragraph is empty
+        // Find next block
+        const paragraphPos = $from.before($from.depth);
+        const afterPos = paragraphPos + currentParagraph.nodeSize;
+
+        // Check if there's a next block
+        let hasNextBlock = false;
+        let nextBlockNode = null;
+        let nextBlockPos = null;
+
+        try {
+          const $after = state.doc.resolve(afterPos);
+          if ($after.nodeAfter) {
+            hasNextBlock = true;
+            nextBlockNode = $after.nodeAfter;
+            nextBlockPos = afterPos;
+          }
+        } catch (e) {
+          // No next block (we're at document end)
+          hasNextBlock = false;
+        }
+
+        // CASE 1: Empty paragraph
+        if (isEmpty) {
+          // 🔒 EDITOR INVARIANT: Document must always contain ≥ 1 block
+          let blockCount = 0;
+          state.doc.descendants((node) => {
+            if (node.isBlock && node.type.name !== 'doc') {
+              blockCount++;
+            }
+          });
+
+          // If this is the only block, DO NOT delete it
+          if (blockCount <= 1) {
+            console.log(
+              '🔒 [Paragraph.Delete] Cannot delete only block in document'
+            );
+            return false; // noop - preserve document invariant
+          }
+
+          // Delete empty paragraph (merge up into previous block)
+          const { tr } = state;
+          tr.delete(paragraphPos, paragraphPos + currentParagraph.nodeSize);
+
+          // Try to position cursor at end of previous block
+          const beforePos = Math.max(0, paragraphPos - 1);
+          try {
+            const $pos = tr.doc.resolve(beforePos);
+            const selection = TextSelection.near($pos, -1);
+            tr.setSelection(selection);
+          } catch (e) {
+            // Fallback
+            const $pos = tr.doc.resolve(Math.max(0, beforePos));
+            tr.setSelection(TextSelection.near($pos));
+          }
+
+          editor.view.dispatch(tr);
+          return true;
+        }
+
+        // CASE 2: At end of non-empty paragraph
+        if (atEnd && hasNextBlock) {
+          // Merge with next block
+          const { tr } = state;
+
+          // Check if next block is structural (code, divider, etc.)
+          const isStructuralNext =
+            nextBlockNode &&
+            ['codeBlock', 'divider', 'image'].includes(nextBlockNode.type.name);
+
+          if (isStructuralNext) {
+            // Cannot merge with structural blocks - noop
+            console.log(
+              '[Paragraph.Delete] Cannot merge with structural block'
+            );
+            return false;
+          }
+
+          // Store cursor position at merge point (end of current paragraph)
+          const mergePos = $from.pos;
+
+          // Merge: Delete next block's wrapper, keep its content
+          if (nextBlockNode) {
+            // Extract next block's content
+            const nextContent = nextBlockNode.content;
+
+            // Delete next block entirely
+            tr.delete(nextBlockPos, nextBlockPos + nextBlockNode.nodeSize);
+
+            // Insert next block's content at end of current paragraph
+            if (nextContent.size > 0) {
+              tr.insert(mergePos, nextContent);
+            }
+
+            // Position cursor at merge point
+            tr.setSelection(TextSelection.create(tr.doc, mergePos));
+            editor.view.dispatch(tr);
+            return true;
+          }
+        }
+
+        // CASE 3: At end with no next block - noop
+        if (atEnd && !hasNextBlock) {
+          console.log('[Paragraph.Delete] At end of document - noop');
+          return false; // noop - can't delete forward at document end
+        }
+
+        // Fallback: let PM handle
+        return false;
+      },
     };
   },
 });
