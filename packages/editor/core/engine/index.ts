@@ -20,7 +20,7 @@ export type {
 export type { EditorIntent, IntentResult } from './intent';
 
 // Command system
-export type { EditorCommand } from './command';
+export type { EditorCommand, IntentCategory, CommandMetadata } from './command';
 export {
   InsertTextCommand,
   DeleteTextCommand,
@@ -38,6 +38,9 @@ export { EditorEngine } from './EditorEngine';
 
 // Intent resolver
 export { IntentResolver } from './intentResolver';
+
+// Undo controller
+export { UndoController } from './undoController';
 
 // TipTap bridge
 export { useEditorEngine, getResolverForEditor } from './tiptapBridge';
