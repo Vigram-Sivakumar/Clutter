@@ -85,13 +85,6 @@ import { useEditorEngine } from './engine';
 // History extension for undo/redo
 import History from '@tiptap/extension-history';
 
-// TEMPORARY: DOM selection diagnostics (remove after fix)
-if (typeof window !== 'undefined') {
-  document.addEventListener('selectionchange', () => {
-    console.log('[DOM Selection]', window.getSelection()?.toString());
-  });
-}
-
 // HardBreak extension for line breaks (Shift+Enter)
 import HardBreak from '@tiptap/extension-hard-break';
 
