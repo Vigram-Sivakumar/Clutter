@@ -77,6 +77,12 @@ export class IntentResolver {
         case 'move-block':
           return this.handleMoveBlock(intent);
 
+        case 'indent-block':
+          return this.handleIndentBlock(intent);
+
+        case 'outdent-block':
+          return this.handleOutdentBlock(intent);
+
         // ===== SELECTION =====
         case 'select-block':
           return this.handleSelectBlock(intent);
@@ -362,6 +368,38 @@ export class IntentResolver {
       success: true,
       intent,
       mode: this._engine.getMode(),
+    };
+  }
+
+  private handleIndentBlock(
+    intent: Extract<EditorIntent, { type: 'indent-block' }>
+  ): IntentResult {
+    // TODO: Implement indent logic
+    // Resolver responsibility:
+    // - Increase list level
+    // - Nest toggles
+    // - Apply structural hierarchy rules
+    // - Move cursor appropriately
+    return {
+      success: false,
+      intent,
+      reason: 'Not implemented yet',
+    };
+  }
+
+  private handleOutdentBlock(
+    intent: Extract<EditorIntent, { type: 'outdent-block' }>
+  ): IntentResult {
+    // TODO: Implement outdent logic
+    // Resolver responsibility:
+    // - Decrease list level
+    // - Unnest toggles
+    // - Convert to paragraph if at root level
+    // - Move cursor appropriately
+    return {
+      success: false,
+      intent,
+      reason: 'Not implemented yet',
     };
   }
 
