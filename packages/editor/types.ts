@@ -6,8 +6,9 @@ import type { Editor } from '@tiptap/core';
 
 /**
  * List types supported by ListBlock
+ * FLAT TOGGLE ARCHITECTURE: toggle is a ListBlock variant (Craft-style)
  */
-export type ListType = 'bullet' | 'numbered' | 'task';
+export type ListType = 'bullet' | 'numbered' | 'task' | 'toggle';
 
 /**
  * Heading levels
@@ -68,7 +69,7 @@ export interface NodeViewProps<T = Record<string, unknown>> {
   };
   editor: Editor;
   getPos: () => number | undefined;
-  updateAttributes: (attrs: Partial<T>) => void;
+  updateAttributes: (_attrs: Partial<T>) => void;
   deleteNode: () => void;
   selected: boolean;
 }
@@ -86,4 +87,4 @@ export const BLOCK_TYPES = [
   'toggleBlock',
 ] as const;
 
-export type BlockType = typeof BLOCK_TYPES[number];
+export type BlockType = (typeof BLOCK_TYPES)[number];
