@@ -580,24 +580,26 @@ export function ListBlock({
           userSelect: 'none',
         }}
       >
-        {/* Chevron icon */}
-        <svg
-          width={12}
-          height={12}
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={2}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          style={{
-            transform: collapsed ? 'rotate(-90deg)' : 'rotate(0deg)',
-            transition: 'transform 0.15s ease',
-          }}
-        >
-          <polyline points="6 9 12 15 18 9" />
-        </svg>
-        {/* Completion count (tasks only, always shown) */}
+        {/* Chevron icon (tasks only - toggles use caret in marker) */}
+        {listType === 'task' && (
+          <svg
+            width={12}
+            height={12}
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            style={{
+              transform: collapsed ? 'rotate(-90deg)' : 'rotate(0deg)',
+              transition: 'transform 0.15s ease',
+            }}
+          >
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        )}
+        {/* Completion count (tasks only, shown when expanded) */}
         {listType === 'task' && !collapsed && (
           <span>
             {childrenInfo.completed}/{childrenInfo.total} subtasks
