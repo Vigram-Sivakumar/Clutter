@@ -36,7 +36,6 @@ export { ListBlock } from './extensions/nodes/ListBlock';
 export { Blockquote } from './extensions/nodes/Blockquote';
 export { CodeBlock } from './extensions/nodes/CodeBlock';
 export { HorizontalRule } from './extensions/nodes/HorizontalRule';
-export { ToggleHeader } from './extensions/nodes/ToggleHeader';
 export { Callout } from './extensions/nodes/Callout';
 
 // Extensions: Marks
@@ -68,7 +67,6 @@ export { Blockquote as BlockquoteComponent } from './components/Blockquote';
 export { CodeBlock as CodeBlockComponent } from './components/CodeBlock';
 export { HorizontalRule as HorizontalRuleComponent } from './components/HorizontalRule';
 export { Callout as CalloutComponent } from './components/Callout';
-export { ToggleHeader as ToggleHeaderComponent } from './components/ToggleHeader';
 
 // Utils
 export { addTagToBlock } from './utils/tagUtils';
