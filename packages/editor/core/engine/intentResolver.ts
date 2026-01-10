@@ -505,6 +505,35 @@ export class IntentResolver {
         // Continue scanning backwards
       }
 
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      // 🔒 ADJACENCY CHECK: Ensure visual continuity
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      // The block must be a direct child or follow the parent's subtree.
+      // Immediate previous must be at exactly (parent.level + 1).
+      //
+      // Example (SHOULD WORK - Second Child):
+      //   A (0)
+      //     B (1)  ← immediate previous at level 1 = 0 + 1 ✅
+      //   C (0)  ← Tab
+      //   → C becomes child of A
+      //
+      // Example (SHOULD BE BLOCKED - Cross Subtree):
+      //   A (0)
+      //     B (1)
+      //       C (2)  ← immediate previous at level 2 ≠ 0 + 1 ❌
+      //   D (0)  ← Tab
+      //   → D cannot become child of A (crossed subtree boundary)
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      if (adoptableParent && currentIndex > 0) {
+        const immediatePrevious = blocks[currentIndex - 1];
+
+        // Immediate previous must be at exactly one level deeper than parent
+        // This ensures visual adjacency to parent's direct children
+        if (immediatePrevious.level !== targetParentLevel + 1) {
+          adoptableParent = null;
+        }
+      }
+
       if (!adoptableParent) {
         console.log(`🔒 [handleIndentBlock] BLOCKED: No adoptable parent`, {
           current: { id: blockId.slice(0, 8), level: currentBlock.level },
