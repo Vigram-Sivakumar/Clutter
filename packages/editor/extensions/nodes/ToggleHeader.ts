@@ -238,37 +238,61 @@ export const ToggleHeader = Node.create({
         const attrs = toggleHeaderNode.attrs as ToggleHeaderAttrs;
         const isEmpty = toggleHeaderNode.content.size === 0;
 
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // CANONICAL TOGGLE ENTER BEHAVIOR (Notion/Craft-style)
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
         if (!isEmpty) {
-          // ✅ INVARIANT: Enter on non-empty toggle ALWAYS creates sibling
-          // No collapse checks, no child creation, no exceptions
+          // 🔑 CASE A1: Cursor in non-empty toggle header
+          // ACTION: Create first CHILD paragraph (descend into toggle)
+          //
+          // BEFORE:  ▶ My Toggle
+          // AFTER:   ▼ My Toggle
+          //            └─ Paragraph (empty, cursor here)
+          //
+          // CRITICAL: This is NOT a sibling - it's a CHILD
+          // parentToggleId = this toggle's toggleId
+
           const endPos = toggleHeaderPos + toggleHeaderNode.nodeSize;
-          const siblingAttrs = createSiblingAttrs(attrs);
+          const toggleId = attrs.toggleId;
 
           console.log(
-            '✅ ToggleHeader Enter: Creating sibling paragraph (always)',
+            '✅ ToggleHeader Enter: Creating FIRST CHILD (descend into toggle)',
             {
-              parentBlockId: attrs.parentBlockId,
-              level: attrs.level,
-              collapsed: attrs.collapsed,
+              toggleId,
+              parentBlockId: attrs.blockId, // Child's parent is the toggle block
+              parentToggleId: toggleId, // Child belongs to this toggle
             }
           );
 
-          return editor
-            .chain()
-            .insertContentAt(endPos, {
-              type: 'paragraph',
-              attrs: {
-                blockId: crypto.randomUUID(), // Generate blockId immediately
-                ...siblingAttrs, // Same parent as toggle (sibling)
-              },
-            })
-            .setTextSelection(endPos + 1)
-            .run();
+          return (
+            editor
+              .chain()
+              // Expand toggle if collapsed
+              .updateAttributes(this.name, { collapsed: false })
+              // Create child paragraph
+              .insertContentAt(endPos, {
+                type: 'paragraph',
+                attrs: {
+                  blockId: crypto.randomUUID(),
+                  parentBlockId: attrs.blockId, // ✅ Child's parent = toggle block
+                  parentToggleId: toggleId, // ✅ Child belongs to this toggle
+                  level: attrs.level, // Inherit level
+                },
+              })
+              .setTextSelection(endPos + 1)
+              .run()
+          );
         }
 
-        // Empty toggle header - convert to paragraph
-        // ✅ USE ENGINE PRIMITIVE: Delete toggle via DeleteBlockCommand
-        // This ensures children are promoted (Engine Law #8)
+        // 🔑 CASE A2: Empty toggle header
+        // ACTION: Convert to paragraph (exit toggle mode)
+        //
+        // BEFORE:  ▶ (empty toggle)
+        // AFTER:   Paragraph (empty, cursor here)
+        //
+        // Children (if any) are promoted by engine (Engine Law #8)
+
         const engine = getEngine(editor);
 
         if (!engine) {
@@ -283,7 +307,7 @@ export const ToggleHeader = Node.create({
         }
 
         console.log(
-          `[ToggleHeader.Enter] Converting empty toggle to paragraph: ${toggleBlockId}`
+          `✅ ToggleHeader Enter: Converting empty toggle to paragraph: ${toggleBlockId}`
         );
 
         // Delete toggle - engine handles child promotion

@@ -450,6 +450,98 @@ export class IntentResolver {
       };
     }
 
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // 🔑 SPECIAL CASE: Toggle Adoption
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    //
+    // If previous sibling is a toggleHeader, Tab adopts the block INTO the toggle.
+    //
+    // BEFORE:  ▶ My Toggle
+    //          Paragraph (cursor here)
+    //
+    // AFTER:   ▼ My Toggle
+    //            └─ Paragraph (cursor here)
+    //
+    // This must be checked BEFORE general nesting logic.
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+    const previousSibling = this._engine.getBlock(previousSiblingId);
+    if (!previousSibling) {
+      return {
+        success: false,
+        intent,
+        reason: 'Previous sibling not found',
+      };
+    }
+
+    if (previousSibling.type === 'toggleHeader') {
+      console.log(
+        '🔑 [handleIndentBlock] Toggle adoption detected:',
+        blockId,
+        '→',
+        previousSiblingId
+      );
+
+      // Move block to be last child of toggle
+      const newIndex = previousSibling.children.length;
+
+      this._engine.dispatch(
+        new MoveBlockCommand({
+          blockId,
+          oldParentId: parent.id || null,
+          oldIndex: index,
+          newParentId: previousSiblingId, // ✅ Adopt into toggle
+          newIndex,
+          intentCategory: 'toggle-adoption', // 🏷️ Semantic intent category
+          engine: this._engine,
+          editor: this._editor,
+        })
+      );
+
+      // Expand toggle if collapsed (Notion-style)
+      if (this._editor) {
+        const { state } = this._editor;
+        const { tr } = state;
+
+        // Find toggle node in ProseMirror doc
+        let togglePos: number | null = null;
+        state.doc.descendants((node: any, pos: number) => {
+          if (node.attrs?.blockId === previousSiblingId) {
+            togglePos = pos;
+            return false; // Stop searching
+          }
+        });
+
+        if (togglePos !== null) {
+          const toggleNode = state.doc.nodeAt(togglePos);
+          if (toggleNode && toggleNode.attrs.collapsed) {
+            console.log(
+              '🔑 [handleIndentBlock] Expanding collapsed toggle:',
+              previousSiblingId
+            );
+            tr.setNodeMarkup(togglePos, undefined, {
+              ...toggleNode.attrs,
+              collapsed: false,
+            });
+            this._editor.view.dispatch(tr);
+          }
+        }
+      }
+
+      // Cursor placement
+      this._engine.setCursorAfterStructuralMove(blockId);
+
+      return {
+        success: true,
+        intent,
+        mode: this._engine.getMode(),
+      };
+    }
+
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // GENERAL NESTING (List items, etc.)
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
     // 4. Policy check
     if (!this._engine.canNest(blockId, previousSiblingId)) {
       return {
@@ -460,15 +552,6 @@ export class IntentResolver {
     }
 
     // 5. Move block under previous sibling (append as last child)
-    const previousSibling = this._engine.getBlock(previousSiblingId);
-    if (!previousSibling) {
-      return {
-        success: false,
-        intent,
-        reason: 'Previous sibling not found',
-      };
-    }
-
     const newIndex = previousSibling.children.length;
 
     this._engine.dispatch(

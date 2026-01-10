@@ -37,6 +37,7 @@ export type IntentCategory =
   | 'block-move'
   | 'block-indent'
   | 'block-outdent'
+  | 'toggle-adoption'
   | 'selection-change'
   | 'paste'
   | 'external';
