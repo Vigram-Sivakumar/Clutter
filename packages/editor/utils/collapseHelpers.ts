@@ -1,6 +1,21 @@
 /**
  * Shared collapse utilities for blocks with collapsible children
- * Used by both ListBlock (tasks) and ToggleHeader
+ *
+ * TWO COLLAPSE SYSTEMS:
+ *
+ * 1. FLAT SCHEMA (CURRENT) - Use this for new code
+ *    - Uses `parentBlockId` to track hierarchy
+ *    - Function: isHiddenByCollapsedParent()
+ *    - Works for all block types (tasks, toggles, future blocks)
+ *
+ * 2. LEGACY TOGGLE (DEPRECATED) - Only for backward compatibility
+ *    - Uses `parentToggleId` attribute
+ *    - Function: isHiddenByCollapsedToggle()
+ *    - DO NOT use for new blocks
+ *    - Will be removed after data migration
+ *
+ * All block components should use the useBlockCollapse() hook,
+ * which checks both systems automatically.
  */
 
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
@@ -67,7 +82,17 @@ export function isHiddenByCollapsedAncestor(
 
 /**
  * Check if a block is hidden by a collapsed toggle parent
- * Convenience function for blocks that can be children of toggles
+ *
+ * @deprecated LEGACY SYSTEM - Kept only for backward compatibility
+ *
+ * This function checks the old `parentToggleId` attribute system.
+ * New code should use `isHiddenByCollapsedParent()` instead, which
+ * checks the flat schema `parentBlockId` system.
+ *
+ * This will be removed once all documents are migrated from
+ * `parentToggleId` → `parentBlockId`.
+ *
+ * DO NOT use this for new blocks or features.
  */
 export function isHiddenByCollapsedToggle(
   doc: ProseMirrorNode,

@@ -30,10 +30,12 @@ export function useBlockCollapse(
     const pos = getPos();
     if (pos === undefined) return false;
 
-    // Check flat schema (parentBlockId-based)
+    // Check flat schema (parentBlockId-based) - PRIMARY SYSTEM
     const hiddenByFlat = isHiddenByCollapsedParent(editor.state.doc, pos);
 
-    // Check legacy toggle (parentToggleId-based)
+    // Check legacy toggle (parentToggleId-based) - DEPRECATED
+    // Only kept for backward compatibility with old documents
+    // TODO: Remove once all notes are migrated from parentToggleId → parentBlockId
     const hiddenByLegacyToggle = parentToggleId
       ? isHiddenByCollapsedToggle(editor.state.doc, pos, parentToggleId)
       : false;
