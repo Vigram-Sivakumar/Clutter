@@ -418,17 +418,6 @@ export class IntentResolver {
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     // 🔒 HARD STOP: Find Nearest Adoptable Parent (FIRST GUARD)
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // Indent means: "Adopt under the nearest previous block whose level
-    // is exactly currentLevel - 1"
-    //
-    // This allows natural "second child" behavior:
-    //   A (0)
-    //     B (1)
-    //   C (0)  ← Tab
-    //   → C becomes child of A (skips over B)
-    //
-    // This matches Notion/Workflowy/Logseq behavior exactly.
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     if (this._editor && this._editor.state) {
       const { state } = this._editor;
       const doc = state.doc;
@@ -459,96 +448,60 @@ export class IntentResolver {
       const currentLevel = currentBlock.level;
 
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      // 🔍 Find nearest adoptable parent with SCOPE TERMINATION
+      // 🔍 THE FINAL, CORRECT INDENT RULE (Notion-style)
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      // A block can only be adopted by a previous block whose subtree
-      // has already ended before the current block.
+      // Indent is decided ONLY by the immediate previous block.
       //
-      // CRITICAL: Stop scanning if you cross into a shallower scope.
-      // This prevents adopting across subtree boundaries.
+      // RULE: If prev.level >= current.level → ALLOW
+      //       Else → BLOCK
       //
-      // Example (BLOCKED):
+      // This is not about finding "same level parents" or scanning.
+      // It's about visual adjacency: can the previous block contain me?
+      //
+      // Examples:
+      //   A (0)
+      //     B (1) ← prev
+      //     C (1) ← Tab → prev.level (1) >= current (1) ✅
+      //
       //   A (0)
       //     B (1)
-      //       C (2)
-      //         D (3)
-      //   E (0)  ← Tab should be BLOCKED
+      //       C (2) ← prev
+      //   D (0) ← Tab → prev.level (2) >= current (0) ✅ (second child)
       //
-      // Scanning backwards from E encounters D, C, B (all deeper).
-      // Then encounters A (same level). But because we passed through
-      // deeper blocks, we've crossed A's subtree boundary.
-      // E cannot become A's child retroactively.
-      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-      // After indent, block will be at currentLevel + 1
-      // Parent should be at currentLevel (one level less than future level)
-      const targetParentLevel = currentLevel;
-
-      let adoptableParent: (typeof blocks)[0] | null = null;
-      for (let i = currentIndex - 1; i >= 0; i--) {
-        const candidate = blocks[i];
-
-        // 🚫 SCOPE TERMINATION: Crossed out of structural scope
-        // Stop if candidate is at level < (targetParentLevel - 1)
-        // This prevents adopting across subtree boundaries
-        if (candidate.level < targetParentLevel - 1) {
-          break; // Left the scope - no valid parent
-        }
-
-        // ✅ Found exact parent level
-        if (candidate.level === targetParentLevel) {
-          adoptableParent = candidate;
-          break;
-        }
-
-        // Deeper than or equal to target but not exact match → skip
-        // Continue scanning backwards
-      }
-
-      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      // 🔒 ADJACENCY CHECK: Ensure visual continuity
-      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      // The block must be a direct child or follow the parent's subtree.
-      // Immediate previous must be at exactly (parent.level + 1).
-      //
-      // Example (SHOULD WORK - Second Child):
       //   A (0)
-      //     B (1)  ← immediate previous at level 1 = 0 + 1 ✅
-      //   C (0)  ← Tab
-      //   → C becomes child of A
-      //
-      // Example (SHOULD BE BLOCKED - Cross Subtree):
-      //   A (0)
-      //     B (1)
-      //       C (2)  ← immediate previous at level 2 ≠ 0 + 1 ❌
-      //   D (0)  ← Tab
-      //   → D cannot become child of A (crossed subtree boundary)
+      //     B (1) ← prev
+      //       C (2) ← Tab → prev.level (1) < current (2) ❌ (stops infinite indent)
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      if (adoptableParent && currentIndex > 0) {
-        const immediatePrevious = blocks[currentIndex - 1];
 
-        // Immediate previous must be at exactly one level deeper than parent
-        // This ensures visual adjacency to parent's direct children
-        if (immediatePrevious.level !== targetParentLevel + 1) {
-          adoptableParent = null;
-        }
-      }
+      const immediatePrevious = blocks[currentIndex - 1];
+      let adoptableParent: (typeof blocks)[number] | null = null;
 
-      if (!adoptableParent) {
-        console.log(`🔒 [handleIndentBlock] BLOCKED: No adoptable parent`, {
-          current: { id: blockId.slice(0, 8), level: currentBlock.level },
-          reason: 'No previous block at current level to adopt under',
-        });
+      // Simple rule: previous must be at same level or deeper
+      if (immediatePrevious.level >= currentLevel) {
+        adoptableParent = immediatePrevious;
+      } else {
+        console.log(
+          `🔒 [handleIndentBlock] BLOCKED: Previous block too shallow`,
+          {
+            current: { id: blockId.slice(0, 8), level: currentLevel },
+            previous: {
+              id: immediatePrevious.id.slice(0, 8),
+              level: immediatePrevious.level,
+            },
+            reason: `prev.level (${immediatePrevious.level}) < current.level (${currentLevel})`,
+          }
+        );
+
         return {
           success: false,
           intent,
-          reason: 'Cannot indent: no valid parent found at current level',
+          reason: 'Cannot indent: previous block is shallower',
         };
       }
 
-      console.log(`✅ [handleIndentBlock] Found adoptable parent`, {
-        current: { id: blockId.slice(0, 8), level: currentBlock.level },
-        parent: {
+      console.log(`✅ [handleIndentBlock] Indent allowed`, {
+        current: { id: blockId.slice(0, 8), level: currentLevel },
+        previous: {
           id: adoptableParent.id.slice(0, 8),
           level: adoptableParent.level,
         },
