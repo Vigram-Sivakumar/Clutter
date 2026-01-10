@@ -264,3 +264,51 @@ export function assertValidIndentTree(doc: PMNode): void {
     return true;
   });
 }
+
+/**
+ * Validate no forward parenting exists (DEV MODE ONLY)
+ *
+ * Checks that a child's parent always appears BEFORE the child in document order.
+ * Forward parenting indicates structural corruption.
+ *
+ * @param doc - ProseMirror document
+ * @throws Error if forward parenting detected
+ */
+export function assertNoForwardParenting(doc: PMNode): void {
+  if (process.env.NODE_ENV !== 'development') return;
+
+  const blockPositions = new Map<string, number>();
+  let index = 0;
+
+  // Build position map
+  doc.descendants((node) => {
+    const blockId = node.attrs?.blockId;
+    if (blockId) {
+      blockPositions.set(blockId, index);
+      index++;
+    }
+    return true;
+  });
+
+  // Check parentBlockId references
+  doc.descendants((node) => {
+    const blockId = node.attrs?.blockId;
+    const parentBlockId = node.attrs?.parentBlockId;
+
+    if (blockId && parentBlockId && parentBlockId !== 'root') {
+      const childPos = blockPositions.get(blockId);
+      const parentPos = blockPositions.get(parentBlockId);
+
+      if (childPos !== undefined && parentPos !== undefined) {
+        if (parentPos >= childPos) {
+          throw new Error(
+            `[FORWARD PARENTING DETECTED] Block ${blockId} (pos ${childPos}) ` +
+              `has parent ${parentBlockId} (pos ${parentPos}) that appears after it. ` +
+              `Parents must always appear before children in document order.`
+          );
+        }
+      }
+    }
+    return true;
+  });
+}

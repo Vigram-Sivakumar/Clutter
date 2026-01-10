@@ -28,6 +28,7 @@ import {
   getIndentAffectedBlocks,
   getParentBlockIdForLevel,
   assertValidIndentTree,
+  assertNoForwardParenting,
 } from './subtreeHelpers';
 
 export class IntentResolver {
@@ -480,6 +481,60 @@ export class IntentResolver {
       };
     }
 
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // 🔒 CRITICAL GUARD: Valid Parent Check
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    //
+    // A block can only indent if the previous sibling is at the SAME level.
+    // This prevents invalid parent relationships after subtree moves.
+    //
+    // Example of what this prevents:
+    //   A (level 0)
+    //   B (level 0)  ← just outdented
+    //   C (level 1)  ← orphaned child
+    //   Tab on C → would make C child of B again (invalid!)
+    //
+    // This guard ensures indent only works between true siblings.
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    if (this._editor && this._editor.state) {
+      const { state } = this._editor;
+      const doc = state.doc;
+
+      // Get levels from TipTap document (source of truth)
+      let currentLevel: number | null = null;
+      let prevLevel: number | null = null;
+
+      doc.descendants((node: any, _pos: number) => {
+        if (node.attrs?.blockId === blockId) {
+          currentLevel = node.attrs.level ?? 0;
+        }
+        if (node.attrs?.blockId === previousSiblingId) {
+          prevLevel = node.attrs.level ?? 0;
+        }
+        return currentLevel === null || prevLevel === null; // Stop when both found
+      });
+
+      if (
+        currentLevel !== null &&
+        prevLevel !== null &&
+        currentLevel !== prevLevel
+      ) {
+        console.log(
+          `🔒 [handleIndentBlock] BLOCKED: Invalid parent relationship`,
+          {
+            current: { id: blockId.slice(0, 8), level: currentLevel },
+            prev: { id: previousSiblingId.slice(0, 8), level: prevLevel },
+            reason: 'Can only indent between true siblings (same level)',
+          }
+        );
+        return {
+          success: false,
+          intent,
+          reason: `Cannot indent: previous block is at different level (${prevLevel} vs ${currentLevel})`,
+        };
+      }
+    }
+
     if (previousSibling.type === 'toggleHeader') {
       console.log(
         '🔑 [handleIndentBlock] Toggle adoption detected:',
@@ -574,6 +629,7 @@ export class IntentResolver {
 
           // Validate tree in dev mode
           assertValidIndentTree(tr.doc);
+          assertNoForwardParenting(tr.doc);
         }
       }
 
@@ -667,6 +723,7 @@ export class IntentResolver {
 
         // Validate tree in dev mode
         assertValidIndentTree(tr.doc);
+        assertNoForwardParenting(tr.doc);
       }
     }
 
@@ -792,6 +849,7 @@ export class IntentResolver {
 
         // Validate tree in dev mode
         assertValidIndentTree(tr.doc);
+        assertNoForwardParenting(tr.doc);
       }
     }
 
