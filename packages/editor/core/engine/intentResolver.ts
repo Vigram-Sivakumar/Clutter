@@ -636,15 +636,22 @@ export class IntentResolver {
           tr.setMeta('historyGroup', 'indent-block');
 
           // Update level AND parentBlockId for all affected blocks
-          for (const item of affectedBlocks) {
+          // ONLY the root block gets a new parentBlockId; children keep theirs
+          for (let i = 0; i < affectedBlocks.length; i++) {
+            const item = affectedBlocks[i];
             const node = doc.nodeAt(item.pos);
             if (node) {
-              // Calculate correct parentBlockId based on new level
-              const newParentBlockId = getParentBlockIdForLevel(
-                doc,
-                item.pos,
-                item.newLevel
-              );
+              let newParentBlockId: string;
+
+              if (i === 0) {
+                // ROOT of indent: adopt under new parent
+                newParentBlockId =
+                  getParentBlockIdForLevel(doc, item.pos, item.newLevel) ||
+                  'root';
+              } else {
+                // CHILD: keep existing parent (subtree integrity)
+                newParentBlockId = node.attrs.parentBlockId || 'root';
+              }
 
               tr.setNodeMarkup(item.pos, undefined, {
                 ...node.attrs,
@@ -760,15 +767,22 @@ export class IntentResolver {
         tr.setMeta('historyGroup', 'indent-block');
 
         // Update level AND parentBlockId for all affected blocks
-        for (const item of affectedBlocks) {
+        // ONLY the root block gets a new parentBlockId; children keep theirs
+        for (let i = 0; i < affectedBlocks.length; i++) {
+          const item = affectedBlocks[i];
           const node = doc.nodeAt(item.pos);
           if (node) {
-            // Calculate correct parentBlockId based on new level
-            const newParentBlockId = getParentBlockIdForLevel(
-              doc,
-              item.pos,
-              item.newLevel
-            );
+            let newParentBlockId: string;
+
+            if (i === 0) {
+              // ROOT of indent: adopt under new parent
+              newParentBlockId =
+                getParentBlockIdForLevel(doc, item.pos, item.newLevel) ||
+                'root';
+            } else {
+              // CHILD: keep existing parent (subtree integrity)
+              newParentBlockId = node.attrs.parentBlockId || 'root';
+            }
 
             tr.setNodeMarkup(item.pos, undefined, {
               ...node.attrs,
@@ -891,16 +905,43 @@ export class IntentResolver {
         tr.setMeta('addToHistory', true);
         tr.setMeta('historyGroup', 'outdent-block');
 
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // 🔑 CRITICAL: Adopt-Nearest-Grandparent Outdent
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ONLY the root block being outdented gets a new parentBlockId.
+        // Children stay attached to their parents (subtree integrity).
+        //
+        // Example:
+        //   A
+        //     B
+        //     C  ← outdent
+        //       D
+        //
+        // After:
+        //   A
+        //   B
+        //   C  ← new parent = 'root'
+        //     D  ← keeps parent = C (NOT recalculated!)
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
         // Update level AND parentBlockId for all affected blocks
-        for (const item of affectedBlocks) {
+        for (let i = 0; i < affectedBlocks.length; i++) {
+          const item = affectedBlocks[i];
           const node = doc.nodeAt(item.pos);
           if (node) {
-            // Calculate correct parentBlockId based on new level
-            const newParentBlockId = getParentBlockIdForLevel(
-              doc,
-              item.pos,
-              item.newLevel
-            );
+            let newParentBlockId: string;
+
+            if (i === 0) {
+              // ROOT of outdent operation: calculate grandparent
+              // (nearest block at newLevel - 1)
+              newParentBlockId =
+                getParentBlockIdForLevel(doc, item.pos, item.newLevel) ||
+                'root';
+            } else {
+              // CHILD of outdented block: keep existing parent
+              // (preserves subtree integrity)
+              newParentBlockId = node.attrs.parentBlockId || 'root';
+            }
 
             tr.setNodeMarkup(item.pos, undefined, {
               ...node.attrs,
