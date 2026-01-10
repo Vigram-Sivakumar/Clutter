@@ -38,6 +38,13 @@ export const splitListItem = defineRule({
       return false;
     }
 
+    // Only handle splittable list types
+    const allowedListTypes = ['bullet', 'numbered', 'task', 'toggle'];
+    const listType = listBlock.node.attrs.listType;
+    if (!allowedListTypes.includes(listType)) {
+      return false;
+    }
+
     // List block itself is the current node (inline content)
     // If it's empty, other rules handle it
     if (currentNode.textContent === '') {
