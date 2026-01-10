@@ -87,25 +87,34 @@ export const MarkdownShortcuts = Extension.create({
             }
             // >> + space → toggle block (PHASE 2: new container structure)
             else if (textBefore === '>> ') {
-              // PHASE 2: Use new insertToggleBlock command instead of legacy creation
-              // Find block boundaries
-              let blockStart = $from.before($from.depth);
-              let blockEnd = $from.after($from.depth);
+              // PHASE 2: Create toggleBlock inline (same pattern as other shortcuts)
+              const toggleBlock = state.schema.nodes.toggleBlock;
+              const toggleHeaderNew = state.schema.nodes.toggleHeaderNew;
+              const toggleContent = state.schema.nodes.toggleContent;
+              const p = state.schema.nodes.paragraph;
 
-              // Delete the shortcut text and current block
-              const tr = state.tr.delete(blockStart, blockEnd);
-              view.dispatch(tr);
+              if (toggleBlock && toggleHeaderNew && toggleContent && p) {
+                // Create structure: toggleBlock > header + content(paragraph)
+                const header = toggleHeaderNew.create(
+                  {},
+                  state.schema.text('')
+                );
+                const content = toggleContent.create({}, [
+                  p.create({ blockId: crypto.randomUUID() }),
+                ]);
 
-              // Insert new toggleBlock via command (creates correct structure)
-              const editor = (view as any).editor;
-              if (editor && editor.commands.insertToggleBlock) {
-                editor.commands.insertToggleBlock();
+                replacement = toggleBlock.create(
+                  {
+                    blockId: crypto.randomUUID(),
+                    collapsed: false,
+                  },
+                  [header, content]
+                );
+
                 console.log(
-                  '✅ [MarkdownShortcuts] Created NEW toggleBlock via >> shortcut'
+                  '✅ [MarkdownShortcuts] Creating NEW toggleBlock via >> shortcut'
                 );
               }
-
-              return true;
             }
             // > + space → blockquote
             else if (textBefore === '> ') {
