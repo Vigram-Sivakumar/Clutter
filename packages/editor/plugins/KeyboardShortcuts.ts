@@ -45,8 +45,17 @@ export const KeyboardShortcuts = Extension.create({
         const result = handleTab(editor, false); // isShift = false
         console.log('🔑 [KeyboardShortcuts] handleTab returned:', result);
 
-        // ENFORCE: If intent was emitted, browser must never see the key
-        return result.handled;
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // 🔓 CORRECT TAB CONTRACT
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // Intent succeeded → return true (consume Tab)
+        // Intent failed → return false (allow fallback)
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        const shouldConsume = result.handled === true;
+        console.log(
+          `🔑 [KeyboardShortcuts] Returning ${shouldConsume} - ${shouldConsume ? 'CONSUMING Tab' : 'ALLOWING FALLBACK'}`
+        );
+        return shouldConsume;
       },
       'Shift-Tab': ({ editor }) => {
         console.log(
@@ -55,8 +64,11 @@ export const KeyboardShortcuts = Extension.create({
         const result = handleTab(editor, true); // isShift = true
         console.log('🔑 [KeyboardShortcuts] handleTab returned:', result);
 
-        // ENFORCE: If intent was emitted, browser must never see the key
-        return result.handled;
+        const shouldConsume = result.handled === true;
+        console.log(
+          `🔑 [KeyboardShortcuts] Returning ${shouldConsume} - ${shouldConsume ? 'CONSUMING Shift+Tab' : 'ALLOWING FALLBACK'}`
+        );
+        return shouldConsume;
       },
 
       // ✅ ARROW KEYS: Centralized cross-block navigation
