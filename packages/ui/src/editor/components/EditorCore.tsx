@@ -25,7 +25,6 @@ import { CodeBlock } from '../extensions/nodes/CodeBlock';
 import { HorizontalRule } from '../extensions/nodes/HorizontalRule';
 import { Link } from '../extensions/marks/Link';
 import { Callout } from '../extensions/nodes/Callout';
-import { ToggleHeader } from '../extensions/nodes/ToggleHeader';
 
 // Marks
 import { Bold } from '../extensions/marks/Bold';
@@ -123,7 +122,6 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(({
       }),
       Link, // Standard link mark (browser default behavior)
       Callout, // Info/warning/error/success callout boxes
-      ToggleHeader, // Standalone toggle header (flat structure like ListBlock)
       DateMentionNode, // Date mentions (@Today, @Yesterday, etc.) - atomic inline node
       NoteLink.configure({
         onNavigate, // Pass navigation callback to NoteLink extension

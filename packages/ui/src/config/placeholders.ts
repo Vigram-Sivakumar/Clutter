@@ -19,26 +19,26 @@
 export const SIDEBAR_EMPTY_STATES = {
   // --- Notes Tab ---
   favouritesNotes: {
-    message: 'No favourites yet. Press',
+    message: 'Press',
     shortcut: ['⌘ N'],
-    suffix: 'to create a new note.',
+    suffix: 'to create note.',
   },
   folders: {
-    message: 'No folders yet. Press',
+    message: 'Press',
     shortcut: ['⌘ N'],
-    suffix: 'to create a new folder.',
+    suffix: 'to create note.',
   },
   cluttered: {
-    message: 'Nothing to Declutter. Press',
+    message: 'Press',
     shortcut: ['⌘ N'],
-    suffix: 'to clutter your inbox a new note.',
+    suffix: 'to create note.',
   },
 
   // --- Calendar Tab ---
   dailyNotes: {
-    message: 'No daily notes yet. Press',
-    shortcut: ['⌘ N'],
-    suffix: 'to create a new daily note.',
+    message: 'Press',
+    shortcut: ['⇧ ⌃ D'],
+    suffix: 'to open Today\'s note.',
   },
 
   // --- Tasks Tab ---
