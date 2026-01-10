@@ -15,6 +15,8 @@
 
 import { useEffect, useRef, useMemo } from 'react';
 import type { Editor } from '@tiptap/core';
+// NodeSelection preserved for future re-enablement of block selection sync
+import { NodeSelection as _NodeSelection } from '@tiptap/pm/state';
 import { EditorEngine, IntentResolver } from './index';
 import type { BlockTree, BlockNode, BlockId } from './types';
 
@@ -351,31 +353,41 @@ function syncSelectionToTipTap(
 
   const { selection } = engine;
 
-  // Block selection → TipTap node selection
-  if (selection.kind === 'block' && selection.blockIds.length > 0) {
-    const blockId = selection.blockIds[0]; // TODO: Handle multi-block selection
-
-    // Find block position in document
-    const { doc } = editor.state;
-    let blockPos: number | null = null;
-
-    doc.descendants((node, pos) => {
-      if (node.attrs?.blockId === blockId) {
-        blockPos = pos;
-        return false;
-      }
-      return true;
-    });
-
-    if (blockPos !== null) {
-      // Create node selection
-      const { NodeSelection } = require('@tiptap/pm/state');
-      const tr = editor.state.tr.setSelection(
-        NodeSelection.create(doc, blockPos)
-      );
-      editor.view.dispatch(tr);
-    }
+  // 🛡️ BRIDGE FIX: Skip block selection sync after structural changes
+  // During delete/move/promote operations, DOM is unstable and TipTap's
+  // natural cursor placement is correct. Forcing selection restoration
+  // causes NodeView lifecycle violations and crashes.
+  //
+  // TODO: Refine this to only skip when engine.lastOperation?.type === 'structural'
+  // so legitimate block selections (click-to-select) still sync properly.
+  if (selection.kind === 'block') {
+    console.log(
+      '[Bridge] Skipping block selection sync after structural change'
+    );
+    return;
   }
+
+  // NOTE: Block selection sync code temporarily disabled by guard above.
+  // Will be re-enabled once we track engine.lastOperation.type to distinguish
+  // between structural mutations (delete/move) and user selections (click-to-select).
+  //
+  // Original code (preserved for future re-enablement):
+  // if (selection.kind === 'block' && selection.blockIds.length > 0) {
+  //   const blockId = selection.blockIds[0];
+  //   const { doc } = editor.state;
+  //   let blockPos: number | null = null;
+  //   doc.descendants((node, pos) => {
+  //     if (node.attrs?.blockId === blockId) {
+  //       blockPos = pos;
+  //       return false;
+  //     }
+  //     return true;
+  //   });
+  //   if (blockPos !== null) {
+  //     const tr = editor.state.tr.setSelection(_NodeSelection.create(doc, blockPos));
+  //     editor.view.dispatch(tr);
+  //   }
+  // }
 
   // TODO: Handle text selection sync if needed
 }
