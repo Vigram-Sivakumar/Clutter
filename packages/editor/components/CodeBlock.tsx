@@ -6,7 +6,7 @@
  * No margin - parent handles spacing via gap.
  */
 
-import { useMemo, useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { NodeViewWrapper, NodeViewContent } from '@tiptap/react';
 import type { NodeViewProps } from '@tiptap/react';
 import { useTheme } from '@clutter/ui';
@@ -17,7 +17,7 @@ import { useBlockSelection } from '../hooks/useBlockSelection';
 // import { Placeholder } from './Placeholder'; // No longer used - CSS handles placeholders
 import { BlockHandle } from './BlockHandle';
 import { BlockSelectionHalo } from './BlockSelectionHalo';
-import { isHiddenByCollapsedToggle } from '../utils/collapseHelpers';
+import { useBlockCollapse } from '../hooks/useBlockCollapse';
 
 interface CodeBlockProps extends NodeViewProps {
   node: {
@@ -79,12 +79,8 @@ export function CodeBlock({
     };
   }, [editor]);
 
-  // Check if this code block should be hidden by a collapsed toggle
-  const isHidden = useMemo(() => {
-    const pos = getPos();
-    if (pos === undefined || !parentToggleId) return false;
-    return isHiddenByCollapsedToggle(editor.state.doc, pos, parentToggleId);
-  }, [editor, editor.state.doc, getPos, parentToggleId]);
+  // Check if this code block should be hidden by a collapsed toggle or task parent
+  const isHidden = useBlockCollapse(editor, getPos, parentToggleId);
 
   // Calculate indent based on level (hierarchy + toggle grouping)
   const hierarchyIndent = (level || 0) * spacing.indent;

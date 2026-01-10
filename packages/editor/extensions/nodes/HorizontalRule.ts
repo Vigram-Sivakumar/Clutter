@@ -100,6 +100,16 @@ export const HorizontalRule = Node.create({
             ? { 'data-parent-toggle-id': attributes.parentToggleId }
             : {},
       },
+      level: {
+        default: 0,
+        parseHTML: (element) => {
+          const levelAttr = element.getAttribute('data-level');
+          return levelAttr ? parseInt(levelAttr, 10) : 0;
+        },
+        renderHTML: (attributes) => ({
+          'data-level': attributes.level,
+        }),
+      },
     };
   },
 

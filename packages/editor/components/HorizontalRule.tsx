@@ -1,6 +1,6 @@
 /**
  * HorizontalRule - React node view for horizontal rules
- * 
+ *
  * Uses inline SVG for wavy pattern with theme-aware colors.
  * Both plain and wavy styles use the same divider color from theme.
  * Supports width toggle: full width or 128px centered.
@@ -9,9 +9,10 @@
 import { useState } from 'react';
 import { NodeViewWrapper } from '@tiptap/react';
 import type { NodeViewProps } from '@tiptap/react';
-import { patterns } from '../tokens';
+import { patterns, spacing } from '../tokens';
 import { useTheme } from '@clutter/ui';
 import { useBlockSelection } from '../hooks/useBlockSelection';
+import { useBlockCollapse } from '../hooks/useBlockCollapse';
 import { FoldHorizontal, UnfoldHorizontal } from '@clutter/ui';
 import { sizing } from '@clutter/ui';
 import { BlockSelectionHalo } from './BlockSelectionHalo';
@@ -19,24 +20,45 @@ import { BlockHandle } from './BlockHandle';
 
 interface HorizontalRuleProps extends NodeViewProps {
   // NodeViewProps already includes node, we just need to specify updateAttributes
-  updateAttributes: (attrs: Record<string, any>) => void;
+  updateAttributes: (_attrs: Record<string, any>) => void;
 }
 
 // Height for both styles (consistent clickable area)
 const HR_HEIGHT = 24;
 
-export function HorizontalRule({ node, editor, getPos, updateAttributes }: HorizontalRuleProps) {
+export function HorizontalRule({
+  node,
+  editor,
+  getPos,
+  updateAttributes,
+}: HorizontalRuleProps) {
   const { colors } = useTheme();
   const hrStyle = node.attrs.style || 'plain';
   const fullWidth = node.attrs.fullWidth ?? true;
   const colorMode = node.attrs.color || 'default';
+  const level = node.attrs.level || 0;
+  const parentBlockId = node.attrs.parentBlockId || null;
+  const parentToggleId = node.attrs.parentToggleId || null;
   const [isHovered, setIsHovered] = useState(false);
 
   // Check if this block is selected
-  const isSelected = useBlockSelection({ editor, getPos, nodeSize: node.nodeSize });
+  const isSelected = useBlockSelection({
+    editor,
+    getPos,
+    nodeSize: node.nodeSize,
+  });
+
+  // Check if this block should be hidden by collapsed parent
+  const isHidden = useBlockCollapse(editor, getPos, parentToggleId);
+
+  // Calculate indent based on level and toggle grouping
+  const hierarchyIndent = level * spacing.indent;
+  const toggleIndent = parentToggleId ? spacing.toggleIndent : 0;
+  const indent = hierarchyIndent + toggleIndent;
 
   // Toggle between default divider color and accent orange
-  const dividerColor = colorMode === 'accent' ? colors.semantic.orange : colors.border.divider;
+  const dividerColor =
+    colorMode === 'accent' ? colors.semantic.orange : colors.border.divider;
 
   const handleToggleWidth = () => {
     updateAttributes({ fullWidth: !fullWidth });
@@ -52,14 +74,18 @@ export function HorizontalRule({ node, editor, getPos, updateAttributes }: Horiz
       data-type="horizontalRule"
       data-style={hrStyle}
       data-full-width={fullWidth}
+      data-level={level}
+      data-parent-block-id={parentBlockId}
+      data-hidden={isHidden}
       className="block-handle-wrapper"
       style={{
         height: HR_HEIGHT,
-        display: 'flex',
+        display: isHidden ? 'none' : 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         position: 'relative',
         cursor: 'pointer',
+        paddingLeft: indent,
         // No margin - parent uses gap for spacing
       }}
       onMouseEnter={() => setIsHovered(true)}
@@ -69,16 +95,16 @@ export function HorizontalRule({ node, editor, getPos, updateAttributes }: Horiz
       <div
         style={{
           position: 'absolute',
-          left: -32,
+          left: indent - 32,
           top: 0,
           width: 32,
           height: '100%',
           pointerEvents: 'auto',
         }}
       />
-      
+
       {/* Block handle (⋮⋮) - shows on hover */}
-      <BlockHandle editor={editor} getPos={getPos} indent={0} />
+      <BlockHandle editor={editor} getPos={getPos} indent={indent} />
       {/* HR line container with conditional width */}
       <div
         style={{
@@ -87,48 +113,48 @@ export function HorizontalRule({ node, editor, getPos, updateAttributes }: Horiz
           alignItems: 'center',
           justifyContent: 'center',
           transition: 'width 0.2s ease',
-      }}
-    >
-      {hrStyle === 'wavy' ? (
-        // Wavy pattern using inline SVG with theme color
-        <svg
-          width="100%"
-          height={patterns.wave.height}
-          preserveAspectRatio="none"
-          style={{ display: 'block' }}
-        >
-          <defs>
-            <pattern
-              id="wavePattern"
-              patternUnits="userSpaceOnUse"
-              width={patterns.wave.width}
-              height={patterns.wave.height}
-            >
-              <path
-                d={patterns.wave.path}
-                stroke={dividerColor}
-                strokeWidth={patterns.wave.strokeWidth}
-                strokeLinecap="round"
-                fill="none"
-              />
-            </pattern>
-          </defs>
-          <rect
+        }}
+      >
+        {hrStyle === 'wavy' ? (
+          // Wavy pattern using inline SVG with theme color
+          <svg
             width="100%"
             height={patterns.wave.height}
-            fill="url(#wavePattern)"
+            preserveAspectRatio="none"
+            style={{ display: 'block' }}
+          >
+            <defs>
+              <pattern
+                id="wavePattern"
+                patternUnits="userSpaceOnUse"
+                width={patterns.wave.width}
+                height={patterns.wave.height}
+              >
+                <path
+                  d={patterns.wave.path}
+                  stroke={dividerColor}
+                  strokeWidth={patterns.wave.strokeWidth}
+                  strokeLinecap="round"
+                  fill="none"
+                />
+              </pattern>
+            </defs>
+            <rect
+              width="100%"
+              height={patterns.wave.height}
+              fill="url(#wavePattern)"
+            />
+          </svg>
+        ) : (
+          // Plain line
+          <div
+            style={{
+              width: '100%',
+              height: 1,
+              backgroundColor: dividerColor,
+            }}
           />
-        </svg>
-      ) : (
-        // Plain line
-        <div
-          style={{
-            width: '100%',
-            height: 1,
-            backgroundColor: dividerColor,
-          }}
-        />
-      )}
+        )}
       </div>
 
       {/* Toggle controls - shown on hover */}
@@ -178,7 +204,11 @@ export function HorizontalRule({ node, editor, getPos, updateAttributes }: Horiz
               e.currentTarget.style.backgroundColor = 'transparent';
             }}
           >
-            {fullWidth ? <FoldHorizontal size={14} /> : <UnfoldHorizontal size={14} />}
+            {fullWidth ? (
+              <FoldHorizontal size={14} />
+            ) : (
+              <UnfoldHorizontal size={14} />
+            )}
           </div>
 
           {/* Color toggle button */}
@@ -216,7 +246,7 @@ export function HorizontalRule({ node, editor, getPos, updateAttributes }: Horiz
       </div>
 
       {/* Block selection halo */}
-      <BlockSelectionHalo isSelected={isSelected} indent={0} />
+      <BlockSelectionHalo isSelected={isSelected} indent={indent} />
 
       {/* CSS to show handle on hover or when menu is open (but not while typing or in multi-selection) */}
       <style>{`
@@ -228,4 +258,3 @@ export function HorizontalRule({ node, editor, getPos, updateAttributes }: Horiz
     </NodeViewWrapper>
   );
 }
-

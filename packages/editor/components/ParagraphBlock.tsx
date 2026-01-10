@@ -11,7 +11,7 @@
  * the outermost element for TipTap keyboard events to work properly.
  */
 
-import { useCallback, useMemo, useState, useEffect } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import { NodeViewWrapper, NodeViewContent } from '@tiptap/react';
 import type { NodeViewProps } from '@tiptap/react';
 import { typography, spacing } from '../tokens';
@@ -21,10 +21,7 @@ import { useBlockSelection } from '../hooks/useBlockSelection';
 import { BlockTagEditor } from './BlockTagEditor';
 import { BlockHandle } from './BlockHandle';
 import { BlockSelectionHalo } from './BlockSelectionHalo';
-import {
-  isHiddenByCollapsedToggle,
-  isHiddenByCollapsedParent,
-} from '../utils/collapseHelpers';
+import { useBlockCollapse } from '../hooks/useBlockCollapse';
 
 export function ParagraphBlock({
   node,
@@ -76,20 +73,7 @@ export function ParagraphBlock({
   }, [editor]);
 
   // Check if this paragraph should be hidden by a collapsed toggle or task parent
-  const isHidden = useMemo(() => {
-    const pos = getPos();
-    if (pos === undefined) return false;
-
-    // Check if hidden by collapsed task or toggle parent (flat schema)
-    const hiddenByFlat = isHiddenByCollapsedParent(editor.state.doc, pos);
-
-    // Check if hidden by legacy collapsed toggle parent (via parentToggleId)
-    const hiddenByLegacyToggle = parentToggleId
-      ? isHiddenByCollapsedToggle(editor.state.doc, pos, parentToggleId)
-      : false;
-
-    return hiddenByFlat || hiddenByLegacyToggle;
-  }, [editor, editor.state.doc, getPos, parentToggleId]);
+  const isHidden = useBlockCollapse(editor, getPos, parentToggleId);
 
   const handleUpdateTags = useCallback(
     (newTags: string[]) => {

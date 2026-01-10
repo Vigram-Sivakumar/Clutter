@@ -24,10 +24,7 @@ import { useBlockSelection } from '../hooks/useBlockSelection';
 import { MarkerContainer } from './BlockWrapper';
 import { BlockHandle } from './BlockHandle';
 import { BlockSelectionHalo } from './BlockSelectionHalo';
-import {
-  isHiddenByCollapsedToggle,
-  isHiddenByCollapsedParent,
-} from '../utils/collapseHelpers';
+import { useBlockCollapse } from '../hooks/useBlockCollapse';
 import { TaskPriorityIndicator } from './TaskPriorityIndicator';
 import { Checkbox } from '@clutter/ui';
 
@@ -308,20 +305,7 @@ export function ListBlock({
   }, [editor, getPos, listType, editor.state.doc]);
 
   // Check if this item should be hidden (child of collapsed parent task OR toggle)
-  const isHidden = useMemo(() => {
-    const pos = getPos();
-    if (pos === undefined) return false;
-
-    // Check if hidden by collapsed task or toggle parent (flat schema)
-    const hiddenByFlat = isHiddenByCollapsedParent(editor.state.doc, pos);
-
-    // Check if hidden by legacy collapsed toggle parent (via parentToggleId)
-    const hiddenByLegacyToggle = parentToggleId
-      ? isHiddenByCollapsedToggle(editor.state.doc, pos, parentToggleId)
-      : false;
-
-    return hiddenByFlat || hiddenByLegacyToggle;
-  }, [editor, getPos, level, parentToggleId, editor.state.doc]);
+  const isHidden = useBlockCollapse(editor, getPos, parentToggleId);
 
   // Canonical emptiness check (ProseMirror source of truth)
   const isEmpty = node.content.size === 0;

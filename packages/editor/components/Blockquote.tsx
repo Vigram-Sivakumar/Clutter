@@ -16,7 +16,7 @@ import { useBlockSelection } from '../hooks/useBlockSelection';
 // import { Placeholder } from './Placeholder'; // No longer used - CSS handles placeholders
 import { BlockHandle } from './BlockHandle';
 import { BlockSelectionHalo } from './BlockSelectionHalo';
-import { isHiddenByCollapsedToggle } from '../utils/collapseHelpers';
+import { useBlockCollapse } from '../hooks/useBlockCollapse';
 
 export function Blockquote({ node, editor, getPos }: NodeViewProps) {
   const { colors } = useTheme();
@@ -56,12 +56,8 @@ export function Blockquote({ node, editor, getPos }: NodeViewProps) {
     };
   }, [editor]);
 
-  // Check if this blockquote should be hidden by a collapsed toggle
-  const isHidden = useMemo(() => {
-    const pos = getPos();
-    if (pos === undefined || !parentToggleId) return false;
-    return isHiddenByCollapsedToggle(editor.state.doc, pos, parentToggleId);
-  }, [editor, editor.state.doc, getPos, parentToggleId]);
+  // Check if this blockquote should be hidden by a collapsed toggle or task parent
+  const isHidden = useBlockCollapse(editor, getPos, parentToggleId);
 
   // Check if next sibling is also a blockquote (for connector rendering)
   const hasNextBlockquote = useMemo(() => {
