@@ -266,21 +266,9 @@ function createToggleBlock(
   editor: Editor,
   slashRange?: { from: number; to: number }
 ) {
-  // PHASE 2: Use new toggleBlock container structure
-  // This creates: toggleBlock > toggleHeaderNew + toggleContent(paragraph)
-  // ProseMirror handles all hierarchy naturally
-
-  // Delete slash command text if present
-  if (slashRange) {
-    editor.commands.deleteRange(slashRange);
-  }
-
-  // Insert new toggleBlock with correct structure
-  editor.commands.insertToggleBlock();
-
-  console.log(
-    '✅ [createToggleBlock] Created NEW toggleBlock (real hierarchy)'
-  );
+  // PHASE 4: Create flat toggle (listType: 'toggle')
+  // Reuses existing ListBlock creation pipeline
+  createListBlock(editor, 'toggle', slashRange);
 }
 
 // Helper to extract content without slash text

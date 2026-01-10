@@ -85,34 +85,15 @@ export const MarkdownShortcuts = Extension.create({
                 preservedAttrs
               );
             }
-            // >> + space → toggle block (PHASE 2: new container structure)
+            // >> + space → toggle list (flat schema)
             else if (textBefore === '>> ') {
-              // PHASE 2: Create toggleBlock inline (same pattern as other shortcuts)
-              const toggleBlock = state.schema.nodes.toggleBlock;
-              const toggleHeaderNew = state.schema.nodes.toggleHeaderNew;
-              const toggleContent = state.schema.nodes.toggleContent;
-              const p = state.schema.nodes.paragraph;
-
-              if (toggleBlock && toggleHeaderNew && toggleContent && p) {
-                // Create structure: toggleBlock > header + content(paragraph)
-                // 🔑 CRITICAL: Don't create empty text nodes - let PM handle empty inline content
-                const header = toggleHeaderNew.create();
-                const content = toggleContent.create({}, [
-                  p.create({ blockId: crypto.randomUUID() }),
-                ]);
-
-                replacement = toggleBlock.create(
-                  {
-                    blockId: crypto.randomUUID(),
-                    collapsed: false,
-                  },
-                  [header, content]
-                );
-
-                console.log(
-                  '✅ [MarkdownShortcuts] Creating NEW toggleBlock via >> shortcut'
-                );
-              }
+              replacement = createBlock.listBlock(
+                state.schema,
+                'toggle',
+                undefined,
+                false,
+                preservedAttrs
+              );
             }
             // > + space → blockquote
             else if (textBefore === '> ') {
