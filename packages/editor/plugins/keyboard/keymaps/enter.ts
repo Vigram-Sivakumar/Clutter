@@ -18,29 +18,29 @@ import type { Editor } from '@tiptap/core';
 import { createKeyboardEngine } from '../engine/KeyboardEngine';
 import type { IntentResolver } from '../../../core/engine';
 import type { KeyHandlingResult } from '../types/KeyHandlingResult';
-// PHASE 3.3.a: Most imports removed - rules disabled
+// FLAT TOGGLE FIX: Re-enable exit rules for empty list items
 import {
-  // exitEmptyBlockInToggle, // DISABLED
+  // exitEmptyBlockInToggle, // Not needed for flat schema
   splitListItem,
-  // exitEmptyListInWrapper, // DISABLED
-  // outdentEmptyList, // DISABLED
-  // exitEmptyList, // DISABLED
-  // exitEmptyHeading, // DISABLED
-  // exitEmptyWrapper, // DISABLED
-  // createParagraphAfterHeading, // DISABLED
+  // exitEmptyListInWrapper, // Not needed for flat schema
+  outdentEmptyList, // RE-ENABLED: Outdent empty nested lists
+  exitEmptyList, // RE-ENABLED: Convert empty root lists to paragraph
+  // exitEmptyHeading, // Let PM handle
+  // exitEmptyWrapper, // Let PM handle
+  // createParagraphAfterHeading, // Let PM handle
 } from '../rules/enter';
 
 // Rules for Enter key
-// PHASE 3.3.a: Most rules DISABLED - let ProseMirror handle Enter naturally
+// FLAT TOGGLE FIX: Re-enabled exit rules for proper empty list handling
 const enterRules = [
-  // exitEmptyBlockInToggle, // DISABLED - PM handles container exit naturally
-  splitListItem, // Priority 110 - split list items (keep for now)
-  // exitEmptyListInWrapper, // DISABLED - PM handles naturally
-  // outdentEmptyList, // DISABLED - PM handles naturally
-  // exitEmptyList, // DISABLED - PM handles naturally
-  // exitEmptyHeading, // DISABLED - PM handles naturally
-  // exitEmptyWrapper, // DISABLED - PM handles naturally
-  // createParagraphAfterHeading, // DISABLED - PM handles naturally
+  // exitEmptyBlockInToggle, // Not needed - flat schema has no containers
+  splitListItem, // Priority 110 - split non-empty list items
+  // exitEmptyListInWrapper, // Not needed - flat schema
+  outdentEmptyList, // RE-ENABLED: Priority 95 - outdent empty nested lists
+  exitEmptyList, // RE-ENABLED: Priority 90 - convert empty root lists to paragraph
+  // exitEmptyHeading, // Let PM handle naturally
+  // exitEmptyWrapper, // Let PM handle naturally
+  // createParagraphAfterHeading, // Let PM handle naturally
 ];
 
 // Create engine (will be initialized with resolver per-editor)
