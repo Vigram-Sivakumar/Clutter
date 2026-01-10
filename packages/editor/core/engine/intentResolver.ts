@@ -26,6 +26,7 @@ import {
 import {
   getOutdentAffectedBlocks,
   getIndentAffectedBlocks,
+  getParentBlockIdForLevel,
   assertValidIndentTree,
 } from './subtreeHelpers';
 
@@ -525,13 +526,21 @@ export class IntentResolver {
             }))
           );
 
-          // Update level attribute for all affected blocks
+          // Update level AND parentBlockId for all affected blocks
           for (const item of affectedBlocks) {
             const node = doc.nodeAt(item.pos);
             if (node) {
+              // Calculate correct parentBlockId based on new level
+              const newParentBlockId = getParentBlockIdForLevel(
+                doc,
+                item.pos,
+                item.newLevel
+              );
+
               tr.setNodeMarkup(item.pos, undefined, {
                 ...node.attrs,
                 level: item.newLevel,
+                parentBlockId: newParentBlockId,
               });
             }
           }
@@ -568,21 +577,10 @@ export class IntentResolver {
         }
       }
 
-      // Move block to be last child of toggle
-      const newIndex = previousSibling.children.length;
-
-      this._engine.dispatch(
-        new MoveBlockCommand({
-          blockId,
-          oldParentId: parent.id || null,
-          oldIndex: index,
-          newParentId: previousSiblingId, // ✅ Adopt into toggle
-          newIndex,
-          intentCategory: 'toggle-adoption',
-          engine: this._engine,
-          editor: this._editor,
-        })
-      );
+      // 🔥 CRITICAL: Do NOT issue MoveBlockCommand
+      // Indent/outdent is now TipTap-owned (updates level + parentBlockId attributes).
+      // Engine derives structure from those attributes during rebuild.
+      // See: docs/INDENT_TREE_INVARIANT.md
 
       // Cursor placement
       this._engine.setCursorAfterStructuralMove(blockId);
@@ -645,13 +643,21 @@ export class IntentResolver {
           }))
         );
 
-        // Update level attribute for all affected blocks
+        // Update level AND parentBlockId for all affected blocks
         for (const item of affectedBlocks) {
           const node = doc.nodeAt(item.pos);
           if (node) {
+            // Calculate correct parentBlockId based on new level
+            const newParentBlockId = getParentBlockIdForLevel(
+              doc,
+              item.pos,
+              item.newLevel
+            );
+
             tr.setNodeMarkup(item.pos, undefined, {
               ...node.attrs,
               level: item.newLevel,
+              parentBlockId: newParentBlockId,
             });
           }
         }
@@ -664,21 +670,10 @@ export class IntentResolver {
       }
     }
 
-    // 6. Move block under previous sibling (append as last child)
-    const newIndex = previousSibling.children.length;
-
-    this._engine.dispatch(
-      new MoveBlockCommand({
-        blockId,
-        oldParentId: parent.id || null,
-        oldIndex: index,
-        newParentId: previousSiblingId,
-        newIndex,
-        intentCategory: 'block-indent',
-        engine: this._engine,
-        editor: this._editor,
-      })
-    );
+    // 6. 🔥 CRITICAL: Do NOT issue MoveBlockCommand
+    // Indent/outdent is now TipTap-owned (updates level + parentBlockId attributes).
+    // Engine derives structure from those attributes during rebuild.
+    // See: docs/INDENT_TREE_INVARIANT.md
 
     // 7. Cursor placement
     this._engine.setCursorAfterStructuralMove(blockId);
@@ -773,13 +768,21 @@ export class IntentResolver {
           }))
         );
 
-        // Update level attribute for all affected blocks
+        // Update level AND parentBlockId for all affected blocks
         for (const item of affectedBlocks) {
           const node = doc.nodeAt(item.pos);
           if (node) {
+            // Calculate correct parentBlockId based on new level
+            const newParentBlockId = getParentBlockIdForLevel(
+              doc,
+              item.pos,
+              item.newLevel
+            );
+
             tr.setNodeMarkup(item.pos, undefined, {
               ...node.attrs,
               level: item.newLevel,
+              parentBlockId: newParentBlockId,
             });
           }
         }
@@ -792,22 +795,12 @@ export class IntentResolver {
       }
     }
 
-    // 6. Insert after parent (lift one level in Engine tree)
-    const currentIndex = this._engine.getIndexInParent(blockId);
-    const parentIndex = this._engine.getIndexInParent(parent.id);
-
-    this._engine.dispatch(
-      new MoveBlockCommand({
-        blockId,
-        oldParentId: parent.id || null,
-        oldIndex: currentIndex,
-        newParentId: grandParent.id || null,
-        newIndex: parentIndex + 1,
-        intentCategory: 'block-outdent',
-        engine: this._engine,
-        editor: this._editor,
-      })
-    );
+    // 6. 🔥 CRITICAL: Do NOT issue MoveBlockCommand
+    // Indent/outdent is now TipTap-owned (updates level + parentBlockId attributes).
+    // Engine derives structure from those attributes during rebuild.
+    // Issuing MoveBlockCommand here would create a conflict and re-orphan children.
+    //
+    // See: docs/INDENT_TREE_INVARIANT.md - "Single Source of Truth"
 
     // 7. Cursor placement
     this._engine.setCursorAfterStructuralMove(blockId);

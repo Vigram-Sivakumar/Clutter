@@ -187,6 +187,44 @@ export function getIndentAffectedBlocks(
 }
 
 /**
+ * Calculate correct parentBlockId based on level
+ *
+ * Walks backward from current position to find the nearest block at level-1.
+ * This is the structural parent.
+ *
+ * @param doc - ProseMirror document
+ * @param currentPos - Position of current block
+ * @param currentLevel - Level of current block
+ * @returns blockId of parent, or null if at root
+ */
+export function getParentBlockIdForLevel(
+  doc: PMNode,
+  currentPos: number,
+  currentLevel: number
+): string | null {
+  if (currentLevel === 0) return null;
+
+  const targetLevel = currentLevel - 1;
+  let parentBlockId: string | null = null;
+
+  // Walk backward to find nearest block at targetLevel
+  doc.descendants((node, pos) => {
+    if (pos >= currentPos) return false; // Stop at current position
+
+    const nodeLevel = node.attrs?.level ?? 0;
+    const blockId = node.attrs?.blockId;
+
+    if (nodeLevel === targetLevel && blockId) {
+      parentBlockId = blockId; // Keep updating (last one wins)
+    }
+
+    return true;
+  });
+
+  return parentBlockId;
+}
+
+/**
  * Validate tree after indent/outdent operation (DEV MODE ONLY)
  *
  * Checks that no invalid indent jumps exist (level can only increase by 1).
