@@ -33,6 +33,11 @@ import { Link } from '../extensions/marks/Link';
 import { Callout } from '../extensions/nodes/Callout';
 import { ToggleHeader } from '../extensions/nodes/ToggleHeader';
 
+// PHASE 1: New toggle container structure (coexists with legacy ToggleHeader)
+import { ToggleBlock } from '../extensions/nodes/ToggleBlock';
+import { ToggleHeaderNew } from '../extensions/nodes/ToggleHeaderNew';
+import { ToggleContent } from '../extensions/nodes/ToggleContent';
+
 // Marks
 import { Bold } from '../extensions/marks/Bold';
 import { Italic } from '../extensions/marks/Italic';
@@ -141,7 +146,11 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
         }),
         Link, // Standard link mark (browser default behavior)
         Callout, // Info/warning/error/success callout boxes
-        ToggleHeader, // Standalone toggle header (flat structure like ListBlock)
+        ToggleHeader, // Standalone toggle header (flat structure like ListBlock) - LEGACY
+        // PHASE 1: New toggle container structure (coexists with legacy)
+        ToggleBlock, // True container: toggleHeaderNew + toggleContent
+        ToggleHeaderNew, // Inline content only (part of toggleBlock)
+        ToggleContent, // Real block children container (part of toggleBlock)
         DateMentionNode, // Date mentions (@Today, @Yesterday, etc.) - atomic inline node
         NoteLink.configure({
           onNavigate, // Pass navigation callback to NoteLink extension
