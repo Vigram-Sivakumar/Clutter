@@ -17,11 +17,13 @@ export const SidebarEmptyState = ({
 }: SidebarEmptyStateProps) => {
   const { colors } = useTheme();
 
-  // Respect the actual level (level 0 = no extra indent beyond base padding)
+  // At level 0 (root folder), use 8px padding. Otherwise, respect the level.
   const paddingLeft =
-    parseInt(sidebarLayout.emptyStatePaddingLeft) +
-    Math.min(level, sidebarLayout.maxVisualIndent) *
-      parseInt(sidebarLayout.indentPerLevel);
+    level === 0
+      ? 8
+      : parseInt(sidebarLayout.emptyStatePaddingLeft) +
+        Math.min(level, sidebarLayout.maxVisualIndent) *
+          parseInt(sidebarLayout.indentPerLevel);
 
   return (
     <div

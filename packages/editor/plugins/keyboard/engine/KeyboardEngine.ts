@@ -142,21 +142,32 @@ export class KeyboardEngine {
         }
       }
 
-      // CRITICAL: Even if intent failed, key is HANDLED
-      // This prevents browser from also processing the key
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      // 🔑 INTENT RESULT HANDLING (CRITICAL FOR UX)
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      //
+      // If intent SUCCEEDED → consume key (preventDefault)
+      // If intent FAILED → allow fallback (let browser/PM handle key)
+      //
+      // Example: Tab is blocked because not siblings
+      //   → Don't consume Tab
+      //   → Allow cursor to move naturally
+      //
+      // This matches Notion/Roam behavior.
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       if (intents.length > 0) {
         if (allSucceeded) {
           console.log(`   ✅ All intents succeeded: ${rule.id}`);
+          if (rule.stopPropagation !== false) {
+            console.log(`   🛑 Stopping propagation`);
+            return handled(intents[0].type, 'Success');
+          }
         } else {
-          console.log(`   ⚠️  Intent emitted but failed: ${rule.id}`);
-        }
-
-        if (rule.stopPropagation !== false) {
-          console.log(`   🛑 Stopping propagation`);
-          return handled(
-            intents[0].type,
-            allSucceeded ? 'Success' : failureReason
+          console.log(
+            `   ⚠️  Intent emitted but failed: ${rule.id} - allowing fallback`
           );
+          // 🔁 FALLBACK: Intent failed → let browser/PM handle key
+          return notHandled(failureReason || 'Intent failed');
         }
         console.log(`   ⏩ Continuing to next rule (fallthrough)`);
       }
