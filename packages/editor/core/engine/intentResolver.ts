@@ -23,6 +23,11 @@ import {
   CreateBlockCommand,
   DeleteBlockCommand,
 } from './command';
+import {
+  getOutdentAffectedBlocks,
+  getIndentAffectedBlocks,
+  assertValidIndentTree,
+} from './subtreeHelpers';
 
 export class IntentResolver {
   constructor(
@@ -482,6 +487,87 @@ export class IntentResolver {
         previousSiblingId
       );
 
+      // 🔥 CRITICAL FIX: Update visual subtree levels in ProseMirror
+      if (this._editor && this._editor.state) {
+        const { state, view } = this._editor;
+        const doc = state.doc;
+        const tr = state.tr;
+
+        // Find the block in ProseMirror document
+        let blockPos: number | null = null;
+        let currentLevel = 0;
+
+        doc.descendants((node: any, pos: number) => {
+          if (node.attrs?.blockId === blockId) {
+            blockPos = pos;
+            currentLevel = node.attrs.level ?? 0;
+            return false;
+          }
+          return true;
+        });
+
+        if (blockPos !== null) {
+          const newLevel = currentLevel + 1;
+
+          // Get all blocks that need level adjustment (parent + subtree)
+          const affectedBlocks = getIndentAffectedBlocks(
+            doc,
+            blockPos,
+            currentLevel,
+            newLevel
+          );
+
+          console.log(
+            `🔧 [handleIndentBlock/toggle] Updating ${affectedBlocks.length} blocks`,
+            affectedBlocks.map((b) => ({
+              id: b.blockId.slice(0, 8),
+              level: `${b.oldLevel}→${b.newLevel}`,
+            }))
+          );
+
+          // Update level attribute for all affected blocks
+          for (const item of affectedBlocks) {
+            const node = doc.nodeAt(item.pos);
+            if (node) {
+              tr.setNodeMarkup(item.pos, undefined, {
+                ...node.attrs,
+                level: item.newLevel,
+              });
+            }
+          }
+
+          // Expand toggle if collapsed (Notion-style)
+          let togglePos: number | null = null;
+          doc.descendants((node: any, pos: number) => {
+            if (node.attrs?.blockId === previousSiblingId) {
+              togglePos = pos;
+              return false;
+            }
+            return true;
+          });
+
+          if (togglePos !== null) {
+            const toggleNode = doc.nodeAt(togglePos);
+            if (toggleNode && toggleNode.attrs.collapsed) {
+              console.log(
+                '🔑 [handleIndentBlock] Expanding collapsed toggle:',
+                previousSiblingId
+              );
+              tr.setNodeMarkup(togglePos, undefined, {
+                ...toggleNode.attrs,
+                collapsed: false,
+              });
+            }
+          }
+
+          // Apply transaction
+          view.dispatch(tr);
+
+          // Validate tree in dev mode
+          assertValidIndentTree(tr.doc);
+        }
+      }
+
       // Move block to be last child of toggle
       const newIndex = previousSibling.children.length;
 
@@ -492,41 +578,11 @@ export class IntentResolver {
           oldIndex: index,
           newParentId: previousSiblingId, // ✅ Adopt into toggle
           newIndex,
-          intentCategory: 'toggle-adoption', // 🏷️ Semantic intent category
+          intentCategory: 'toggle-adoption',
           engine: this._engine,
           editor: this._editor,
         })
       );
-
-      // Expand toggle if collapsed (Notion-style)
-      if (this._editor) {
-        const { state } = this._editor;
-        const { tr } = state;
-
-        // Find toggle node in ProseMirror doc
-        let togglePos: number | null = null;
-        state.doc.descendants((node: any, pos: number) => {
-          if (node.attrs?.blockId === previousSiblingId) {
-            togglePos = pos;
-            return false; // Stop searching
-          }
-        });
-
-        if (togglePos !== null) {
-          const toggleNode = state.doc.nodeAt(togglePos);
-          if (toggleNode && toggleNode.attrs.collapsed) {
-            console.log(
-              '🔑 [handleIndentBlock] Expanding collapsed toggle:',
-              previousSiblingId
-            );
-            tr.setNodeMarkup(togglePos, undefined, {
-              ...toggleNode.attrs,
-              collapsed: false,
-            });
-            this._editor.view.dispatch(tr);
-          }
-        }
-      }
 
       // Cursor placement
       this._engine.setCursorAfterStructuralMove(blockId);
@@ -551,7 +607,64 @@ export class IntentResolver {
       };
     }
 
-    // 5. Move block under previous sibling (append as last child)
+    // 5. 🔥 CRITICAL FIX: Update visual subtree levels in ProseMirror
+    if (this._editor && this._editor.state) {
+      const { state, view } = this._editor;
+      const doc = state.doc;
+      const tr = state.tr;
+
+      // Find the block in ProseMirror document
+      let blockPos: number | null = null;
+      let currentLevel = 0;
+
+      doc.descendants((node: any, pos: number) => {
+        if (node.attrs?.blockId === blockId) {
+          blockPos = pos;
+          currentLevel = node.attrs.level ?? 0;
+          return false;
+        }
+        return true;
+      });
+
+      if (blockPos !== null) {
+        const newLevel = currentLevel + 1;
+
+        // Get all blocks that need level adjustment (parent + subtree)
+        const affectedBlocks = getIndentAffectedBlocks(
+          doc,
+          blockPos,
+          currentLevel,
+          newLevel
+        );
+
+        console.log(
+          `🔧 [handleIndentBlock] Updating ${affectedBlocks.length} blocks:`,
+          affectedBlocks.map((b) => ({
+            id: b.blockId.slice(0, 8),
+            level: `${b.oldLevel}→${b.newLevel}`,
+          }))
+        );
+
+        // Update level attribute for all affected blocks
+        for (const item of affectedBlocks) {
+          const node = doc.nodeAt(item.pos);
+          if (node) {
+            tr.setNodeMarkup(item.pos, undefined, {
+              ...node.attrs,
+              level: item.newLevel,
+            });
+          }
+        }
+
+        // Apply transaction
+        view.dispatch(tr);
+
+        // Validate tree in dev mode
+        assertValidIndentTree(tr.doc);
+      }
+    }
+
+    // 6. Move block under previous sibling (append as last child)
     const newIndex = previousSibling.children.length;
 
     this._engine.dispatch(
@@ -563,11 +676,11 @@ export class IntentResolver {
         newIndex,
         intentCategory: 'block-indent',
         engine: this._engine,
-        editor: this._editor, // 🔥 Pass editor to update PM attributes
+        editor: this._editor,
       })
     );
 
-    // 6. Cursor placement
+    // 7. Cursor placement
     this._engine.setCursorAfterStructuralMove(blockId);
 
     return {
@@ -621,7 +734,65 @@ export class IntentResolver {
       };
     }
 
-    // 5. Insert after parent (lift one level)
+    // 5. 🔥 CRITICAL FIX: Update visual subtree levels in ProseMirror
+    // This ensures all visual descendants move with the parent
+    if (this._editor && this._editor.state) {
+      const { state, view } = this._editor;
+      const doc = state.doc;
+      const tr = state.tr;
+
+      // Find the block in ProseMirror document
+      let blockPos: number | null = null;
+      let currentLevel = 0;
+
+      doc.descendants((node: any, pos: number) => {
+        if (node.attrs?.blockId === blockId) {
+          blockPos = pos;
+          currentLevel = node.attrs.level ?? 0;
+          return false;
+        }
+        return true;
+      });
+
+      if (blockPos !== null && currentLevel > 0) {
+        const newLevel = currentLevel - 1;
+
+        // Get all blocks that need level adjustment (parent + subtree)
+        const affectedBlocks = getOutdentAffectedBlocks(
+          doc,
+          blockPos,
+          currentLevel,
+          newLevel
+        );
+
+        console.log(
+          `🔧 [handleOutdentBlock] Updating ${affectedBlocks.length} blocks:`,
+          affectedBlocks.map((b) => ({
+            id: b.blockId.slice(0, 8),
+            level: `${b.oldLevel}→${b.newLevel}`,
+          }))
+        );
+
+        // Update level attribute for all affected blocks
+        for (const item of affectedBlocks) {
+          const node = doc.nodeAt(item.pos);
+          if (node) {
+            tr.setNodeMarkup(item.pos, undefined, {
+              ...node.attrs,
+              level: item.newLevel,
+            });
+          }
+        }
+
+        // Apply transaction
+        view.dispatch(tr);
+
+        // Validate tree in dev mode
+        assertValidIndentTree(tr.doc);
+      }
+    }
+
+    // 6. Insert after parent (lift one level in Engine tree)
     const currentIndex = this._engine.getIndexInParent(blockId);
     const parentIndex = this._engine.getIndexInParent(parent.id);
 
@@ -634,11 +805,11 @@ export class IntentResolver {
         newIndex: parentIndex + 1,
         intentCategory: 'block-outdent',
         engine: this._engine,
-        editor: this._editor, // 🔥 Pass editor to update PM attributes
+        editor: this._editor,
       })
     );
 
-    // 6. Cursor placement
+    // 7. Cursor placement
     this._engine.setCursorAfterStructuralMove(blockId);
 
     return {

@@ -37,8 +37,8 @@ export const SIDEBAR_EMPTY_STATES = {
   // --- Calendar Tab ---
   dailyNotes: {
     message: 'Press',
-    shortcut: ['⇧ ⌃ D'],
-    suffix: 'to open Today\'s note.',
+    shortcut: ['⇧', '⌃', 'D'],
+    suffix: "to open Today's note.",
   },
 
   // --- Tasks Tab ---
