@@ -416,22 +416,18 @@ export class IntentResolver {
     const { blockId } = intent;
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // 🔒 HARD STOP: Sibling-level check (FIRST GUARD)
+    // 🔒 HARD STOP: Find Nearest Adoptable Parent (FIRST GUARD)
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // Indent is ONLY allowed if previous block is at THE SAME LEVEL.
-    // This prevents runaway cascading indentation.
+    // Indent means: "Adopt under the nearest previous block whose level
+    // is exactly currentLevel - 1"
     //
-    // Example (correct):
-    //   A (level 0)
-    //   B (level 0)  ← siblings at same level
-    //   Tab on B → B becomes child of A ✅
+    // This allows natural "second child" behavior:
+    //   A (0)
+    //     B (1)
+    //   C (0)  ← Tab
+    //   → C becomes child of A (skips over B)
     //
-    // Example (blocked):
-    //   A (level 0)
-    //     B (level 1)  ← B is now A's child
-    //   Tab on B again → BLOCKED ❌ (A is not a sibling anymore)
-    //
-    // This matches Notion/Roam/Logseq behavior exactly.
+    // This matches Notion/Workflowy/Logseq behavior exactly.
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     if (this._editor && this._editor.state) {
       const { state } = this._editor;
@@ -460,29 +456,55 @@ export class IntentResolver {
       }
 
       const currentBlock = blocks[currentIndex];
-      const prevBlock = blocks[currentIndex - 1];
+      const targetParentLevel = currentBlock.level; // Want to become child, so parent at current level
 
-      // 🔒 THE CRITICAL CHECK: Must be at same level
-      if (prevBlock.level !== currentBlock.level) {
-        console.log(`🔒 [handleIndentBlock] BLOCKED: Not siblings`, {
+      // 🔍 Find nearest adoptable parent (level === currentLevel)
+      let adoptableParent: (typeof blocks)[0] | null = null;
+      for (let i = currentIndex - 1; i >= 0; i--) {
+        const candidate = blocks[i];
+
+        // Too shallow → cannot adopt further up the tree
+        if (candidate.level < targetParentLevel) {
+          break;
+        }
+
+        // Exact parent level → this is the adoptable parent
+        if (candidate.level === targetParentLevel) {
+          adoptableParent = candidate;
+          break;
+        }
+
+        // Deeper than target → skip (descendant of potential parent)
+        // Continue scanning backwards
+      }
+
+      if (!adoptableParent) {
+        console.log(`🔒 [handleIndentBlock] BLOCKED: No adoptable parent`, {
           current: { id: blockId.slice(0, 8), level: currentBlock.level },
-          prev: { id: prevBlock.id.slice(0, 8), level: prevBlock.level },
-          reason: 'Can only indent between blocks at the same level',
+          reason: 'No previous block at current level to adopt under',
         });
         return {
           success: false,
           intent,
-          reason: `Cannot indent: prev block is at different level (${prevBlock.level} vs ${currentBlock.level})`,
+          reason: 'Cannot indent: no valid parent found at current level',
         };
       }
 
+      console.log(`✅ [handleIndentBlock] Found adoptable parent`, {
+        current: { id: blockId.slice(0, 8), level: currentBlock.level },
+        parent: {
+          id: adoptableParent.id.slice(0, 8),
+          level: adoptableParent.level,
+        },
+      });
+
       // 🔒 Circular reference check
-      if (isDescendantOf(doc, prevBlock.id, blockId)) {
+      if (isDescendantOf(doc, adoptableParent.id, blockId)) {
         console.log(
           `🔒 [handleIndentBlock] BLOCKED: Circular reference prevented`,
           {
             current: { id: blockId.slice(0, 8) },
-            prev: { id: prevBlock.id.slice(0, 8) },
+            parent: { id: adoptableParent.id.slice(0, 8) },
             reason: 'Cannot indent under own descendant',
           }
         );
