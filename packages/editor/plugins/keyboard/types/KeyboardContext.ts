@@ -1,9 +1,9 @@
 /**
  * KeyboardContext - What rules have access to
- * 
+ *
  * This is the complete state a keyboard rule needs to make decisions.
  * It's deliberately minimal and immutable.
- * 
+ *
  * Rules inspect context, they don't mutate it.
  */
 
@@ -17,30 +17,38 @@ import type { Node as PMNode, ResolvedPos } from '@tiptap/pm/model';
 export interface KeyboardContext {
   /** The editor instance (for chain commands) */
   readonly editor: Editor;
-  
+
   /** ProseMirror editor state */
   readonly state: EditorState;
-  
+
   /** Current selection */
   readonly selection: Selection;
-  
+
   /** Resolved position of cursor ($from) */
   readonly $from: ResolvedPos;
-  
+
   /** Current parent node (block cursor is in) */
   readonly currentNode: PMNode;
-  
+
   /** Cursor offset within parent */
   readonly cursorOffset: number;
-  
+
   /** Is selection empty? */
   readonly isEmpty: boolean;
-  
+
   /** Visual X-coordinate (screen space) for vertical navigation */
   readonly visualX: number;
-  
+
   /** Key that triggered this (for context) */
-  readonly key: 'Enter' | 'Backspace' | 'Tab' | 'Delete' | 'ArrowLeft' | 'ArrowRight' | 'ArrowUp' | 'ArrowDown';
+  readonly key:
+    | 'Enter'
+    | 'Backspace'
+    | 'Tab'
+    | 'Delete'
+    | 'ArrowLeft'
+    | 'ArrowRight'
+    | 'ArrowUp'
+    | 'ArrowDown';
 }
 
 /**
@@ -68,7 +76,7 @@ export function createKeyboardContext(
   const { state } = editor;
   const { selection } = state;
   const { $from, empty } = selection;
-  
+
   return {
     editor,
     state,
@@ -87,6 +95,38 @@ export function createKeyboardContext(
  */
 
 /**
+ * Check if a block is hidden by a collapsed parent
+ *
+ * Walks the document to find if any ancestor block is collapsed.
+ * This matches the logic in CollapsePlugin.
+ *
+ * CRITICAL: Hidden blocks are non-existent to navigation.
+ */
+function isBlockHidden(doc: PMNode, blockNode: PMNode): boolean {
+  const parentBlockId = blockNode.attrs?.parentBlockId;
+
+  if (!parentBlockId) {
+    return false; // Root-level blocks are never hidden
+  }
+
+  // Find if any ancestor is collapsed
+  let isHidden = false;
+
+  doc.descendants((node) => {
+    if (
+      node.attrs?.blockId === parentBlockId &&
+      node.attrs?.collapsed === true
+    ) {
+      isHidden = true;
+      return false; // Stop traversal
+    }
+    return true;
+  });
+
+  return isHidden;
+}
+
+/**
  * Is cursor at the start of the current block?
  */
 export function isAtStartOfBlock(ctx: KeyboardContext): boolean {
@@ -102,49 +142,79 @@ export function isAtEndOfBlock(ctx: KeyboardContext): boolean {
 
 /**
  * Get the previous block node (if any)
+ *
+ * STEP 1: Skips hidden blocks (collapsed parents)
+ * Hidden blocks are non-existent to navigation.
  */
-export function getPreviousBlock(ctx: KeyboardContext): { pos: number; node: PMNode } | null {
-  const { $from } = ctx;
-  
+export function getPreviousBlock(
+  ctx: KeyboardContext
+): { pos: number; node: PMNode } | null {
+  const { $from, state } = ctx;
+  const { doc } = state;
+
   // Get parent and index
   const parentDepth = $from.depth - 1;
   if (parentDepth < 0) return null;
-  
+
   const parent = $from.node(parentDepth);
-  const index = $from.index(parentDepth);
-  
-  if (index === 0) return null; // No previous sibling
-  
-  const prevNode = parent.child(index - 1);
-  const prevPos = $from.before($from.depth) - prevNode.nodeSize;
-  
-  return { pos: prevPos, node: prevNode };
+  let index = $from.index(parentDepth);
+
+  // Walk backwards to find first visible block
+  while (index > 0) {
+    index--;
+    const prevNode = parent.child(index);
+    const prevPos = $from.before($from.depth) - prevNode.nodeSize;
+
+    // Skip if hidden by collapsed parent
+    if (isBlockHidden(doc, prevNode)) {
+      continue;
+    }
+
+    return { pos: prevPos, node: prevNode };
+  }
+
+  return null; // No visible previous block
 }
 
 /**
  * Get the next block node (if any)
+ *
+ * STEP 1: Skips hidden blocks (collapsed parents)
+ * Hidden blocks are non-existent to navigation.
  */
-export function getNextBlock(ctx: KeyboardContext): { pos: number; node: PMNode } | null {
-  const { $from } = ctx;
-  
+export function getNextBlock(
+  ctx: KeyboardContext
+): { pos: number; node: PMNode } | null {
+  const { $from, state } = ctx;
+  const { doc } = state;
+
   // Get parent and index
   const parentDepth = $from.depth - 1;
   if (parentDepth < 0) return null;
-  
+
   const parent = $from.node(parentDepth);
-  const index = $from.index(parentDepth);
-  
-  if (index >= parent.childCount - 1) return null; // No next sibling
-  
-  const nextNode = parent.child(index + 1);
-  const nextPos = $from.after($from.depth);
-  
-  return { pos: nextPos, node: nextNode };
+  const startIndex = $from.index(parentDepth);
+  let currentPos = $from.after($from.depth);
+
+  // Walk forward to find first visible block
+  for (let index = startIndex + 1; index < parent.childCount; index++) {
+    const nextNode = parent.child(index);
+
+    // Skip if hidden by collapsed parent
+    if (isBlockHidden(doc, nextNode)) {
+      currentPos += nextNode.nodeSize;
+      continue;
+    }
+
+    return { pos: currentPos, node: nextNode };
+  }
+
+  return null; // No visible next block
 }
 
 /**
  * Get visual column position (for preserving horizontal position)
- * 
+ *
  * Returns visual X-coordinate for vertical navigation.
  */
 export function getVisualColumn(ctx: KeyboardContext): number {
@@ -153,7 +223,7 @@ export function getVisualColumn(ctx: KeyboardContext): number {
 
 /**
  * Find the closest text position in a block to a given visual X-coordinate
- * 
+ *
  * This enables column-preserving vertical navigation.
  */
 export function findClosestPosInBlock(
@@ -163,24 +233,24 @@ export function findClosestPosInBlock(
 ): number {
   const { view, state } = editor;
   const { doc } = state;
-  
+
   // Get the block node
   const $pos = doc.resolve(blockPos);
   const node = $pos.nodeAfter;
-  
+
   if (!node) return blockPos + 1;
-  
+
   // Start at the beginning of the block
   let bestPos = blockPos + 1;
   let bestDistance = Infinity;
-  
+
   // Scan through the block content to find closest position
   const endPos = blockPos + node.nodeSize;
   for (let pos = blockPos + 1; pos < endPos; pos++) {
     try {
       const coords = view.coordsAtPos(pos);
       const distance = Math.abs(coords.left - visualX);
-      
+
       if (distance < bestDistance) {
         bestDistance = distance;
         bestPos = pos;
@@ -190,16 +260,16 @@ export function findClosestPosInBlock(
       continue;
     }
   }
-  
+
   return bestPos;
 }
 
 /**
  * Is cursor at the visual start of block?
- * 
+ *
  * INTERIM: Always returns true for collapsed selections to fully own vertical navigation.
  * This prevents ProseMirror's fallback behavior and ensures ArrowUp always fires.
- * 
+ *
  * TODO: Implement true visual-line detection for wrapped text.
  * Future: Only return true when cursor is on first visual line of block.
  */
@@ -211,10 +281,10 @@ export function isAtVisualStartOfBlock(ctx: KeyboardContext): boolean {
 
 /**
  * Is cursor at the visual end of block?
- * 
+ *
  * INTERIM: Always returns true for collapsed selections to fully own vertical navigation.
  * This prevents ProseMirror's fallback behavior and ensures ArrowDown always fires.
- * 
+ *
  * TODO: Implement true visual-line detection for wrapped text.
  * Future: Only return true when cursor is on last visual line of block.
  */
@@ -223,4 +293,3 @@ export function isAtVisualEndOfBlock(ctx: KeyboardContext): boolean {
   // This is correct until we implement visual-line detection
   return ctx.isEmpty;
 }
-
