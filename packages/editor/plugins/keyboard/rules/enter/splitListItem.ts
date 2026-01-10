@@ -44,18 +44,50 @@ export const splitListItem = defineRule({
       return false;
     }
 
+    // TOGGLE EXCEPTION: Non-empty toggle + Enter creates CHILD, not sibling
+    // This prevents splitListItem from running on toggles
+    if (listBlock.node.attrs.listType === 'toggle') {
+      return false; // Let toggle-specific handler in execute() take over
+    }
+
     // If we're here: non-empty list item, split it
     return true;
   },
 
   execute(ctx: KeyboardContext): EditorIntent | boolean {
-    const { editor, state } = ctx;
+    const { editor, state, currentNode } = ctx;
 
     const listBlock = findAncestorNode(editor, 'listBlock');
     if (!listBlock) return false;
 
     const { pos: listBlockPos, node: listBlockNode } = listBlock;
     const attrs = listBlockNode.attrs;
+
+    // TOGGLE SPECIAL CASE: Create child instead of sibling
+    if (attrs.listType === 'toggle' && currentNode.textContent.length > 0) {
+      const newListBlock = state.schema.nodes.listBlock.create({
+        blockId: crypto.randomUUID(),
+        listType: 'bullet', // child defaults to bullet
+        checked: null,
+        level: attrs.level + 1, // hierarchy expressed via level only
+        parentBlockId: attrs.parentBlockId ?? 'root', // FLAT: keep parent, not toggle
+        parentToggleId: null,
+      });
+
+      const insertPos = listBlockPos + listBlockNode.nodeSize;
+
+      return editor
+        .chain()
+        .command(({ tr }) => {
+          tr.insert(insertPos, newListBlock);
+
+          const $pos = tr.doc.resolve(insertPos + 1);
+          tr.setSelection(state.selection.constructor.near($pos));
+
+          return true;
+        })
+        .run();
+    }
 
     // Get cursor position within the list block
     const { $from } = state.selection;
