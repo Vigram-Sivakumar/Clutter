@@ -44,7 +44,7 @@ export const enterToggleCreatesChild = defineRule({
   },
 
   execute(ctx: KeyboardContext): boolean {
-    const { editor } = ctx;
+    const { editor, currentNode } = ctx;
 
     const listBlock = findAncestorNode(editor, 'listBlock');
     if (!listBlock) return false;
@@ -53,7 +53,7 @@ export const enterToggleCreatesChild = defineRule({
 
     // Only toggles, only non-empty
     if (attrs.listType !== 'toggle') return false;
-    if (ctx.currentNode.textContent.length === 0) return false;
+    if (currentNode.textContent.length === 0) return false;
 
     // 1️⃣ Create a NORMAL sibling list item (at same level)
     editor.commands.insertContent({
@@ -66,16 +66,9 @@ export const enterToggleCreatesChild = defineRule({
       },
     });
 
-    // 2️⃣ Ask ENGINE to indent it (this sets correct level + hierarchy)
-    const engine = (editor as any)._engine;
-    if (engine) {
-      // Small delay to ensure the block is registered before indenting
-      setTimeout(() => {
-        engine.dispatch({
-          type: 'indent-block',
-        });
-      }, 0);
-    }
+    // 2️⃣ Use EXISTING editor indent command (creates proper Engine Command)
+    // This is the same command Tab uses - it properly dispatches through engine
+    editor.commands.indent();
 
     return true; // CRITICAL: stops TipTap fallback
   },
