@@ -18,27 +18,29 @@ import type { Editor } from '@tiptap/core';
 import { createKeyboardEngine } from '../engine/KeyboardEngine';
 import type { IntentResolver } from '../../../core/engine';
 import type { KeyHandlingResult } from '../types/KeyHandlingResult';
+// PHASE 3.3.a: Most imports removed - rules disabled
 import {
-  exitEmptyBlockInToggle,
+  // exitEmptyBlockInToggle, // DISABLED
   splitListItem,
-  exitEmptyListInWrapper,
-  outdentEmptyList,
-  exitEmptyList,
-  exitEmptyHeading,
-  exitEmptyWrapper,
-  createParagraphAfterHeading,
+  // exitEmptyListInWrapper, // DISABLED
+  // outdentEmptyList, // DISABLED
+  // exitEmptyList, // DISABLED
+  // exitEmptyHeading, // DISABLED
+  // exitEmptyWrapper, // DISABLED
+  // createParagraphAfterHeading, // DISABLED
 } from '../rules/enter';
 
 // Rules for Enter key
+// PHASE 3.3.a: Most rules DISABLED - let ProseMirror handle Enter naturally
 const enterRules = [
-  exitEmptyBlockInToggle, // Priority 115 - exit nested/toggle blocks FIRST
-  splitListItem, // Priority 110 - split list items
-  exitEmptyListInWrapper, // Priority 100
-  outdentEmptyList, // Priority 90
-  exitEmptyList, // Priority 85 - convert empty list at level 0 to paragraph
-  exitEmptyHeading, // Priority 80
-  exitEmptyWrapper, // Priority 70
-  createParagraphAfterHeading, // Priority 60
+  // exitEmptyBlockInToggle, // DISABLED - PM handles container exit naturally
+  splitListItem, // Priority 110 - split list items (keep for now)
+  // exitEmptyListInWrapper, // DISABLED - PM handles naturally
+  // outdentEmptyList, // DISABLED - PM handles naturally
+  // exitEmptyList, // DISABLED - PM handles naturally
+  // exitEmptyHeading, // DISABLED - PM handles naturally
+  // exitEmptyWrapper, // DISABLED - PM handles naturally
+  // createParagraphAfterHeading, // DISABLED - PM handles naturally
 ];
 
 // Create engine (will be initialized with resolver per-editor)

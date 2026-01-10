@@ -14,12 +14,13 @@ import { Node } from '@tiptap/core';
 import { ReactNodeViewRenderer } from '@tiptap/react';
 import { Heading as HeadingComponent } from '../../components/Heading';
 import type { HeadingLevel } from '../../types';
-import {
-  convertEmptyBlockToParagraph,
-  insertParagraphAfterBlock,
-  handleEmptyBlockInToggle,
-} from '../../utils/keyboardHelpers';
-import { EnterRules, BackspaceRules } from '../../utils/keyboardRules';
+// PHASE 3.3.a: Imports removed - handlers disabled
+// import {
+//   convertEmptyBlockToParagraph,
+//   insertParagraphAfterBlock,
+//   handleEmptyBlockInToggle,
+// } from '../../utils/keyboardHelpers';
+// import { EnterRules, BackspaceRules } from '../../utils/keyboardRules';
 
 // NOTE: indentBlock/outdentBlock removed - now handled via keyboard rules
 // NOTE: Arrow navigation removed - now centralized in KeyboardShortcuts.ts
@@ -176,77 +177,17 @@ export const Heading = Node.create({
         return false;
       },
 
-      // Enter keeps all text in heading, creates empty paragraph below
-      Enter: ({ editor }) => {
-        console.log('[OLD Heading.Enter] Handler called');
+      // PHASE 3.3.a: Enter handler REMOVED
+      // ProseMirror handles splitting naturally now that containers are real
+      // Enter: ({ editor }) => {
+      //   // OLD HANDLER DISABLED - PM default behavior works correctly
+      // },
 
-        const headingContext = EnterRules.isInHeading(editor);
-
-        if (!headingContext.inHeading) {
-          console.log('[OLD Heading.Enter] Not in heading, returning false');
-          return false;
-        }
-
-        const headingNode = headingContext.headingNode!;
-        const headingPos = headingContext.headingPos!;
-        const attrs = headingNode.attrs;
-        const parentToggleId = attrs.parentToggleId;
-        const isEmpty = headingNode.textContent === '';
-
-        console.log('[OLD Heading.Enter] In heading', {
-          isEmpty,
-          pos: headingPos,
-          parentToggleId,
-        });
-
-        // Handle empty heading using shared handler
-        if (isEmpty) {
-          console.log(
-            '[OLD Heading.Enter] Empty heading, using handleEmptyBlockInToggle'
-          );
-          return handleEmptyBlockInToggle(
-            editor,
-            headingPos,
-            headingNode,
-            'heading'
-          );
-        }
-
-        // Non-empty: Create paragraph after heading
-        console.log(
-          '[OLD Heading.Enter] Non-empty heading, calling insertParagraphAfterBlock'
-        );
-        const result = insertParagraphAfterBlock(
-          editor,
-          headingPos,
-          headingNode
-        );
-
-        console.log('[OLD Heading.Enter] After insertParagraphAfterBlock', {
-          result,
-          selectionFrom: editor.state.selection.from,
-          selectionTo: editor.state.selection.to,
-        });
-
-        return result;
-      },
-
-      // Backspace at start of empty heading converts to paragraph
-      Backspace: ({ editor }) => {
-        // PHASE 1 REFACTOR: Use detector for empty heading check
-        const context = BackspaceRules.isInEmptyHeadingAtStart(editor);
-
-        if (!context.isEmpty) {
-          return false;
-        }
-
-        // Empty heading at start: convert to paragraph
-        // (KEEP ALL EXECUTION CODE)
-        const heading = context.heading!;
-        const headingPos = context.headingPos!;
-
-        return convertEmptyBlockToParagraph(editor, headingPos, heading);
-      },
+      // PHASE 3.3.a: Backspace handler REMOVED
+      // ProseMirror handles backspace naturally now that containers are real
+      // Backspace: ({ editor }) => {
+      //   // OLD HANDLER DISABLED - PM default behavior works correctly
+      // },
     };
   },
 });

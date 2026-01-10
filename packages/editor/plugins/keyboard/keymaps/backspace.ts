@@ -18,19 +18,21 @@ import type { Editor } from '@tiptap/core';
 import { createKeyboardEngine } from '../engine/KeyboardEngine';
 import type { IntentResolver } from '../../../core/engine';
 import type { KeyHandlingResult } from '../types/KeyHandlingResult';
+// PHASE 3.3.a: Most imports removed - rules disabled
 import {
-  deleteEmptyParagraph,
-  outdentEmptyList,
-  exitEmptyWrapper,
+  // deleteEmptyParagraph, // DISABLED
+  // outdentEmptyList, // DISABLED
+  // exitEmptyWrapper, // DISABLED
   mergeWithStructuralBlock,
 } from '../rules/backspace';
 
 // Rules for Backspace key
+// PHASE 3.3.a: Most rules DISABLED - let ProseMirror handle Backspace naturally
 const backspaceRules = [
-  deleteEmptyParagraph,
-  outdentEmptyList,
-  exitEmptyWrapper,
-  mergeWithStructuralBlock,
+  // deleteEmptyParagraph, // DISABLED - PM handles naturally
+  // outdentEmptyList, // DISABLED - PM handles naturally
+  // exitEmptyWrapper, // DISABLED - PM handles naturally
+  mergeWithStructuralBlock, // Keep as safety guard (noop when merging with structural blocks)
 ];
 
 // Create engine (will be initialized with resolver per-editor)
