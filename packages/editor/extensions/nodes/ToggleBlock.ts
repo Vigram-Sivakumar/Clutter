@@ -23,6 +23,7 @@
 
 import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer } from '@tiptap/react';
+import { TextSelection } from '@tiptap/pm/state';
 import { ToggleBlockView } from '../../components/ToggleBlockView';
 
 export type ToggleBlockAttrs = {
@@ -80,6 +81,76 @@ export const ToggleBlock = Node.create({
       }),
       0, // Content hole (ProseMirror renders children here)
     ];
+  },
+
+  addCommands() {
+    return {
+      /**
+       * PHASE 2: Insert new toggleBlock with correct structure
+       *
+       * Creates:
+       *   toggleBlock (collapsed=false)
+       *   ├─ toggleHeaderNew (empty, cursor here)
+       *   └─ toggleContent
+       *       └─ paragraph (empty)
+       *
+       * This is the canonical initial structure.
+       * ProseMirror handles all cursor/Enter behavior naturally.
+       */
+      insertToggleBlock:
+        () =>
+        ({ state, dispatch }) => {
+          const { schema } = state;
+
+          const toggleBlock = schema.nodes.toggleBlock;
+          const toggleHeaderNew = schema.nodes.toggleHeaderNew;
+          const toggleContent = schema.nodes.toggleContent;
+          const paragraph = schema.nodes.paragraph;
+
+          if (
+            !toggleBlock ||
+            !toggleHeaderNew ||
+            !toggleContent ||
+            !paragraph
+          ) {
+            console.error('[insertToggleBlock] Required nodes not found');
+            return false;
+          }
+
+          // Create structure: toggleBlock > header + content(paragraph)
+          const header = toggleHeaderNew.create({}, schema.text(''));
+          const content = toggleContent.create({}, [
+            paragraph.create({ blockId: crypto.randomUUID() }),
+          ]);
+
+          const node = toggleBlock.create(
+            {
+              blockId: crypto.randomUUID(),
+              collapsed: false,
+            },
+            [header, content]
+          );
+
+          if (!dispatch) return true;
+
+          // Replace current selection with toggle
+          const tr = state.tr.replaceSelectionWith(node);
+
+          // Place cursor inside header (first child of toggleBlock)
+          const posAfterInsert = tr.selection.from;
+          const $pos = tr.doc.resolve(posAfterInsert + 1);
+
+          tr.setSelection(TextSelection.near($pos));
+
+          dispatch(tr);
+
+          console.log(
+            '✅ [insertToggleBlock] Created new toggleBlock with real hierarchy'
+          );
+
+          return true;
+        },
+    };
   },
 
   addNodeView() {

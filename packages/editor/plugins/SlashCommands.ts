@@ -21,11 +21,14 @@ export interface SlashCommand {
   icon: string; // Lucide icon name
   keywords: string[]; // For fuzzy search
   group: CommandGroup; // PHASE 5: Command grouping
+  // eslint-disable-next-line no-unused-vars
   execute: (editor: Editor, slashRange?: { from: number; to: number }) => void;
 }
 
 // Extend Tiptap's storage type
+// eslint-disable-next-line no-unused-vars
 declare module '@tiptap/core' {
+  // eslint-disable-next-line no-unused-vars
   interface Storage {
     slashCommands: {
       isOpen: boolean;
@@ -40,7 +43,7 @@ declare module '@tiptap/core' {
 // Helper to find the correct block boundaries (handles wrapper blocks)
 function findBlockBoundaries(state: any, $from: any) {
   const paragraph = $from.parent;
-  
+
   // Start with the current block (paragraph)
   let blockStart = $from.before($from.depth);
   let blockEnd = $from.after($from.depth);
@@ -57,9 +60,9 @@ function findBlockBoundaries(state: any, $from: any) {
         blockEnd = $from.after(depth);
       }
       break;
-      }
+    }
   }
-  
+
   return { blockStart, blockEnd };
 }
 
@@ -74,165 +77,218 @@ function getPreservedAttrs(currentBlock: any) {
 }
 
 // Simple wrapper functions using shared block replacement utility
-function createListBlock(editor: Editor, listType: ListType, slashRange?: { from: number; to: number }) {
+function createListBlock(
+  editor: Editor,
+  listType: ListType,
+  slashRange?: { from: number; to: number }
+) {
   const { view } = editor;
   const { state } = view;
   const { $from } = state.selection;
-  
+
   const { blockStart, blockEnd } = findBlockBoundaries(state, $from);
   const currentBlock = $from.parent;
-  
+
   // Calculate content without slash text (use paragraph position for content extraction)
   const paragraphStart = $from.before($from.depth);
-  const content = slashRange 
+  const content = slashRange
     ? getContentWithoutSlash(currentBlock, slashRange, paragraphStart)
     : currentBlock.content;
-  
+
   // ✅ Preserve structural context when converting
   const preservedAttrs = getPreservedAttrs(currentBlock);
-  const replacement = createBlock.listBlock(state.schema, listType, content, false, preservedAttrs);
-  
+  const replacement = createBlock.listBlock(
+    state.schema,
+    listType,
+    content,
+    false,
+    preservedAttrs
+  );
+
   // Preserve cursor position
   const cursorOffset = calculateCursorOffset($from.pos, blockStart, slashRange);
   replaceBlock(view, blockStart, blockEnd, replacement, { cursorOffset });
 }
 
-function createParagraph(editor: Editor, slashRange?: { from: number; to: number }) {
+function createParagraph(
+  editor: Editor,
+  slashRange?: { from: number; to: number }
+) {
   const { view } = editor;
   const { state } = view;
   const { $from } = state.selection;
-  
+
   const { blockStart, blockEnd } = findBlockBoundaries(state, $from);
   const currentBlock = $from.parent;
-  
+
   const paragraphStart = $from.before($from.depth);
-  const content = slashRange 
+  const content = slashRange
     ? getContentWithoutSlash(currentBlock, slashRange, paragraphStart)
     : currentBlock.content;
-  
+
   // ✅ Preserve structural context when converting
   const preservedAttrs = getPreservedAttrs(currentBlock);
-  const replacement = createBlock.paragraph(state.schema, content, preservedAttrs);
-  
+  const replacement = createBlock.paragraph(
+    state.schema,
+    content,
+    preservedAttrs
+  );
+
   // Preserve cursor position
   const cursorOffset = calculateCursorOffset($from.pos, blockStart, slashRange);
   replaceBlock(view, blockStart, blockEnd, replacement, { cursorOffset });
 }
 
-function createHeading(editor: Editor, level: 1 | 2 | 3, slashRange?: { from: number; to: number }) {
-    const { view } = editor;
-    const { state } = view;
+function createHeading(
+  editor: Editor,
+  level: 1 | 2 | 3,
+  slashRange?: { from: number; to: number }
+) {
+  const { view } = editor;
+  const { state } = view;
   const { $from } = state.selection;
-  
+
   const { blockStart, blockEnd } = findBlockBoundaries(state, $from);
   const currentBlock = $from.parent;
-  
+
   const paragraphStart = $from.before($from.depth);
-  const content = slashRange 
+  const content = slashRange
     ? getContentWithoutSlash(currentBlock, slashRange, paragraphStart)
     : currentBlock.content;
-    
+
   // ✅ Preserve structural context when converting
   const preservedAttrs = getPreservedAttrs(currentBlock);
-  const replacement = createBlock.heading(state.schema, level, content, preservedAttrs);
-  
+  const replacement = createBlock.heading(
+    state.schema,
+    level,
+    content,
+    preservedAttrs
+  );
+
   // Preserve cursor position
   const cursorOffset = calculateCursorOffset($from.pos, blockStart, slashRange);
   replaceBlock(view, blockStart, blockEnd, replacement, { cursorOffset });
 }
 
-function createBlockquote(editor: Editor, slashRange?: { from: number; to: number }) {
+function createBlockquote(
+  editor: Editor,
+  slashRange?: { from: number; to: number }
+) {
   const { view } = editor;
   const { state } = view;
   const { $from } = state.selection;
-  
+
   const { blockStart, blockEnd } = findBlockBoundaries(state, $from);
   const currentBlock = $from.parent;
-  
+
   const paragraphStart = $from.before($from.depth);
-  const content = slashRange 
+  const content = slashRange
     ? getContentWithoutSlash(currentBlock, slashRange, paragraphStart)
     : currentBlock.content;
-  
+
   // ✅ Preserve structural context when converting
   const preservedAttrs = getPreservedAttrs(currentBlock);
-  const replacement = createBlock.blockquote(state.schema, content, preservedAttrs);
-  
-  // Preserve cursor position
-  const cursorOffset = calculateCursorOffset($from.pos, blockStart, slashRange);
-  replaceBlock(view, blockStart, blockEnd, replacement, { cursorOffset });
-    }
-    
-function createCallout(editor: Editor, type: 'info' | 'warning' | 'error' | 'success', slashRange?: { from: number; to: number }) {
-  const { view } = editor;
-  const { state } = view;
-  const { $from } = state.selection;
-  
-  const { blockStart, blockEnd } = findBlockBoundaries(state, $from);
-  const currentBlock = $from.parent;
-  
-  const paragraphStart = $from.before($from.depth);
-  const content = slashRange 
-    ? getContentWithoutSlash(currentBlock, slashRange, paragraphStart)
-    : currentBlock.content;
-  
-  // ✅ Preserve structural context when converting
-  const preservedAttrs = getPreservedAttrs(currentBlock);
-  const replacement = createBlock.callout(state.schema, type, content, preservedAttrs);
-  
+  const replacement = createBlock.blockquote(
+    state.schema,
+    content,
+    preservedAttrs
+  );
+
   // Preserve cursor position
   const cursorOffset = calculateCursorOffset($from.pos, blockStart, slashRange);
   replaceBlock(view, blockStart, blockEnd, replacement, { cursorOffset });
 }
 
-function createCodeBlock(editor: Editor, slashRange?: { from: number; to: number }) {
+function createCallout(
+  editor: Editor,
+  type: 'info' | 'warning' | 'error' | 'success',
+  slashRange?: { from: number; to: number }
+) {
   const { view } = editor;
   const { state } = view;
   const { $from } = state.selection;
-  
+
   const { blockStart, blockEnd } = findBlockBoundaries(state, $from);
   const currentBlock = $from.parent;
-  
+
+  const paragraphStart = $from.before($from.depth);
+  const content = slashRange
+    ? getContentWithoutSlash(currentBlock, slashRange, paragraphStart)
+    : currentBlock.content;
+
+  // ✅ Preserve structural context when converting
+  const preservedAttrs = getPreservedAttrs(currentBlock);
+  const replacement = createBlock.callout(
+    state.schema,
+    type,
+    content,
+    preservedAttrs
+  );
+
+  // Preserve cursor position
+  const cursorOffset = calculateCursorOffset($from.pos, blockStart, slashRange);
+  replaceBlock(view, blockStart, blockEnd, replacement, { cursorOffset });
+}
+
+function createCodeBlock(
+  editor: Editor,
+  slashRange?: { from: number; to: number }
+) {
+  const { view } = editor;
+  const { state } = view;
+  const { $from } = state.selection;
+
+  const { blockStart, blockEnd } = findBlockBoundaries(state, $from);
+  const currentBlock = $from.parent;
+
   // Code blocks use plain text
   let textContent = currentBlock.textContent;
   if (slashRange) {
     const paragraphStart = $from.before($from.depth);
     const slashStart = slashRange.from - paragraphStart - 1;
     const slashEnd = slashRange.to - paragraphStart - 1;
-    textContent = textContent.substring(0, slashStart) + textContent.substring(slashEnd);
+    textContent =
+      textContent.substring(0, slashStart) + textContent.substring(slashEnd);
   }
-  
+
   // ✅ Preserve structural context when converting
   const preservedAttrs = getPreservedAttrs(currentBlock);
-  const replacement = createBlock.codeBlock(state.schema, textContent, preservedAttrs);
-  
+  const replacement = createBlock.codeBlock(
+    state.schema,
+    textContent,
+    preservedAttrs
+  );
+
   replaceBlock(view, blockStart, blockEnd, replacement);
 }
 
-function createToggleBlock(editor: Editor, slashRange?: { from: number; to: number }) {
-  const { view } = editor;
-  const { state } = view;
-  const { $from } = state.selection;
-  
-  const { blockStart, blockEnd } = findBlockBoundaries(state, $from);
-  const currentBlock = $from.parent;
-  
-  const paragraphStart = $from.before($from.depth);
-  const content = slashRange 
-    ? getContentWithoutSlash(currentBlock, slashRange, paragraphStart)
-    : currentBlock.content;
-  
-  // ✅ Preserve structural context when converting
-  const preservedAttrs = getPreservedAttrs(currentBlock);
-  const replacement = createBlock.toggleBlock(state.schema, content, preservedAttrs);
-  
-  // Preserve cursor position
-  const cursorOffset = calculateCursorOffset($from.pos, blockStart, slashRange);
-  replaceBlock(view, blockStart, blockEnd, replacement, { cursorOffset });
+function createToggleBlock(
+  editor: Editor,
+  slashRange?: { from: number; to: number }
+) {
+  // PHASE 2: Use new toggleBlock container structure
+  // This creates: toggleBlock > toggleHeaderNew + toggleContent(paragraph)
+  // ProseMirror handles all hierarchy naturally
+
+  // Delete slash command text if present
+  if (slashRange) {
+    editor.commands.deleteRange(slashRange);
+  }
+
+  // Insert new toggleBlock with correct structure
+  editor.commands.insertToggleBlock();
+
+  console.log(
+    '✅ [createToggleBlock] Created NEW toggleBlock (real hierarchy)'
+  );
 }
 
 // Helper to extract content without slash text
-function getContentWithoutSlash(currentBlock: any, slashRange: { from: number; to: number }, blockStart: number) {
+function getContentWithoutSlash(
+  currentBlock: any,
+  slashRange: { from: number; to: number },
+  blockStart: number
+) {
   const slashStart = slashRange.from - blockStart - 1;
   const slashEnd = slashRange.to - blockStart - 1;
   const before = currentBlock.content.cut(0, slashStart);
@@ -253,15 +309,15 @@ function calculateCursorOffset(
     // No slash command to remove, cursor stays at same offset
     return cursorPos - blockStart - 1;
   }
-  
+
   const slashStart = slashRange.from;
   const slashEnd = slashRange.to;
   const slashLength = slashEnd - slashStart;
-  
+
   // Calculate offset relative to block content
   const offsetInBlock = cursorPos - blockStart - 1;
   const slashStartInBlock = slashStart - blockStart - 1;
-  
+
   if (offsetInBlock <= slashStartInBlock) {
     // Cursor is before slash - stays at same position
     return offsetInBlock;
@@ -275,18 +331,21 @@ function createHorizontalRule(editor: Editor, style: 'plain' | 'wavy') {
   const { view } = editor;
   const { state } = view;
   const { $from } = state.selection;
-  
+
   const { blockStart, blockEnd } = findBlockBoundaries(state, $from);
-  
+
   const hr = state.schema.nodes.horizontalRule;
   const p = state.schema.nodes.paragraph;
-  
+
   if (!hr || !p) return;
-  
+
   // HR is always an array: [hr, paragraph] - just like markdown shortcuts
   // No content preservation needed - HR replaces entire block
-  const replacement = [hr.create({ style, color: 'default', fullWidth: true }), p.create()];
-  
+  const replacement = [
+    hr.create({ style, color: 'default', fullWidth: true }),
+    p.create(),
+  ];
+
   replaceBlock(view, blockStart, blockEnd, replacement);
 }
 
@@ -330,7 +389,7 @@ export const SLASH_COMMANDS: SlashCommand[] = [
     group: 'text',
     execute: (editor, slashRange) => createHeading(editor, 3, slashRange),
   },
-  
+
   // Lists
   {
     id: 'bulletList',
@@ -339,7 +398,8 @@ export const SLASH_COMMANDS: SlashCommand[] = [
     icon: 'List',
     keywords: ['bullet', 'unordered', 'list', 'ul'],
     group: 'lists',
-    execute: (editor, slashRange) => createListBlock(editor, 'bullet', slashRange),
+    execute: (editor, slashRange) =>
+      createListBlock(editor, 'bullet', slashRange),
   },
   {
     id: 'numberedList',
@@ -348,7 +408,8 @@ export const SLASH_COMMANDS: SlashCommand[] = [
     icon: 'ListOrdered',
     keywords: ['numbered', 'ordered', 'list', 'ol', '1.'],
     group: 'lists',
-    execute: (editor, slashRange) => createListBlock(editor, 'numbered', slashRange),
+    execute: (editor, slashRange) =>
+      createListBlock(editor, 'numbered', slashRange),
   },
   {
     id: 'taskList',
@@ -357,7 +418,8 @@ export const SLASH_COMMANDS: SlashCommand[] = [
     icon: 'CheckSquare',
     keywords: ['todo', 'task', 'checkbox', 'check', '[]'],
     group: 'lists',
-    execute: (editor, slashRange) => createListBlock(editor, 'task', slashRange),
+    execute: (editor, slashRange) =>
+      createListBlock(editor, 'task', slashRange),
   },
   {
     id: 'toggleList',
@@ -368,7 +430,7 @@ export const SLASH_COMMANDS: SlashCommand[] = [
     group: 'lists',
     execute: (editor, slashRange) => createToggleBlock(editor, slashRange),
   },
-  
+
   // Media & Blocks
   {
     id: 'quote',
@@ -406,7 +468,7 @@ export const SLASH_COMMANDS: SlashCommand[] = [
     group: 'media',
     execute: (editor) => createHorizontalRule(editor, 'wavy'),
   },
-  
+
   // Callouts
   {
     id: 'calloutInfo',
@@ -424,7 +486,8 @@ export const SLASH_COMMANDS: SlashCommand[] = [
     icon: 'AlertTriangle',
     keywords: ['warning', 'callout', 'caution', 'alert'],
     group: 'callouts',
-    execute: (editor, slashRange) => createCallout(editor, 'warning', slashRange),
+    execute: (editor, slashRange) =>
+      createCallout(editor, 'warning', slashRange),
   },
   {
     id: 'calloutError',
@@ -442,25 +505,27 @@ export const SLASH_COMMANDS: SlashCommand[] = [
     icon: 'CheckCircle',
     keywords: ['success', 'callout', 'done', 'complete'],
     group: 'callouts',
-    execute: (editor, slashRange) => createCallout(editor, 'success', slashRange),
+    execute: (editor, slashRange) =>
+      createCallout(editor, 'success', slashRange),
   },
 ];
 
 // Filter commands based on query
 export function filterSlashCommands(query: string): SlashCommand[] {
   if (!query) return SLASH_COMMANDS;
-  
+
   const lowerQuery = query.toLowerCase();
-  return SLASH_COMMANDS.filter(cmd => 
-    cmd.title.toLowerCase().includes(lowerQuery) ||
-    cmd.description.toLowerCase().includes(lowerQuery) ||
-    cmd.keywords.some(kw => kw.includes(lowerQuery))
+  return SLASH_COMMANDS.filter(
+    (cmd) =>
+      cmd.title.toLowerCase().includes(lowerQuery) ||
+      cmd.description.toLowerCase().includes(lowerQuery) ||
+      cmd.keywords.some((kw) => kw.includes(lowerQuery))
   );
 }
 
 export const SlashCommands = Extension.create({
   name: 'slashCommands',
-  
+
   priority: 1000, // High priority to handle Enter before other extensions
 
   addStorage() {
@@ -476,9 +541,9 @@ export const SlashCommands = Extension.create({
   addKeyboardShortcuts() {
     return {
       // Tab: Select first command
-      'Tab': () => {
+      Tab: () => {
         const storage = this.editor.storage.slashCommands;
-        
+
         if (!storage || !storage.isOpen) {
           return false;
         }
@@ -487,30 +552,30 @@ export const SlashCommands = Extension.create({
         if (commands.length === 0) {
           return false;
         }
-        
+
         // Select first command
         const command = commands[0];
         if (!command) return false;
-        
+
         storage.isOpen = false;
         const { from } = this.editor.state.selection;
         const range = { from: storage.startPos, to: from };
-        
+
         command.execute(this.editor, range);
-        
+
         return true;
       },
 
-      'Enter': () => {
+      Enter: () => {
         const storage = this.editor.storage.slashCommands;
-        
+
         if (!storage || !storage.isOpen) {
           return false; // Let default Enter behavior work
         }
 
         const commands = filterSlashCommands(storage.query);
         const command = commands[storage.selectedIndex];
-        
+
         if (!command) {
           return false;
         }
@@ -520,33 +585,33 @@ export const SlashCommands = Extension.create({
         storage.query = '';
         const { from } = this.editor.state.selection;
         const range = { from: storage.startPos, to: from };
-        
+
         // Execute command with slash range - it handles deletion in single transaction
         command.execute(this.editor, range);
-        
+
         return true; // Prevent default Enter behavior
       },
-      
-      'ArrowUp': () => {
+
+      ArrowUp: () => {
         const storage = this.editor.storage.slashCommands;
-        
+
         if (!storage.isOpen) {
           return false;
         }
 
         const commands = filterSlashCommands(storage.query);
         if (commands.length > 0) {
-          storage.selectedIndex = 
+          storage.selectedIndex =
             (storage.selectedIndex - 1 + commands.length) % commands.length;
           this.editor.view.dispatch(this.editor.state.tr);
         }
-        
+
         return true;
       },
-      
-      'ArrowDown': () => {
+
+      ArrowDown: () => {
         const storage = this.editor.storage.slashCommands;
-        
+
         if (!storage.isOpen) {
           return false;
         }
@@ -556,13 +621,13 @@ export const SlashCommands = Extension.create({
           storage.selectedIndex = (storage.selectedIndex + 1) % commands.length;
           this.editor.view.dispatch(this.editor.state.tr);
         }
-        
+
         return true;
       },
-      
-      'Escape': () => {
+
+      Escape: () => {
         const storage = this.editor.storage.slashCommands;
-        
+
         if (!storage.isOpen) {
           return false;
         }
@@ -570,7 +635,7 @@ export const SlashCommands = Extension.create({
         storage.isOpen = false;
         storage.manuallyClosedAt = Date.now(); // PHASE 5: Mark as manually closed
         this.editor.view.dispatch(this.editor.state.tr);
-        
+
         return true;
       },
     };
@@ -589,7 +654,7 @@ export const SlashCommands = Extension.create({
               const storage = editor.storage.slashCommands;
               const { from, to } = view.state.selection;
               const { $from } = view.state.selection;
-              
+
               // Helper: Find slash command at cursor position
               const findSlashCommandAtCursor = () => {
                 if (from !== to || editor.isActive('codeBlock')) {
@@ -598,14 +663,14 @@ export const SlashCommands = Extension.create({
 
                 const parent = $from.parent;
                 const cursorPos = $from.parentOffset;
-                
+
                 // Walk backward from cursor to find slash, stopping at hard breaks or spaces
                 let textBeforeCursor = '';
                 let positionMap: number[] = []; // Map text index to document offset
-                
+
                 parent.forEach((node, offset) => {
                   if (offset >= cursorPos) return; // Skip nodes after cursor
-                  
+
                   if (node.type.name === 'hardBreak') {
                     // Hard break - reset search (start of new line)
                     textBeforeCursor = '';
@@ -628,7 +693,7 @@ export const SlashCommands = Extension.create({
                     }
                   }
                 });
-                
+
                 // Search backward for slash command
                 let slashIndex = -1;
                 for (let i = textBeforeCursor.length - 1; i >= 0; i--) {
@@ -643,28 +708,28 @@ export const SlashCommands = Extension.create({
                     break;
                   }
                 }
-                
+
                 if (slashIndex === -1) return null;
-                
+
                 // Extract query
                 const textFromSlash = textBeforeCursor.slice(slashIndex);
                 const slashCommandMatch = textFromSlash.match(/^\/\w*/);
-                
+
                 if (!slashCommandMatch) return null;
-                
+
                 // Map back to document position
                 const slashPos = $from.start() + positionMap[slashIndex];
                 const query = slashCommandMatch[0].replace(/^\//, '');
-                
+
                 return { slashPos, query };
               };
 
               const slashCommandAtCursor = findSlashCommandAtCursor();
-              
+
               // PHASE 5: Handle slash command detection (open, update, or close)
               if (slashCommandAtCursor) {
                 const { slashPos, query } = slashCommandAtCursor;
-                
+
                 // Only proceed if there are matching commands
                 const matchingCommands = filterSlashCommands(query);
                 if (matchingCommands.length === 0) {
@@ -681,7 +746,10 @@ export const SlashCommands = Extension.create({
                 if (!storage.isOpen) {
                   // Don't auto-open if menu was just manually closed (within 300ms)
                   const now = Date.now();
-                  if (storage.manuallyClosedAt && now - storage.manuallyClosedAt < 300) {
+                  if (
+                    storage.manuallyClosedAt &&
+                    now - storage.manuallyClosedAt < 300
+                  ) {
                     return;
                   }
 
@@ -689,10 +757,13 @@ export const SlashCommands = Extension.create({
                   const prevSelection = prevState.selection;
                   const cursorMovedForward = from > prevSelection.from;
                   const cursorJumped = Math.abs(from - prevSelection.from) > 1;
-                  
+
                   // Only auto-open on forward movement or jumps (clicks, arrow right)
                   // Don't auto-open on backspace (backward movement) to avoid interference
-                  if ((cursorMovedForward || cursorJumped) && (prevSelection.from !== from || prevSelection.to !== to)) {
+                  if (
+                    (cursorMovedForward || cursorJumped) &&
+                    (prevSelection.from !== from || prevSelection.to !== to)
+                  ) {
                     storage.isOpen = true;
                     storage.query = query;
                     storage.startPos = slashPos;
@@ -715,53 +786,49 @@ export const SlashCommands = Extension.create({
                 storage.manuallyClosedAt = Date.now();
                 view.dispatch(view.state.tr);
               }
-            }
+            },
           };
         },
 
         props: {
           decorations(state) {
             const storage = editor.storage.slashCommands;
-            
+
             // Only show decoration when menu is open
             if (!storage.isOpen || storage.startPos === null) {
               return null;
             }
-            
+
             // PHASE 5: Calculate FULL slash command range (not cursor-dependent)
             const { $from } = state.selection;
             const paragraphText = $from.parent.textContent;
             const slashStartInParagraph = storage.startPos - $from.start();
             const textFromSlash = paragraphText.slice(slashStartInParagraph);
-            
+
             // Find the full slash command (stops at space or end)
             const match = textFromSlash.match(/^\/\w*/);
             const slashCommandText = match ? match[0] : '/';
             const endPos = storage.startPos + slashCommandText.length;
-            
+
             // Create two decorations: one for "/" and one for the query text
             const decorations = [];
-            
+
             // Decoration 1: The "/" symbol (accent color)
             decorations.push(
-              Decoration.inline(
-                storage.startPos,
-                storage.startPos + 1,
-                { class: 'slash-command-symbol' }
-              )
+              Decoration.inline(storage.startPos, storage.startPos + 1, {
+                class: 'slash-command-symbol',
+              })
             );
-            
+
             // Decoration 2: The query text after "/" (if any)
             if (slashCommandText.length > 1) {
               decorations.push(
-                Decoration.inline(
-                  storage.startPos + 1,
-                  endPos,
-                  { class: 'slash-command-query' }
-                )
+                Decoration.inline(storage.startPos + 1, endPos, {
+                  class: 'slash-command-query',
+                })
               );
             }
-            
+
             return DecorationSet.create(state.doc, decorations);
           },
 
@@ -784,8 +851,11 @@ export const SlashCommands = Extension.create({
 
             // Detect "/" at start of line or after space
             if (text === '/') {
-              const textBefore = $from.parent.textContent.slice(0, $from.parentOffset);
-              
+              const textBefore = $from.parent.textContent.slice(
+                0,
+                $from.parentOffset
+              );
+
               if (textBefore === '' || textBefore.endsWith(' ')) {
                 // PHASE 5: Open menu when "/" is typed
                 // Set storage first (before "/" is actually inserted)
@@ -794,15 +864,18 @@ export const SlashCommands = Extension.create({
                 editor.storage.slashCommands.startPos = from;
                 editor.storage.slashCommands.selectedIndex = 0;
                 editor.storage.slashCommands.manuallyClosedAt = null;
-                
+
                 // Dispatch after "/" is inserted to trigger React re-render
                 setTimeout(() => {
                   // Double-check menu is still open at this position
-                  if (editor.storage.slashCommands.isOpen && editor.storage.slashCommands.startPos === from) {
+                  if (
+                    editor.storage.slashCommands.isOpen &&
+                    editor.storage.slashCommands.startPos === from
+                  ) {
                     editor.view.dispatch(editor.view.state.tr);
                   }
                 }, 0);
-                
+
                 // Return false to allow "/" insertion
                 return false;
               }
@@ -814,10 +887,10 @@ export const SlashCommands = Extension.create({
                 editor.storage.slashCommands.startPos - $from.start(),
                 $from.parentOffset
               );
-              
+
               const query = textAfterSlash.replace(/^\//, '');
               editor.storage.slashCommands.query = query;
-              
+
               // Auto-dismiss if no commands match the query
               const matchingCommands = filterSlashCommands(query);
               if (matchingCommands.length === 0) {
@@ -825,7 +898,7 @@ export const SlashCommands = Extension.create({
                 editor.storage.slashCommands.startPos = null;
                 editor.storage.slashCommands.query = '';
               }
-              
+
               view.dispatch(view.state.tr);
             }
 
@@ -834,26 +907,28 @@ export const SlashCommands = Extension.create({
 
           handleKeyDown(view, event) {
             const storage = editor.storage.slashCommands;
-            
+
             // PHASE 5: Handle Backspace to reopen menu intelligently
             if (event.key === 'Backspace' && !storage.isOpen) {
               const { from, to } = view.state.selection;
-              const { $from } = view.state.selection;
-              
+
               // Only check if cursor is collapsed
               if (from === to) {
                 // Wait for the backspace to complete, then check if we should reopen
                 setTimeout(() => {
                   const { $from: $newFrom } = view.state.selection;
-                  const newTextBefore = $newFrom.parent.textContent.slice(0, $newFrom.parentOffset);
-                  
+                  const newTextBefore = $newFrom.parent.textContent.slice(
+                    0,
+                    $newFrom.parentOffset
+                  );
+
                   // Check for slash command pattern: "/" at start or after space
                   const match = newTextBefore.match(/(^|\s)(\/\w*)$/);
-                  
+
                   if (match) {
                     const slashPos = $newFrom.pos - match[2].length;
                     const query = match[2].replace(/^\//, '');
-                    
+
                     // Only reopen if there are matching commands
                     const matchingCommands = filterSlashCommands(query);
                     if (matchingCommands.length > 0) {
@@ -862,16 +937,16 @@ export const SlashCommands = Extension.create({
                       storage.startPos = slashPos;
                       storage.selectedIndex = 0;
                       storage.manuallyClosedAt = null; // Clear manual close flag
-                      
+
                       view.dispatch(view.state.tr);
                     }
                   }
                 }, 0);
               }
-              
+
               return false;
             }
-            
+
             if (!storage.isOpen) {
               return false;
             }
@@ -895,7 +970,6 @@ export const SlashCommands = Extension.create({
 
             return false;
           },
-
         },
       }),
     ];
