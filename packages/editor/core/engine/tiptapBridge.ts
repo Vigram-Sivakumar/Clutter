@@ -35,15 +35,18 @@ interface BridgeState {
 /**
  * Convert ProseMirror document to BlockTree
  *
- * CRITICAL: Reads parentBlockId attributes, NOT DOM traversal structure!
+ * PHASE 3: Now understands CONTAINER nodes (toggleBlock)
  *
  * Uses two-pass algorithm:
- * 1. Collect all blocks with their parentBlockId attributes
- * 2. Build tree from those attributes
+ * 1. Collect all blocks with their parentBlockId (from attrs OR container context)
+ * 2. Build tree from those relationships
  *
- * Why: ProseMirror stores hierarchy in parentBlockId ATTRIBUTES, not DOM nesting.
- * DOM structure is flat - all blocks are siblings in the document flow.
- * The logical parent-child relationships live in the parentBlockId attribute.
+ * CONTAINER SEMANTICS:
+ * - Most blocks: hierarchy via parentBlockId attribute (flat structure)
+ * - toggleBlock: hierarchy via DOM nesting (container structure)
+ *   - toggleBlock > toggleContent > children have parentBlockId = toggleBlock.blockId
+ *
+ * This hybrid approach supports both legacy flat blocks and new container blocks.
  */
 function proseMirrorDocToBlockTree(pmDoc: any): BlockTree {
   const nodes: Record<BlockId, BlockNode> = {};
@@ -58,7 +61,8 @@ function proseMirrorDocToBlockTree(pmDoc: any): BlockTree {
     content: null,
   };
 
-  // PASS 1: Collect all blocks with their parentBlockId attributes
+  // PASS 1: Collect all blocks with their parentBlockId
+  // PHASE 3: Use container stack for toggleBlock children
   const blockList: Array<{
     id: BlockId;
     type: string;
@@ -66,21 +70,88 @@ function proseMirrorDocToBlockTree(pmDoc: any): BlockTree {
     content: any;
   }> = [];
 
-  pmDoc.descendants((node: any) => {
+  // Container stack: tracks current container block (toggleBlock)
+  const containerStack: BlockId[] = [];
+
+  pmDoc.descendants((node: any, _pos: number) => {
+    // PHASE 3: Detect toggleBlock container
+    if (node.type.name === 'toggleBlock' && node.attrs?.blockId) {
+      // Register toggleBlock itself
+      const toggleBlockId = node.attrs.blockId;
+      const parentBlockId =
+        node.attrs.parentBlockId || containerStack.at(-1) || null;
+
+      blockList.push({
+        id: toggleBlockId,
+        type: node.type.name,
+        parentBlockId,
+        content: node.toJSON(),
+      });
+
+      console.log('[Bridge] Found block:', {
+        type: node.type.name,
+        blockId: toggleBlockId,
+        parentBlockId: parentBlockId || 'root',
+      });
+
+      // Push onto container stack for children
+      containerStack.push(toggleBlockId);
+
+      // Traverse children manually
+      node.forEach((child: any, _offset: number, _index: number) => {
+        // Skip toggleHeaderNew (inline content, not a block)
+        if (child.type.name === 'toggleHeaderNew') {
+          return;
+        }
+
+        // Traverse toggleContent children
+        if (child.type.name === 'toggleContent') {
+          child.forEach((grandchild: any) => {
+            if (grandchild.attrs?.blockId) {
+              blockList.push({
+                id: grandchild.attrs.blockId,
+                type: grandchild.type.name,
+                parentBlockId: toggleBlockId, // ← CONTAINER SEMANTICS
+                content: grandchild.toJSON(),
+              });
+
+              console.log('[Bridge] Found block:', {
+                type: grandchild.type.name,
+                blockId: grandchild.attrs.blockId,
+                parentBlockId: toggleBlockId,
+              });
+            }
+          });
+        }
+      });
+
+      // Pop container stack after processing children
+      containerStack.pop();
+
+      // Don't descend into toggleBlock via default traversal
+      return false;
+    }
+
+    // Regular blocks: use attribute-based parentBlockId (legacy flat structure)
     if (node.attrs?.blockId) {
+      const parentBlockId =
+        node.attrs.parentBlockId || containerStack.at(-1) || null;
+
       blockList.push({
         id: node.attrs.blockId,
         type: node.type.name,
-        parentBlockId: node.attrs.parentBlockId || null,
+        parentBlockId,
         content: node.toJSON(),
       });
 
       console.log('[Bridge] Found block:', {
         type: node.type.name,
         blockId: node.attrs.blockId,
-        parentBlockId: node.attrs.parentBlockId || 'root',
+        parentBlockId: parentBlockId || 'root',
       });
     }
+
+    return true; // Continue descending
   });
 
   // PASS 2: Build tree from parentBlockId attributes (not DOM structure!)
