@@ -20,6 +20,7 @@ import type { IntentResolver } from '../../../core/engine';
 import type { KeyHandlingResult } from '../types/KeyHandlingResult';
 // FLAT TOGGLE FIX: Re-enable exit rules for empty list items
 import {
+  enterToggleCreatesChild, // Priority 120 - toggle creates child (not split)
   // exitEmptyBlockInToggle, // Not needed for flat schema
   splitListItem,
   // exitEmptyListInWrapper, // Not needed for flat schema
@@ -33,6 +34,7 @@ import {
 // Rules for Enter key
 // FLAT TOGGLE FIX: Re-enabled exit rules for proper empty list handling
 const enterRules = [
+  enterToggleCreatesChild, // Priority 120 - toggle creates child before split
   // exitEmptyBlockInToggle, // Not needed - flat schema has no containers
   splitListItem, // Priority 110 - split non-empty list items
   // exitEmptyListInWrapper, // Not needed - flat schema
