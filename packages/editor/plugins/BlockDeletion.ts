@@ -116,6 +116,26 @@ export const BlockDeletion = Extension.create({
               const node = state.doc.nodeAt(pos);
 
               if (node) {
+                // PHASE 3: Only process Engine blocks (not structural nodes)
+                // Engine blocks: paragraph, listBlock, toggleBlock, heading, etc.
+                // NOT: toggleHeaderNew, toggleContent, doc, text
+                const engineBlockTypes = [
+                  'paragraph',
+                  'listBlock',
+                  'toggleBlock',
+                  'heading',
+                  'blockquote',
+                  'callout',
+                  'codeBlock',
+                  'horizontalRule',
+                  'toggleHeader', // Legacy toggle (still in use)
+                ];
+
+                if (!engineBlockTypes.includes(node.type.name)) {
+                  // Structural node, not an Engine block - skip silently
+                  return false;
+                }
+
                 const blockId = node.attrs?.blockId;
                 const engine = getEngine(editor);
 
@@ -128,8 +148,8 @@ export const BlockDeletion = Extension.create({
 
                 if (!blockId) {
                   console.warn(
-                    '[BlockDeletion] Node has no blockId, skipping',
-                    node
+                    '[BlockDeletion] Engine block has no blockId, skipping',
+                    node.type.name
                   );
                   return false;
                 }
