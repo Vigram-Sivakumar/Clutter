@@ -1,14 +1,19 @@
 /**
- * TabHandler Plugin - Prevents Tab key from navigating focus outside the editor
- * 
- * This plugin ensures Tab and Shift-Tab are always captured within the editor,
- * preventing them from moving focus to other UI elements (buttons, window controls, etc.).
- * 
- * Individual block handlers (Paragraph, Heading, ListBlock, etc.) run first with higher priority.
- * If they handle the Tab (indent/outdent), great. If they don't handle it (return false),
- * this plugin catches it and prevents default browser behavior.
- * 
- * Priority: Low (100) - runs AFTER individual block handlers
+ * TabHandler Plugin - DEPRECATED / DISABLED
+ *
+ * This plugin previously prevented Tab from navigating focus outside the editor.
+ * However, this conflicts with proper fallback behavior when indent is blocked.
+ *
+ * NEW ARCHITECTURE:
+ * - KeyboardShortcuts (priority 1000) handles Tab/Shift+Tab
+ *   → Returns true when intent succeeds (consume Tab)
+ *   → Returns false when intent fails (allow fallback)
+ * - When fallback is allowed, browser handles Tab naturally
+ *
+ * If focus navigation becomes an issue, we can add a smart handler here
+ * that only prevents default when cursor is in the MIDDLE of a block.
+ *
+ * For now: DISABLED to allow proper Tab fallback UX.
  */
 
 import { Extension } from '@tiptap/core';
@@ -21,21 +26,27 @@ export const TabHandler = Extension.create({
 
   addKeyboardShortcuts() {
     return {
-      // Always capture Tab - prevent focus navigation
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      // 🔓 DISABLED: Allow Tab fallback when indent is blocked
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      //
+      // Previously: Always returned true (prevented focus navigation)
+      // Problem: Killed Tab fallback when indent blocked → dead key
+      //
+      // Now: Return false (let browser handle Tab when not consumed upstream)
+      // Result: Natural Tab behavior when indent is blocked
+      //
+      // If we need to prevent focus navigation, we can add:
+      //   - Check if cursor is in middle of block → prevent
+      //   - Check if cursor is at block boundaries → allow fallback
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       Tab: () => {
-        // Individual block handlers already ran (they have higher priority)
-        // If we're here, they either handled it (shouldn't reach here)
-        // or didn't handle it (returned false)
-        // Either way, consume the event to prevent browser focus navigation
-        return true;
+        return false; // Allow fallback
       },
 
-      // Always capture Shift-Tab - prevent focus navigation
       'Shift-Tab': () => {
-        // Same as Tab - consume to prevent browser navigation
-        return true;
+        return false; // Allow fallback
       },
     };
   },
 });
-

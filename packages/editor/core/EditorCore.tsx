@@ -201,18 +201,25 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
         },
         // ProseMirror plugins (not TipTap extensions)
         plugins: [CollapsePlugin],
-        // 🔑 Prevent Tab from moving focus outside the editor
-        // Browser default: Tab in contenteditable = focus navigation
-        // We need: Tab = structural indentation (indent-block intent)
-        handleKeyDown(view, event) {
-          if (event.key === 'Tab') {
-            console.log(
-              '🚨 [EditorCore.handleKeyDown] Preventing Tab default behavior'
-            );
-            event.preventDefault(); // Stop browser focus navigation
-            return false; // Allow TipTap extensions + KeyboardEngine to handle
-          }
-          return false;
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // 🔑 Tab handling is done by TipTap extensions (KeyboardShortcuts)
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        //
+        // We do NOT preventDefault here at the ProseMirror level.
+        // Instead, TipTap extensions decide:
+        //   - KeyboardShortcuts (priority 1000): handles indent/outdent intents
+        //     → returns result.handled (true = consume, false = fallback)
+        //   - TabHandler (priority 100): fallback to prevent focus navigation
+        //     → only runs if KeyboardShortcuts returns false
+        //
+        // This allows proper fallback when indent is blocked:
+        //   Intent blocked → result.handled = false → browser handles Tab
+        //
+        // CRITICAL: ProseMirror handleKeyDown runs BEFORE TipTap extensions.
+        // If we preventDefault here, TipTap never gets to decide fallback.
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        handleKeyDown(_view, _event) {
+          return false; // Let TipTap extensions handle all keys
         },
         handleDOMEvents: {
           // ❌ REMOVED mousedown preventDefault - it prevented clicking into empty blocks
