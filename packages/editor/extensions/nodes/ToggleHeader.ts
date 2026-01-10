@@ -239,81 +239,20 @@ export const ToggleHeader = Node.create({
         const isEmpty = toggleHeaderNode.content.size === 0;
 
         if (!isEmpty) {
+          // ✅ INVARIANT: Enter on non-empty toggle ALWAYS creates sibling
+          // No collapse checks, no child creation, no exceptions
           const endPos = toggleHeaderPos + toggleHeaderNode.nodeSize;
-
-          // If collapsed, check if it has children
-          if (attrs.collapsed) {
-            // Count children blocks that reference this toggle
-            let hasChildren = false;
-            state.doc.descendants((node, nodePos) => {
-              if (nodePos > toggleHeaderPos) {
-                const parentToggleId = node.attrs.parentToggleId;
-                if (parentToggleId === attrs.toggleId) {
-                  hasChildren = true;
-                  return false; // Stop searching
-                }
-              }
-              return true;
-            });
-
-            // If has children, create a sibling (don't create hidden child)
-            if (hasChildren) {
-              // ✅ Create sibling of toggle - copy toggle's structural context
-              const siblingAttrs = createSiblingAttrs(attrs);
-
-              console.log(
-                '🟡 ToggleHeader Enter: Collapsed + children → creating SIBLING',
-                siblingAttrs
-              );
-              return editor
-                .chain()
-                .insertContentAt(endPos, {
-                  type: 'paragraph',
-                  attrs: {
-                    blockId: crypto.randomUUID(), // Generate blockId immediately
-                    ...siblingAttrs, // ✅ Sibling attributes (includes level)
-                  },
-                })
-                .setTextSelection(endPos + 1)
-                .run();
-            }
-
-            // If no children, expand and create sibling (not child)
-            console.log(
-              '🟡 ToggleHeader Enter: Collapsed + NO children → expanding and creating SIBLING'
-            );
-            const { tr } = state;
-
-            // Expand the toggle
-            tr.setNodeMarkup(toggleHeaderPos, undefined, {
-              ...attrs,
-              collapsed: false,
-            });
-
-            // ✅ CONTRACT: Create SIBLING paragraph (not child)
-            const siblingAttrs = createSiblingAttrs(attrs);
-            const paragraphType = state.schema.nodes.paragraph;
-            if (!paragraphType) return false;
-
-            const paragraphNode = paragraphType.create({
-              blockId: crypto.randomUUID(), // Generate blockId immediately
-              ...siblingAttrs, // Same parent as toggle (sibling)
-            });
-            tr.insert(endPos, paragraphNode);
-            tr.setSelection(TextSelection.create(tr.doc, endPos + 1));
-
-            editor.view.dispatch(tr);
-            return true;
-          }
-
-          // ✅ CONTRACT: Create SIBLING paragraph (not child)
-          // New paragraph has same parentBlockId as toggle (sibling relationship)
           const siblingAttrs = createSiblingAttrs(attrs);
 
-          console.log('🟢 ToggleHeader Enter: Creating sibling paragraph', {
-            parentBlockId: attrs.parentBlockId,
-            level: attrs.level,
-          });
+          console.log(
+            '✅ ToggleHeader Enter: Creating sibling paragraph (always)',
+            {
+              parentBlockId: attrs.parentBlockId,
+              level: attrs.level,
+              collapsed: attrs.collapsed,
+            }
+          );
+
           return editor
             .chain()
             .insertContentAt(endPos, {
