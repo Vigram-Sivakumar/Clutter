@@ -25,7 +25,7 @@ export const SIDEBAR_EMPTY_STATES = {
   },
   folders: {
     message: 'Press',
-    shortcut: ['⌘ N'],
+    shortcut: ['⌘', 'N'],
     suffix: 'to create note.',
   },
   cluttered: {
@@ -97,7 +97,7 @@ export const PAGE_EMPTY_STATES = {
   folderNoNotesInMonth: 'No notes in this month',
   folderIsEmpty: {
     message: 'Folder is empty. Press',
-    shortcut: ['⌘ N'],
+    shortcut: ['⌘', 'N'],
     suffix: 'to create a new note.',
   },
 

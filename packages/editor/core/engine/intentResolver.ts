@@ -415,6 +415,85 @@ export class IntentResolver {
   ): IntentResult {
     const { blockId } = intent;
 
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // 🔒 HARD STOP: Sibling-level check (FIRST GUARD)
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // Indent is ONLY allowed if previous block is at THE SAME LEVEL.
+    // This prevents runaway cascading indentation.
+    //
+    // Example (correct):
+    //   A (level 0)
+    //   B (level 0)  ← siblings at same level
+    //   Tab on B → B becomes child of A ✅
+    //
+    // Example (blocked):
+    //   A (level 0)
+    //     B (level 1)  ← B is now A's child
+    //   Tab on B again → BLOCKED ❌ (A is not a sibling anymore)
+    //
+    // This matches Notion/Roam/Logseq behavior exactly.
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    if (this._editor && this._editor.state) {
+      const { state } = this._editor;
+      const doc = state.doc;
+
+      // Get blocks in document order with their levels
+      const blocks: Array<{ id: string; level: number; pos: number }> = [];
+      doc.descendants((node, pos) => {
+        if (node.attrs?.blockId) {
+          blocks.push({
+            id: node.attrs.blockId,
+            level: node.attrs.level ?? 0,
+            pos,
+          });
+        }
+        return true;
+      });
+
+      const currentIndex = blocks.findIndex((b) => b.id === blockId);
+      if (currentIndex <= 0) {
+        return {
+          success: false,
+          intent,
+          reason: 'No previous block to indent under',
+        };
+      }
+
+      const currentBlock = blocks[currentIndex];
+      const prevBlock = blocks[currentIndex - 1];
+
+      // 🔒 THE CRITICAL CHECK: Must be at same level
+      if (prevBlock.level !== currentBlock.level) {
+        console.log(`🔒 [handleIndentBlock] BLOCKED: Not siblings`, {
+          current: { id: blockId.slice(0, 8), level: currentBlock.level },
+          prev: { id: prevBlock.id.slice(0, 8), level: prevBlock.level },
+          reason: 'Can only indent between blocks at the same level',
+        });
+        return {
+          success: false,
+          intent,
+          reason: `Cannot indent: prev block is at different level (${prevBlock.level} vs ${currentBlock.level})`,
+        };
+      }
+
+      // 🔒 Circular reference check
+      if (isDescendantOf(doc, prevBlock.id, blockId)) {
+        console.log(
+          `🔒 [handleIndentBlock] BLOCKED: Circular reference prevented`,
+          {
+            current: { id: blockId.slice(0, 8) },
+            prev: { id: prevBlock.id.slice(0, 8) },
+            reason: 'Cannot indent under own descendant',
+          }
+        );
+        return {
+          success: false,
+          intent,
+          reason: 'Cannot indent: would create circular reference',
+        };
+      }
+    }
+
     // 1. Get block
     const block = this._engine.getBlock(blockId);
     if (!block) {
@@ -480,78 +559,6 @@ export class IntentResolver {
         intent,
         reason: 'Previous sibling not found',
       };
-    }
-
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // 🔒 CRITICAL GUARD: Valid Parent Check
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    //
-    // A block can only indent if the previous sibling is at the SAME level.
-    // This prevents invalid parent relationships after subtree moves.
-    //
-    // Example of what this prevents:
-    //   A (level 0)
-    //   B (level 0)  ← just outdented
-    //   C (level 1)  ← orphaned child
-    //   Tab on C → would make C child of B again (invalid!)
-    //
-    // This guard ensures indent only works between true siblings.
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    if (this._editor && this._editor.state) {
-      const { state } = this._editor;
-      const doc = state.doc;
-
-      // Get levels from TipTap document (source of truth)
-      let currentLevel: number | null = null;
-      let prevLevel: number | null = null;
-
-      doc.descendants((node: any, _pos: number) => {
-        if (node.attrs?.blockId === blockId) {
-          currentLevel = node.attrs.level ?? 0;
-        }
-        if (node.attrs?.blockId === previousSiblingId) {
-          prevLevel = node.attrs.level ?? 0;
-        }
-        return currentLevel === null || prevLevel === null; // Stop when both found
-      });
-
-      if (
-        currentLevel !== null &&
-        prevLevel !== null &&
-        currentLevel !== prevLevel
-      ) {
-        console.log(
-          `🔒 [handleIndentBlock] BLOCKED: Invalid parent relationship`,
-          {
-            current: { id: blockId.slice(0, 8), level: currentLevel },
-            prev: { id: previousSiblingId.slice(0, 8), level: prevLevel },
-            reason: 'Can only indent between true siblings (same level)',
-          }
-        );
-        return {
-          success: false,
-          intent,
-          reason: `Cannot indent: previous block is at different level (${prevLevel} vs ${currentLevel})`,
-        };
-      }
-
-      // 🔒 GUARD 2: Prevent indenting into own subtree (circular reference)
-      // Example: Can't make A a child of B if B is already A's descendant
-      if (isDescendantOf(doc, previousSiblingId, blockId)) {
-        console.log(
-          `🔒 [handleIndentBlock] BLOCKED: Circular reference prevented`,
-          {
-            current: { id: blockId.slice(0, 8) },
-            prev: { id: previousSiblingId.slice(0, 8) },
-            reason: 'Cannot indent under own descendant',
-          }
-        );
-        return {
-          success: false,
-          intent,
-          reason: 'Cannot indent: would create circular reference',
-        };
-      }
     }
 
     if (previousSibling.type === 'toggleHeader') {
