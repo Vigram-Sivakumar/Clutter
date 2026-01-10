@@ -607,6 +607,12 @@ export class IntentResolver {
             }))
           );
 
+          // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          // 📝 UNDO GROUPING: Mark as user action (single undo step)
+          // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          tr.setMeta('addToHistory', true);
+          tr.setMeta('historyGroup', 'indent-block');
+
           // Update level AND parentBlockId for all affected blocks
           for (const item of affectedBlocks) {
             const node = doc.nodeAt(item.pos);
@@ -650,7 +656,7 @@ export class IntentResolver {
             }
           }
 
-          // Apply transaction
+          // Apply transaction (single undoable action)
           view.dispatch(tr);
 
           // Validate tree in dev mode
@@ -725,6 +731,12 @@ export class IntentResolver {
           }))
         );
 
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // 📝 UNDO GROUPING: Mark as user action (single undo step)
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        tr.setMeta('addToHistory', true);
+        tr.setMeta('historyGroup', 'indent-block');
+
         // Update level AND parentBlockId for all affected blocks
         for (const item of affectedBlocks) {
           const node = doc.nodeAt(item.pos);
@@ -744,7 +756,7 @@ export class IntentResolver {
           }
         }
 
-        // Apply transaction
+        // Apply transaction (single undoable action)
         view.dispatch(tr);
 
         // Validate tree in dev mode
@@ -851,6 +863,12 @@ export class IntentResolver {
           }))
         );
 
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // 📝 UNDO GROUPING: Mark as user action (single undo step)
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        tr.setMeta('addToHistory', true);
+        tr.setMeta('historyGroup', 'outdent-block');
+
         // Update level AND parentBlockId for all affected blocks
         for (const item of affectedBlocks) {
           const node = doc.nodeAt(item.pos);
@@ -870,7 +888,7 @@ export class IntentResolver {
           }
         }
 
-        // Apply transaction
+        // Apply transaction (single undoable action)
         view.dispatch(tr);
 
         // Validate tree in dev mode
