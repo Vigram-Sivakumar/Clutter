@@ -116,6 +116,43 @@ function getChildrenInfo(
 }
 
 /**
+ * Check if a toggle has children (any blocks with this toggle as parent)
+ */
+function toggleHasChildren(
+  editor: NodeViewProps['editor'],
+  getPos: () => number | undefined
+): boolean {
+  const pos = getPos();
+  if (pos === undefined) return false;
+
+  const doc = editor.state.doc;
+  const currentNode = doc.nodeAt(pos);
+  if (!currentNode) return false;
+
+  const currentBlockId = currentNode.attrs.blockId;
+  if (!currentBlockId) return false;
+
+  let hasChildren = false;
+
+  // Check if any block has this as parent
+  doc.descendants((node) => {
+    if (
+      node.type.name === 'listBlock' ||
+      node.type.name === 'paragraph' ||
+      node.type.name === 'heading'
+    ) {
+      if (node.attrs.parentBlockId === currentBlockId) {
+        hasChildren = true;
+        return false; // Stop searching
+      }
+    }
+    return true;
+  });
+
+  return hasChildren;
+}
+
+/**
  * Check if this task is a child of its parent task (Notion-style)
  * Parent does NOT need to be the immediate previous sibling.
  * We only require that the parent task appears somewhere above.
@@ -321,6 +358,12 @@ export function ListBlock({
     return getChildrenInfo(editor, getPos);
   }, [editor, getPos, listType, editor.state.doc]);
 
+  // Check if toggle has children
+  const toggleHasChildrenFlag = useMemo(() => {
+    if (listType !== 'toggle') return false;
+    return toggleHasChildren(editor, getPos);
+  }, [editor, getPos, listType, editor.state.doc]);
+
   // Check if this item should be hidden (child of collapsed parent task OR toggle)
   const isHidden = useMemo(() => {
     const pos = getPos();
@@ -523,14 +566,43 @@ export function ListBlock({
         );
       }
 
+      case 'toggle': {
+        // Toggle marker: chevron that rotates based on collapsed state
+        return (
+          <svg
+            onClick={handleToggleCollapse}
+            width={sizing.marker}
+            height={sizing.marker}
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            style={{
+              cursor: 'pointer',
+              transform: collapsed ? 'rotate(-90deg)' : 'rotate(0deg)',
+              transition: 'transform 0.15s ease',
+            }}
+          >
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        );
+      }
+
       default:
         return null;
     }
   };
 
-  // Render toggle row (below text, for tasks with children)
+  // Render toggle row (below text, for tasks/toggles with children)
   const renderToggleRow = () => {
-    if (listType !== 'task' || !childrenInfo.hasChildren) return null;
+    // Show for tasks with children OR toggles with children
+    const shouldShow =
+      (listType === 'task' && childrenInfo.hasChildren) ||
+      (listType === 'toggle' && toggleHasChildrenFlag);
+
+    if (!shouldShow) return null;
 
     // Align with text: marker container (24px) + gap (4px) = 28px
     const toggleMarginLeft = sizing.markerContainer + spacing.inline;
@@ -566,10 +638,12 @@ export function ListBlock({
         >
           <polyline points="6 9 12 15 18 9" />
         </svg>
-        {/* Completion count */}
-        <span>
-          {childrenInfo.completed}/{childrenInfo.total} subtasks
-        </span>
+        {/* Completion count (tasks only) */}
+        {listType === 'task' && (
+          <span>
+            {childrenInfo.completed}/{childrenInfo.total} subtasks
+          </span>
+        )}
       </div>
     );
   };
