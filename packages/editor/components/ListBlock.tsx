@@ -152,6 +152,39 @@ function toggleHasChildren(
 }
 
 /**
+ * Count hidden children (STEP 4: Collapsed children counter)
+ *
+ * Returns the number of direct children of a collapsed block.
+ * This is purely derived state for visual affordance.
+ */
+function countHiddenChildren(
+  editor: NodeViewProps['editor'],
+  getPos: () => number | undefined
+): number {
+  const pos = getPos();
+  if (pos === undefined) return 0;
+
+  const doc = editor.state.doc;
+  const currentNode = doc.nodeAt(pos);
+  if (!currentNode) return 0;
+
+  const currentBlockId = currentNode.attrs.blockId;
+  if (!currentBlockId) return 0;
+
+  let count = 0;
+
+  // Count all blocks that have this as their parent
+  doc.descendants((node) => {
+    if (node.attrs?.parentBlockId === currentBlockId) {
+      count++;
+    }
+    return true; // Continue traversal
+  });
+
+  return count;
+}
+
+/**
  * Check if this task is a child of its parent task (Notion-style)
  * Parent does NOT need to be the immediate previous sibling.
  * We only require that the parent task appears somewhere above.
@@ -530,6 +563,9 @@ export function ListBlock({
     // Align with text: marker container (24px) + gap (4px) = 28px
     const toggleMarginLeft = sizing.markerContainer + spacing.inline;
 
+    // STEP 4: Count hidden children for collapsed blocks
+    const hiddenCount = collapsed ? countHiddenChildren(editor, getPos) : 0;
+
     return (
       <div
         onClick={handleToggleCollapse}
@@ -561,10 +597,23 @@ export function ListBlock({
         >
           <polyline points="6 9 12 15 18 9" />
         </svg>
-        {/* Completion count (tasks only) */}
-        {listType === 'task' && (
+        {/* Completion count (tasks only, always shown) */}
+        {listType === 'task' && !collapsed && (
           <span>
             {childrenInfo.completed}/{childrenInfo.total} subtasks
+          </span>
+        )}
+        {/* STEP 4: Hidden children counter (shown when collapsed) */}
+        {collapsed && hiddenCount > 0 && (
+          <span
+            style={{
+              fontSize: 11,
+              color: colors.text.tertiary,
+              userSelect: 'none',
+              pointerEvents: 'none',
+            }}
+          >
+            {hiddenCount} hidden {hiddenCount === 1 ? 'item' : 'items'}
           </span>
         )}
       </div>
