@@ -137,7 +137,7 @@ export function Callout({ node, editor, getPos }: NodeViewProps) {
         display: isHidden ? 'none' : 'flex',
         alignItems: 'flex-start',
         gap: 8,
-        padding: spacing['16'],
+        padding: 16,
         backgroundColor: styles.backgroundColor,
         border: `1px solid ${styles.borderColor}`,
         borderRadius: 4,
