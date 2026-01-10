@@ -16,7 +16,6 @@ import { usePlaceholder } from '../hooks/usePlaceholder';
 import { useBlockSelection } from '../hooks/useBlockSelection';
 // import { Placeholder } from './Placeholder'; // No longer used - CSS handles placeholders
 import { BlockSelectionHalo } from './BlockSelectionHalo';
-import { useBlockCollapse } from '../hooks/useBlockCollapse';
 
 type CalloutType = 'info' | 'warning' | 'error' | 'success';
 
@@ -114,9 +113,6 @@ export function Callout({ node, editor, getPos }: NodeViewProps) {
     };
   }, [editor]);
 
-  // Check if this callout should be hidden by a collapsed toggle or task parent
-  const isHidden = useBlockCollapse(editor, getPos, parentToggleId);
-
   // Calculate indent based on level (hierarchy + toggle grouping)
   const hierarchyIndent = level * spacing.indent;
   const toggleIndent = parentToggleId ? spacing.toggleIndent : 0;
@@ -129,12 +125,11 @@ export function Callout({ node, editor, getPos }: NodeViewProps) {
       data-callout-type={type}
       data-parent-toggle-id={parentToggleId}
       data-level={level}
-      data-hidden={isHidden}
       data-empty={isEmpty ? 'true' : undefined}
       data-placeholder={placeholderText || undefined}
       className="callout-block"
       style={{
-        display: isHidden ? 'none' : 'flex',
+        display: 'flex',
         alignItems: 'flex-start',
         gap: 8,
         padding: 16,

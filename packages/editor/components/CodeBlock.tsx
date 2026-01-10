@@ -17,7 +17,6 @@ import { useBlockSelection } from '../hooks/useBlockSelection';
 // import { Placeholder } from './Placeholder'; // No longer used - CSS handles placeholders
 import { BlockHandle } from './BlockHandle';
 import { BlockSelectionHalo } from './BlockSelectionHalo';
-import { useBlockCollapse } from '../hooks/useBlockCollapse';
 
 interface CodeBlockProps extends NodeViewProps {
   node: {
@@ -79,9 +78,6 @@ export function CodeBlock({
     };
   }, [editor]);
 
-  // Check if this code block should be hidden by a collapsed toggle or task parent
-  const isHidden = useBlockCollapse(editor, getPos, parentToggleId);
-
   // Calculate indent based on level (hierarchy + toggle grouping)
   const hierarchyIndent = (level || 0) * spacing.indent;
   const toggleIndent = parentToggleId ? spacing.toggleIndent : 0;
@@ -96,11 +92,10 @@ export function CodeBlock({
       data-empty={isEmpty ? 'true' : undefined}
       data-placeholder={placeholderText || undefined}
       data-level={level}
-      data-hidden={isHidden}
       className="block-handle-wrapper"
       style={{
         // No margin - parent uses gap for spacing
-        display: isHidden ? 'none' : 'flex',
+        display: 'flex',
         padding: 16,
         backgroundColor: colors.background.secondary,
         border: `1px solid ${colors.border.default}`,

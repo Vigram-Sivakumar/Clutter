@@ -21,7 +21,6 @@ import { useBlockSelection } from '../hooks/useBlockSelection';
 import { BlockTagEditor } from './BlockTagEditor';
 import { BlockHandle } from './BlockHandle';
 import { BlockSelectionHalo } from './BlockSelectionHalo';
-import { useBlockCollapse } from '../hooks/useBlockCollapse';
 
 export function ParagraphBlock({
   node,
@@ -72,9 +71,6 @@ export function ParagraphBlock({
     };
   }, [editor]);
 
-  // Check if this paragraph should be hidden by a collapsed toggle or task parent
-  const isHidden = useBlockCollapse(editor, getPos, parentToggleId);
-
   const handleUpdateTags = useCallback(
     (newTags: string[]) => {
       updateAttributes({ tags: newTags });
@@ -93,12 +89,11 @@ export function ParagraphBlock({
       data-type="paragraph"
       data-parent-toggle-id={parentToggleId}
       data-level={level}
-      data-hidden={isHidden}
       data-empty={isEmpty ? 'true' : undefined}
       data-placeholder={placeholderText || undefined}
       className="block-handle-wrapper"
       style={{
-        display: isHidden ? 'none' : 'block',
+        display: 'block',
         fontFamily: typography.fontFamily,
         fontSize: typography.body,
         lineHeight: typography.lineHeightRatio,

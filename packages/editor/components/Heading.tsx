@@ -15,7 +15,6 @@ import { useBlockSelection } from '../hooks/useBlockSelection';
 // import { Placeholder } from './Placeholder'; // No longer used - CSS handles placeholders
 import { BlockHandle } from './BlockHandle';
 import { BlockSelectionHalo } from './BlockSelectionHalo';
-import { useBlockCollapse } from '../hooks/useBlockCollapse';
 
 const headingStyles = {
   1: {
@@ -77,9 +76,6 @@ export function Heading({ node, editor, getPos }: NodeViewProps) {
     };
   }, [editor]);
 
-  // Check if this heading should be hidden by a collapsed toggle or task parent
-  const isHidden = useBlockCollapse(editor, getPos, parentToggleId);
-
   // Calculate indent based on indentLevel (hierarchy + toggle grouping)
   const hierarchyIndent = indentLevel * spacing.indent;
   const toggleIndent = parentToggleId ? spacing.toggleIndent : 0;
@@ -92,12 +88,11 @@ export function Heading({ node, editor, getPos }: NodeViewProps) {
       data-heading-level={headingLevel}
       data-level={indentLevel}
       data-parent-toggle-id={parentToggleId}
-      data-hidden={isHidden}
       data-empty={isEmpty ? 'true' : undefined}
       data-placeholder={placeholderText || undefined}
       className="block-handle-wrapper"
       style={{
-        display: isHidden ? 'none' : 'flex',
+        display: 'flex',
         alignItems: 'flex-start',
         fontFamily: typography.fontFamily,
         position: 'relative',

@@ -12,7 +12,6 @@ import type { NodeViewProps } from '@tiptap/react';
 import { patterns, spacing } from '../tokens';
 import { useTheme } from '@clutter/ui';
 import { useBlockSelection } from '../hooks/useBlockSelection';
-import { useBlockCollapse } from '../hooks/useBlockCollapse';
 import { FoldHorizontal, UnfoldHorizontal } from '@clutter/ui';
 import { sizing } from '@clutter/ui';
 import { BlockSelectionHalo } from './BlockSelectionHalo';
@@ -48,9 +47,6 @@ export function HorizontalRule({
     nodeSize: node.nodeSize,
   });
 
-  // Check if this block should be hidden by collapsed parent
-  const isHidden = useBlockCollapse(editor, getPos, parentToggleId);
-
   // Calculate indent based on level and toggle grouping
   const hierarchyIndent = level * spacing.indent;
   const toggleIndent = parentToggleId ? spacing.toggleIndent : 0;
@@ -76,11 +72,10 @@ export function HorizontalRule({
       data-full-width={fullWidth}
       data-level={level}
       data-parent-block-id={parentBlockId}
-      data-hidden={isHidden}
       className="block-handle-wrapper"
       style={{
         height: HR_HEIGHT,
-        display: isHidden ? 'none' : 'flex',
+        display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         position: 'relative',

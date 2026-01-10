@@ -61,6 +61,7 @@ import { BackspaceHandler } from '../plugins/BackspaceHandler';
 import { TabHandler } from '../plugins/TabHandler';
 import { KeyboardShortcuts } from '../plugins/KeyboardShortcuts';
 import { EscapeMarks } from '../plugins/EscapeMarks';
+import { CollapsePlugin } from '../plugins/CollapsePlugin';
 import { DoubleSpaceEscape } from '../plugins/DoubleSpaceEscape';
 import { HashtagDetection } from '../plugins/HashtagDetection';
 import { HashtagAutocomplete } from '../plugins/HashtagAutocomplete';
@@ -209,6 +210,8 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
         attributes: {
           class: 'editor-content',
         },
+        // ProseMirror plugins (not TipTap extensions)
+        plugins: [CollapsePlugin],
         // 🔑 Prevent Tab from moving focus outside the editor
         // Browser default: Tab in contenteditable = focus navigation
         // We need: Tab = structural indentation (indent-block intent)

@@ -133,3 +133,13 @@ input::placeholder {
 .hide-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * UNIVERSAL COLLAPSE SYSTEM
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * Hide any block marked with data-hidden="true" by the CollapsePlugin.
+ * This is instant (no React lag) and works for all block types.
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.ProseMirror [data-hidden="true"] {
+  display: none !important;
+}

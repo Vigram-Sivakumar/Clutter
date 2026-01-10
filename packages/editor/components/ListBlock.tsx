@@ -24,7 +24,6 @@ import { useBlockSelection } from '../hooks/useBlockSelection';
 import { MarkerContainer } from './BlockWrapper';
 import { BlockHandle } from './BlockHandle';
 import { BlockSelectionHalo } from './BlockSelectionHalo';
-import { useBlockCollapse } from '../hooks/useBlockCollapse';
 import { TaskPriorityIndicator } from './TaskPriorityIndicator';
 import { Checkbox } from '@clutter/ui';
 
@@ -303,9 +302,6 @@ export function ListBlock({
     if (listType !== 'toggle') return false;
     return toggleHasChildren(editor, getPos);
   }, [editor, getPos, listType, editor.state.doc]);
-
-  // Check if this item should be hidden (child of collapsed parent task OR toggle)
-  const isHidden = useBlockCollapse(editor, getPos, parentToggleId);
 
   // Canonical emptiness check (ProseMirror source of truth)
   const isEmpty = node.content.size === 0;
@@ -595,13 +591,12 @@ export function ListBlock({
       data-checked={checked}
       data-collapsed={collapsed}
       data-parent-toggle-id={parentToggleId}
-      data-hidden={isHidden}
       data-empty={isEmpty ? 'true' : undefined}
       data-placeholder={placeholderText || undefined}
       className="block-handle-wrapper"
       style={{
         position: 'relative',
-        display: isHidden ? 'none' : 'flex', // Hide if collapsed by parent (task OR toggle)
+        display: 'flex',
         flexDirection: 'column',
         paddingLeft: indent,
         fontFamily: typography.fontFamily,

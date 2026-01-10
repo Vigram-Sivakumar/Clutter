@@ -16,7 +16,6 @@ import { useBlockSelection } from '../hooks/useBlockSelection';
 // import { Placeholder } from './Placeholder'; // No longer used - CSS handles placeholders
 import { BlockHandle } from './BlockHandle';
 import { BlockSelectionHalo } from './BlockSelectionHalo';
-import { useBlockCollapse } from '../hooks/useBlockCollapse';
 
 export function Blockquote({ node, editor, getPos }: NodeViewProps) {
   const { colors } = useTheme();
@@ -56,9 +55,6 @@ export function Blockquote({ node, editor, getPos }: NodeViewProps) {
     };
   }, [editor]);
 
-  // Check if this blockquote should be hidden by a collapsed toggle or task parent
-  const isHidden = useBlockCollapse(editor, getPos, parentToggleId);
-
   // Check if next sibling is also a blockquote (for connector rendering)
   const hasNextBlockquote = useMemo(() => {
     const pos = getPos();
@@ -86,10 +82,9 @@ export function Blockquote({ node, editor, getPos }: NodeViewProps) {
       data-level={level}
       data-empty={isEmpty ? 'true' : undefined}
       data-placeholder={placeholderText || undefined}
-      data-hidden={isHidden}
       className="block-handle-wrapper"
       style={{
-        display: isHidden ? 'none' : 'flex',
+        display: 'flex',
         alignItems: 'stretch',
         gap: spacing.inline,
         fontFamily: typography.fontFamily,
