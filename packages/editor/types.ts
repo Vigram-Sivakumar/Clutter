@@ -25,7 +25,6 @@ export interface ListBlockAttrs {
   level: number;
   checked: boolean | null;
   collapsed: boolean;
-  parentToggleId: string | null;
   priority: number; // 0 = no priority, 1-3 = priority level (!, !!, !!!)
 }
 

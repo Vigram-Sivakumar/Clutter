@@ -515,12 +515,10 @@ export function outdentBlock(
  */
 export function createSiblingAttrs(sourceAttrs: any): {
   parentBlockId: string | null;
-  parentToggleId: string | null;
   level: number;
 } {
   return {
     parentBlockId: sourceAttrs?.parentBlockId || null,
-    parentToggleId: sourceAttrs?.parentToggleId || null,
     level: sourceAttrs?.level ?? 0,
   };
 }

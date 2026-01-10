@@ -30,7 +30,6 @@ export function ParagraphBlock({
 }: NodeViewProps) {
   const tags = node.attrs.tags || [];
   const hasTags = tags.length > 0;
-  const parentToggleId = node.attrs.parentToggleId || null;
   const level = node.attrs.level || 0;
 
   // Canonical emptiness check (ProseMirror source of truth)
@@ -78,16 +77,13 @@ export function ParagraphBlock({
     [updateAttributes]
   );
 
-  // Calculate indent based on level (hierarchy + toggle grouping)
-  const hierarchyIndent = level * spacing.indent;
-  const toggleIndent = parentToggleId ? spacing.toggleIndent : 0;
-  const indent = hierarchyIndent + toggleIndent;
+  // Calculate indent based on level (hierarchy)
+  const indent = level * spacing.indent;
 
   return (
     <NodeViewWrapper
       as="div"
       data-type="paragraph"
-      data-parent-toggle-id={parentToggleId}
       data-level={level}
       data-empty={isEmpty ? 'true' : undefined}
       data-placeholder={placeholderText || undefined}

@@ -96,17 +96,6 @@ export const Heading = Node.create({
           parseInt(element.getAttribute('data-level') || '0', 10),
         renderHTML: (attributes) => ({ 'data-level': attributes.level || 0 }),
       },
-      parentToggleId: {
-        default: null,
-        parseHTML: (element) =>
-          element.getAttribute('data-parent-toggle-id') || null,
-        renderHTML: (attributes) => {
-          if (attributes.parentToggleId) {
-            return { 'data-parent-toggle-id': attributes.parentToggleId };
-          }
-          return {};
-        },
-      },
     };
   },
 

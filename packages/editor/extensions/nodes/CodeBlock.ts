@@ -83,16 +83,6 @@ export const CodeBlock = Node.create({
         parseHTML: (element) => parseInt(element.getAttribute('data-level') || '0', 10),
         renderHTML: (attributes) => ({ 'data-level': attributes.level || 0 }),
       },
-      parentToggleId: {
-        default: null,
-        parseHTML: (element) => element.getAttribute('data-parent-toggle-id') || null,
-        renderHTML: (attributes) => {
-          if (attributes.parentToggleId) {
-            return { 'data-parent-toggle-id': attributes.parentToggleId };
-          }
-          return {};
-        },
-      },
     };
   },
 
@@ -179,7 +169,6 @@ export const CodeBlock = Node.create({
         if (!codeBlockNode) return false;
         
         const attrs = codeBlockNode.attrs;
-        const parentToggleId = attrs.parentToggleId;
         
         // Get the code block bounds
         const codeBlockStart = $from.start();

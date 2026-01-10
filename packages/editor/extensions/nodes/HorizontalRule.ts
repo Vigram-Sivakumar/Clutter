@@ -92,14 +92,6 @@ export const HorizontalRule = Node.create({
             ? { 'data-parent-block-id': attributes.parentBlockId }
             : {},
       },
-      parentToggleId: {
-        default: null,
-        parseHTML: (element) => element.getAttribute('data-parent-toggle-id'),
-        renderHTML: (attributes) =>
-          attributes.parentToggleId
-            ? { 'data-parent-toggle-id': attributes.parentToggleId }
-            : {},
-      },
       level: {
         default: 0,
         parseHTML: (element) => {
@@ -150,7 +142,6 @@ export const HorizontalRule = Node.create({
                 style: 'plain',
                 level: currentAttrs.level || 0,
                 parentBlockId: currentAttrs.parentBlockId || null,
-                parentToggleId: currentAttrs.parentToggleId || null,
               },
             })
             .run();
@@ -175,7 +166,6 @@ export const HorizontalRule = Node.create({
                 style: 'wavy',
                 level: currentAttrs.level || 0,
                 parentBlockId: currentAttrs.parentBlockId || null,
-                parentToggleId: currentAttrs.parentToggleId || null,
               },
             })
             .run();

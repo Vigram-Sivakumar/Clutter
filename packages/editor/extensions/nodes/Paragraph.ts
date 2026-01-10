@@ -100,17 +100,6 @@ export const Paragraph = Node.create({
           parseInt(element.getAttribute('data-level') || '0', 10),
         renderHTML: (attributes) => ({ 'data-level': attributes.level || 0 }),
       },
-      parentToggleId: {
-        default: null,
-        parseHTML: (element) =>
-          element.getAttribute('data-parent-toggle-id') || null,
-        renderHTML: (attributes) => {
-          if (attributes.parentToggleId) {
-            return { 'data-parent-toggle-id': attributes.parentToggleId };
-          }
-          return {};
-        },
-      },
     };
   },
 
@@ -188,13 +177,13 @@ export const Paragraph = Node.create({
           return false;
         }
 
-        // GLOBAL: Handle paragraphs with parentToggleId (toggle/task children)
+        // GLOBAL: Handle paragraphs with parentBlockId (toggle/task children)
         if ($from.parent.type.name === 'paragraph') {
           const currentAttrs = $from.parent.attrs;
-          if (currentAttrs.parentToggleId) {
+          if (currentAttrs.parentBlockId) {
             const isEmpty = $from.parent.textContent === '';
 
-            // SIMPLIFIED EXIT: Empty paragraph with parentToggleId
+            // SIMPLIFIED EXIT: Empty paragraph with parentBlockId
             if (isEmpty) {
               const paragraphPos = $from.before();
               const paragraphNode = $from.parent;
@@ -220,7 +209,7 @@ export const Paragraph = Node.create({
                   attrs: {
                     blockId: crypto.randomUUID(), // ✅ NEW ID for new paragraph!
                     level: currentAttrs.level || 0, // Copy current level
-                    ...siblingAttrs, // ✅ Enforce invariant: copy parentBlockId + parentToggleId
+                    ...siblingAttrs, // ✅ Enforce invariant: copy parentBlockId
                     tags: [], // Don't copy tags to new paragraph
                   },
                 },
@@ -310,7 +299,6 @@ export const Paragraph = Node.create({
             blockId: crypto.randomUUID(), // ✅ NEW ID for new paragraph!
             level: 0,
             parentBlockId: null,
-            parentToggleId: null,
             tags: [],
           })
         );

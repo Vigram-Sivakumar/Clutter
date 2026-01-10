@@ -127,17 +127,6 @@ export const ListBlock = Node.create({
           return { 'data-collapsed': 'true' };
         },
       },
-      parentToggleId: {
-        default: null,
-        parseHTML: (element) =>
-          element.getAttribute('data-parent-toggle-id') || null,
-        renderHTML: (attributes) => {
-          if (attributes.parentToggleId) {
-            return { 'data-parent-toggle-id': attributes.parentToggleId };
-          }
-          return {};
-        },
-      },
       priority: {
         default: 0,
         parseHTML: (element) =>
@@ -291,7 +280,6 @@ export const ListBlock = Node.create({
             console.log(
               '🟠 ListBlock Backspace: Converting empty list to paragraph',
               {
-                parentToggleId: listBlockAttrs.parentToggleId,
                 level: listBlockAttrs.level,
               }
             );
@@ -305,7 +293,7 @@ export const ListBlock = Node.create({
             const paragraphNode = paragraphType.create(
               {
                 blockId: crypto.randomUUID(), // Generate blockId immediately
-                ...siblingAttrs, // ✅ Copy parentBlockId + parentToggleId + level
+                ...siblingAttrs, // ✅ Copy parentBlockId + level
               },
               content
             );
