@@ -30,7 +30,7 @@ export const SIDEBAR_EMPTY_STATES = {
   },
   cluttered: {
     message: 'Press',
-    shortcut: ['⌘ N'],
+    shortcut: ['⌘', 'N'],
     suffix: 'to create note.',
   },
 

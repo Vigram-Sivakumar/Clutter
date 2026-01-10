@@ -27,6 +27,7 @@ import {
   getOutdentAffectedBlocks,
   getIndentAffectedBlocks,
   getParentBlockIdForLevel,
+  isDescendantOf,
   assertValidIndentTree,
   assertNoForwardParenting,
 } from './subtreeHelpers';
@@ -531,6 +532,24 @@ export class IntentResolver {
           success: false,
           intent,
           reason: `Cannot indent: previous block is at different level (${prevLevel} vs ${currentLevel})`,
+        };
+      }
+
+      // 🔒 GUARD 2: Prevent indenting into own subtree (circular reference)
+      // Example: Can't make A a child of B if B is already A's descendant
+      if (isDescendantOf(doc, previousSiblingId, blockId)) {
+        console.log(
+          `🔒 [handleIndentBlock] BLOCKED: Circular reference prevented`,
+          {
+            current: { id: blockId.slice(0, 8) },
+            prev: { id: previousSiblingId.slice(0, 8) },
+            reason: 'Cannot indent under own descendant',
+          }
+        );
+        return {
+          success: false,
+          intent,
+          reason: 'Cannot indent: would create circular reference',
         };
       }
     }

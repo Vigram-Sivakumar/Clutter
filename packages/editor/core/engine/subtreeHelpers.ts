@@ -187,6 +187,83 @@ export function getIndentAffectedBlocks(
 }
 
 /**
+ * Check if candidate block is a descendant of parent block
+ *
+ * Used to prevent circular references when indenting (can't indent under your own child).
+ *
+ * @param doc - ProseMirror document
+ * @param candidateId - Block that might be a descendant
+ * @param parentId - Block that might be an ancestor
+ * @returns true if candidate is in parent's subtree
+ */
+export function isDescendantOf(
+  doc: PMNode,
+  candidateId: string,
+  parentId: string
+): boolean {
+  let candidatePos: number | null = null;
+  let candidateLevel: number | null = null;
+  let parentPos: number | null = null;
+  let parentLevel: number | null = null;
+
+  doc.descendants((node, pos) => {
+    if (node.attrs?.blockId === candidateId) {
+      candidatePos = pos;
+      candidateLevel = node.attrs.level ?? 0;
+    }
+    if (node.attrs?.blockId === parentId) {
+      parentPos = pos;
+      parentLevel = node.attrs.level ?? 0;
+    }
+    return candidatePos === null || parentPos === null;
+  });
+
+  // If either not found, can't be descendant
+  if (
+    candidatePos === null ||
+    parentPos === null ||
+    candidateLevel === null ||
+    parentLevel === null
+  ) {
+    return false;
+  }
+
+  // Candidate must come AFTER parent
+  if (candidatePos <= parentPos) return false;
+
+  // Walk from parent to candidate
+  let foundDescendant = false;
+  let checkingSubtree = false;
+
+  doc.descendants((node, pos) => {
+    if (pos === parentPos) {
+      checkingSubtree = true;
+      return true;
+    }
+
+    if (checkingSubtree) {
+      const nodeLevel = node.attrs?.level ?? 0;
+
+      // If we're back at parent level or lower, subtree ended
+      if (nodeLevel <= parentLevel) {
+        checkingSubtree = false;
+        return false; // Stop checking
+      }
+
+      // If this is the candidate, it's a descendant
+      if (node.attrs?.blockId === candidateId) {
+        foundDescendant = true;
+        return false; // Stop checking
+      }
+    }
+
+    return true;
+  });
+
+  return foundDescendant;
+}
+
+/**
  * Calculate correct parentBlockId based on level
  *
  * Walks backward from current position to find the nearest block at level-1.
