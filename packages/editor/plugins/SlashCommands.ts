@@ -321,17 +321,18 @@ function createHorizontalRule(editor: Editor, style: 'plain' | 'wavy') {
   const { $from } = state.selection;
 
   const { blockStart, blockEnd } = findBlockBoundaries(state, $from);
+  const currentBlock = $from.parent;
 
-  const hr = state.schema.nodes.horizontalRule;
-  const p = state.schema.nodes.paragraph;
-
-  if (!hr || !p) return;
+  // ✅ Preserve structural context (level, parentBlockId)
+  const preservedAttrs = getPreservedAttrs(currentBlock);
 
   // HR is always an array: [hr, paragraph] - just like markdown shortcuts
-  // No content preservation needed - HR replaces entire block
   const replacement = [
-    hr.create({ style, color: 'default', fullWidth: true }),
-    p.create(),
+    createBlock.horizontalRule(state.schema, style, preservedAttrs),
+    createBlock.paragraph(state.schema, undefined, {
+      blockId: crypto.randomUUID(), // New block after HR gets new ID
+      ...preservedAttrs,
+    }),
   ];
 
   replaceBlock(view, blockStart, blockEnd, replacement);

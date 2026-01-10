@@ -155,37 +155,33 @@ export const MarkdownShortcuts = Extension.create({
             }
             // --- → HR (plain) - triggers on third dash
             else if (textBefore === '---') {
-              const hr = state.schema.nodes.horizontalRule;
-              const p = state.schema.nodes.paragraph;
-              if (hr && p)
-                replacement = [
-                  hr.create({
-                    style: 'plain',
-                    color: 'default',
-                    fullWidth: true,
-                  }),
-                  p.create({
-                    blockId: crypto.randomUUID(), // New block after HR gets new ID
-                    ...preservedAttrs,
-                  }),
-                ];
+              replacement = [
+                createBlock.horizontalRule(
+                  state.schema,
+                  'plain',
+                  preservedAttrs
+                ),
+                createBlock.paragraph(
+                  state.schema,
+                  undefined,
+                  { blockId: crypto.randomUUID(), ...preservedAttrs } // New block after HR gets new ID
+                ),
+              ];
             }
             // *** → HR (wavy)
             else if (textBefore === '***') {
-              const hr = state.schema.nodes.horizontalRule;
-              const p = state.schema.nodes.paragraph;
-              if (hr && p)
-                replacement = [
-                  hr.create({
-                    style: 'wavy',
-                    color: 'default',
-                    fullWidth: true,
-                  }),
-                  p.create({
-                    blockId: crypto.randomUUID(), // New block after HR gets new ID
-                    ...preservedAttrs,
-                  }),
-                ];
+              replacement = [
+                createBlock.horizontalRule(
+                  state.schema,
+                  'wavy',
+                  preservedAttrs
+                ),
+                createBlock.paragraph(
+                  state.schema,
+                  undefined,
+                  { blockId: crypto.randomUUID(), ...preservedAttrs } // New block after HR gets new ID
+                ),
+              ];
             }
 
             if (!replacement) return false;

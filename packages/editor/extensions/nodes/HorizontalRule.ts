@@ -138,10 +138,20 @@ export const HorizontalRule = Node.create({
           const { $from } = selection;
           const endPos = $from.end();
 
+          // Get context from current block
+          const currentNode = $from.node($from.depth);
+          const currentAttrs = currentNode?.attrs || {};
+
           return chain()
             .insertContentAt(endPos, {
               type: this.name,
-              attrs: { style: 'plain' },
+              attrs: {
+                blockId: crypto.randomUUID(),
+                style: 'plain',
+                level: currentAttrs.level || 0,
+                parentBlockId: currentAttrs.parentBlockId || null,
+                parentToggleId: currentAttrs.parentToggleId || null,
+              },
             })
             .run();
         },
@@ -153,10 +163,20 @@ export const HorizontalRule = Node.create({
           const { $from } = selection;
           const endPos = $from.end();
 
+          // Get context from current block
+          const currentNode = $from.node($from.depth);
+          const currentAttrs = currentNode?.attrs || {};
+
           return chain()
             .insertContentAt(endPos, {
               type: this.name,
-              attrs: { style: 'wavy' },
+              attrs: {
+                blockId: crypto.randomUUID(),
+                style: 'wavy',
+                level: currentAttrs.level || 0,
+                parentBlockId: currentAttrs.parentBlockId || null,
+                parentToggleId: currentAttrs.parentToggleId || null,
+              },
             })
             .run();
         },
