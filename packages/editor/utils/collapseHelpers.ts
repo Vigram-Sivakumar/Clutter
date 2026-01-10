@@ -1,21 +1,11 @@
 /**
  * Shared collapse utilities for blocks with collapsible children
  *
- * TWO COLLAPSE SYSTEMS:
- *
- * 1. FLAT SCHEMA (CURRENT) - Use this for new code
- *    - Uses `parentBlockId` to track hierarchy
- *    - Function: isHiddenByCollapsedParent()
- *    - Works for all block types (tasks, toggles, future blocks)
- *
- * 2. LEGACY TOGGLE (DEPRECATED) - Only for backward compatibility
- *    - Uses `parentToggleId` attribute
- *    - Function: isHiddenByCollapsedToggle()
- *    - DO NOT use for new blocks
- *    - Will be removed after data migration
- *
- * All block components should use the useBlockCollapse() hook,
- * which checks both systems automatically.
+ * FLAT SCHEMA SYSTEM:
+ * - Uses `parentBlockId` to track hierarchy
+ * - Function: isHiddenByCollapsedParent()
+ * - Works for all block types (tasks, toggles, future blocks)
+ * - Collapse rendering handled by CollapsePlugin (ProseMirror decorations)
  */
 
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
@@ -78,47 +68,6 @@ export function isHiddenByCollapsedAncestor(
   });
 
   return foundCollapsedParent;
-}
-
-/**
- * Check if a block is hidden by a collapsed toggle parent
- *
- * @deprecated LEGACY SYSTEM - Kept only for backward compatibility
- *
- * This function checks the old `parentToggleId` attribute system.
- * New code should use `isHiddenByCollapsedParent()` instead, which
- * checks the flat schema `parentBlockId` system.
- *
- * This will be removed once all documents are migrated from
- * `parentToggleId` → `parentBlockId`.
- *
- * DO NOT use this for new blocks or features.
- */
-export function isHiddenByCollapsedToggle(
-  doc: ProseMirrorNode,
-  currentPos: number,
-  parentToggleId: string | null
-): boolean {
-  if (!parentToggleId) return false;
-
-  // Search backwards to find the toggle header with matching ID
-  let isHidden = false;
-
-  doc.nodesBetween(0, currentPos, (node) => {
-    if (node.type.name === 'toggleHeader') {
-      const toggleId = node.attrs.toggleId as string;
-      const collapsed = node.attrs.collapsed as boolean;
-
-      // If this is our parent toggle and it's collapsed, we should hide
-      if (toggleId === parentToggleId && collapsed) {
-        isHidden = true;
-        return false; // Stop searching
-      }
-    }
-    return true;
-  });
-
-  return isHidden;
 }
 
 /**
