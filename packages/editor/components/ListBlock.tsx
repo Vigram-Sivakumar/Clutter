@@ -24,7 +24,10 @@ import { useBlockSelection } from '../hooks/useBlockSelection';
 import { MarkerContainer } from './BlockWrapper';
 import { BlockHandle } from './BlockHandle';
 import { BlockSelectionHalo } from './BlockSelectionHalo';
-import { isHiddenByCollapsedToggle } from '../utils/collapseHelpers';
+import {
+  isHiddenByCollapsedToggle,
+  isHiddenByCollapsedParent,
+} from '../utils/collapseHelpers';
 import { TaskPriorityIndicator } from './TaskPriorityIndicator';
 import { Checkbox } from '@clutter/ui';
 
@@ -193,66 +196,6 @@ function isChildOfPreviousTask(
 }
 
 /**
- * Check if this item should be hidden (child of collapsed parent task or toggle)
- * Uses explicit parentBlockId relationships
- * Supports both task and toggle collapse in flat schema
- */
-function isHiddenByCollapsedParent(
-  editor: NodeViewProps['editor'],
-  getPos: () => number | undefined
-): boolean {
-  const pos = getPos();
-  if (pos === undefined) return false;
-
-  const doc = editor.state.doc;
-  const currentNode = doc.nodeAt(pos);
-  if (!currentNode) return false;
-
-  let currentParentId = currentNode.attrs.parentBlockId;
-
-  // Walk up the parent chain checking for collapsed ancestors
-  while (currentParentId) {
-    let foundParent = false;
-    let parentCollapsed = false;
-
-    doc.descendants((node) => {
-      if (node.type.name === 'listBlock') {
-        const attrs = node.attrs as ListBlockAttrs;
-
-        // Found the parent
-        if (attrs.blockId === currentParentId) {
-          foundParent = true;
-
-          // Check if it's a collapsed task or toggle
-          if (
-            (attrs.listType === 'task' || attrs.listType === 'toggle') &&
-            attrs.collapsed
-          ) {
-            parentCollapsed = true;
-            return false; // Stop searching
-          }
-
-          // Move up to next parent
-          currentParentId = attrs.parentBlockId;
-          return false; // Stop this iteration
-        }
-      }
-      return true;
-    });
-
-    if (parentCollapsed) {
-      return true; // Found collapsed ancestor
-    }
-
-    if (!foundParent) {
-      break; // No more parents
-    }
-  }
-
-  return false;
-}
-
-/**
  * Update all children's checked state
  */
 function updateChildrenChecked(
@@ -370,7 +313,7 @@ export function ListBlock({
     if (pos === undefined) return false;
 
     // Check if hidden by collapsed task or toggle parent (flat schema)
-    const hiddenByFlat = isHiddenByCollapsedParent(editor, getPos);
+    const hiddenByFlat = isHiddenByCollapsedParent(editor.state.doc, pos);
 
     // Check if hidden by legacy collapsed toggle parent (via parentToggleId)
     const hiddenByLegacyToggle = parentToggleId
