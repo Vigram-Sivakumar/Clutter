@@ -19,7 +19,25 @@ export const exitEmptyBlockInToggle = defineRule({
   priority: 115, // Higher than splitListItem (110) - must check empty blocks first
 
   when(ctx: KeyboardContext): boolean {
-    const { currentNode } = ctx;
+    const { currentNode, $from } = ctx;
+
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // 🔒 CRITICAL GUARD: Never fire when cursor is IN toggle header
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    //
+    // This rule is for EXITING toggles from CHILDREN, not for handling
+    // Enter on the toggle header itself.
+    //
+    // ToggleHeader has its own Enter handler that creates the first child.
+    // If we fire here, we steal Enter and prevent descending into toggle.
+    //
+    // ❌ WRONG: enter:exitEmptyBlockInToggle fires on header → exits
+    // ✅ RIGHT: ToggleHeader.Enter fires on header → descends
+    //
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    if ($from.parent.type.name === 'toggleHeader') {
+      return false;
+    }
 
     // Block must be empty
     if (currentNode.textContent !== '') {
