@@ -118,7 +118,8 @@ export const ToggleBlock = Node.create({
           }
 
           // Create structure: toggleBlock > header + content(paragraph)
-          const header = toggleHeaderNew.create({}, schema.text(''));
+          // 🔑 CRITICAL: Don't create empty text nodes - let PM handle empty inline content
+          const header = toggleHeaderNew.create();
           const content = toggleContent.create({}, [
             paragraph.create({ blockId: crypto.randomUUID() }),
           ]);

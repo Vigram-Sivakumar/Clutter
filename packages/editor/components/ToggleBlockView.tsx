@@ -47,69 +47,53 @@ export function ToggleBlockView({
         lineHeight: typography.lineHeightRatio,
       }}
     >
-      {/* TOGGLE HEADER - Inline content only */}
-      <div
+      {/* Chevron button */}
+      <button
+        contentEditable={false}
+        onClick={() => updateAttributes({ collapsed: !collapsed })}
         style={{
+          position: 'absolute',
+          left: 0,
+          top: 0,
+          cursor: 'pointer',
+          userSelect: 'none',
+          border: 'none',
+          background: 'transparent',
+          padding: 0,
           display: 'flex',
-          alignItems: 'flex-start',
-          gap: spacing.inline,
+          alignItems: 'center',
+          justifyContent: 'center',
+          width: sizing.marker,
+          height: sizing.marker,
+          borderRadius: 4,
+          color: collapsed ? colors.text.tertiary : colors.text.default,
+          transform: collapsed ? 'rotate(-90deg)' : 'rotate(0deg)',
+          transition: 'transform 0.15s ease, color 0.15s ease',
+          marginTop: 2,
         }}
       >
-        {/* Chevron button */}
-        <button
-          contentEditable={false}
-          onClick={() => updateAttributes({ collapsed: !collapsed })}
-          style={{
-            cursor: 'pointer',
-            userSelect: 'none',
-            border: 'none',
-            background: 'transparent',
-            padding: 0,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: sizing.marker,
-            height: sizing.marker,
-            borderRadius: 4,
-            color: collapsed ? colors.text.tertiary : colors.text.default,
-            transform: collapsed ? 'rotate(-90deg)' : 'rotate(0deg)',
-            transition: 'transform 0.15s ease, color 0.15s ease',
-          }}
+        <svg
+          width={sizing.marker}
+          height={sizing.marker}
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
         >
-          <svg
-            width={sizing.marker}
-            height={sizing.marker}
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <polyline points="6 9 12 15 18 9" />
-          </svg>
-        </button>
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
+      </button>
 
-        {/* Header inline content (title text) */}
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <NodeViewContent as="div" />
-        </div>
+      {/* Content area - ProseMirror renders toggleHeaderNew and toggleContent here */}
+      <div
+        style={{
+          paddingLeft: sizing.markerContainer + spacing.inline,
+        }}
+      >
+        <NodeViewContent />
       </div>
-
-      {/* TOGGLE CONTENT - Real children live here */}
-      {!collapsed && (
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: spacing.block,
-            paddingLeft: sizing.markerContainer + spacing.inline,
-            marginTop: spacing.block,
-          }}
-        >
-          <NodeViewContent />
-        </div>
-      )}
     </NodeViewWrapper>
   );
 }

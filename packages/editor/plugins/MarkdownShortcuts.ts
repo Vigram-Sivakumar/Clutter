@@ -95,10 +95,8 @@ export const MarkdownShortcuts = Extension.create({
 
               if (toggleBlock && toggleHeaderNew && toggleContent && p) {
                 // Create structure: toggleBlock > header + content(paragraph)
-                const header = toggleHeaderNew.create(
-                  {},
-                  state.schema.text('')
-                );
+                // 🔑 CRITICAL: Don't create empty text nodes - let PM handle empty inline content
+                const header = toggleHeaderNew.create();
                 const content = toggleContent.create({}, [
                   p.create({ blockId: crypto.randomUUID() }),
                 ]);
