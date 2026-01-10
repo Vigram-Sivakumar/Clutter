@@ -456,25 +456,52 @@ export class IntentResolver {
       }
 
       const currentBlock = blocks[currentIndex];
-      const targetParentLevel = currentBlock.level; // Want to become child, so parent at current level
+      const currentLevel = currentBlock.level;
 
-      // 🔍 Find nearest adoptable parent (level === currentLevel)
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      // 🔍 Find nearest adoptable parent with SCOPE TERMINATION
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      // A block can only be adopted by a previous block whose subtree
+      // has already ended before the current block.
+      //
+      // CRITICAL: Stop scanning if you cross into a shallower scope.
+      // This prevents adopting across subtree boundaries.
+      //
+      // Example (BLOCKED):
+      //   A (0)
+      //     B (1)
+      //       C (2)
+      //         D (3)
+      //   E (0)  ← Tab should be BLOCKED
+      //
+      // Scanning backwards from E encounters D, C, B (all deeper).
+      // Then encounters A (same level). But because we passed through
+      // deeper blocks, we've crossed A's subtree boundary.
+      // E cannot become A's child retroactively.
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+      // After indent, block will be at currentLevel + 1
+      // Parent should be at currentLevel (one level less than future level)
+      const targetParentLevel = currentLevel;
+
       let adoptableParent: (typeof blocks)[0] | null = null;
       for (let i = currentIndex - 1; i >= 0; i--) {
         const candidate = blocks[i];
 
-        // Too shallow → cannot adopt further up the tree
-        if (candidate.level < targetParentLevel) {
-          break;
+        // 🚫 SCOPE TERMINATION: Crossed out of structural scope
+        // Stop if candidate is at level < (targetParentLevel - 1)
+        // This prevents adopting across subtree boundaries
+        if (candidate.level < targetParentLevel - 1) {
+          break; // Left the scope - no valid parent
         }
 
-        // Exact parent level → this is the adoptable parent
+        // ✅ Found exact parent level
         if (candidate.level === targetParentLevel) {
           adoptableParent = candidate;
           break;
         }
 
-        // Deeper than target → skip (descendant of potential parent)
+        // Deeper than or equal to target but not exact match → skip
         // Continue scanning backwards
       }
 
