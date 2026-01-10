@@ -1,6 +1,6 @@
 /**
  * ArrowUp Keymap
- * 
+ *
  * Handles up arrow navigation across blocks.
  */
 
@@ -9,21 +9,20 @@ import { createKeyboardEngine } from '../engine/KeyboardEngine';
 import { moveToPreviousLine } from '../rules/navigation';
 
 // Create engine with ArrowUp rules
-const arrowUpEngine = createKeyboardEngine([
-  moveToPreviousLine,
-]);
+const arrowUpEngine = createKeyboardEngine([moveToPreviousLine]);
 
 /**
  * Handle ArrowUp key press
- * 
- * Arrow keys are control keys. We always consume the event to prevent
- * ProseMirror fallback and ensure deterministic navigation via the rule engine.
- * 
+ *
+ * ✅ CORRECTED: Arrow keys must fall back to native when no rule handles them.
+ * This restores natural cursor movement within and across blocks.
+ *
  * @param editor - TipTap editor instance
- * @returns always true (event is consumed)
+ * @returns true if handled, false to allow default behavior
  */
 export function handleArrowUp(editor: Editor): boolean {
-  arrowUpEngine.handle(editor, 'ArrowUp');
-  return true;
+  const result = arrowUpEngine.handle(editor, 'ArrowUp');
+  // ✅ CRITICAL: Extract .handled boolean for TipTap
+  // If false, TipTap will allow native cursor movement
+  return result.handled;
 }
-

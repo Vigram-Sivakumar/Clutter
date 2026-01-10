@@ -1,6 +1,6 @@
 /**
  * ArrowDown Keymap
- * 
+ *
  * Handles down arrow navigation across blocks.
  */
 
@@ -9,21 +9,20 @@ import { createKeyboardEngine } from '../engine/KeyboardEngine';
 import { moveToNextLine } from '../rules/navigation';
 
 // Create engine with ArrowDown rules
-const arrowDownEngine = createKeyboardEngine([
-  moveToNextLine,
-]);
+const arrowDownEngine = createKeyboardEngine([moveToNextLine]);
 
 /**
  * Handle ArrowDown key press
- * 
- * Arrow keys are control keys. We always consume the event to prevent
- * ProseMirror fallback and ensure deterministic navigation via the rule engine.
- * 
+ *
+ * ✅ CORRECTED: Arrow keys must fall back to native when no rule handles them.
+ * This restores natural cursor movement within and across blocks.
+ *
  * @param editor - TipTap editor instance
- * @returns always true (event is consumed)
+ * @returns true if handled, false to allow default behavior
  */
 export function handleArrowDown(editor: Editor): boolean {
-  arrowDownEngine.handle(editor, 'ArrowDown');
-  return true;
+  const result = arrowDownEngine.handle(editor, 'ArrowDown');
+  // ✅ CRITICAL: Extract .handled boolean for TipTap
+  // If false, TipTap will allow native cursor movement
+  return result.handled;
 }
-
