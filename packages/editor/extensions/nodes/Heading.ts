@@ -22,12 +22,7 @@ import {
 import { EnterRules, BackspaceRules } from '../../utils/keyboardRules';
 
 // NOTE: indentBlock/outdentBlock removed - now handled via keyboard rules
-import {
-  handleArrowLeft,
-  handleArrowRight,
-  handleArrowUp,
-  handleArrowDown,
-} from '../../plugins/keyboard';
+// NOTE: Arrow navigation removed - now centralized in KeyboardShortcuts.ts
 
 declare module '@tiptap/core' {
   // eslint-disable-next-line no-unused-vars
@@ -153,11 +148,8 @@ export const Heading = Node.create({
   // Keyboard shortcuts
   addKeyboardShortcuts() {
     return {
-      // Arrow navigation (cross-block)
-      ArrowLeft: ({ editor }) => handleArrowLeft(editor),
-      ArrowRight: ({ editor }) => handleArrowRight(editor),
-      ArrowUp: ({ editor }) => handleArrowUp(editor),
-      ArrowDown: ({ editor }) => handleArrowDown(editor),
+      // NOTE: Arrow navigation is centrally handled in KeyboardShortcuts.ts
+      // Removed from here to prevent TipTap handler collision (multiple extensions = cursor freeze)
 
       // Cmd/Ctrl+Alt+1/2/3 for headings
       'Mod-Alt-1': () =>

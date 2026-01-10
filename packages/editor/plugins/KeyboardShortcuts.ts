@@ -15,7 +15,13 @@
  */
 
 import { Extension } from '@tiptap/core';
-import { handleTab } from './keyboard/keymaps/tab';
+import {
+  handleTab,
+  handleArrowLeft,
+  handleArrowRight,
+  handleArrowUp,
+  handleArrowDown,
+} from './keyboard/keymaps';
 
 export const KeyboardShortcuts = Extension.create({
   name: 'keyboardShortcuts',
@@ -52,6 +58,19 @@ export const KeyboardShortcuts = Extension.create({
         // ENFORCE: If intent was emitted, browser must never see the key
         return result.handled;
       },
+
+      // ✅ ARROW KEYS: Centralized cross-block navigation
+      // Previously scattered across Paragraph, ListBlock, Heading
+      // Now in ONE place to prevent TipTap handler collision
+      //
+      // CRITICAL: Multiple extensions registering same key = native cursor paralysis
+      // Even if all return false, browser loses control
+      //
+      // Returns false when no rule matches → ProseMirror handles native cursor movement
+      ArrowLeft: ({ editor }) => handleArrowLeft(editor),
+      ArrowRight: ({ editor }) => handleArrowRight(editor),
+      ArrowUp: ({ editor }) => handleArrowUp(editor),
+      ArrowDown: ({ editor }) => handleArrowDown(editor),
     };
   },
 });

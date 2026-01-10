@@ -21,12 +21,7 @@ import type { EditorEngine } from '../../core/engine/EditorEngine';
 import { DeleteBlockCommand } from '../../core/engine/command';
 
 // NOTE: indentBlock/outdentBlock removed - now handled via keyboard rules
-import {
-  handleArrowLeft,
-  handleArrowRight,
-  handleArrowUp,
-  handleArrowDown,
-} from '../../plugins/keyboard';
+// NOTE: Arrow navigation removed - now centralized in KeyboardShortcuts.ts
 
 /**
  * Get EditorEngine from TipTap editor instance
@@ -149,11 +144,8 @@ export const Paragraph = Node.create({
   // Keyboard shortcuts
   addKeyboardShortcuts() {
     return {
-      // Arrow navigation (cross-block)
-      ArrowLeft: ({ editor }) => handleArrowLeft(editor),
-      ArrowRight: ({ editor }) => handleArrowRight(editor),
-      ArrowUp: ({ editor }) => handleArrowUp(editor),
-      ArrowDown: ({ editor }) => handleArrowDown(editor),
+      // NOTE: Arrow navigation is centrally handled in KeyboardShortcuts.ts
+      // Removed from here to prevent TipTap handler collision (multiple extensions = cursor freeze)
 
       // Cmd/Ctrl+Alt+0 to convert to paragraph
       'Mod-Alt-0': () => this.editor.commands.setParagraph(),

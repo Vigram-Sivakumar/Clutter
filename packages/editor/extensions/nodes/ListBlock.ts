@@ -27,13 +27,8 @@ import {
   createSiblingAttrs,
 } from '../../utils/keyboardHelpers';
 import { BackspaceRules } from '../../utils/keyboardRules';
-import {
-  handleEnter,
-  handleArrowLeft,
-  handleArrowRight,
-  handleArrowUp,
-  handleArrowDown,
-} from '../../plugins/keyboard';
+import { handleEnter } from '../../plugins/keyboard';
+// NOTE: Arrow navigation removed - now centralized in KeyboardShortcuts.ts
 import { EditorEngine } from '../../core/engine/EditorEngine';
 import { DeleteBlockCommand } from '../../core/engine/command';
 
@@ -220,11 +215,8 @@ export const ListBlock = Node.create({
   // Keyboard shortcuts
   addKeyboardShortcuts() {
     return {
-      // Arrow navigation (cross-block)
-      ArrowLeft: ({ editor }) => handleArrowLeft(editor),
-      ArrowRight: ({ editor }) => handleArrowRight(editor),
-      ArrowUp: ({ editor }) => handleArrowUp(editor),
-      ArrowDown: ({ editor }) => handleArrowDown(editor),
+      // NOTE: Arrow navigation is centrally handled in KeyboardShortcuts.ts
+      // Removed from here to prevent TipTap handler collision (multiple extensions = cursor freeze)
 
       // Shift+Enter: Insert line break (soft break)
       'Shift-Enter': createShiftEnterHandler('listBlock'),
