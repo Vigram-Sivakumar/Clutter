@@ -1,13 +1,16 @@
 /**
- * Enter Toggle Creates Child Rule
+ * Enter Toggle Creates Paragraph Child Rule
  *
  * When: Cursor inside a non-empty toggle list item
- * Do: Create child bullet list item at level + 1
+ * Do: Create paragraph child (not list item)
  *
  * Priority 120 (higher than splitListItem) ensures toggle behavior
  * runs BEFORE split logic for other list types.
  *
- * This prevents TipTap's default Enter fallback (paragraph sibling).
+ * This matches Notion/Craft/Logseq behavior:
+ * - Toggle + Enter → paragraph child (not bullet)
+ * - Engine accepts paragraph with parentBlockId
+ * - No normalization, no flattening
  */
 
 import { defineRule } from '../../types/KeyboardRule';
@@ -16,7 +19,7 @@ import { findAncestorNode } from '../../../../utils/keyboardHelpers';
 
 export const enterToggleCreatesChild = defineRule({
   id: 'enter:toggleCreateChild',
-  description: 'Create child list item when pressing Enter in non-empty toggle',
+  description: 'Create paragraph child when pressing Enter in non-empty toggle',
   priority: 120, // Higher than splitListItem (110) - must run first
 
   when(ctx: KeyboardContext): boolean {
@@ -44,32 +47,37 @@ export const enterToggleCreatesChild = defineRule({
   },
 
   execute(ctx: KeyboardContext): boolean {
-    const { editor, currentNode } = ctx;
+    const { editor, state } = ctx;
 
     const listBlock = findAncestorNode(editor, 'listBlock');
     if (!listBlock) return false;
 
-    const attrs = listBlock.node.attrs;
+    const { node, pos } = listBlock;
+    const attrs = node.attrs;
 
-    // Only toggles, only non-empty
+    // Only toggles, only non-empty (double-check)
     if (attrs.listType !== 'toggle') return false;
-    if (currentNode.textContent.length === 0) return false;
+    if (ctx.currentNode.textContent.length === 0) return false;
 
-    // 1️⃣ Create a NORMAL sibling list item (at same level)
-    editor.commands.insertContent({
-      type: 'listBlock',
-      attrs: {
-        blockId: crypto.randomUUID(),
-        listType: 'bullet',
-        level: attrs.level, // Same level initially
-        parentBlockId: attrs.parentBlockId,
-      },
+    // Create paragraph child (not listBlock)
+    const paragraph = state.schema.nodes.paragraph.create({
+      blockId: crypto.randomUUID(),
+      parentBlockId: attrs.blockId, // Child of toggle
+      level: attrs.level, // Inherit level (not level+1 - flat hierarchy)
+      parentToggleId: null,
     });
 
-    // 2️⃣ Use EXISTING editor indent command (creates proper Engine Command)
-    // This is the same command Tab uses - it properly dispatches through engine
-    editor.commands.indent();
+    // Insert after toggle
+    const insertPos = pos + node.nodeSize;
 
-    return true; // CRITICAL: stops TipTap fallback
+    return editor
+      .chain()
+      .command(({ tr }) => {
+        tr.insert(insertPos, paragraph);
+        const $pos = tr.doc.resolve(insertPos + 1);
+        tr.setSelection(state.selection.constructor.near($pos));
+        return true;
+      })
+      .run();
   },
 });
