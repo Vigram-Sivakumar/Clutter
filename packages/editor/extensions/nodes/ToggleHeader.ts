@@ -1,13 +1,13 @@
 /**
  * ToggleHeader Node - Standalone collapsible toggle header
- * 
+ *
  * Craft/Notion-style flat structure where toggle header is a top-level block.
  * - No nesting - each toggle header is independent
  * - Level attribute controls indentation
  * - collapsed attribute controls visibility of children
  * - toggleId uniquely identifies this toggle
  * - Contains inline content (text with marks for rich text support)
- * 
+ *
  * Children blocks (paragraphs, lists, etc.) reference the toggle via parentToggleId.
  * When collapsed, children hide themselves by checking if their parent is collapsed.
  */
@@ -15,12 +15,23 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer } from '@tiptap/react';
 import { TextSelection } from '@tiptap/pm/state';
-import { spacing } from '../../tokens';
 import { ToggleHeader as ToggleHeaderComponent } from '../../components/ToggleHeader';
-import { createShiftEnterHandler, createSiblingAttrs } from '../../utils/keyboardHelpers';
+import {
+  createShiftEnterHandler,
+  createSiblingAttrs,
+} from '../../utils/keyboardHelpers';
 import { BackspaceRules } from '../../utils/keyboardRules';
+import { EditorEngine } from '../../core/engine/EditorEngine';
+import { DeleteBlockCommand } from '../../core/engine/command';
 
 // NOTE: indentBlock/outdentBlock removed - now handled via keyboard rules
+
+/**
+ * Get EditorEngine from TipTap editor instance
+ */
+function getEngine(editor: any): EditorEngine | null {
+  return editor._engine || null;
+}
 
 export interface ToggleHeaderAttrs {
   blockId: string;
@@ -32,6 +43,7 @@ export interface ToggleHeaderAttrs {
 }
 
 declare module '@tiptap/core' {
+  // eslint-disable-next-line no-unused-vars
   interface Commands<ReturnType> {
     toggleHeader: {
       /**
@@ -66,7 +78,8 @@ export const ToggleHeader = Node.create({
     return {
       blockId: {
         default: null,
-        parseHTML: (element) => element.getAttribute('data-block-id') || crypto.randomUUID(),
+        parseHTML: (element) =>
+          element.getAttribute('data-block-id') || crypto.randomUUID(),
         renderHTML: (attributes) => {
           const blockId = attributes.blockId || crypto.randomUUID();
           return { 'data-block-id': blockId };
@@ -74,7 +87,8 @@ export const ToggleHeader = Node.create({
       },
       parentBlockId: {
         default: null,
-        parseHTML: (element) => element.getAttribute('data-parent-block-id') || null,
+        parseHTML: (element) =>
+          element.getAttribute('data-parent-block-id') || null,
         renderHTML: (attributes) => {
           if (attributes.parentBlockId) {
             return { 'data-parent-block-id': attributes.parentBlockId };
@@ -84,7 +98,8 @@ export const ToggleHeader = Node.create({
       },
       collapsed: {
         default: false,
-        parseHTML: (element) => element.getAttribute('data-collapsed') === 'true',
+        parseHTML: (element) =>
+          element.getAttribute('data-collapsed') === 'true',
         renderHTML: (attributes) => {
           if (!attributes.collapsed) return {};
           return { 'data-collapsed': 'true' };
@@ -92,17 +107,20 @@ export const ToggleHeader = Node.create({
       },
       toggleId: {
         default: '',
-        parseHTML: (element) => element.getAttribute('data-toggle-id') || crypto.randomUUID(),
+        parseHTML: (element) =>
+          element.getAttribute('data-toggle-id') || crypto.randomUUID(),
         renderHTML: (attributes) => ({ 'data-toggle-id': attributes.toggleId }),
       },
       level: {
         default: 0,
-        parseHTML: (element) => parseInt(element.getAttribute('data-level') || '0', 10),
+        parseHTML: (element) =>
+          parseInt(element.getAttribute('data-level') || '0', 10),
         renderHTML: (attributes) => ({ 'data-level': attributes.level || 0 }),
       },
       parentToggleId: {
         default: null,
-        parseHTML: (element) => element.getAttribute('data-parent-toggle-id') || null,
+        parseHTML: (element) =>
+          element.getAttribute('data-parent-toggle-id') || null,
         renderHTML: (attributes) => {
           if (!attributes.parentToggleId) return {};
           return { 'data-parent-toggle-id': attributes.parentToggleId };
@@ -121,7 +139,7 @@ export const ToggleHeader = Node.create({
   },
 
   // Render to HTML (for non-React contexts)
-  renderHTML({ node, HTMLAttributes }) {
+  renderHTML({ HTMLAttributes }) {
     // Removed indentation logic - no padding-left based on level
     return [
       'div',
@@ -143,9 +161,9 @@ export const ToggleHeader = Node.create({
       setToggleHeader:
         () =>
         ({ commands }) => {
-          return commands.setNode(this.name, { 
-            collapsed: false, 
-            toggleId: crypto.randomUUID()
+          return commands.setNode(this.name, {
+            collapsed: false,
+            toggleId: crypto.randomUUID(),
           });
         },
 
@@ -154,11 +172,11 @@ export const ToggleHeader = Node.create({
         ({ state, dispatch }) => {
           const { selection } = state;
           const { $from } = selection;
-          
+
           // Find the toggleHeader ancestor
           let nodePos: number | null = null;
           let node = null;
-          
+
           for (let d = $from.depth; d >= 1; d--) {
             const pos = $from.before(d);
             const n = state.doc.nodeAt(pos);
@@ -198,11 +216,11 @@ export const ToggleHeader = Node.create({
       Enter: ({ editor }) => {
         const { state } = editor;
         const { $from } = state.selection;
-        
+
         // Find the toggle header node (same pattern as ListBlock)
         let toggleHeaderPos: number | null = null;
         let toggleHeaderNode = null;
-        
+
         for (let d = $from.depth; d >= 1; d--) {
           const pos = $from.before(d);
           const node = state.doc.nodeAt(pos);
@@ -219,10 +237,10 @@ export const ToggleHeader = Node.create({
 
         const attrs = toggleHeaderNode.attrs as ToggleHeaderAttrs;
         const isEmpty = toggleHeaderNode.content.size === 0;
-        
+
         if (!isEmpty) {
           const endPos = toggleHeaderPos + toggleHeaderNode.nodeSize;
-          
+
           // If collapsed, check if it has children
           if (attrs.collapsed) {
             // Count children blocks that reference this toggle
@@ -237,68 +255,72 @@ export const ToggleHeader = Node.create({
               }
               return true;
             });
-            
+
             // If has children, create a sibling (don't create hidden child)
             if (hasChildren) {
               // ✅ Create sibling of toggle - copy toggle's structural context
               const siblingAttrs = createSiblingAttrs(attrs);
-              
-              console.log('🟡 ToggleHeader Enter: Collapsed + children → creating SIBLING', siblingAttrs);
-              return editor.chain()
+
+              console.log(
+                '🟡 ToggleHeader Enter: Collapsed + children → creating SIBLING',
+                siblingAttrs
+              );
+              return editor
+                .chain()
                 .insertContentAt(endPos, {
                   type: 'paragraph',
                   attrs: {
-                    blockId: crypto.randomUUID(),  // Generate blockId immediately
-                    level: attrs.level || 0,  // Same level as toggle
-                    ...siblingAttrs,  // ✅ Enforce invariant
+                    blockId: crypto.randomUUID(), // Generate blockId immediately
+                    ...siblingAttrs, // ✅ Sibling attributes (includes level)
                   },
                 })
                 .setTextSelection(endPos + 1)
                 .run();
             }
-            
-            // If no children, expand and create child in one transaction
-            console.log('🟡 ToggleHeader Enter: Collapsed + NO children → expanding and creating CHILD', {
-              parentBlockId: attrs.blockId,
-              parentToggleId: attrs.toggleId,
-            });
+
+            // If no children, expand and create sibling (not child)
+            console.log(
+              '🟡 ToggleHeader Enter: Collapsed + NO children → expanding and creating SIBLING'
+            );
             const { tr } = state;
-            
+
             // Expand the toggle
             tr.setNodeMarkup(toggleHeaderPos, undefined, {
               ...attrs,
               collapsed: false,
             });
-            
-            // Create paragraph as child
-            // ✅ Set both parentBlockId (hierarchy) and parentToggleId (toggle membership)
-            const paragraphNode = state.schema.nodes.paragraph.create({
-              blockId: crypto.randomUUID(),  // Generate blockId immediately
-              level: (attrs.level || 0) + 1,  // Child is one level deeper
-              parentBlockId: attrs.blockId,  // ✅ Child of toggle (explicit hierarchy)
-              parentToggleId: attrs.toggleId,
+
+            // ✅ CONTRACT: Create SIBLING paragraph (not child)
+            const siblingAttrs = createSiblingAttrs(attrs);
+            const paragraphType = state.schema.nodes.paragraph;
+            if (!paragraphType) return false;
+
+            const paragraphNode = paragraphType.create({
+              blockId: crypto.randomUUID(), // Generate blockId immediately
+              ...siblingAttrs, // Same parent as toggle (sibling)
             });
             tr.insert(endPos, paragraphNode);
             tr.setSelection(TextSelection.create(tr.doc, endPos + 1));
-            
+
             editor.view.dispatch(tr);
             return true;
           }
-          
-          // Not collapsed - create paragraph as child
-          // ✅ Child of toggle: set both parentBlockId (hierarchy) and parentToggleId (toggle membership)
-          console.log('🟢 ToggleHeader Enter: Creating child paragraph', {
-            parentBlockId: attrs.blockId,
-            parentToggleId: attrs.toggleId,
+
+          // ✅ CONTRACT: Create SIBLING paragraph (not child)
+          // New paragraph has same parentBlockId as toggle (sibling relationship)
+          const siblingAttrs = createSiblingAttrs(attrs);
+
+          console.log('🟢 ToggleHeader Enter: Creating sibling paragraph', {
+            parentBlockId: attrs.parentBlockId,
+            level: attrs.level,
           });
-          return editor.chain()
+          return editor
+            .chain()
             .insertContentAt(endPos, {
               type: 'paragraph',
               attrs: {
-                blockId: crypto.randomUUID(),  // Generate blockId immediately
-                level: (attrs.level || 0) + 1,  // Child is one level deeper
-                parentBlockId: attrs.blockId,  // ✅ Child of toggle (explicit hierarchy)
-                parentToggleId: attrs.toggleId,
+                blockId: crypto.randomUUID(), // Generate blockId immediately
+                ...siblingAttrs, // Same parent as toggle (sibling)
               },
             })
             .setTextSelection(endPos + 1)
@@ -306,71 +328,373 @@ export const ToggleHeader = Node.create({
         }
 
         // Empty toggle header - convert to paragraph
-        // Detach all children (remove parentToggleId from them)
-        const { tr } = state;
-        
-        // Find and detach all children with this toggleId
-        state.doc.descendants((node, nodePos) => {
-          if (nodePos > toggleHeaderPos && node.attrs.parentToggleId === attrs.toggleId) {
-            // Remove parentToggleId only
-            tr.setNodeMarkup(nodePos, undefined, {
-              ...node.attrs,
-              parentToggleId: null,
-            });
-          }
-          return true;
+        // ✅ USE ENGINE PRIMITIVE: Delete toggle via DeleteBlockCommand
+        // This ensures children are promoted (Engine Law #8)
+        const engine = getEngine(editor);
+
+        if (!engine) {
+          console.error('[ToggleHeader.Enter] EditorEngine not found');
+          return false;
+        }
+
+        const toggleBlockId = attrs.blockId;
+        if (!toggleBlockId) {
+          console.warn('[ToggleHeader.Enter] No blockId found');
+          return false;
+        }
+
+        console.log(
+          `[ToggleHeader.Enter] Converting empty toggle to paragraph: ${toggleBlockId}`
+        );
+
+        // Delete toggle - engine handles child promotion
+        const cmd = new DeleteBlockCommand(toggleBlockId);
+        engine.dispatch(cmd);
+
+        // After engine deletion, create new paragraph at same position
+        requestAnimationFrame(() => {
+          const { tr: newTr, schema } = editor.state;
+          const paragraphType = schema.nodes.paragraph;
+          if (!paragraphType) return;
+
+          const insertPos = Math.min(toggleHeaderPos, newTr.doc.content.size);
+
+          // ✅ CONTRACT: Create paragraph with NEW blockId
+          const siblingAttrs = createSiblingAttrs(attrs);
+          const paragraphNode = paragraphType.create({
+            blockId: crypto.randomUUID(), // NEW blockId
+            ...siblingAttrs, // Preserve parentBlockId
+          });
+
+          newTr.insert(insertPos, paragraphNode);
+          newTr.setSelection(TextSelection.create(newTr.doc, insertPos + 1));
+          editor.view.dispatch(newTr);
         });
-        
-        // Now convert the toggle to paragraph
-        const paragraphNode = state.schema.nodes.paragraph.create();
-        tr.replaceRangeWith(toggleHeaderPos, toggleHeaderPos + toggleHeaderNode.nodeSize, paragraphNode);
-        tr.setSelection(TextSelection.create(tr.doc, toggleHeaderPos + 1));
-        editor.view.dispatch(tr);
+
         return true;
       },
 
       Backspace: ({ editor }) => {
         const { state } = editor;
         const { selection } = state;
-        const { empty } = selection;
+        const { $from, empty } = selection;
 
+        // Only handle if selection is empty (cursor, not range)
         if (!empty) return false;
 
-        const context = BackspaceRules.getWrapperBlockBackspaceContext(editor, 'toggleHeader');
+        // Get current toggle header
+        const currentToggle = $from.parent;
+        if (currentToggle.type.name !== 'toggleHeader') return false;
 
-        if (!context.isEmpty) {
-          return false;
-        }
+        const togglePos = $from.before($from.depth);
+        const currentBlockId = currentToggle.attrs?.blockId;
 
-        const toggleHeader = context.block!;
-        const toggleHeaderPos = toggleHeader.pos;
-        const toggleHeaderNode = toggleHeader.node;
+        // Check if cursor is at start of toggle
+        const atStart = $from.parentOffset === 0;
 
-        if (context.shouldConvertToParagraph) {
-          const { tr } = state;
-          const toggleAttrs = toggleHeaderNode.attrs as ToggleHeaderAttrs;
-          
-          // Detach all children (remove parentToggleId from them)
-          state.doc.descendants((node, nodePos) => {
-            if (nodePos > toggleHeaderPos && node.attrs.parentToggleId === toggleAttrs.toggleId) {
-              // Remove parentToggleId only
-              tr.setNodeMarkup(nodePos, undefined, {
-                ...node.attrs,
-                parentToggleId: null,
-              });
+        // CASE 1: EMPTY TOGGLE HEADER
+        const context = BackspaceRules.getWrapperBlockBackspaceContext(
+          editor,
+          'toggleHeader'
+        );
+
+        if (context.isEmpty) {
+          // ✅ USE ENGINE PRIMITIVE: Delete toggle via DeleteBlockCommand
+          // This ensures children are promoted (Engine Law #8)
+          const engine = getEngine(editor);
+
+          if (!engine) {
+            console.error('[ToggleHeader.Backspace] EditorEngine not found');
+            return false;
+          }
+
+          if (!currentBlockId) {
+            console.warn('[ToggleHeader.Backspace] No blockId found');
+            return false;
+          }
+
+          console.log(
+            `[ToggleHeader.Backspace] Deleting empty toggle: ${currentBlockId}`
+          );
+
+          // Delete toggle - engine handles child promotion
+          const cmd = new DeleteBlockCommand(currentBlockId);
+          engine.dispatch(cmd);
+
+          // Position cursor after engine processes deletion
+          requestAnimationFrame(() => {
+            const beforePos = Math.max(0, togglePos - 1);
+            try {
+              const $pos = editor.state.tr.doc.resolve(beforePos);
+              const selection = TextSelection.near($pos, -1);
+              const tr = editor.state.tr.setSelection(selection);
+              editor.view.dispatch(tr);
+            } catch (e) {
+              const $pos = editor.state.tr.doc.resolve(Math.max(0, beforePos));
+              const selection = TextSelection.near($pos);
+              const tr = editor.state.tr.setSelection(selection);
+              editor.view.dispatch(tr);
             }
-            return true;
           });
-          
-          const content = toggleHeaderNode.content;
-          const paragraphNode = state.schema.nodes.paragraph.create(null, content);
-          tr.replaceRangeWith(toggleHeaderPos, toggleHeaderPos + toggleHeaderNode.nodeSize, paragraphNode);
-          tr.setSelection(state.selection.constructor.near(tr.doc.resolve(toggleHeaderPos + 1)));
-          editor.view.dispatch(tr);
+
           return true;
         }
 
-        return false;
+        // CASE 2: NON-EMPTY TOGGLE HEADER
+        // ✅ EXPLICIT MERGE LOGIC (NO PM DEFAULT)
+        //
+        // Contract: Backspace at start of non-empty toggle → merge with previous
+        // Survivor Rule: Previous block survives (Destructive Survivor Rule)
+        // Engine Safety: Delete toggle → promotes children
+
+        if (!atStart) {
+          // Not at start - let PM handle character deletion
+          return false;
+        }
+
+        // At start of non-empty toggle - check for previous block
+        const beforePos = togglePos;
+        let previousBlockNode = null;
+        let previousBlockPos = -1;
+
+        try {
+          const $before = state.doc.resolve(beforePos);
+          if ($before.nodeBefore) {
+            previousBlockNode = $before.nodeBefore;
+            previousBlockPos = beforePos - previousBlockNode.nodeSize;
+          }
+        } catch (e) {
+          // No previous block
+        }
+
+        if (!previousBlockNode) {
+          // No previous block - noop (at document start)
+          console.log('[ToggleHeader.Backspace] At document start - noop');
+          return false;
+        }
+
+        // Check if previous block is structural (cannot merge)
+        const isStructuralPrevious = ['codeBlock', 'divider', 'image'].includes(
+          previousBlockNode.type.name
+        );
+
+        if (isStructuralPrevious) {
+          console.log(
+            '[ToggleHeader.Backspace] Cannot merge with structural block - noop'
+          );
+          return false;
+        }
+
+        // ✅ MERGE WITH PREVIOUS BLOCK
+        const previousBlockId = previousBlockNode.attrs?.blockId;
+        const engine = getEngine(editor);
+
+        if (!engine) {
+          console.error('[ToggleHeader.Backspace] EditorEngine not found');
+          return false;
+        }
+
+        if (!currentBlockId || !previousBlockId) {
+          console.warn('[ToggleHeader.Backspace] Missing blockIds for merge');
+          return false;
+        }
+
+        // Extract current toggle's content BEFORE deletion
+        const currentContent = currentToggle.content;
+
+        // Calculate merge position (end of previous block)
+        const previousBlockContentSize = previousBlockNode.content.size;
+        const mergePos = previousBlockPos + 1 + previousBlockContentSize; // +1 for opening tag
+
+        console.log(
+          `[ToggleHeader.Backspace] Merging into previous: ${previousBlockId}`
+        );
+
+        // ✅ USE ENGINE PRIMITIVE: Delete current toggle via DeleteBlockCommand
+        // This ensures children are promoted (Engine Law #8)
+        const cmd = new DeleteBlockCommand(currentBlockId);
+        engine.dispatch(cmd);
+
+        // After engine deletion, insert content into previous block
+        requestAnimationFrame(() => {
+          const { tr: newTr } = editor.state;
+          // Re-resolve merge position in new document
+          const newMergePos = Math.min(mergePos, newTr.doc.content.size - 1);
+
+          if (currentContent.size > 0) {
+            newTr.insert(newMergePos, currentContent);
+          }
+
+          // Position cursor at merge point
+          newTr.setSelection(TextSelection.create(newTr.doc, newMergePos));
+          editor.view.dispatch(newTr);
+        });
+
+        return true;
+      },
+
+      Delete: ({ editor }) => {
+        const { state } = editor;
+        const { selection } = state;
+        const { $from, empty } = selection;
+
+        // Only handle if selection is empty (cursor, not range)
+        if (!empty) return false;
+
+        // Get current toggle header
+        const currentToggle = $from.parent;
+        if (currentToggle.type.name !== 'toggleHeader') return false;
+
+        const togglePos = $from.before($from.depth);
+        const currentBlockId = currentToggle.attrs?.blockId;
+        const isEmpty = currentToggle.textContent.length === 0;
+
+        // Check if cursor is at end of toggle
+        const atEnd = $from.parentOffset === currentToggle.content.size;
+
+        // CASE 1: EMPTY TOGGLE HEADER
+        if (isEmpty) {
+          // 🔒 EDITOR INVARIANT: Document must always contain ≥ 1 block
+          let blockCount = 0;
+          state.doc.descendants((node) => {
+            if (node.isBlock && node.type.name !== 'doc') {
+              blockCount++;
+            }
+          });
+
+          if (blockCount <= 1) {
+            console.log(
+              '🔒 [ToggleHeader.Delete] Cannot delete only block in document'
+            );
+            return false; // noop - preserve document invariant
+          }
+
+          const engine = getEngine(editor);
+          if (!engine) {
+            console.error('[ToggleHeader.Delete] EditorEngine not found');
+            return false;
+          }
+
+          if (!currentBlockId) {
+            console.warn('[ToggleHeader.Delete] No blockId found');
+            return false;
+          }
+
+          console.log(
+            `[ToggleHeader.Delete] Deleting empty toggle: ${currentBlockId}`
+          );
+
+          // ✅ USE ENGINE PRIMITIVE: Delete via DeleteBlockCommand
+          const cmd = new DeleteBlockCommand(currentBlockId);
+          engine.dispatch(cmd);
+
+          // Position cursor after engine processes deletion
+          requestAnimationFrame(() => {
+            const beforePos = Math.max(0, togglePos - 1);
+            try {
+              const $pos = editor.state.tr.doc.resolve(beforePos);
+              const selection = TextSelection.near($pos, -1);
+              const tr = editor.state.tr.setSelection(selection);
+              editor.view.dispatch(tr);
+            } catch (e) {
+              const $pos = editor.state.tr.doc.resolve(Math.max(0, beforePos));
+              const selection = TextSelection.near($pos);
+              const tr = editor.state.tr.setSelection(selection);
+              editor.view.dispatch(tr);
+            }
+          });
+
+          return true;
+        }
+
+        // CASE 2: NON-EMPTY TOGGLE HEADER
+        // ✅ EXPLICIT MERGE LOGIC (NO PM DEFAULT)
+        //
+        // Contract: Delete at end of non-empty toggle → merge next into current
+        // Survivor Rule: Current toggle survives (Destructive Survivor Rule)
+        // Engine Safety: Delete next → promotes its children
+
+        if (!atEnd) {
+          // Not at end - let PM handle character deletion
+          return false;
+        }
+
+        // At end of non-empty toggle - check for next block
+        const afterPos = togglePos + currentToggle.nodeSize;
+        let nextBlockNode = null;
+
+        try {
+          const $after = state.doc.resolve(afterPos);
+          if ($after.nodeAfter) {
+            nextBlockNode = $after.nodeAfter;
+          }
+        } catch (e) {
+          // No next block
+        }
+
+        if (!nextBlockNode) {
+          // No next block - noop (at document end)
+          console.log('[ToggleHeader.Delete] At document end - noop');
+          return false;
+        }
+
+        // Check if next block is structural (cannot merge)
+        const isStructuralNext = ['codeBlock', 'divider', 'image'].includes(
+          nextBlockNode.type.name
+        );
+
+        if (isStructuralNext) {
+          console.log(
+            '[ToggleHeader.Delete] Cannot merge with structural block - noop'
+          );
+          return false;
+        }
+
+        // ✅ MERGE NEXT BLOCK INTO CURRENT
+        const nextBlockId = nextBlockNode.attrs?.blockId;
+        const engine = getEngine(editor);
+
+        if (!engine) {
+          console.error('[ToggleHeader.Delete] EditorEngine not found');
+          return false;
+        }
+
+        if (!currentBlockId || !nextBlockId) {
+          console.warn('[ToggleHeader.Delete] Missing blockIds for merge');
+          return false;
+        }
+
+        // Store cursor position at merge point (end of current toggle)
+        const mergePos = $from.pos;
+
+        // Extract next block's content BEFORE deletion
+        const nextContent = nextBlockNode.content;
+
+        console.log(
+          `[ToggleHeader.Delete] Merging next into current: ${nextBlockId}`
+        );
+
+        // ✅ USE ENGINE PRIMITIVE: Delete next block via DeleteBlockCommand
+        // This ensures next block's children are promoted (Engine Law #8)
+        const cmd = new DeleteBlockCommand(nextBlockId);
+        engine.dispatch(cmd);
+
+        // After engine deletion, insert content into current toggle
+        requestAnimationFrame(() => {
+          const { tr: newTr } = editor.state;
+          // Re-resolve merge position in new document
+          const newMergePos = Math.min(mergePos, newTr.doc.content.size - 1);
+
+          if (nextContent.size > 0) {
+            newTr.insert(newMergePos, nextContent);
+          }
+
+          // Position cursor at merge point
+          newTr.setSelection(TextSelection.create(newTr.doc, newMergePos));
+          editor.view.dispatch(newTr);
+        });
+
+        return true;
       },
     };
   },
