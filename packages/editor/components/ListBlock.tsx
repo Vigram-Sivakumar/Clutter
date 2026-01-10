@@ -156,8 +156,9 @@ function isChildOfPreviousTask(
 }
 
 /**
- * Check if this item should be hidden (child of collapsed parent)
+ * Check if this item should be hidden (child of collapsed parent task or toggle)
  * Uses explicit parentBlockId relationships
+ * Supports both task and toggle collapse in flat schema
  */
 function isHiddenByCollapsedParent(
   editor: NodeViewProps['editor'],
@@ -185,8 +186,11 @@ function isHiddenByCollapsedParent(
         if (attrs.blockId === currentParentId) {
           foundParent = true;
 
-          // Check if it's a collapsed task
-          if (attrs.listType === 'task' && attrs.collapsed) {
+          // Check if it's a collapsed task or toggle
+          if (
+            (attrs.listType === 'task' || attrs.listType === 'toggle') &&
+            attrs.collapsed
+          ) {
             parentCollapsed = true;
             return false; // Stop searching
           }
@@ -322,15 +326,15 @@ export function ListBlock({
     const pos = getPos();
     if (pos === undefined) return false;
 
-    // Check if hidden by collapsed task parent
-    const hiddenByTask = isHiddenByCollapsedParent(editor, getPos);
+    // Check if hidden by collapsed task or toggle parent (flat schema)
+    const hiddenByFlat = isHiddenByCollapsedParent(editor, getPos);
 
-    // Check if hidden by collapsed toggle parent
-    const hiddenByToggle = parentToggleId
+    // Check if hidden by legacy collapsed toggle parent (via parentToggleId)
+    const hiddenByLegacyToggle = parentToggleId
       ? isHiddenByCollapsedToggle(editor.state.doc, pos, parentToggleId)
       : false;
 
-    return hiddenByTask || hiddenByToggle;
+    return hiddenByFlat || hiddenByLegacyToggle;
   }, [editor, getPos, level, parentToggleId, editor.state.doc]);
 
   // Canonical emptiness check (ProseMirror source of truth)
