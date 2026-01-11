@@ -662,34 +662,54 @@ export class IntentResolver {
           tr.setMeta('addToHistory', true);
           tr.setMeta('historyGroup', 'indent-block');
 
-          // Update level AND parentBlockId for ALL affected blocks
+          // Update level AND parentBlockId for affected blocks
           // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-          // 🔥 CRITICAL FIX: parentBlockId MUST reflect new level position
+          // 🔑 CRITICAL: Only ROOT block is reparented (adopts under previous)
+          // Children keep existing parentBlockId to preserve subtree integrity
           // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-          // When indenting, EVERY block (root + children) must have its
-          // parentBlockId recalculated based on its new level.
-          //
-          // Example:
+          // Example (CORRECT):
           //   A
           //     B
-          //     C  [Tab]
+          //     C  [Tab, no children]
           //
           // Result:
           //   A
           //     B
-          //       C  ← parent MUST become B (not stay A!)
+          //       C  ← parent becomes B (immediate previous) ✓
           //
-          // If we don't update C's parent, later outdenting B won't find C
-          // as B's child, causing subtree corruption.
+          // Example 2 (PRESERVES SUBTREE):
+          //   A
+          //     B
+          //       C  [Tab]
+          //         D
+          //
+          // Result:
+          //   A
+          //     B
+          //       C  ← parent stays B
+          //         D  ← parent stays C ✓ (NOT recalculated!)
           // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
           for (let i = 0; i < affectedBlocks.length; i++) {
             const item = affectedBlocks[i];
             const node = doc.nodeAt(item.pos);
             if (node) {
-              // ALL blocks: recalculate parent based on new level
-              const newParentBlockId =
-                getParentBlockIdForLevel(doc, item.pos, item.newLevel) ||
-                'root';
+              let newParentBlockId: string;
+
+              if (i === 0) {
+                // ROOT: adopt under immediate previous block
+                // Scan backwards to find the block immediately before this one
+                let prevBlockId: string | null = null;
+                doc.descendants((n: any, p: number) => {
+                  if (p < item.pos && n.attrs?.blockId) {
+                    prevBlockId = n.attrs.blockId;
+                  }
+                  return p < item.pos; // Stop once we reach/pass current pos
+                });
+                newParentBlockId = prevBlockId || 'root';
+              } else {
+                // CHILD: keep existing parent (subtree integrity!)
+                newParentBlockId = node.attrs.parentBlockId || 'root';
+              }
 
               tr.setNodeMarkup(item.pos, undefined, {
                 ...node.attrs,
