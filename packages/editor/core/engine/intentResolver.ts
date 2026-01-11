@@ -846,6 +846,18 @@ export class IntentResolver {
         // Apply transaction
         view.dispatch(tr);
 
+        // 🌳 FINAL TREE STATE SNAPSHOT (POST-OPERATION)
+        console.group('🌳 FINAL TREE STATE');
+        tr.doc.descendants((node: any) => {
+          if (node.attrs?.blockId) {
+            console.log(
+              `${node.attrs.blockId.slice(0, 6)} | parent=${node.attrs.parentBlockId?.slice(0, 6) || 'root'} | level=${node.attrs.level}`
+            );
+          }
+          return true;
+        });
+        console.groupEnd();
+
         // Validate tree in dev mode
         assertValidIndentTree(tr.doc);
         assertNoForwardParenting(tr.doc);
@@ -1002,6 +1014,18 @@ export class IntentResolver {
 
         // Apply transaction
         view.dispatch(tr);
+
+        // 🌳 FINAL TREE STATE SNAPSHOT (POST-OPERATION)
+        console.group('🌳 FINAL TREE STATE');
+        tr.doc.descendants((node: any) => {
+          if (node.attrs?.blockId) {
+            console.log(
+              `${node.attrs.blockId.slice(0, 6)} | parent=${node.attrs.parentBlockId?.slice(0, 6) || 'root'} | level=${node.attrs.level}`
+            );
+          }
+          return true;
+        });
+        console.groupEnd();
 
         // Validate tree in dev mode
         assertValidIndentTree(tr.doc);
