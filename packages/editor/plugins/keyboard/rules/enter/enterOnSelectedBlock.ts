@@ -75,11 +75,37 @@ export const enterOnSelectedBlocks = defineRule({
 
       const tr = state.tr;
 
+      // 🛡️ GUARD 1: Position Safety
+      // Prevents "RangeError: There is no position after the top-level node"
+      // If this fires, someone broke the explicit calculation rule
+      if (insertPos <= 0 || insertPos > tr.doc.content.size) {
+        console.error('[ENTER][GUARD] Invalid insert position', {
+          insertPos,
+          docSize: tr.doc.content.size,
+          blockPos: lastBlock.pos,
+          blockSize: lastBlock.node.nodeSize,
+          blockType: lastBlock.node.type.name,
+        });
+        return false;
+      }
+
       // Create new paragraph with same indent as last selected block
       const paragraphNode = state.schema.nodes.paragraph.create({
         blockId: crypto.randomUUID(),
         indent,
       });
+
+      // 🛡️ GUARD 2: Indent Preservation
+      // Collapse logic depends entirely on indent being correct
+      // If this fires, schema default or creation logic is broken
+      if (paragraphNode.attrs.indent !== indent) {
+        console.error('[ENTER][GUARD] Indent mismatch', {
+          expected: indent,
+          actual: paragraphNode.attrs.indent,
+          sourceBlockType: lastBlock.node.type.name,
+          targetBlockType: paragraphNode.type.name,
+        });
+      }
 
       tr.insert(insertPos, paragraphNode);
       

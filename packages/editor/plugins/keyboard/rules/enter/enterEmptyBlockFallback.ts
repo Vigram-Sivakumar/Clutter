@@ -17,6 +17,7 @@
 
 import { defineRule } from '../../types/KeyboardRule';
 import type { KeyboardContext } from '../../types/KeyboardContext';
+import { NodeSelection, TextSelection } from '@tiptap/pm/state';
 
 export const enterEmptyBlockFallback = defineRule({
   id: 'enter:globalFallback',
@@ -31,6 +32,23 @@ export const enterEmptyBlockFallback = defineRule({
 
   execute(ctx: KeyboardContext): boolean {
     const { editor, state, currentNode } = ctx;
+
+    // 🛡️ GUARD 3: Unsupported Selection Type
+    // Warn if we encounter a selection type we haven't explicitly designed for
+    // This catches AllSelection, custom selections, and future PM features early
+    if (
+      !(state.selection instanceof NodeSelection) &&
+      !(state.selection instanceof TextSelection)
+    ) {
+      console.warn('[ENTER][GUARD] Unsupported selection type', {
+        type: state.selection.constructor.name,
+        from: state.selection.from,
+        to: state.selection.to,
+        anchor: state.selection.anchor,
+        head: state.selection.head,
+      });
+      // Continue anyway - fallback should try to handle it
+    }
 
     // 🛡️ SAFETY NET: Never operate at doc depth
     // This prevents "RangeError: There is no position before the top-level node"
