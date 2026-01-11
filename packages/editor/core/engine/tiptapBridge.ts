@@ -1,7 +1,18 @@
 /**
  * TipTap Bridge - Bidirectional sync between EditorEngine and TipTap
  *
- * OWNERSHIP RULES:
+ * 🔥 FLAT MODEL MODE (Phase C)
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * When FLAT_MODEL = true:
+ * - NO tree rebuilding
+ * - NO parent inference
+ * - NO level computation
+ * - Blocks are a flat ordered list
+ * - indent is the ONLY structural attribute
+ * - Engine becomes a passive store
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ *
+ * OWNERSHIP RULES (OLD - deprecated in flat mode):
  * - Block structure → EditorEngine
  * - Block order → EditorEngine
  * - Selection (block-level) → EditorEngine
@@ -20,6 +31,18 @@ import { NodeSelection as _NodeSelection } from '@tiptap/pm/state';
 import { EditorEngine, IntentResolver } from './index';
 import { FlatIntentResolver } from './flatIntentResolver';
 import type { BlockTree, BlockNode, BlockId } from './types';
+
+/**
+ * 🔥 FLAT MODEL KILL SWITCH
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * When true:
+ * - Bridge does NOT rebuild tree from parentBlockId
+ * - Bridge does NOT compute levels
+ * - Bridge does NOT enforce indent invariants
+ * - indent attribute is the single source of truth
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ */
+const FLAT_MODEL = true;
 
 /**
  * Update source tracker - prevents infinite loops
@@ -231,8 +254,24 @@ function syncTipTapToEngine(
   engine: EditorEngine,
   updateSource: { current: UpdateSource }
 ): void {
+  // 🔥 FLAT MODEL: Bridge is DISABLED
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // 🔑 CANONICAL MODEL: TipTap attributes are source of truth
+  // In flat mode, the bridge does NOT:
+  // - Rebuild tree structure
+  // - Compute levels from parents
+  // - Infer parentBlockId
+  // - Normalize indent
+  //
+  // The engine becomes a passive store.
+  // indent is mutated directly by FlatIntentResolver.
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  if (FLAT_MODEL) {
+    console.log('[Bridge] FLAT MODE: Skipping tree rebuild (disabled)');
+    return;
+  }
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // 🔑 OLD TREE MODEL (DEPRECATED - below code disabled in flat mode)
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // - indent/outdent sets parentBlockId in TipTap attributes
   // - proseMirrorDocToBlockTree READS those attributes
