@@ -68,9 +68,9 @@ function findBlockBoundaries(state: any, $from: any) {
 
 // Helper to extract attributes to preserve when converting blocks
 function getPreservedAttrs(currentBlock: any) {
-  // 🔥 FLAT MODEL: Only preserve blockId and indent
+  // 🔥 FLAT MODEL: Only preserve indent
+  // 🔒 BLOCK IDENTITY LAW: NEVER preserve blockId across type changes
   return {
-    blockId: currentBlock.attrs?.blockId,
     indent: currentBlock.attrs?.indent ?? 0,
   };
 }

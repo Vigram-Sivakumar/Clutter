@@ -61,14 +61,13 @@ export function replaceBlock(
  * When a node type changes (paragraph → heading, paragraph → HR, etc.),
  * blockId MUST be regenerated. NEVER preserve blockId across type changes.
  * 
- * Only preserve structural attributes (indent, level, parent relationships).
+ * 🔥 FLAT MODEL (Phase 2):
+ * Only preserve indent. No parentBlockId, no level, no parentToggleId.
+ * Hierarchy is determined solely by indent values.
  */
 export interface PreservedAttrs {
-  blockId?: string; // ⚠️ DEPRECATED - Do not preserve across type changes
-  parentBlockId?: string | null;
-  parentToggleId?: string | null;
-  level?: number;
-  indentLevel?: number;
+  /** Indent level (0 = root) - ONLY structural attribute preserved */
+  indent?: number;
 }
 
 /**
@@ -137,59 +136,58 @@ export interface BlockCreator {
   ) => PMNode;
 }
 
+/**
+ * 🔒 STEP 2C.3: Slash command block creation helpers
+ * 
+ * All helpers follow the Block Creation Law:
+ * - Always generate new blockId
+ * - Always use indent (flat model)
+ * - Never use parentBlockId, level, or parentToggleId
+ */
 export const createBlock: BlockCreator = {
   heading: (schema, level, content, preservedAttrs) => {
     return schema.nodes.heading.create(
       {
-        blockId: preservedAttrs?.blockId || crypto.randomUUID(),
-        parentBlockId: preservedAttrs?.parentBlockId || null,
+        blockId: crypto.randomUUID(), // 🔒 Always new ID
+        indent: preservedAttrs?.indent ?? 0, // 🔥 FLAT MODEL
         headingLevel: level,
-        level: preservedAttrs?.level || 0,
-        parentToggleId: preservedAttrs?.parentToggleId || null,
+        collapsed: false,
       },
       content
     );
   },
 
   listBlock: (schema, listType, content, checked = false, preservedAttrs) => {
-    // ListBlock now holds inline content directly (no paragraph wrapper)
-    const attrs = {
-      blockId: preservedAttrs?.blockId || crypto.randomUUID(),
-      parentBlockId: preservedAttrs?.parentBlockId || null,
-      listType,
-      level: preservedAttrs?.level || 0,
-      checked: listType === 'task' ? checked : null,
-      parentToggleId: preservedAttrs?.parentToggleId || null,
-    };
-
-    console.log('🟢 createBlock.listBlock: Creating with attrs =', attrs);
-    console.log('🟢 createBlock.listBlock: preservedAttrs =', preservedAttrs);
-
-    return schema.nodes.listBlock.create(attrs, content);
+    return schema.nodes.listBlock.create(
+      {
+        blockId: crypto.randomUUID(), // 🔒 Always new ID
+        indent: preservedAttrs?.indent ?? 0, // 🔥 FLAT MODEL
+        listType,
+        checked: listType === 'task' ? checked : null,
+        collapsed: false,
+      },
+      content
+    );
   },
 
   blockquote: (schema, content, preservedAttrs) => {
-    // Blockquote now holds inline content directly (no paragraph wrapper)
     return schema.nodes.blockquote.create(
       {
-        blockId: preservedAttrs?.blockId || crypto.randomUUID(),
-        parentBlockId: preservedAttrs?.parentBlockId || null,
-        parentToggleId: preservedAttrs?.parentToggleId || null,
-        level: preservedAttrs?.level || 0,
+        blockId: crypto.randomUUID(), // 🔒 Always new ID
+        indent: preservedAttrs?.indent ?? 0, // 🔥 FLAT MODEL
+        collapsed: false,
       },
       content
     );
   },
 
   callout: (schema, type, content, preservedAttrs) => {
-    // Callout now holds inline content directly (no paragraph wrapper)
     return schema.nodes.callout.create(
       {
-        blockId: preservedAttrs?.blockId || crypto.randomUUID(),
-        parentBlockId: preservedAttrs?.parentBlockId || null,
+        blockId: crypto.randomUUID(), // 🔒 Always new ID
+        indent: preservedAttrs?.indent ?? 0, // 🔥 FLAT MODEL
         type,
-        parentToggleId: preservedAttrs?.parentToggleId || null,
-        level: preservedAttrs?.level || 0,
+        collapsed: false,
       },
       content
     );
@@ -197,37 +195,26 @@ export const createBlock: BlockCreator = {
 
   codeBlock: (schema, content, preservedAttrs) => {
     const textNode = content ? schema.text(content) : null;
+    const attrs = {
+      blockId: crypto.randomUUID(), // 🔒 Always new ID
+      indent: preservedAttrs?.indent ?? 0, // 🔥 FLAT MODEL
+      collapsed: false,
+    };
+    
     return textNode
-      ? schema.nodes.codeBlock.create(
-          {
-            blockId: preservedAttrs?.blockId || crypto.randomUUID(),
-            parentBlockId: preservedAttrs?.parentBlockId || null,
-            parentToggleId: preservedAttrs?.parentToggleId || null,
-            level: preservedAttrs?.level || 0,
-          },
-          textNode
-        )
-      : schema.nodes.codeBlock.create({
-          blockId: preservedAttrs?.blockId || crypto.randomUUID(),
-          parentBlockId: preservedAttrs?.parentBlockId || null,
-          parentToggleId: preservedAttrs?.parentToggleId || null,
-          level: preservedAttrs?.level || 0,
-        });
+      ? schema.nodes.codeBlock.create(attrs, textNode)
+      : schema.nodes.codeBlock.create(attrs);
   },
 
   toggleBlock: (schema, content, preservedAttrs) => {
-    // Create standalone toggleHeader node (flat structure like listBlock)
-    // Children blocks will reference this toggle via parentToggleId
-    // Note: toggleHeader itself shouldn't have parentToggleId (it's a parent, not a child)
-    // Default: collapsed (expands when user presses Enter on the header)
-    return schema.nodes.toggleHeader.create(
+    // toggleBlock is actually a listBlock with listType='toggle' (flat model)
+    return schema.nodes.listBlock.create(
       {
-        blockId: preservedAttrs?.blockId || crypto.randomUUID(),
-        parentBlockId: preservedAttrs?.parentBlockId || null,
-        collapsed: true,
-        level: preservedAttrs?.level || 0,
-        toggleId: crypto.randomUUID(),
-        parentToggleId: preservedAttrs?.parentToggleId || null,
+        blockId: crypto.randomUUID(), // 🔒 Always new ID
+        indent: preservedAttrs?.indent ?? 0, // 🔥 FLAT MODEL
+        listType: 'toggle',
+        checked: null,
+        collapsed: false,
       },
       content
     );
@@ -236,22 +223,19 @@ export const createBlock: BlockCreator = {
   paragraph: (schema, content, preservedAttrs) => {
     return schema.nodes.paragraph.create(
       {
-        blockId: preservedAttrs?.blockId || crypto.randomUUID(),
-        parentBlockId: preservedAttrs?.parentBlockId || null,
-        parentToggleId: preservedAttrs?.parentToggleId || null,
-        level: preservedAttrs?.level || 0,
+        blockId: crypto.randomUUID(), // 🔒 Always new ID
+        indent: preservedAttrs?.indent ?? 0, // 🔥 FLAT MODEL
       },
       content
     );
   },
 
   horizontalRule: (schema, style, preservedAttrs) => {
-    // 🔒 BLOCK IDENTITY LAW: Node type change = new identity
-    // NEVER preserve blockId when transforming paragraph → horizontalRule
     return schema.nodes.horizontalRule.create({
-      blockId: crypto.randomUUID(), // ✅ Always generate new ID
-      indent: preservedAttrs?.indent || 0, // 🔥 FLAT MODEL: Preserve indent
+      blockId: crypto.randomUUID(), // 🔒 Always new ID
+      indent: preservedAttrs?.indent ?? 0, // 🔥 FLAT MODEL
       style,
+      collapsed: false,
     });
   },
 };
