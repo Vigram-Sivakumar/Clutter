@@ -31,6 +31,8 @@ export function ParagraphBlock({
   const tags = node.attrs.tags || [];
   const hasTags = tags.length > 0;
   const level = node.attrs.level || 0;
+  // 🔥 FLAT MODEL: Use `indent` attribute (fallback to `level` for migration)
+  const blockIndent = node.attrs.indent ?? level;
 
   // Canonical emptiness check (ProseMirror source of truth)
   const isEmpty = node.content.size === 0;
@@ -77,8 +79,8 @@ export function ParagraphBlock({
     [updateAttributes]
   );
 
-  // Calculate indent based on level (hierarchy)
-  const indent = level * spacing.indent;
+  // Calculate indent based on blockIndent (hierarchy)
+  const indent = blockIndent * spacing.indent;
 
   return (
     <NodeViewWrapper

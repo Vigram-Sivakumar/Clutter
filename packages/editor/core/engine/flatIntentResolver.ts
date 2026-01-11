@@ -96,6 +96,13 @@ export class FlatIntentResolver {
     // Get current indent
     const currentIndent = blockNode.attrs.indent ?? 0;
 
+    console.log('[FLAT INDENT] BEFORE:', {
+      blockId: blockId.slice(0, 8),
+      currentIndent,
+      hasIndentAttr: 'indent' in blockNode.attrs,
+      attrs: blockNode.attrs,
+    });
+
     // CANONICAL RULE: Just increase indent by 1
     tr.setNodeMarkup(blockPos, undefined, {
       ...blockNode.attrs,
@@ -108,6 +115,14 @@ export class FlatIntentResolver {
 
     // Apply
     view.dispatch(tr);
+
+    // Verify after dispatch
+    const updatedNode = view.state.doc.nodeAt(blockPos);
+    console.log('[FLAT INDENT] AFTER:', {
+      blockId: blockId.slice(0, 8),
+      newIndent: updatedNode?.attrs.indent,
+      attrs: updatedNode?.attrs,
+    });
 
     return {
       success: true,

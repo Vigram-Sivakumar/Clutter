@@ -286,8 +286,15 @@ export function ListBlock({
 }: ListBlockProps) {
   const { colors } = useTheme();
   const attrs = node.attrs as ListBlockAttrs;
-  const { listType, level, checked, collapsed, parentToggleId, priority } =
-    attrs;
+  const {
+    listType,
+    level,
+    checked,
+    collapsed,
+    parentToggleId,
+    priority,
+    indent,
+  } = attrs;
 
   // Check if this block is selected
   const isSelected = useBlockSelection({
@@ -413,9 +420,11 @@ export function ListBlock({
   };
 
   // Calculate indent (hierarchy + toggle grouping)
-  const hierarchyIndent = level * spacing.indent;
+  // 🔥 FLAT MODEL: Use `indent` attribute (fallback to `level` for migration)
+  const blockIndent = indent ?? level ?? 0;
+  const hierarchyIndent = blockIndent * spacing.indent;
   const toggleIndent = parentToggleId ? spacing.toggleIndent : 0;
-  const indent = hierarchyIndent + toggleIndent;
+  const totalIndent = hierarchyIndent + toggleIndent;
 
   // Calculate display level for marker styling
   // If nested under a toggle, subtract 1 so first-level lists under toggle show first-level markers
@@ -649,7 +658,7 @@ export function ListBlock({
         position: 'relative',
         display: 'flex',
         flexDirection: 'column',
-        paddingLeft: indent,
+        paddingLeft: totalIndent,
         fontFamily: typography.fontFamily,
         fontSize: typography.body,
         lineHeight: typography.lineHeightRatio,
