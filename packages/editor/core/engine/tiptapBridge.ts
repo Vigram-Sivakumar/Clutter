@@ -231,21 +231,17 @@ function syncTipTapToEngine(
   updateSource: { current: UpdateSource }
 ): void {
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // 🔥 CRITICAL: STRUCTURAL SYNC DISABLED
+  // 🔑 CANONICAL MODEL: TipTap attributes are source of truth
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // The Engine is the ONLY source of truth for structure (parentBlockId).
-  // TipTap is a PROJECTION of engine state.
+  // - indent/outdent sets parentBlockId in TipTap attributes
+  // - proseMirrorDocToBlockTree READS those attributes
+  // - proseMirrorDocToBlockTree DERIVES level from parent chain
+  // - Engine tree is rebuilt from this canonical state
   //
-  // Syncing TipTap → Engine for structure was corrupting the canonical model:
-  // - Engine would set parentBlockId correctly during indent/outdent
-  // - Then bridge would rebuild tree from TipTap, overwriting it
-  // - Children would "stick" to old parents
-  // - Subtree moves would fail
-  //
-  // RULE: Engine → TipTap (allowed)
-  //       TipTap → Engine structure (FORBIDDEN)
-  //
-  // TipTap changes should only update TEXT content, not structure.
+  // This is correct because:
+  // 1. parentBlockId comes from TipTap (set by indent/outdent) ✅
+  // 2. level is COMPUTED, never trusted ✅
+  // 3. Engine derives structure from TipTap ✅
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   // Skip if update originated from engine
@@ -256,21 +252,37 @@ function syncTipTapToEngine(
     return;
   }
 
-  console.log(
-    '[Bridge] TipTap→Engine STRUCTURAL SYNC DISABLED (canonical model)'
-  );
-  console.log('[Bridge] Engine remains authoritative for parentBlockId');
+  console.log('[Bridge] Syncing TipTap→Engine (full rebuild)');
 
-  // Mark as TipTap update (for text content changes only)
+  // Mark as TipTap update
   updateSource.current = 'tiptap';
 
   try {
-    // TODO: Sync text content changes only (not structure)
-    // For now, structural changes ONLY come from Engine
-    // The old code that was corrupting structure:
-    // const newTree = proseMirrorDocToBlockTree(pmDoc);
-    // engine.tree = newTree;  // ← This was destroying canonical state!
-    // Engine tree remains unchanged - it is already canonical
+    // CRITICAL: Walk ProseMirror document and rebuild engine tree
+    // - parentBlockId comes from node attributes (set by indent/outdent)
+    // - level is DERIVED from parent chain (never trusted)
+    const pmDoc = editor.state.doc;
+    const newTree = proseMirrorDocToBlockTree(pmDoc);
+
+    // Replace engine's tree with canonical state from TipTap
+    engine.tree = newTree;
+
+    console.log('[Bridge] Engine block index rebuilt:', {
+      blockCount: Object.keys(newTree.nodes).length - 1, // -1 for root
+      blocks: Object.keys(newTree.nodes).filter((id) => id !== 'root'),
+    });
+
+    // 🌳 TREE SNAPSHOT AFTER REBUILD
+    console.group('🌳 TREE SNAPSHOT — AFTER BRIDGE REBUILD');
+    const nodesAfter = Object.values(engine.tree.nodes).filter(
+      (n: any) => n.id !== 'root'
+    );
+    nodesAfter.forEach((b: any, i: number) => {
+      console.log(
+        `${i}. ${b.id.slice(0, 8)} | level=${b.level} | parent=${b.parentId?.slice(0, 8) ?? 'root'}`
+      );
+    });
+    console.groupEnd();
   } finally {
     // Reset source after a tick
     setTimeout(() => {
