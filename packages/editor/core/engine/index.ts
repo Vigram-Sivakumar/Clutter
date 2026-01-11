@@ -36,8 +36,8 @@ export { ModeManager } from './mode';
 // Engine
 export { EditorEngine } from './EditorEngine';
 
-// Intent resolver
-export { IntentResolver } from './intentResolver';
+// Flat Intent resolver (flat model)
+export { FlatIntentResolver } from './flatIntentResolver';
 
 // Undo controller
 export { UndoController } from './undoController';

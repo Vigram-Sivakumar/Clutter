@@ -28,7 +28,7 @@ import { useEffect, useRef, useMemo } from 'react';
 import type { Editor } from '@tiptap/core';
 // NodeSelection preserved for future re-enablement of block selection sync
 import { NodeSelection as _NodeSelection } from '@tiptap/pm/state';
-import { EditorEngine, IntentResolver } from './index';
+import { EditorEngine } from './index';
 import { FlatIntentResolver } from './flatIntentResolver';
 import type { BlockTree, BlockNode, BlockId } from './types';
 
@@ -50,11 +50,11 @@ const FLAT_MODEL = true;
 type UpdateSource = 'engine' | 'tiptap' | null;
 
 /**
- * Bridge state
+ * Bridge state (FLAT MODEL)
  */
 interface BridgeState {
   engine: EditorEngine;
-  resolver: IntentResolver;
+  resolver: FlatIntentResolver;
   updateSource: UpdateSource;
 }
 
@@ -615,7 +615,7 @@ function createBridge(editor: Editor): BridgeState {
 }
 
 /**
- * React hook to get EditorEngine + IntentResolver for a TipTap editor
+ * React hook to get EditorEngine + FlatIntentResolver for a TipTap editor
  *
  * Usage:
  * ```tsx
@@ -625,7 +625,7 @@ function createBridge(editor: Editor): BridgeState {
  */
 export function useEditorEngine(editor: Editor | null): {
   engine: EditorEngine | null;
-  resolver: IntentResolver | null;
+  resolver: FlatIntentResolver | null;
 } {
   // Store bridge state in ref (survives rerenders)
   const bridgeRef = useRef<BridgeState | null>(null);
@@ -681,7 +681,9 @@ export function useEditorEngine(editor: Editor | null): {
  *
  * This is useful for passing resolver to KeyboardEngine.
  */
-export function getResolverForEditor(_editor: Editor): IntentResolver | null {
+export function getResolverForEditor(
+  _editor: Editor
+): FlatIntentResolver | null {
   // TODO: Store resolver in editor instance for retrieval
   return null;
 }

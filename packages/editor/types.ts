@@ -16,15 +16,15 @@ export type ListType = 'bullet' | 'numbered' | 'task' | 'toggle';
 export type HeadingLevel = 1 | 2 | 3;
 
 /**
- * Node attributes for ListBlock
+ * Node attributes for ListBlock (FLAT MODEL)
+ * Structure = indent only. No parent pointers, no derived levels.
  */
 export interface ListBlockAttrs {
   blockId: string;
-  parentBlockId: string | null;
   listType: ListType;
-  level: number;
+  indent: number; // 0..n - SOLE source of structural truth
   checked: boolean | null;
-  collapsed: boolean;
+  collapsed: boolean; // UI state only
   priority: number; // 0 = no priority, 1-3 = priority level (!, !!, !!!)
 }
 
