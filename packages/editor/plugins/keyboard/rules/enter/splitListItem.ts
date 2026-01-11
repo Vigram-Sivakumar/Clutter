@@ -16,6 +16,7 @@
 
 import { defineRule } from '../../types/KeyboardRule';
 import type { KeyboardContext } from '../../types/KeyboardContext';
+import { createBlock } from '../../../../core/createBlock';
 import type { EditorIntent } from '../../../../core/engine';
 import { findAncestorNode } from '../../../../utils/keyboardHelpers';
 
@@ -117,19 +118,21 @@ export const splitListItem = defineRule({
       // ENTER INVARIANT: Sibling if no children, continue depth if children
       const newIndent = maxIndent === baseIndent ? baseIndent : maxIndent;
 
-      // Step 3: Create and insert new list item with "after" content
-      const newListBlock = cmdState.schema.nodes.listBlock.create(
-        {
-          blockId: crypto.randomUUID(),
+      // Step 3: Create and insert new list item with "after" content using createBlock()
+      const newListBlock = createBlock(cmdState, tr, {
+        type: 'listBlock',
+        insertPos: currentBlockEndPos,
+        indent: newIndent,
+        attrs: {
           listType: attrs.listType,
           checked: attrs.listType === 'task' ? false : null,
-          indent: newIndent,
           collapsed: false,
         },
-        contentAfter
-      );
+        content: contentAfter,
+      });
 
-      tr.insert(currentBlockEndPos, newListBlock);
+      // If createBlock failed, abort
+      if (!newListBlock) return false;
 
       // Step 4: Position cursor at start of new list item (inside the content)
       // New block starts at currentBlockEndPos

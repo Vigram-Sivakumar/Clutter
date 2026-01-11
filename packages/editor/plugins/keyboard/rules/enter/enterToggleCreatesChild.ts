@@ -16,6 +16,7 @@
 
 import { defineRule } from '../../types/KeyboardRule';
 import type { KeyboardContext } from '../../types/KeyboardContext';
+import { createBlock } from '../../../../core/createBlock';
 import { findAncestorNode } from '../../../../utils/keyboardHelpers';
 
 export const enterToggleCreatesChild = defineRule({
@@ -79,14 +80,15 @@ export const enterToggleCreatesChild = defineRule({
       // New child indent: always toggleIndent + 1
       const newIndent = baseIndent + 1;
       
-      // Create new paragraph with ONLY indent (flat model)
-      const paragraph = state.schema.nodes.paragraph.create({
-        blockId: crypto.randomUUID(),
+      // Create new paragraph with ONLY indent (flat model) using createBlock()
+      const paragraph = createBlock(state, tr, {
+        type: 'paragraph',
+        insertPos: insertAfterPos,
         indent: newIndent,
       });
       
-      // Insert as FIRST child (right after toggle header)
-      tr.insert(insertAfterPos, paragraph);
+      // If createBlock failed, abort
+      if (!paragraph) return false;
       
       // Position cursor at start of new paragraph (SAME transaction)
       const newCursorPos = insertAfterPos + 1;
