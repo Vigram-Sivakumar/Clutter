@@ -556,11 +556,17 @@ export class IntentResolver {
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
       const immediatePrevious = blocks[currentIndex - 1];
-      let adoptableParent: (typeof blocks)[number] | null = null;
+      const newParentBlockId = immediatePrevious.id; // 🔑 CRITICAL: Use previous block as parent!
 
       // Simple rule: previous must be at same level or deeper
       if (immediatePrevious.level >= currentLevel) {
-        adoptableParent = immediatePrevious;
+        console.log(`✅ [handleIndentBlock] Indent allowed`, {
+          current: { id: blockId.slice(0, 8), level: currentLevel },
+          newParent: {
+            id: newParentBlockId.slice(0, 8),
+            level: immediatePrevious.level,
+          },
+        });
       } else {
         console.log(
           `🔒 [handleIndentBlock] BLOCKED: Previous block too shallow`,
@@ -581,21 +587,13 @@ export class IntentResolver {
         };
       }
 
-      console.log(`✅ [handleIndentBlock] Indent allowed`, {
-        current: { id: blockId.slice(0, 8), level: currentLevel },
-        previous: {
-          id: adoptableParent.id.slice(0, 8),
-          level: adoptableParent.level,
-        },
-      });
-
       // 🔒 Circular reference check
-      if (isDescendantOf(doc, adoptableParent.id, blockId)) {
+      if (isDescendantOf(doc, newParentBlockId, blockId)) {
         console.log(
           `🔒 [handleIndentBlock] BLOCKED: Circular reference prevented`,
           {
             current: { id: blockId.slice(0, 8) },
-            parent: { id: adoptableParent.id.slice(0, 8) },
+            parent: { id: newParentBlockId.slice(0, 8) },
             reason: 'Cannot indent under own descendant',
           }
         );
@@ -605,81 +603,24 @@ export class IntentResolver {
           reason: 'Cannot indent: would create circular reference',
         };
       }
+
+      // Store for use in the mutation below
+      (this as any)._pendingIndentParent = newParentBlockId;
     }
 
-    // 1. Get block
-    const block = this._engine.getBlock(blockId);
-    if (!block) {
-      return {
-        success: false,
-        intent,
-        reason: `Block ${blockId} not found`,
-      };
-    }
-
-    // 2. Get parent and siblings
-    const parent = this._engine.getParent(blockId);
-    if (!parent) {
-      return {
-        success: false,
-        intent,
-        reason: 'Block has no parent (cannot indent root)',
-      };
-    }
-
-    const siblings = parent.children;
-    const index = siblings.indexOf(blockId);
-
-    // 3. Must have a previous sibling
-    if (index <= 0) {
-      return {
-        success: false,
-        intent,
-        reason: 'No previous sibling to nest under',
-      };
-    }
-
-    const previousSiblingId = siblings[index - 1];
-
-    // Guard: previousSiblingId must exist (should never fail due to index > 0 check)
-    if (!previousSiblingId) {
-      return {
-        success: false,
-        intent,
-        reason: 'Previous sibling not found in siblings array',
-      };
-    }
+    // Get the correct parent from the guard
+    const newParentId = (this as any)._pendingIndentParent;
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // 🔑 SPECIAL CASE: Toggle Adoption
+    // 🔑 SPECIAL CASE: Toggle Adoption (if previous block is a toggle)
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    //
-    // If previous sibling is a toggleHeader, Tab adopts the block INTO the toggle.
-    //
-    // BEFORE:  ▶ My Toggle
-    //          Paragraph (cursor here)
-    //
-    // AFTER:   ▼ My Toggle
-    //            └─ Paragraph (cursor here)
-    //
-    // This must be checked BEFORE general nesting logic.
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-    const previousSibling = this._engine.getBlock(previousSiblingId);
-    if (!previousSibling) {
-      return {
-        success: false,
-        intent,
-        reason: 'Previous sibling not found',
-      };
-    }
-
-    if (previousSibling.type === 'toggleHeader') {
+    const previousBlock = this._engine.getBlock(newParentId);
+    if (previousBlock && previousBlock.type === 'toggleHeader') {
       console.log(
         '🔑 [handleIndentBlock] Toggle adoption detected:',
         blockId,
         '→',
-        previousSiblingId
+        newParentId
       );
 
       // 🔥 CANONICAL MODEL: Toggle adoption = same as indent
@@ -704,7 +645,7 @@ export class IntentResolver {
         if (selectedPos !== null && selectedNode) {
           console.log('✅ [handleIndentBlock/toggle] Adopting under toggle:', {
             block: blockId.slice(0, 8),
-            toggle: previousSiblingId.slice(0, 8),
+            toggle: newParentId.slice(0, 8),
           });
 
           // Mark for undo grouping
@@ -714,8 +655,7 @@ export class IntentResolver {
           // STEP 1: Change selected block's parent to toggle
           tr.setNodeMarkup(selectedPos, undefined, {
             ...selectedNode.attrs,
-            parentBlockId: previousSiblingId,
-            // level will be recomputed - don't set it!
+            parentBlockId: newParentId,
           });
 
           // STEP 2: Recompute ALL levels from parent chain
@@ -724,7 +664,7 @@ export class IntentResolver {
           // STEP 3: Expand toggle if collapsed (Notion-style)
           let togglePos: number | null = null;
           doc.descendants((node: any, pos: number) => {
-            if (node.attrs?.blockId === previousSiblingId) {
+            if (node.attrs?.blockId === newParentId) {
               togglePos = pos;
               return false;
             }
@@ -736,7 +676,7 @@ export class IntentResolver {
             if (toggleNode && toggleNode.attrs.collapsed) {
               console.log(
                 '🔑 [handleIndentBlock] Expanding collapsed toggle:',
-                previousSiblingId
+                newParentId
               );
               tr.setNodeMarkup(togglePos, undefined, {
                 ...toggleNode.attrs,
@@ -754,11 +694,6 @@ export class IntentResolver {
         }
       }
 
-      // 🔥 CRITICAL: Do NOT issue MoveBlockCommand
-      // Indent/outdent is now TipTap-owned (updates level + parentBlockId attributes).
-      // Engine derives structure from those attributes during rebuild.
-      // See: docs/INDENT_TREE_INVARIANT.md
-
       // Cursor placement
       this._engine.setCursorAfterStructuralMove(blockId);
 
@@ -770,11 +705,11 @@ export class IntentResolver {
     }
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // GENERAL NESTING (List items, etc.)
+    // GENERAL NESTING (all other blocks)
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-    // 4. Policy check
-    if (!this._engine.canNest(blockId, previousSiblingId)) {
+    // Policy check
+    if (!this._engine.canNest(blockId, newParentId)) {
       return {
         success: false,
         intent,
@@ -814,8 +749,11 @@ export class IntentResolver {
         // Structure comes from parents, levels are derived.
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+        // Get the correct parent from the guard
+        const newParentId = (this as any)._pendingIndentParent;
+
         // Prevent circular parenting (don't indent under own descendant)
-        if (isDescendantOf(doc, previousSiblingId, blockId)) {
+        if (isDescendantOf(doc, newParentId, blockId)) {
           console.log('🔒 [handleIndentBlock] BLOCKED: Circular reference');
           return {
             success: false,
@@ -827,17 +765,17 @@ export class IntentResolver {
         console.log('✅ [handleIndentBlock] Reparenting:', {
           block: blockId.slice(0, 8),
           oldParent: (selectedNode.attrs.parentBlockId || 'root').slice(0, 8),
-          newParent: previousSiblingId.slice(0, 8),
+          newParent: newParentId.slice(0, 8),
         });
 
         // Mark for undo grouping
         tr.setMeta('addToHistory', true);
         tr.setMeta('historyGroup', 'indent-block');
 
-        // STEP 1: Change selected block's parent (ONLY change!)
+        // STEP 1: Change selected block's parent to PREVIOUS BLOCK (not previous sibling from engine!)
         tr.setNodeMarkup(selectedPos, undefined, {
           ...selectedNode.attrs,
-          parentBlockId: previousSiblingId,
+          parentBlockId: newParentId, // 🔑 CRITICAL: Use actual previous block, not engine sibling!
           // level will be recomputed - don't set it!
         });
 
