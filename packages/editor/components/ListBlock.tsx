@@ -115,9 +115,12 @@ function getChildrenInfo(
 }
 
 /**
- * Check if a toggle has children (any blocks with this toggle as parent)
+ * Check if a block has children (FLAT MODEL)
+ *
+ * RULE: A block has children if the next block has greater indent
+ * NO parent pointers. Pure array logic.
  */
-function toggleHasChildren(
+function blockHasChildren(
   editor: NodeViewProps['editor'],
   getPos: () => number | undefined
 ): boolean {
@@ -128,27 +131,32 @@ function toggleHasChildren(
   const currentNode = doc.nodeAt(pos);
   if (!currentNode) return false;
 
-  const currentBlockId = currentNode.attrs.blockId;
-  if (!currentBlockId) return false;
+  const currentIndent = currentNode.attrs.indent ?? 0;
 
-  let hasChildren = false;
+  // Find current block index and next block
+  let currentIndex = -1;
+  let nextNode: any = null;
 
-  // Check if any block has this as parent
+  const blocks: any[] = [];
   doc.descendants((node) => {
-    if (
-      node.type.name === 'listBlock' ||
-      node.type.name === 'paragraph' ||
-      node.type.name === 'heading'
-    ) {
-      if (node.attrs.parentBlockId === currentBlockId) {
-        hasChildren = true;
-        return false; // Stop searching
-      }
+    if (node.attrs?.blockId) {
+      blocks.push(node);
     }
     return true;
   });
 
-  return hasChildren;
+  currentIndex = blocks.findIndex(
+    (n) => n.attrs.blockId === currentNode.attrs.blockId
+  );
+  if (currentIndex === -1 || currentIndex === blocks.length - 1) {
+    return false; // No next block
+  }
+
+  nextNode = blocks[currentIndex + 1];
+  const nextIndent = nextNode.attrs.indent ?? 0;
+
+  // Has children if next block is more indented
+  return nextIndent > currentIndent;
 }
 
 /**
@@ -332,11 +340,10 @@ export function ListBlock({
     return getChildrenInfo(editor, getPos);
   }, [editor, getPos, listType, editor.state.doc]);
 
-  // Check if toggle has children
-  const toggleHasChildrenFlag = useMemo(() => {
-    if (listType !== 'toggle') return false;
-    return toggleHasChildren(editor, getPos);
-  }, [editor, getPos, listType, editor.state.doc]);
+  // 🔥 FLAT MODEL: Check if this block has children (works for all types)
+  const hasChildrenFlag = useMemo(() => {
+    return blockHasChildren(editor, getPos);
+  }, [editor, getPos, editor.state.doc]);
 
   // Canonical emptiness check (ProseMirror source of truth)
   const isEmpty = node.content.size === 0;
@@ -552,10 +559,10 @@ export function ListBlock({
 
   // Render toggle row (below text, for tasks/toggles with children)
   const renderToggleRow = () => {
-    // Show for tasks with children OR toggles with children
+    // 🔥 FLAT MODEL: Show caret for ANY block with children (task or toggle)
+    // In flat model, collapse is universal - any block can collapse its visual children
     const shouldShow =
-      (listType === 'task' && childrenInfo.hasChildren) ||
-      (listType === 'toggle' && toggleHasChildrenFlag);
+      (listType === 'task' || listType === 'toggle') && hasChildrenFlag;
 
     if (!shouldShow) return null;
 
