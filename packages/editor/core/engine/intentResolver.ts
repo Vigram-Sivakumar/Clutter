@@ -947,9 +947,31 @@ export class IntentResolver {
                 getParentBlockIdForLevel(doc, item.pos, item.newLevel) ||
                 'root';
             } else {
-              // CHILD of outdented block: keep existing parent
-              // (preserves subtree integrity)
-              newParentBlockId = node.attrs.parentBlockId || 'root';
+              // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+              // 🔥 CRITICAL FIX: Children MUST follow the root block
+              // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+              // When outdenting, the subtree moves WITH the root block.
+              // Children do NOT stay attached to the old grandparent.
+              //
+              // Example:
+              //   A
+              //     B [Shift+Tab]
+              //       C
+              //       D
+              //
+              // Result (CORRECT):
+              //   A
+              //   B          ← parent = root
+              //     C        ← parent = B (follows B!)
+              //     D        ← parent = B (follows B!)
+              //
+              // NOT (WRONG):
+              //   A
+              //   B
+              //     C        ← parent = A (stays behind! ❌)
+              //     D        ← parent = A (stays behind! ❌)
+              // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+              newParentBlockId = affectedBlocks[0].blockId;
             }
 
             tr.setNodeMarkup(item.pos, undefined, {
