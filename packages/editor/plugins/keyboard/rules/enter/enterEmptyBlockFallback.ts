@@ -18,6 +18,7 @@
 import { defineRule } from '../../types/KeyboardRule';
 import type { KeyboardContext } from '../../types/KeyboardContext';
 import { NodeSelection, TextSelection } from '@tiptap/pm/state';
+import { createBlock } from '../../../../core/createBlock';
 
 export const enterEmptyBlockFallback = defineRule({
   id: 'enter:globalFallback',
@@ -89,14 +90,16 @@ export const enterEmptyBlockFallback = defineRule({
 
         if (!blockNode) return false;
 
-        // Insert new paragraph after current block
+        // Insert new paragraph after current block using createBlock()
         const insertPos = blockPos + blockNode.nodeSize;
-        const newParagraph = cmdState.schema.nodes.paragraph.create({
-          blockId: crypto.randomUUID(),
+        const newParagraph = createBlock(cmdState, tr, {
+          type: 'paragraph',
+          insertPos,
           indent: 0,
         });
 
-        tr.insert(insertPos, newParagraph);
+        // If createBlock failed, abort
+        if (!newParagraph) return false;
 
         // Move cursor to new paragraph
         const cursorPos = insertPos + 1;
@@ -130,18 +133,24 @@ export const enterEmptyBlockFallback = defineRule({
           tr.delete(deleteFrom, deleteTo);
         }
         
-        // Step 2: Create new block with extracted content
+        // Step 2: Create new block with extracted content using createBlock()
         const insertPos = blockPos + blockNode.nodeSize - contentAfter.size;
-        const nodeType = blockNode.type;
-        const newBlock = nodeType.create(
-          {
-            ...blockNode.attrs,
-            blockId: crypto.randomUUID(), // New block gets new ID
-          },
-          contentAfter
-        );
+        const blockTypeName = blockNode.type.name as 'paragraph' | 'listBlock' | 'horizontalRule';
         
-        tr.insert(insertPos, newBlock);
+        const newBlock = createBlock(cmdState, tr, {
+          type: blockTypeName,
+          insertPos,
+          indent: blockNode.attrs.indent ?? 0,
+          attrs: {
+            // Preserve all attrs except blockId (createBlock generates new one)
+            ...blockNode.attrs,
+            blockId: undefined, // Let createBlock generate new ID
+          },
+          content: contentAfter,
+        });
+        
+        // If createBlock failed, abort
+        if (!newBlock) return false;
         
         // Step 3: Move cursor to start of new block
         const cursorPos = insertPos + 1;

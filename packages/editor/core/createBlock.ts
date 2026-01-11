@@ -23,7 +23,7 @@
  */
 
 import type { EditorState, Transaction } from '@tiptap/pm/state';
-import type { Node as PMNode } from '@tiptap/pm/model';
+import type { Node as PMNode, Fragment } from '@tiptap/pm/model';
 
 /**
  * Supported block types (v1 - intentionally limited)
@@ -46,6 +46,9 @@ export type CreateBlockOptions = {
   
   /** Additional attributes (e.g., listType, collapsed, etc.) */
   attrs?: Record<string, any>;
+  
+  /** Optional content for the block (for split operations) */
+  content?: Fragment | null;
 };
 
 /**
@@ -73,7 +76,7 @@ export function createBlock(
   tr: Transaction,
   options: CreateBlockOptions
 ): PMNode | null {
-  const { type, insertPos, indent = 0, attrs = {} } = options;
+  const { type, insertPos, indent = 0, attrs = {}, content = null } = options;
 
   // Lookup node type from schema
   const nodeType = state.schema.nodes[type];
@@ -93,11 +96,15 @@ export function createBlock(
   }
 
   // 🔑 Create node with guaranteed blockId and indent
-  const node = nodeType.create({
-    blockId: crypto.randomUUID(), // 🔒 ALWAYS new ID
-    indent, // 🔒 ALWAYS explicit
-    ...attrs, // Additional attrs (listType, collapsed, etc.)
-  });
+  // Content parameter supports split operations (Enter in middle of block)
+  const node = nodeType.create(
+    {
+      blockId: crypto.randomUUID(), // 🔒 ALWAYS new ID
+      indent, // 🔒 ALWAYS explicit
+      ...attrs, // Additional attrs (listType, collapsed, etc.)
+    },
+    content // Optional content for split operations
+  );
 
   // 🛡️ Verify indent was set correctly (same guard as enterOnSelectedBlock)
   if (node.attrs.indent !== indent) {
