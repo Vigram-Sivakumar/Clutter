@@ -36,7 +36,7 @@ import { findAncestorNode } from '../../../../utils/keyboardHelpers';
 export const outdentEmptyList = defineRule({
   id: 'backspace:convertEmptyList',
   description: 'Convert empty list to paragraph on Backspace - FLAT MODEL',
-  priority: 90,
+  priority: 105, // Higher than deleteEmptyParagraph (100) - lists convert before deletion
 
   when(ctx: KeyboardContext): boolean {
     const { editor, cursorOffset } = ctx;
