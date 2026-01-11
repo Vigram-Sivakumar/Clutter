@@ -24,13 +24,76 @@ import {
   DeleteBlockCommand,
 } from './command';
 import {
-  getOutdentAffectedBlocks,
-  getIndentAffectedBlocks,
-  getParentBlockIdForLevel,
   isDescendantOf,
   assertValidIndentTree,
   assertNoForwardParenting,
 } from './subtreeHelpers';
+
+/**
+ * Recompute levels for ALL blocks based on parentBlockId chain
+ *
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * CANONICAL MODEL: parentBlockId is TRUTH, level is DERIVED
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ *
+ * This is the ONLY way levels should ever be set.
+ * Level = depth in parent chain from root.
+ *
+ * Called after EVERY structural change (indent/outdent/move/paste).
+ */
+function recomputeAllLevels(doc: any, tr: any): void {
+  // Build blockId → block data map
+  const blocks = new Map<
+    string,
+    { node: any; pos: number; parentBlockId: string }
+  >();
+
+  doc.descendants((node: any, pos: number) => {
+    if (node.attrs?.blockId) {
+      blocks.set(node.attrs.blockId, {
+        node,
+        pos,
+        parentBlockId: node.attrs.parentBlockId || 'root',
+      });
+    }
+    return true;
+  });
+
+  // Compute level recursively from parent chain
+  const levelCache = new Map<string, number>();
+
+  function computeLevel(blockId: string): number {
+    if (levelCache.has(blockId)) {
+      return levelCache.get(blockId)!;
+    }
+
+    const block = blocks.get(blockId);
+    if (!block) return 0;
+
+    if (block.parentBlockId === 'root') {
+      levelCache.set(blockId, 0);
+      return 0;
+    }
+
+    const parentLevel = computeLevel(block.parentBlockId);
+    const level = parentLevel + 1;
+    levelCache.set(blockId, level);
+    return level;
+  }
+
+  // Apply computed levels to ALL blocks
+  blocks.forEach((block, blockId) => {
+    const correctLevel = computeLevel(blockId);
+    const currentLevel = block.node.attrs.level ?? 0;
+
+    if (currentLevel !== correctLevel) {
+      tr.setNodeMarkup(block.pos, undefined, {
+        ...block.node.attrs,
+        level: correctLevel,
+      });
+    }
+  });
+}
 
 export class IntentResolver {
   constructor(
@@ -618,108 +681,46 @@ export class IntentResolver {
         previousSiblingId
       );
 
-      // 🔥 CRITICAL FIX: Update visual subtree levels in ProseMirror
+      // 🔥 CANONICAL MODEL: Toggle adoption = same as indent
       if (this._editor && this._editor.state) {
         const { state, view } = this._editor;
         const doc = state.doc;
         const tr = state.tr;
 
-        // Find the block in ProseMirror document
-        let blockPos: number | null = null;
-        let currentLevel = 0;
+        // Find the selected block
+        let selectedPos: number | null = null;
+        let selectedNode: any = null;
 
         doc.descendants((node: any, pos: number) => {
           if (node.attrs?.blockId === blockId) {
-            blockPos = pos;
-            currentLevel = node.attrs.level ?? 0;
+            selectedPos = pos;
+            selectedNode = node;
             return false;
           }
           return true;
         });
 
-        if (blockPos !== null) {
-          const newLevel = currentLevel + 1;
+        if (selectedPos !== null && selectedNode) {
+          console.log('✅ [handleIndentBlock/toggle] Adopting under toggle:', {
+            block: blockId.slice(0, 8),
+            toggle: previousSiblingId.slice(0, 8),
+          });
 
-          // Get all blocks that need level adjustment (parent + subtree)
-          const affectedBlocks = getIndentAffectedBlocks(
-            doc,
-            blockPos,
-            currentLevel,
-            newLevel
-          );
-
-          console.log(
-            `🔧 [handleIndentBlock/toggle] Updating ${affectedBlocks.length} blocks`,
-            affectedBlocks.map((b) => ({
-              id: b.blockId.slice(0, 8),
-              level: `${b.oldLevel}→${b.newLevel}`,
-            }))
-          );
-
-          // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-          // 📝 UNDO GROUPING: Mark as user action (single undo step)
-          // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          // Mark for undo grouping
           tr.setMeta('addToHistory', true);
           tr.setMeta('historyGroup', 'indent-block');
 
-          // Update level AND parentBlockId for affected blocks
-          // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-          // 🔑 CRITICAL: Only ROOT block is reparented (adopts under previous)
-          // Children keep existing parentBlockId to preserve subtree integrity
-          // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-          // Example (CORRECT):
-          //   A
-          //     B
-          //     C  [Tab, no children]
-          //
-          // Result:
-          //   A
-          //     B
-          //       C  ← parent becomes B (immediate previous) ✓
-          //
-          // Example 2 (PRESERVES SUBTREE):
-          //   A
-          //     B
-          //       C  [Tab]
-          //         D
-          //
-          // Result:
-          //   A
-          //     B
-          //       C  ← parent stays B
-          //         D  ← parent stays C ✓ (NOT recalculated!)
-          // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-          for (let i = 0; i < affectedBlocks.length; i++) {
-            const item = affectedBlocks[i];
-            const node = doc.nodeAt(item.pos);
-            if (node) {
-              let newParentBlockId: string;
+          // STEP 1: Change selected block's parent to toggle
+          tr.setNodeMarkup(selectedPos, undefined, {
+            ...selectedNode.attrs,
+            parentBlockId: previousSiblingId,
+            // level will be recomputed - don't set it!
+          });
 
-              if (i === 0) {
-                // ROOT: adopt under immediate previous block
-                // Scan backwards to find the block immediately before this one
-                let prevBlockId: string | null = null;
-                doc.descendants((n: any, p: number) => {
-                  if (p < item.pos && n.attrs?.blockId) {
-                    prevBlockId = n.attrs.blockId;
-                  }
-                  return p < item.pos; // Stop once we reach/pass current pos
-                });
-                newParentBlockId = prevBlockId || 'root';
-              } else {
-                // CHILD: keep existing parent (subtree integrity!)
-                newParentBlockId = node.attrs.parentBlockId || 'root';
-              }
+          // STEP 2: Recompute ALL levels from parent chain
+          recomputeAllLevels(doc, tr);
 
-              tr.setNodeMarkup(item.pos, undefined, {
-                ...node.attrs,
-                level: item.newLevel,
-                parentBlockId: newParentBlockId,
-              });
-            }
-          }
-
-          // Expand toggle if collapsed (Notion-style)
+          // STEP 3: Expand toggle if collapsed (Notion-style)
           let togglePos: number | null = null;
           doc.descendants((node: any, pos: number) => {
             if (node.attrs?.blockId === previousSiblingId) {
@@ -743,7 +744,7 @@ export class IntentResolver {
             }
           }
 
-          // Apply transaction (single undoable action)
+          // Apply transaction
           view.dispatch(tr);
 
           // Validate tree in dev mode
@@ -780,87 +781,69 @@ export class IntentResolver {
       };
     }
 
-    // 5. 🔥 CRITICAL FIX: Update visual subtree levels in ProseMirror
+    // 5. 🔥 CANONICAL MODEL: Indent = Change parent, recompute levels
     if (this._editor && this._editor.state) {
       const { state, view } = this._editor;
       const doc = state.doc;
       const tr = state.tr;
 
-      // Find the block in ProseMirror document
-      let blockPos: number | null = null;
-      let currentLevel = 0;
+      // Find the selected block and previous block
+      let selectedPos: number | null = null;
+      let selectedNode: any = null;
 
       doc.descendants((node: any, pos: number) => {
         if (node.attrs?.blockId === blockId) {
-          blockPos = pos;
-          currentLevel = node.attrs.level ?? 0;
+          selectedPos = pos;
+          selectedNode = node;
           return false;
         }
         return true;
       });
 
-      if (blockPos !== null) {
-        const newLevel = currentLevel + 1;
-
-        // Get all blocks that need level adjustment (parent + subtree)
-        const affectedBlocks = getIndentAffectedBlocks(
-          doc,
-          blockPos,
-          currentLevel,
-          newLevel
-        );
-
-        console.log(
-          `🔧 [handleIndentBlock] Updating ${affectedBlocks.length} blocks:`,
-          affectedBlocks.map((b) => ({
-            id: b.blockId.slice(0, 8),
-            level: `${b.oldLevel}→${b.newLevel}`,
-          }))
-        );
-
+      if (selectedPos !== null && selectedNode) {
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        // 📝 UNDO GROUPING: Mark as user action (single undo step)
+        // CANONICAL INDENT MODEL
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // 1. Change selected block's parent to previous block
+        // 2. Recompute ALL levels from parent chain
+        // 3. Children automatically follow (their parent unchanged)
+        //
+        // NO subtree detection needed!
+        // NO level math needed!
+        // Structure comes from parents, levels are derived.
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+        // Prevent circular parenting (don't indent under own descendant)
+        if (isDescendantOf(doc, previousSiblingId, blockId)) {
+          console.log('🔒 [handleIndentBlock] BLOCKED: Circular reference');
+          return {
+            success: false,
+            intent,
+            reason: 'Cannot indent: would create circular reference',
+          };
+        }
+
+        console.log('✅ [handleIndentBlock] Reparenting:', {
+          block: blockId.slice(0, 8),
+          oldParent: (selectedNode.attrs.parentBlockId || 'root').slice(0, 8),
+          newParent: previousSiblingId.slice(0, 8),
+        });
+
+        // Mark for undo grouping
         tr.setMeta('addToHistory', true);
         tr.setMeta('historyGroup', 'indent-block');
 
-        // Update level AND parentBlockId for ALL affected blocks
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        // 🔥 CRITICAL FIX: parentBlockId MUST reflect new level position
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        // When indenting, EVERY block (root + children) must have its
-        // parentBlockId recalculated based on its new level.
-        //
-        // Example:
-        //   A
-        //     B
-        //     C  [Tab]
-        //
-        // Result:
-        //   A
-        //     B
-        //       C  ← parent MUST become B (not stay A!)
-        //
-        // If we don't update C's parent, later outdenting B won't find C
-        // as B's child, causing subtree corruption.
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        for (let i = 0; i < affectedBlocks.length; i++) {
-          const item = affectedBlocks[i];
-          const node = doc.nodeAt(item.pos);
-          if (node) {
-            // ALL blocks: recalculate parent based on new level
-            const newParentBlockId =
-              getParentBlockIdForLevel(doc, item.pos, item.newLevel) || 'root';
+        // STEP 1: Change selected block's parent (ONLY change!)
+        tr.setNodeMarkup(selectedPos, undefined, {
+          ...selectedNode.attrs,
+          parentBlockId: previousSiblingId,
+          // level will be recomputed - don't set it!
+        });
 
-            tr.setNodeMarkup(item.pos, undefined, {
-              ...node.attrs,
-              level: item.newLevel,
-              parentBlockId: newParentBlockId,
-            });
-          }
-        }
+        // STEP 2: Recompute ALL levels from parent chain
+        recomputeAllLevels(doc, tr);
 
-        // Apply transaction (single undoable action)
+        // Apply transaction
         view.dispatch(tr);
 
         // Validate tree in dev mode
@@ -933,147 +916,91 @@ export class IntentResolver {
       };
     }
 
-    // 5. 🔥 CRITICAL FIX: Update visual subtree levels in ProseMirror
-    // This ensures all visual descendants move with the parent
+    // 5. 🔥 CANONICAL MODEL: Outdent = Change parent to grandparent, recompute levels
     if (this._editor && this._editor.state) {
       const { state, view } = this._editor;
       const doc = state.doc;
       const tr = state.tr;
 
-      // Find the block in ProseMirror document
-      let blockPos: number | null = null;
-      let currentLevel = 0;
+      // Find the selected block
+      let selectedPos: number | null = null;
+      let selectedNode: any = null;
 
       doc.descendants((node: any, pos: number) => {
         if (node.attrs?.blockId === blockId) {
-          blockPos = pos;
-          currentLevel = node.attrs.level ?? 0;
+          selectedPos = pos;
+          selectedNode = node;
           return false;
         }
         return true;
       });
 
-      // 📍 BLOCK POSITION TRACE
-      console.log('📍 [handleOutdentBlock] blockPos found', {
-        blockId,
-        blockPos,
-        currentLevel,
-      });
+      if (selectedPos !== null && selectedNode) {
+        const currentParent = selectedNode.attrs.parentBlockId || 'root';
 
-      if (blockPos !== null && currentLevel > 0) {
-        // Get all blocks that need level adjustment (parent + subtree)
-        // 🔑 CRITICAL: Pass blockId (not position) for stable identification
-        const affectedBlocks = getOutdentAffectedBlocks(
-          doc,
-          blockId,
-          currentLevel
-        );
+        if (currentParent === 'root') {
+          console.log('🔒 [handleOutdentBlock] BLOCKED: Already at root');
+          return {
+            success: false,
+            intent,
+            reason: 'Block already at root level',
+          };
+        }
 
-        // 🌳 SUBTREE DETECTION TRACE (CRITICAL!)
-        console.log('🌳 [getOutdentAffectedBlocks] RESULT', {
-          root: blockId,
-          count: affectedBlocks.length,
-          blocks: affectedBlocks.map((b) => ({
-            id: b.blockId.slice(0, 8),
-            pos: b.pos,
-            oldLevel: b.oldLevel,
-            newLevel: b.newLevel,
-          })),
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // CANONICAL OUTDENT MODEL
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // 1. Change selected block's parent to its grandparent
+        // 2. Recompute ALL levels from parent chain
+        // 3. Children automatically follow (their parent unchanged)
+        //
+        // NO subtree detection needed!
+        // NO level math needed!
+        // Structure comes from parents, levels are derived.
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+        // Find parent node to get grandparent
+        let parentNode: any = null;
+        doc.descendants((node: any) => {
+          if (node.attrs?.blockId === currentParent) {
+            parentNode = node;
+            return false;
+          }
+          return true;
         });
 
-        console.log(
-          `🔧 [handleOutdentBlock] Updating ${affectedBlocks.length} blocks:`,
-          affectedBlocks.map((b) => ({
-            id: b.blockId.slice(0, 8),
-            level: `${b.oldLevel}→${b.newLevel}`,
-          }))
-        );
+        if (!parentNode) {
+          console.log('🔒 [handleOutdentBlock] BLOCKED: Parent not found');
+          return {
+            success: false,
+            intent,
+            reason: 'Parent block not found',
+          };
+        }
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        // 📝 UNDO GROUPING: Mark as user action (single undo step)
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        const grandparent = parentNode.attrs.parentBlockId || 'root';
+
+        console.log('✅ [handleOutdentBlock] Reparenting:', {
+          block: blockId.slice(0, 8),
+          oldParent: currentParent.slice(0, 8),
+          newParent: grandparent === 'root' ? 'root' : grandparent.slice(0, 8),
+        });
+
+        // Mark for undo grouping
         tr.setMeta('addToHistory', true);
         tr.setMeta('historyGroup', 'outdent-block');
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        // 🔑 CRITICAL: Adopt-Nearest-Grandparent Outdent
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        // ONLY the root block being outdented gets a new parentBlockId.
-        // Children stay attached to their parents (subtree integrity).
-        //
-        // Example:
-        //   A
-        //     B
-        //     C  ← outdent
-        //       D
-        //
-        // After:
-        //   A
-        //   B
-        //   C  ← new parent = 'root'
-        //     D  ← keeps parent = C (NOT recalculated!)
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // STEP 1: Change selected block's parent to grandparent (ONLY change!)
+        tr.setNodeMarkup(selectedPos, undefined, {
+          ...selectedNode.attrs,
+          parentBlockId: grandparent,
+          // level will be recomputed - don't set it!
+        });
 
-        // Update level AND parentBlockId for all affected blocks
-        for (let i = 0; i < affectedBlocks.length; i++) {
-          const item = affectedBlocks[i];
-          const node = doc.nodeAt(item.pos);
-          if (node) {
-            let newParentBlockId: string;
+        // STEP 2: Recompute ALL levels from parent chain
+        recomputeAllLevels(doc, tr);
 
-            if (i === 0) {
-              // ROOT of outdent operation: calculate grandparent
-              // (nearest block at newLevel - 1)
-              newParentBlockId =
-                getParentBlockIdForLevel(doc, item.pos, item.newLevel) ||
-                'root';
-            } else {
-              // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-              // 🔥 CRITICAL FIX: Children MUST follow the root block
-              // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-              // When outdenting, the subtree moves WITH the root block.
-              // Children do NOT stay attached to the old grandparent.
-              //
-              // Example:
-              //   A
-              //     B [Shift+Tab]
-              //       C
-              //       D
-              //
-              // Result (CORRECT):
-              //   A
-              //   B          ← parent = root
-              //     C        ← parent = B (follows B!)
-              //     D        ← parent = B (follows B!)
-              //
-              // NOT (WRONG):
-              //   A
-              //   B
-              //     C        ← parent = A (stays behind! ❌)
-              //     D        ← parent = A (stays behind! ❌)
-              // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-              newParentBlockId = affectedBlocks[0].blockId;
-            }
-
-            // 🔗 FORENSIC CHECKPOINT 3: REPARENT DECISION
-            console.log(
-              '🔗 REPARENT',
-              item.blockId.slice(0, 8),
-              '→',
-              newParentBlockId === 'root'
-                ? 'root'
-                : newParentBlockId.slice(0, 8)
-            );
-
-            tr.setNodeMarkup(item.pos, undefined, {
-              ...node.attrs,
-              level: item.newLevel,
-              parentBlockId: newParentBlockId,
-            });
-          }
-        }
-
-        // Apply transaction (single undoable action)
+        // Apply transaction
         view.dispatch(tr);
 
         // Validate tree in dev mode
