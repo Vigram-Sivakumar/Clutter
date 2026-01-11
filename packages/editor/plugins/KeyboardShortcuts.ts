@@ -17,6 +17,7 @@
 import { Extension } from '@tiptap/core';
 import {
   handleTab,
+  handleBackspace,
   handleArrowLeft,
   handleArrowRight,
   handleArrowUp,
@@ -69,6 +70,13 @@ export const KeyboardShortcuts = Extension.create({
           `🔑 [KeyboardShortcuts] Returning ${shouldConsume} - ${shouldConsume ? 'CONSUMING Shift+Tab' : 'ALLOWING FALLBACK'}`
         );
         return shouldConsume;
+      },
+
+      // ✅ BACKSPACE: Empty list → paragraph → delete flow
+      // Must run at high priority (before ListBlock node handler)
+      Backspace: ({ editor }) => {
+        const result = handleBackspace(editor);
+        return result.handled === true;
       },
 
       // ✅ ARROW KEYS: Centralized cross-block navigation

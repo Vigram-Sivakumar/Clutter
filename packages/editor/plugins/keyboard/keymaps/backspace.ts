@@ -18,21 +18,19 @@ import type { Editor } from '@tiptap/core';
 import { createKeyboardEngine } from '../engine/KeyboardEngine';
 import type { IntentResolver } from '../../../core/engine';
 import type { KeyHandlingResult } from '../types/KeyHandlingResult';
-// PHASE 3.3.a: Most imports removed - rules disabled
+// FLAT MODEL: Re-enable rules for proper empty list → paragraph flow
 import {
-  // deleteEmptyParagraph, // DISABLED
-  // outdentEmptyList, // DISABLED
-  // exitEmptyWrapper, // DISABLED
+  deleteEmptyParagraph,
+  outdentEmptyList, // Converts empty list to paragraph (priority 105)
+  // exitEmptyWrapper, // Still disabled
   mergeWithStructuralBlock,
 } from '../rules/backspace';
 
-// Rules for Backspace key
-// PHASE 3.3.a: Most rules DISABLED - let ProseMirror handle Backspace naturally
+// Rules for Backspace key (sorted by priority internally by KeyboardEngine)
 const backspaceRules = [
-  // deleteEmptyParagraph, // DISABLED - PM handles naturally
-  // outdentEmptyList, // DISABLED - PM handles naturally
-  // exitEmptyWrapper, // DISABLED - PM handles naturally
-  mergeWithStructuralBlock, // Keep as safety guard (noop when merging with structural blocks)
+  outdentEmptyList, // Priority 105 - convert empty list to paragraph first
+  deleteEmptyParagraph, // Priority 100 - delete empty paragraph second
+  mergeWithStructuralBlock, // Safety guard for structural blocks
 ];
 
 // Create engine (will be initialized with resolver per-editor)

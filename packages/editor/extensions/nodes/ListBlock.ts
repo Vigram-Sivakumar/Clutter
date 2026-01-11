@@ -22,10 +22,7 @@ import { TextSelection } from '@tiptap/pm/state';
 import { spacing } from '../../tokens';
 import type { ListType, ListBlockAttrs } from '../../types';
 import { ListBlock as ListBlockComponent } from '../../components/ListBlock';
-import {
-  createShiftEnterHandler,
-  createSiblingAttrs,
-} from '../../utils/keyboardHelpers';
+import { createShiftEnterHandler } from '../../utils/keyboardHelpers';
 import { BackspaceRules } from '../../utils/keyboardRules';
 import { handleEnter } from '../../plugins/keyboard';
 // NOTE: Arrow navigation removed - now centralized in KeyboardShortcuts.ts
@@ -143,7 +140,7 @@ export const ListBlock = Node.create({
   // Render to HTML (for non-React contexts)
   renderHTML({ node, HTMLAttributes }) {
     const attrs = node.attrs as ListBlockAttrs;
-    const indent = attrs.level * spacing.indent;
+    const indent = attrs.indent * spacing.indent;
 
     return [
       'div',
@@ -171,7 +168,7 @@ export const ListBlock = Node.create({
       setListBlock:
         (listType, checked = false) =>
         ({ commands }) => {
-          const attrs: Partial<ListBlockAttrs> = { listType, level: 0 };
+          const attrs: Partial<ListBlockAttrs> = { listType, indent: 0 };
           if (listType === 'task') {
             attrs.checked = checked;
           }
@@ -186,7 +183,7 @@ export const ListBlock = Node.create({
           }
           return commands.setNode(this.name, {
             listType,
-            level: 0,
+            indent: 0,
             checked: listType === 'task' ? false : null,
           });
         },
@@ -244,65 +241,14 @@ export const ListBlock = Node.create({
         const atStart = $from.parentOffset === 0;
 
         // CASE 1: EMPTY LIST BLOCK
-        // PHASE 1 REFACTOR: Use detector for empty listBlock backspace context
+        // NOW FULLY HANDLED BY KeyboardShortcuts plugin (priority 1000)
+        // - convertEmptyList rule (priority 105): empty list → paragraph
+        // - deleteEmptyParagraph rule (priority 100): paragraph → delete
+        // This handler never sees empty lists anymore
         const context =
           BackspaceRules.getEmptyListBlockBackspaceContext(editor);
-
         if (context.isEmpty) {
-          // Get data from context
-          const listBlock = context.listBlock!;
-          const emptyListBlockPos = listBlock.pos;
-          const listBlockNode = listBlock.node;
-
-          // Case 1: Should outdent (level > 0)
-          // NOTE: This is now handled via keyboard rules (outdent-block intent)
-          if (context.shouldOutdent) {
-            return false; // Let keyboard rules handle it
-          }
-
-          // Case 2: Should convert to paragraph (level 0, empty)
-          // Converts in place - works both inside and outside wrappers
-          if (context.shouldConvertToParagraph) {
-            // (KEEP ALL EXECUTION CODE)
-            const { tr } = state;
-            // ListBlock now has inline* content directly (no nested paragraph)
-            const content = listBlockNode.content;
-            const listBlockAttrs = listBlockNode.attrs as ListBlockAttrs;
-
-            console.log(
-              '🟠 ListBlock Backspace: Converting empty list to paragraph',
-              {
-                level: listBlockAttrs.level,
-              }
-            );
-
-            const paragraphType = state.schema.nodes.paragraph;
-            if (!paragraphType) return false;
-
-            // ✅ Preserve structural context when converting to paragraph
-            const siblingAttrs = createSiblingAttrs(listBlockAttrs);
-
-            const paragraphNode = paragraphType.create(
-              {
-                blockId: crypto.randomUUID(), // Generate blockId immediately
-                ...siblingAttrs, // ✅ Copy parentBlockId + level
-              },
-              content
-            );
-            tr.replaceRangeWith(
-              emptyListBlockPos,
-              emptyListBlockPos + listBlockNode.nodeSize,
-              paragraphNode
-            );
-            // Set cursor at start of paragraph
-            tr.setSelection(
-              TextSelection.near(tr.doc.resolve(emptyListBlockPos + 1))
-            );
-            editor.view.dispatch(tr);
-            return true;
-          }
-
-          return false;
+          return false; // Let KeyboardShortcuts handle it
         }
 
         // CASE 2: NON-EMPTY LIST BLOCK
