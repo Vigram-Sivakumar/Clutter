@@ -228,8 +228,10 @@ function syncTipTapToEngine(
 
     // 🌳 FORENSIC CHECKPOINT 4: AFTER BRIDGE REBUILD (CRITICAL!)
     console.group('🌳 TREE SNAPSHOT — AFTER BRIDGE REBUILD');
-    const blocksAfter = engine.getAllBlocks();
-    blocksAfter.forEach((b, i) => {
+    const nodesAfter = Object.values(engine.tree.nodes).filter(
+      (n: any) => n.id !== 'root'
+    );
+    nodesAfter.forEach((b: any, i: number) => {
       console.log(
         `${i}. ${b.id.slice(0, 8)} | level=${b.level} | parent=${b.parentId?.slice(0, 8) ?? 'root'}`
       );
@@ -237,12 +239,14 @@ function syncTipTapToEngine(
     console.groupEnd();
 
     // 🚨 HARD ASSERT: Validate parent relationships
-    blocksAfter.forEach((block, i, blocks) => {
+    nodesAfter.forEach((block: any, i: number) => {
       if (block.level === 0) return;
 
-      const hasValidParent = blocks
+      const hasValidParent = nodesAfter
         .slice(0, i)
-        .some((b) => b.level === block.level - 1 && b.id === block.parentId);
+        .some(
+          (b: any) => b.level === block.level - 1 && b.id === block.parentId
+        );
 
       if (!hasValidParent) {
         console.error('❌ INVALID PARENT DERIVATION', {

@@ -52,8 +52,10 @@ export class IntentResolver {
 
     // 🌳 FORENSIC CHECKPOINT 1: BEFORE MUTATION
     console.group('🌳 TREE SNAPSHOT — BEFORE MUTATION');
-    const blocksBefore = this._engine.getAllBlocks();
-    blocksBefore.forEach((b, i) => {
+    const nodesBefore = Object.values(this._engine.tree.nodes).filter(
+      (n: any) => n.id !== 'root'
+    );
+    nodesBefore.forEach((b: any, i: number) => {
       console.log(
         `${i}. ${b.id.slice(0, 8)} | level=${b.level} | parent=${b.parentId?.slice(0, 8) ?? 'root'}`
       );
