@@ -436,6 +436,188 @@ function handleInsertAfter(
 }
 
 /**
+ * 🔹 LAW 3: SPLIT_BLOCK - Split current block at cursor, insert pasted blocks between
+ * 
+ * Behavior:
+ * 1. Split current block at cursor
+ * 2. Insert pasted blocks between the split
+ * 3. Base indent = current block indent
+ * 4. Cursor lands at end of last pasted block
+ */
+function handleSplitBlock(
+  state: EditorState,
+  tr: Transaction,
+  payload: ClipboardPayloadV1
+): boolean {
+  const { selection } = state;
+  
+  if (!(selection instanceof TextSelection)) {
+    console.error('[Paste] SPLIT_BLOCK requires TextSelection');
+    return false;
+  }
+  
+  const { $from } = selection;
+  const currentBlock = $from.node($from.depth);
+  const cursorOffset = $from.parentOffset;
+  const baseIndent = currentBlock?.attrs?.indent ?? 0;
+  
+  console.log('[Paste] SPLIT_BLOCK', {
+    cursorOffset,
+    blockContentSize: currentBlock.content.size,
+    baseIndent,
+    pasteBlockCount: payload.blocks.length,
+  });
+  
+  // Extract content before and after cursor
+  const contentBefore = currentBlock.content.cut(0, cursorOffset);
+  const contentAfter = currentBlock.content.cut(cursorOffset);
+  
+  // Position of current block
+  const blockPos = $from.before($from.depth);
+  const blockEnd = $from.after($from.depth);
+  
+  // Delete current block
+  tr.delete(blockPos, blockEnd);
+  
+  // Insert first block with content before cursor
+  let insertPos = blockPos;
+  const firstBlock = state.schema.nodes[currentBlock.type.name].create(
+    {
+      ...currentBlock.attrs,
+      blockId: crypto.randomUUID(), // New ID for first split
+    },
+    contentBefore
+  );
+  tr.insert(insertPos, firstBlock);
+  insertPos += firstBlock.nodeSize;
+  
+  // Insert pasted blocks
+  const firstBlockIndent = payload.blocks[0]?.indent ?? 0;
+  const indentOffset = baseIndent - firstBlockIndent;
+  let lastPastedBlockEnd = insertPos;
+  
+  for (const block of payload.blocks) {
+    const newIndent = Math.max(0, block.indent + indentOffset);
+    
+    const node = createBlock(state, tr, {
+      type: block.type,
+      insertPos,
+      indent: newIndent,
+      attrs: block.attrs,
+      content: block.content?.content ?? null,
+    });
+    
+    if (!node) {
+      console.error('[Paste] Failed to create block in SPLIT_BLOCK');
+      continue;
+    }
+    
+    insertPos += node.nodeSize;
+    lastPastedBlockEnd = insertPos;
+  }
+  
+  // Insert second block with content after cursor
+  const secondBlock = state.schema.nodes[currentBlock.type.name].create(
+    {
+      ...currentBlock.attrs,
+      blockId: crypto.randomUUID(), // New ID for second split
+    },
+    contentAfter
+  );
+  tr.insert(insertPos, secondBlock);
+  
+  // Cursor lands at end of last pasted block
+  // Navigate into the last pasted block's content
+  const $lastBlock = tr.doc.resolve(lastPastedBlockEnd - 1);
+  const lastBlockNode = $lastBlock.node($lastBlock.depth);
+  const lastBlockContentSize = lastBlockNode.content.size;
+  const cursorPos = $lastBlock.pos + lastBlockContentSize;
+  
+  tr.setSelection(TextSelection.create(tr.doc, cursorPos));
+  
+  console.log('[Paste] SPLIT_BLOCK complete', {
+    cursorPos: tr.selection.from,
+  });
+  
+  return true;
+}
+
+/**
+ * 🔹 LAW 4: APPEND_TO_BLOCK - Append pasted content inline to current block
+ * 
+ * Behavior:
+ * 1. Append pasted content inline to current block
+ * 2. No new block created
+ * 3. Cursor lands at end of appended content
+ * 
+ * Guards:
+ * - Only applies if pasted content is single paragraph
+ * - Current block is not HR
+ * - Current block is not empty
+ */
+function handleAppendToBlock(
+  state: EditorState,
+  tr: Transaction,
+  payload: ClipboardPayloadV1
+): boolean {
+  const { selection } = state;
+  
+  if (!(selection instanceof TextSelection)) {
+    console.error('[Paste] APPEND_TO_BLOCK requires TextSelection');
+    return false;
+  }
+  
+  const { $from } = selection;
+  const currentBlock = $from.node($from.depth);
+  const cursorOffset = $from.parentOffset;
+  
+  // 🛡️ GUARD 1: Only single paragraph
+  if (payload.blocks.length !== 1 || payload.blocks[0]?.type !== 'paragraph') {
+    console.error('[Paste] APPEND_TO_BLOCK requires single paragraph');
+    return false;
+  }
+  
+  // 🛡️ GUARD 2: Current block not HR
+  if (currentBlock.type.name === 'horizontalRule') {
+    console.error('[Paste] APPEND_TO_BLOCK not allowed in HR');
+    return false;
+  }
+  
+  // 🛡️ GUARD 3: Current block not empty
+  if (currentBlock.content.size === 0) {
+    console.error('[Paste] APPEND_TO_BLOCK not allowed in empty block');
+    return false;
+  }
+  
+  console.log('[Paste] APPEND_TO_BLOCK', {
+    cursorOffset,
+    blockContentSize: currentBlock.content.size,
+    pasteContentSize: payload.blocks[0].content?.content.size ?? 0,
+  });
+  
+  // Get pasted content
+  const pastedContent = payload.blocks[0]?.content?.content;
+  if (!pastedContent || pastedContent.size === 0) {
+    console.warn('[Paste] APPEND_TO_BLOCK no content to paste');
+    return false;
+  }
+  
+  // Insert pasted content at cursor
+  const insertPos = $from.pos;
+  tr.insert(insertPos, pastedContent);
+  
+  // Cursor lands at end of appended content
+  const newCursorPos = insertPos + pastedContent.size;
+  tr.setSelection(TextSelection.create(tr.doc, newCursorPos));
+  
+  console.log('[Paste] APPEND_TO_BLOCK complete', {
+    cursorPos: tr.selection.from,
+  });
+  
+  return true;
+}
+
+/**
  * 📋 PASTE (INTERNAL): Insert copied blocks at cursor
  * 
  * 🎯 Step 3B.2: Intent-based paste routing
@@ -483,15 +665,11 @@ export function pasteFromClipboard(
       break;
       
     case PasteIntent.SPLIT_BLOCK:
-      // TODO: Implement in next commit
-      console.warn('[Paste] SPLIT_BLOCK not yet implemented, falling back to INSERT_AFTER');
-      success = handleInsertAfter(state, tr, payload);
+      success = handleSplitBlock(state, tr, payload);
       break;
       
     case PasteIntent.APPEND_TO_BLOCK:
-      // TODO: Implement in next commit
-      console.warn('[Paste] APPEND_TO_BLOCK not yet implemented, falling back to INSERT_AFTER');
-      success = handleInsertAfter(state, tr, payload);
+      success = handleAppendToBlock(state, tr, payload);
       break;
       
     default:
