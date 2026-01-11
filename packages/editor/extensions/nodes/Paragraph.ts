@@ -100,6 +100,34 @@ export const Paragraph = Node.create({
           parseInt(element.getAttribute('data-level') || '0', 10),
         renderHTML: (attributes) => ({ 'data-level': attributes.level || 0 }),
       },
+      // 🔥 FLAT MODEL: indent replaces level (Phase C)
+      indent: {
+        default: 0,
+        parseHTML: (element) => {
+          // Try indent first, fallback to level for migration
+          const indentAttr = element.getAttribute('data-indent');
+          if (indentAttr !== null) {
+            return parseInt(indentAttr, 10);
+          }
+          // Fallback: read from level for old data
+          return parseInt(element.getAttribute('data-level') || '0', 10);
+        },
+        renderHTML: (attributes) => ({
+          'data-indent': attributes.indent ?? attributes.level ?? 0,
+        }),
+      },
+      // 🔥 FLAT MODEL: collapsed for visibility (Phase C)
+      collapsed: {
+        default: false,
+        parseHTML: (element) =>
+          element.getAttribute('data-collapsed') === 'true',
+        renderHTML: (attributes) => {
+          if (attributes.collapsed) {
+            return { 'data-collapsed': 'true' };
+          }
+          return {};
+        },
+      },
     };
   },
 

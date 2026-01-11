@@ -18,6 +18,7 @@ import type { Editor } from '@tiptap/core';
 // NodeSelection preserved for future re-enablement of block selection sync
 import { NodeSelection as _NodeSelection } from '@tiptap/pm/state';
 import { EditorEngine, IntentResolver } from './index';
+import { FlatIntentResolver } from './flatIntentResolver';
 import type { BlockTree, BlockNode, BlockId } from './types';
 
 /**
@@ -520,7 +521,10 @@ function createBridge(editor: Editor): BridgeState {
   // Initialize engine with current ProseMirror document
   const initialTree = proseMirrorDocToBlockTree(editor.state.doc);
   const engine = new EditorEngine(initialTree);
-  const resolver = new IntentResolver(engine, editor); // Pass editor for PM sync
+
+  // 🔥 PHASE C: Use FlatIntentResolver (flat indent model)
+  // Old parent-pointer model disabled
+  const resolver = new FlatIntentResolver(engine, editor);
 
   // Update source tracker
   const updateSource: { current: UpdateSource } = { current: null };
