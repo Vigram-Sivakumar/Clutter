@@ -23,6 +23,13 @@ import {
   handleArrowUp,
   handleArrowDown,
 } from './keyboard/keymaps';
+import {
+  copyToClipboard,
+  cutToClipboard,
+  pasteFromClipboard,
+  pasteExternalText,
+  getClipboardState,
+} from '../core/clipboard/clipboardManager';
 
 export const KeyboardShortcuts = Extension.create({
   name: 'keyboardShortcuts',
@@ -101,6 +108,89 @@ export const KeyboardShortcuts = Extension.create({
       ArrowRight: ({ editor }) => handleArrowRight(editor),
       ArrowUp: ({ editor }) => handleArrowUp(editor),
       ArrowDown: ({ editor }) => handleArrowDown(editor),
+
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      // 🔒 CLIPBOARD (Step 3A.2) - Engine-aware, deterministic
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      // Overrides ProseMirror defaults to route through sealed clipboard manager.
+      // Internal clipboard = structured blocks with re-based indent
+      // External clipboard = plain text → paragraphs
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+      // ✂️ COPY: Serialize selected blocks to internal clipboard
+      'Mod-c': ({ editor }) => {
+        console.log('[Clipboard] Cmd/Ctrl+C pressed');
+        
+        const { state } = editor;
+        
+        // 🛡️ GUARD: Don't copy empty selection
+        if (state.selection.empty) {
+          console.log('[Clipboard] Empty selection, allowing default copy');
+          return false;
+        }
+        
+        const success = copyToClipboard(state);
+        
+        if (success) {
+          console.log('[Clipboard] Copy succeeded, preventing default');
+          return true; // Prevent default browser copy
+        } else {
+          console.warn('[Clipboard] Copy failed, allowing default');
+          return false;
+        }
+      },
+
+      // ✂️ CUT: Copy + delete selected blocks
+      'Mod-x': ({ editor }) => {
+        console.log('[Clipboard] Cmd/Ctrl+X pressed');
+        
+        const { state, view } = editor;
+        
+        // 🛡️ GUARD: Don't cut empty selection
+        if (state.selection.empty) {
+          console.log('[Clipboard] Empty selection, allowing default cut');
+          return false;
+        }
+        
+        const success = cutToClipboard(state, view.dispatch.bind(view));
+        
+        if (success) {
+          console.log('[Clipboard] Cut succeeded, preventing default');
+          return true; // Prevent default browser cut
+        } else {
+          console.warn('[Clipboard] Cut failed, allowing default');
+          return false;
+        }
+      },
+
+      // 📋 PASTE: Insert from internal or external clipboard
+      'Mod-v': ({ editor }) => {
+        console.log('[Clipboard] Cmd/Ctrl+V pressed');
+        
+        const { state, view } = editor;
+        const clipboardState = getClipboardState();
+        
+        // Detect source: internal vs external
+        if (clipboardState.payload && clipboardState.payload.blocks.length > 0) {
+          // ✅ INTERNAL PASTE: Structured blocks with re-based indent
+          console.log('[Clipboard] Internal clipboard detected, pasting blocks');
+          const success = pasteFromClipboard(state, view.dispatch.bind(view));
+          
+          if (success) {
+            console.log('[Clipboard] Internal paste succeeded');
+            return true; // Prevent default browser paste
+          } else {
+            console.warn('[Clipboard] Internal paste failed');
+            return false;
+          }
+        } else {
+          // ⏳ EXTERNAL PASTE: Will be handled by ProseMirror's clipboardParser
+          // For now, we let PM handle it (it will use schema defaults)
+          // TODO Step 3A.3: Intercept external paste and use pasteExternalText()
+          console.log('[Clipboard] No internal clipboard, allowing PM default paste');
+          return false;
+        }
+      },
     };
   },
 });
