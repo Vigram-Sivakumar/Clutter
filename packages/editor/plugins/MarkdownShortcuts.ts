@@ -47,10 +47,10 @@ export const MarkdownShortcuts = Extension.create({
             }
 
             // Extract preserved attributes from current block
-            // 🔥 FLAT MODEL: Preserve indent (structural attribute)
+            // 🔥 FLAT MODEL: Only preserve indent
+            // 🔒 BLOCK IDENTITY LAW: NEVER preserve blockId across type changes
             const preservedAttrs = {
-              blockId: parent.attrs.blockId,
-              indent: parent.attrs.indent || 0, // FLAT MODEL
+              indent: parent.attrs.indent || 0,
             };
 
             // Determine what to create
@@ -162,7 +162,7 @@ export const MarkdownShortcuts = Extension.create({
                 createBlock.paragraph(
                   state.schema,
                   undefined,
-                  { blockId: crypto.randomUUID(), ...preservedAttrs } // New block after HR gets new ID
+                  preservedAttrs // createBlock.paragraph generates new blockId automatically
                 ),
               ];
             }
@@ -177,7 +177,7 @@ export const MarkdownShortcuts = Extension.create({
                 createBlock.paragraph(
                   state.schema,
                   undefined,
-                  { blockId: crypto.randomUUID(), ...preservedAttrs } // New block after HR gets new ID
+                  preservedAttrs // createBlock.paragraph generates new blockId automatically
                 ),
               ];
             }
