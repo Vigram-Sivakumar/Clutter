@@ -27,6 +27,7 @@ import {
   isDescendantOf,
   assertValidIndentTree,
   assertNoForwardParenting,
+  getSubtree,
 } from './subtreeHelpers';
 
 /**
@@ -960,15 +961,15 @@ export class IntentResolver {
         }
 
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        // CANONICAL OUTDENT MODEL
+        // CANONICAL OUTDENT MODEL (FINAL, CORRECT)
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        // 1. Change selected block's parent to its grandparent
-        // 2. Recompute ALL levels from parent chain
-        // 3. Children automatically follow (their parent unchanged)
+        // 1. Capture subtree BEFORE mutation
+        // 2. Change selected block's parent to grandparent
+        // 3. Reattach subtree: children that pointed to old parent → selected block
+        // 4. Recompute ALL levels from parent chain
         //
-        // NO subtree detection needed!
-        // NO level math needed!
-        // Structure comes from parents, levels are derived.
+        // CRITICAL: When a block moves, its subtree MUST move with it.
+        // This is not automatic in a flat parent-pointer structure.
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
         // Find parent node to get grandparent
@@ -991,10 +992,11 @@ export class IntentResolver {
         }
 
         const grandparent = parentNode.attrs.parentBlockId || 'root';
+        const oldParentId = currentParent;
 
         console.log('✅ [handleOutdentBlock] Reparenting:', {
           block: blockId.slice(0, 8),
-          oldParent: currentParent.slice(0, 8),
+          oldParent: oldParentId.slice(0, 8),
           newParent: grandparent === 'root' ? 'root' : grandparent.slice(0, 8),
         });
 
@@ -1002,14 +1004,32 @@ export class IntentResolver {
         tr.setMeta('addToHistory', true);
         tr.setMeta('historyGroup', 'outdent-block');
 
-        // STEP 1: Change selected block's parent to grandparent (ONLY change!)
+        // STEP 1: Capture subtree BEFORE mutation
+        const subtree = getSubtree(blockId, doc);
+        console.log(
+          `📦 [handleOutdentBlock] Subtree has ${subtree.length} descendants`
+        );
+
+        // STEP 2: Change selected block's parent to grandparent
         tr.setNodeMarkup(selectedPos, undefined, {
           ...selectedNode.attrs,
           parentBlockId: grandparent,
-          // level will be recomputed - don't set it!
         });
 
-        // STEP 2: Recompute ALL levels from parent chain
+        // STEP 3: Reattach subtree - children that pointed to old parent now point to outdented block
+        for (const child of subtree) {
+          if (child.node.attrs.parentBlockId === oldParentId) {
+            console.log(
+              `  ↪️  Reparenting child ${child.blockId.slice(0, 8)}: ${oldParentId.slice(0, 8)} → ${blockId.slice(0, 8)}`
+            );
+            tr.setNodeMarkup(child.pos, undefined, {
+              ...child.node.attrs,
+              parentBlockId: blockId,
+            });
+          }
+        }
+
+        // STEP 4: Recompute ALL levels from parent chain
         recomputeAllLevels(doc, tr);
 
         // Apply transaction

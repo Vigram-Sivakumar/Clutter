@@ -1,21 +1,73 @@
 /**
  * Subtree Helpers for Indent/Outdent Operations
  *
- * CRITICAL INVARIANT:
- * When a block moves (indent/outdent), its entire visual subtree MUST move with it.
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * CANONICAL OUTLINER INVARIANT
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  *
- * Visual subtree = all consecutive following blocks with level > current block's level
+ * - Structure is defined ONLY by parentBlockId
+ * - A block owns its entire subtree
+ * - When a block moves, its subtree MUST move with it
+ * - Levels are ALWAYS derived, never mutated directly
  *
- * This ensures:
- * - No orphaned blocks
- * - Tree structure preserved
- * - Collapse continues to work correctly
- * - Undo/redo maintains validity
+ * Violating this causes orphaned or ghost children.
  *
- * See: docs/INDENT_TREE_INVARIANT.md
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  */
 
 import type { Node as PMNode } from '@tiptap/pm/model';
+
+/**
+ * Get entire subtree of a block via parent-pointer traversal
+ *
+ * This is the CORRECT way to find descendants in a flat parent-pointer tree.
+ * Does NOT rely on visual order or level comparisons.
+ *
+ * @param blockId - Root block ID
+ * @param doc - ProseMirror document
+ * @returns Array of all descendant blocks (not including root)
+ */
+export function getSubtree(
+  blockId: string,
+  doc: PMNode
+): Array<{ blockId: string; node: PMNode; pos: number }> {
+  // Build parent → children map
+  const childrenMap = new Map<
+    string,
+    Array<{ blockId: string; node: PMNode; pos: number }>
+  >();
+
+  doc.descendants((node: PMNode, pos: number) => {
+    if (node.attrs?.blockId) {
+      const parentId = node.attrs.parentBlockId || 'root';
+      if (!childrenMap.has(parentId)) {
+        childrenMap.set(parentId, []);
+      }
+      childrenMap.get(parentId)!.push({
+        blockId: node.attrs.blockId,
+        node,
+        pos,
+      });
+    }
+    return true;
+  });
+
+  // BFS to collect all descendants
+  const result: Array<{ blockId: string; node: PMNode; pos: number }> = [];
+  const queue: string[] = [blockId];
+
+  while (queue.length > 0) {
+    const currentId = queue.shift()!;
+    const children = childrenMap.get(currentId) || [];
+
+    for (const child of children) {
+      result.push(child);
+      queue.push(child.blockId);
+    }
+  }
+
+  return result;
+}
 
 /**
  * Get visual subtree range for a block in flat ProseMirror document
