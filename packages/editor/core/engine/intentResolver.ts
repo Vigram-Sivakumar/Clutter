@@ -662,23 +662,34 @@ export class IntentResolver {
           tr.setMeta('addToHistory', true);
           tr.setMeta('historyGroup', 'indent-block');
 
-          // Update level AND parentBlockId for all affected blocks
-          // ONLY the root block gets a new parentBlockId; children keep theirs
+          // Update level AND parentBlockId for ALL affected blocks
+          // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          // 🔥 CRITICAL FIX: parentBlockId MUST reflect new level position
+          // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          // When indenting, EVERY block (root + children) must have its
+          // parentBlockId recalculated based on its new level.
+          //
+          // Example:
+          //   A
+          //     B
+          //     C  [Tab]
+          //
+          // Result:
+          //   A
+          //     B
+          //       C  ← parent MUST become B (not stay A!)
+          //
+          // If we don't update C's parent, later outdenting B won't find C
+          // as B's child, causing subtree corruption.
+          // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
           for (let i = 0; i < affectedBlocks.length; i++) {
             const item = affectedBlocks[i];
             const node = doc.nodeAt(item.pos);
             if (node) {
-              let newParentBlockId: string;
-
-              if (i === 0) {
-                // ROOT of indent: adopt under new parent
-                newParentBlockId =
-                  getParentBlockIdForLevel(doc, item.pos, item.newLevel) ||
-                  'root';
-              } else {
-                // CHILD: keep existing parent (subtree integrity)
-                newParentBlockId = node.attrs.parentBlockId || 'root';
-              }
+              // ALL blocks: recalculate parent based on new level
+              const newParentBlockId =
+                getParentBlockIdForLevel(doc, item.pos, item.newLevel) ||
+                'root';
 
               tr.setNodeMarkup(item.pos, undefined, {
                 ...node.attrs,
@@ -793,23 +804,33 @@ export class IntentResolver {
         tr.setMeta('addToHistory', true);
         tr.setMeta('historyGroup', 'indent-block');
 
-        // Update level AND parentBlockId for all affected blocks
-        // ONLY the root block gets a new parentBlockId; children keep theirs
+        // Update level AND parentBlockId for ALL affected blocks
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // 🔥 CRITICAL FIX: parentBlockId MUST reflect new level position
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // When indenting, EVERY block (root + children) must have its
+        // parentBlockId recalculated based on its new level.
+        //
+        // Example:
+        //   A
+        //     B
+        //     C  [Tab]
+        //
+        // Result:
+        //   A
+        //     B
+        //       C  ← parent MUST become B (not stay A!)
+        //
+        // If we don't update C's parent, later outdenting B won't find C
+        // as B's child, causing subtree corruption.
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         for (let i = 0; i < affectedBlocks.length; i++) {
           const item = affectedBlocks[i];
           const node = doc.nodeAt(item.pos);
           if (node) {
-            let newParentBlockId: string;
-
-            if (i === 0) {
-              // ROOT of indent: adopt under new parent
-              newParentBlockId =
-                getParentBlockIdForLevel(doc, item.pos, item.newLevel) ||
-                'root';
-            } else {
-              // CHILD: keep existing parent (subtree integrity)
-              newParentBlockId = node.attrs.parentBlockId || 'root';
-            }
+            // ALL blocks: recalculate parent based on new level
+            const newParentBlockId =
+              getParentBlockIdForLevel(doc, item.pos, item.newLevel) || 'root';
 
             tr.setNodeMarkup(item.pos, undefined, {
               ...node.attrs,
