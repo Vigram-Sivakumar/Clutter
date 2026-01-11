@@ -76,7 +76,10 @@ function calculateListNumber(
 }
 
 /**
- * Get children info for a task (tasks at level+1 that follow this task)
+ * Get children info for a task (FLAT MODEL)
+ *
+ * RULE: Count contiguous following task blocks with indent > current indent
+ * This gives us the visual subtree of tasks under this task
  */
 function getChildrenInfo(
   editor: NodeViewProps['editor'],
@@ -89,27 +92,43 @@ function getChildrenInfo(
   const currentNode = doc.nodeAt(pos);
   if (!currentNode) return { total: 0, completed: 0, hasChildren: false };
 
-  const currentBlockId = currentNode.attrs.blockId;
-  if (!currentBlockId) return { total: 0, completed: 0, hasChildren: false };
+  const currentIndent = currentNode.attrs.indent ?? 0;
 
-  let total = 0;
-  let completed = 0;
-
-  // Count children by parentBlockId (explicit parent-child relationship)
+  // Collect all blocks in order
+  const blocks: any[] = [];
   doc.descendants((node) => {
-    if (node.type.name === 'listBlock') {
-      const attrs = node.attrs as ListBlockAttrs;
-
-      // Only count tasks that are direct children (parentBlockId matches our blockId)
-      if (attrs.parentBlockId === currentBlockId && attrs.listType === 'task') {
-        total++;
-        if (attrs.checked) {
-          completed++;
-        }
-      }
+    if (node.attrs?.blockId) {
+      blocks.push(node);
     }
     return true;
   });
+
+  // Find current block index
+  const currentIndex = blocks.findIndex(
+    (n) => n.attrs.blockId === currentNode.attrs.blockId
+  );
+  if (currentIndex === -1)
+    return { total: 0, completed: 0, hasChildren: false };
+
+  // 🔥 FLAT MODEL: Count contiguous following TASK blocks with indent > current
+  let total = 0;
+  let completed = 0;
+
+  for (let i = currentIndex + 1; i < blocks.length; i++) {
+    const block = blocks[i];
+    const blockIndent = block.attrs.indent ?? 0;
+
+    // Stop if we've exited the visual subtree
+    if (blockIndent <= currentIndent) break;
+
+    // Only count task blocks (not bullets, numbered, toggles)
+    if (block.type.name === 'listBlock' && block.attrs.listType === 'task') {
+      total++;
+      if (block.attrs.checked) {
+        completed++;
+      }
+    }
+  }
 
   return { total, completed, hasChildren: total > 0 };
 }
@@ -620,14 +639,21 @@ export function ListBlock({
             <polyline points="6 9 12 15 18 9" />
           </svg>
         )}
-        {/* Completion count (tasks only, shown when expanded) */}
-        {listType === 'task' && !collapsed && (
-          <span>
+        {/* Completion count (tasks only, shown ALWAYS - expanded or collapsed) */}
+        {listType === 'task' && childrenInfo.hasChildren && (
+          <span
+            style={{
+              fontSize: 11,
+              color: colors.text.tertiary,
+              userSelect: 'none',
+              pointerEvents: 'none',
+            }}
+          >
             {childrenInfo.completed}/{childrenInfo.total} subtasks
           </span>
         )}
-        {/* STEP 4: Hidden children counter (shown when collapsed) */}
-        {collapsed && hiddenCount > 0 && (
+        {/* Hidden children counter (toggles only, shown when collapsed) */}
+        {listType === 'toggle' && collapsed && hiddenCount > 0 && (
           <span
             style={{
               fontSize: 11,
