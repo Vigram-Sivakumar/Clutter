@@ -1,22 +1,41 @@
 /**
- * Outdent Empty List Rule (Backspace)
+ * Convert Empty List Rule (Backspace) — FLAT MODEL
  *
- * When: At start of empty list block
- * Do: Emit outdent-block intent
+ * 🔥 BACKSPACE LAW (EMPTY LISTS):
+ * When Backspace is pressed at start of empty list (any indent):
+ *   → Convert the list to paragraph (preserve indent)
+ *   → Next Backspace deletes the paragraph
  *
- * Resolver decides:
- * - If level > 0: decrease level (outdent)
- * - If level = 0: convert to paragraph
+ * This matches Notion/Craft behavior exactly.
+ *
+ * Example:
+ * A
+ *     B
+ *     - [ ]  ← empty list, indent=1, cursor at start
+ *     D
+ *
+ * Backspace →
+ * A
+ *     B
+ *     |      ← converted to paragraph, indent=1, cursor at start
+ *     D
+ *
+ * Backspace again →
+ * A
+ *     B ← cursor jumps here
+ *     D
+ *
+ * When: At start of empty list block (any indent level)
+ * Do: Convert list to paragraph, preserve indent
  */
 
 import { defineRule } from '../../types/KeyboardRule';
 import type { KeyboardContext } from '../../types/KeyboardContext';
-import type { EditorIntent } from '../../../../core/engine';
 import { findAncestorNode } from '../../../../utils/keyboardHelpers';
 
 export const outdentEmptyList = defineRule({
-  id: 'backspace:outdentEmptyList',
-  description: 'Outdent or convert empty list on Backspace',
+  id: 'backspace:convertEmptyList',
+  description: 'Convert empty list to paragraph on Backspace - FLAT MODEL',
   priority: 90,
 
   when(ctx: KeyboardContext): boolean {
@@ -37,15 +56,42 @@ export const outdentEmptyList = defineRule({
     return listBlock.node.textContent === '';
   },
 
-  execute(ctx: KeyboardContext): EditorIntent | boolean {
+  execute(ctx: KeyboardContext): boolean {
     const { editor } = ctx;
 
     const listBlock = findAncestorNode(editor, 'listBlock');
     if (!listBlock) return false;
 
-    return {
-      type: 'outdent-block',
-      blockId: listBlock.node.attrs.blockId,
-    };
+    // 🔥 CONVERT TO PARAGRAPH (Notion/Craft behavior)
+    // Preserve indent level, convert type only
+    return editor
+      .chain()
+      .command(({ tr, state }) => {
+        const { pos, node } = listBlock;
+
+        // Convert list to paragraph, preserve indent
+        const paragraph = state.schema.nodes.paragraph.create(
+          {
+            blockId: node.attrs.blockId,
+            indent: node.attrs.indent ?? 0,
+          },
+          node.content // Keep content (though should be empty)
+        );
+
+        // Replace list with paragraph
+        tr.replaceWith(pos, pos + node.nodeSize, paragraph);
+
+        // Keep cursor at start of converted paragraph
+        const newCursorPos = pos + 1;
+        try {
+          const $pos = tr.doc.resolve(newCursorPos);
+          tr.setSelection(state.selection.constructor.near($pos));
+        } catch (e) {
+          console.warn('[convertEmptyList] Could not set selection:', e);
+        }
+
+        return true;
+      })
+      .run();
   },
 });
