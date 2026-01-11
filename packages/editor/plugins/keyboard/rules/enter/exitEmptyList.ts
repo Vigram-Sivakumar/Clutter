@@ -3,24 +3,25 @@
  *
  * 🔥 THE ENTER LAW (EMPTY BLOCKS AT ROOT):
  * When block is empty AND indent === 0 and Enter is pressed:
- *   → Create a NEW sibling block after current block
- *   → Keep current empty block (don't delete or convert)
+ *   → Convert the list block to a paragraph
+ *   → User exits "list mode" and returns to normal text
  *
- * This is the final step of the "walk to root" flow.
+ * This is the final step of the "walk to root, then exit" flow.
  *
  * Example:
  * A
  *   B
- * E  ← empty, indent=0, cursor here
+ * - [ ]  ← empty list, indent=0, cursor here
  *
  * Enter →
  * A
  *   B
- * E
- * F  ← NEW block created
+ * |      ← converted to paragraph, cursor here
+ *
+ * Press Enter again (on empty paragraph) → creates new paragraph below
  *
  * When: Empty list block at indent === 0 (not in wrapper)
- * Do: Create new paragraph sibling
+ * Do: Convert list to paragraph (matches Notion/Craft)
  */
 
 import { defineRule } from '../../types/KeyboardRule';
@@ -70,25 +71,29 @@ export const exitEmptyList = defineRule({
     const listBlock = findAncestorNode(editor, 'listBlock');
     if (!listBlock) return false;
 
-    // 🔥 FLAT MODEL: Create NEW paragraph after current block
-    // Don't convert or delete current block - just insert new sibling
+    // 🔥 CORRECT BEHAVIOR: Convert empty list to paragraph at indent 0
+    // This matches Notion/Craft - don't create new block, just convert
+    // User can press Enter again on the paragraph to create new blocks
     return editor
       .chain()
       .command(({ tr, state }) => {
         const { pos, node } = listBlock;
-        const blockEndPos = pos + node.nodeSize;
 
-        // Create new paragraph at indent 0
-        const newParagraph = state.schema.nodes.paragraph.create({
-          blockId: crypto.randomUUID(),
-          indent: 0,
-        });
+        // Convert the listBlock node to a paragraph node
+        // Preserve the blockId and indent
+        const paragraph = state.schema.nodes.paragraph.create(
+          {
+            blockId: node.attrs.blockId,
+            indent: 0,
+          },
+          node.content // Keep any content (though it should be empty)
+        );
 
-        // Insert after current block
-        tr.insert(blockEndPos, newParagraph);
+        // Replace the list block with paragraph
+        tr.replaceWith(pos, pos + node.nodeSize, paragraph);
 
-        // Move cursor to new paragraph
-        const newCursorPos = blockEndPos + 1;
+        // Keep cursor in the converted paragraph (inside the content)
+        const newCursorPos = pos + 1;
         try {
           const $pos = tr.doc.resolve(newCursorPos);
           tr.setSelection(state.selection.constructor.near($pos));
