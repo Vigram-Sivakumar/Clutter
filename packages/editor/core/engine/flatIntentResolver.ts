@@ -50,10 +50,25 @@ export class FlatIntentResolver {
   /**
    * Indent block (Tab)
    *
-   * RULE: Increase indent by 1
-   * NO subtree logic
-   * NO parent assignment
-   * NO validation
+   * 🔥 FLAT MODEL RANGE RULE (SYMMETRY WITH OUTDENT):
+   * Indent operates on the selected block AND its contiguous visual subtree
+   * (all following blocks with indent > baseIndent)
+   *
+   * Example:
+   * 1
+   *     2  indent-1  ← Select this
+   *     3  indent-1
+   * 4
+   *     5  indent-1
+   *
+   * After Tab:
+   * 1
+   *     2  indent-1
+   *     3  indent-1
+   *     4  indent-1  ← Moved with subtree
+   *         5  indent-2  ← Moved with parent
+   *
+   * This ensures indent/outdent are perfect inverses.
    */
   private handleIndentBlock(
     intent: Extract<EditorIntent, { type: 'indent-block' }>
@@ -72,20 +87,24 @@ export class FlatIntentResolver {
     const doc = state.doc;
     const tr = state.tr;
 
-    // Find block
-    let blockPos: number | null = null;
-    let blockNode: any = null;
-
+    // Collect all blocks in document order
+    const blocks: Array<{ pos: number; node: any; indent: number }> = [];
     doc.descendants((node: any, pos: number) => {
-      if (node.attrs?.blockId === blockId) {
-        blockPos = pos;
-        blockNode = node;
-        return false;
+      if (node.attrs?.blockId) {
+        blocks.push({
+          pos,
+          node,
+          indent: node.attrs.indent ?? 0,
+        });
       }
       return true;
     });
 
-    if (blockPos === null || !blockNode) {
+    // Find selected block index
+    const selectedIndex = blocks.findIndex(
+      (b) => b.node.attrs.blockId === blockId
+    );
+    if (selectedIndex === -1) {
       return {
         success: false,
         intent,
@@ -93,21 +112,39 @@ export class FlatIntentResolver {
       };
     }
 
-    // Get current indent
-    const currentIndent = blockNode.attrs.indent ?? 0;
+    const selectedBlock = blocks[selectedIndex];
+    const baseIndent = selectedBlock.indent;
 
-    console.log('[FLAT INDENT] BEFORE:', {
-      blockId: blockId.slice(0, 8),
-      currentIndent,
-      hasIndentAttr: 'indent' in blockNode.attrs,
-      attrs: blockNode.attrs,
+    // 🔥 RANGE DETECTION: Find all contiguous blocks with indent > baseIndent
+    // This is the "visual subtree" that moves with the selected block
+    const affectedRange = [selectedIndex];
+    for (let i = selectedIndex + 1; i < blocks.length; i++) {
+      if (blocks[i].indent > baseIndent) {
+        affectedRange.push(i);
+      } else {
+        break; // Stop at first block not deeper than base
+      }
+    }
+
+    console.log('[FLAT INDENT] Range:', {
+      selectedBlock: blockId.slice(0, 8),
+      baseIndent,
+      affectedCount: affectedRange.length,
+      affectedBlocks: affectedRange.map((i) => ({
+        blockId: blocks[i].node.attrs.blockId.slice(0, 8),
+        oldIndent: blocks[i].indent,
+        newIndent: blocks[i].indent + 1,
+      })),
     });
 
-    // CANONICAL RULE: Just increase indent by 1
-    tr.setNodeMarkup(blockPos, undefined, {
-      ...blockNode.attrs,
-      indent: currentIndent + 1,
-    });
+    // 🔥 RANGE MUTATION: Indent all affected blocks
+    for (const index of affectedRange) {
+      const block = blocks[index];
+      tr.setNodeMarkup(block.pos, undefined, {
+        ...block.node.attrs,
+        indent: block.indent + 1,
+      });
+    }
 
     // Mark for undo
     tr.setMeta('addToHistory', true);
@@ -115,14 +152,6 @@ export class FlatIntentResolver {
 
     // Apply
     view.dispatch(tr);
-
-    // Verify after dispatch
-    const updatedNode = view.state.doc.nodeAt(blockPos);
-    console.log('[FLAT INDENT] AFTER:', {
-      blockId: blockId.slice(0, 8),
-      newIndent: updatedNode?.attrs.indent,
-      attrs: updatedNode?.attrs,
-    });
 
     return {
       success: true,
