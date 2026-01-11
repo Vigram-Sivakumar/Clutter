@@ -83,15 +83,46 @@ export const splitListItem = defineRule({
         // We want to insert right after the current block
         const currentBlockEndPos = listBlockPos + cursorPosInBlock + 2;
 
+        // 🔥 FLAT MODEL: Calculate indent for new block
+        // RULE: Find subtree depth, then decide sibling vs continue
+        const baseIndent = attrs.indent ?? 0;
+
+        // Scan forward to find subtree and max depth
+        let maxIndent = baseIndent;
+        const doc = cmdState.doc;
+        const blocks: any[] = [];
+
+        doc.descendants((node) => {
+          if (node.attrs?.blockId) {
+            blocks.push(node);
+          }
+          return true;
+        });
+
+        const currentIndex = blocks.findIndex(
+          (n) => n.attrs.blockId === attrs.blockId
+        );
+
+        if (currentIndex !== -1) {
+          // Scan forward through subtree
+          for (let i = currentIndex + 1; i < blocks.length; i++) {
+            const blockIndent = blocks[i].attrs.indent ?? 0;
+            if (blockIndent <= baseIndent) break; // Exit subtree
+            maxIndent = Math.max(maxIndent, blockIndent);
+          }
+        }
+
+        // ENTER INVARIANT: Sibling if no children, continue depth if children
+        const newIndent = maxIndent === baseIndent ? baseIndent : maxIndent;
+
         // Step 3: Create and insert new list item with "after" content
         const newListBlock = cmdState.schema.nodes.listBlock.create(
           {
             blockId: crypto.randomUUID(),
             listType: attrs.listType,
             checked: attrs.listType === 'task' ? false : null,
-            level: attrs.level || 0,
-            parentBlockId: attrs.parentBlockId || null,
-            parentToggleId: attrs.parentToggleId || null,
+            indent: newIndent,
+            collapsed: false,
           },
           contentAfter
         );
