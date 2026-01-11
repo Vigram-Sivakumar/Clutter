@@ -89,7 +89,7 @@ export function getVisualSubtree(
  */
 export function getOutdentAffectedBlocks(
   doc: PMNode,
-  startPos: number,
+  blockPos: number,
   currentLevel: number,
   newLevel: number
 ): Array<{
@@ -98,7 +98,15 @@ export function getOutdentAffectedBlocks(
   oldLevel: number;
   newLevel: number;
 }> {
-  const levelDelta = currentLevel - newLevel;
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // 🔥 FIX: Self-contained subtree detection (no helper dependencies)
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // RULE: Include root + all following blocks with level > root.level
+  //       Stop when hitting a block with level <= root.level
+  //
+  // This is the Notion-grade subtree invariant.
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
   const affected: Array<{
     blockId: string;
     pos: number;
@@ -106,27 +114,43 @@ export function getOutdentAffectedBlocks(
     newLevel: number;
   }> = [];
 
-  // The block being outdented
-  const startNode = doc.nodeAt(startPos);
-  if (startNode?.attrs?.blockId) {
-    affected.push({
-      blockId: startNode.attrs.blockId,
-      pos: startPos,
-      oldLevel: currentLevel,
-      newLevel,
-    });
-  }
+  let started = false;
 
-  // All its visual descendants
-  const subtree = getVisualSubtree(doc, startPos, currentLevel);
-  for (const item of subtree) {
+  doc.descendants((node: any, pos: number) => {
+    if (!node.attrs?.blockId) return true;
+
+    // Find root block
+    if (pos === blockPos) {
+      started = true;
+      affected.push({
+        blockId: node.attrs.blockId,
+        pos,
+        oldLevel: currentLevel,
+        newLevel,
+      });
+      return true; // Continue to find descendants
+    }
+
+    // Haven't found root yet, keep searching
+    if (!started) return true;
+
+    const level = node.attrs.level ?? 0;
+
+    // 🛑 STOP: Reached sibling or ancestor (exited subtree)
+    if (level <= currentLevel) {
+      return false;
+    }
+
+    // ✅ INCLUDE: This is a descendant
     affected.push({
-      blockId: item.blockId,
-      pos: item.pos,
-      oldLevel: item.level,
-      newLevel: item.level - levelDelta,
+      blockId: node.attrs.blockId,
+      pos,
+      oldLevel: level,
+      newLevel: level - 1, // Outdent by one level
     });
-  }
+
+    return true; // Continue traversing descendants
+  });
 
   return affected;
 }
