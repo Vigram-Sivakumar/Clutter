@@ -184,16 +184,266 @@ export function cutToClipboard(
   return true;
 }
 
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 🎯 STEP 3B.2: PASTE INTENT ENGINE
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Deterministic paste behavior based on cursor position and content.
+// Every paste scenario maps to exactly one intent.
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+/**
+ * Paste intent classification
+ * 
+ * Determines HOW to paste based on:
+ * - Selection type (NodeSelection vs TextSelection)
+ * - Cursor position (start/mid/end of block)
+ * - Block state (empty vs non-empty)
+ * - Paste content (single para vs multiple blocks)
+ */
+enum PasteIntent {
+  /** Block is selected (NodeSelection/halo) → replace it */
+  REPLACE_BLOCK = 'replace',
+  
+  /** Cursor mid-block → split and insert between */
+  SPLIT_BLOCK = 'split',
+  
+  /** Cursor at end of non-empty block, single para → append inline */
+  APPEND_TO_BLOCK = 'append',
+  
+  /** Cursor at boundary or end with multiple blocks → insert after */
+  INSERT_AFTER = 'insert_after',
+}
+
+/**
+ * 🔍 LAW 1: Detect paste intent from selection and content
+ * 
+ * Deterministic: Given same selection + content, always returns same intent.
+ * No heuristics, no magic.
+ */
+function detectPasteIntent(
+  state: EditorState,
+  payload: ClipboardPayloadV1
+): PasteIntent {
+  const { selection } = state;
+  
+  // ✅ INTENT 1: Block selected (halo) → Replace
+  if (selection instanceof NodeSelection) {
+    return PasteIntent.REPLACE_BLOCK;
+  }
+  
+  // All other cases use TextSelection
+  if (!(selection instanceof TextSelection)) {
+    // Fallback for unexpected selection types
+    console.warn('[Paste] Unexpected selection type, defaulting to INSERT_AFTER', {
+      type: selection.constructor.name,
+    });
+    return PasteIntent.INSERT_AFTER;
+  }
+  
+  const { $from } = selection;
+  const block = $from.node($from.depth);
+  const cursorOffset = $from.parentOffset;
+  const blockContentSize = block.content.size;
+  
+  // Detect position in block
+  const atStart = cursorOffset === 0;
+  const atEnd = cursorOffset === blockContentSize;
+  const midBlock = !atStart && !atEnd;
+  
+  // Detect block state
+  const isEmpty = blockContentSize === 0;
+  
+  // Detect paste content
+  const isSingleParagraph = 
+    payload.blocks.length === 1 && 
+    payload.blocks[0]?.type === 'paragraph';
+  
+  console.log('[Paste] Intent detection', {
+    cursorOffset,
+    blockContentSize,
+    atStart,
+    atEnd,
+    midBlock,
+    isEmpty,
+    isSingleParagraph,
+    pasteBlockCount: payload.blocks.length,
+  });
+  
+  // ✅ INTENT 2: Mid-block → Split
+  if (midBlock) {
+    return PasteIntent.SPLIT_BLOCK;
+  }
+  
+  // ✅ INTENT 3: At end of non-empty block, single para → Append inline
+  if (atEnd && !isEmpty && isSingleParagraph) {
+    return PasteIntent.APPEND_TO_BLOCK;
+  }
+  
+  // ✅ INTENT 4: All other cases → Insert after
+  // - At start of block
+  // - At end of empty block
+  // - At end with multiple blocks
+  return PasteIntent.INSERT_AFTER;
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 🎯 PASTE INTENT HANDLERS (Step 3B.2)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+/**
+ * 🔹 LAW 2: REPLACE_BLOCK - Delete selected block(s), insert pasted blocks
+ * 
+ * Behavior:
+ * 1. Delete selected block(s)
+ * 2. Insert pasted blocks at same position
+ * 3. Use deleted block's indent as base indent
+ * 4. Cursor lands in first pasted block, offset 0
+ */
+function handleReplaceBlock(
+  state: EditorState,
+  tr: Transaction,
+  payload: ClipboardPayloadV1
+): boolean {
+  const { selection } = state;
+  
+  if (!(selection instanceof NodeSelection)) {
+    console.error('[Paste] REPLACE_BLOCK requires NodeSelection');
+    return false;
+  }
+  
+  const { node: selectedNode, $from } = selection;
+  const selectedBlockPos = $from.before($from.depth);
+  const baseIndent = selectedNode.attrs?.indent ?? 0;
+  
+  console.log('[Paste] REPLACE_BLOCK', {
+    selectedBlockPos,
+    selectedBlockType: selectedNode.type.name,
+    baseIndent,
+    pasteBlockCount: payload.blocks.length,
+  });
+  
+  // Delete selected block
+  tr.delete(selectedBlockPos, selectedBlockPos + selectedNode.nodeSize);
+  
+  // Insert pasted blocks at same position
+  let insertPos = selectedBlockPos;
+  const firstBlockIndent = payload.blocks[0]?.indent ?? 0;
+  const indentOffset = baseIndent - firstBlockIndent;
+  
+  for (const block of payload.blocks) {
+    const newIndent = Math.max(0, block.indent + indentOffset);
+    
+    const node = createBlock(state, tr, {
+      type: block.type,
+      insertPos,
+      indent: newIndent,
+      attrs: block.attrs,
+      content: block.content?.content ?? null,
+    });
+    
+    if (!node) {
+      console.error('[Paste] Failed to create block in REPLACE_BLOCK');
+      continue;
+    }
+    
+    insertPos += node.nodeSize;
+  }
+  
+  // Cursor lands in first pasted block, offset 0
+  const $firstBlock = tr.doc.resolve(selectedBlockPos + 1);
+  tr.setSelection(TextSelection.create(tr.doc, $firstBlock.pos));
+  
+  console.log('[Paste] REPLACE_BLOCK complete', {
+    cursorPos: tr.selection.from,
+  });
+  
+  return true;
+}
+
+/**
+ * 🔹 LAW 5: INSERT_AFTER - Insert pasted blocks after current block
+ * 
+ * Behavior:
+ * 1. Insert pasted blocks after current block
+ * 2. Base indent = current block indent
+ * 3. Cursor lands in first pasted block, offset 0
+ * 
+ * Used for:
+ * - Cursor at start of block
+ * - Cursor at end of empty block
+ * - Cursor at end with multiple blocks to paste
+ */
+function handleInsertAfter(
+  state: EditorState,
+  tr: Transaction,
+  payload: ClipboardPayloadV1
+): boolean {
+  const { selection } = state;
+  const { $from } = selection;
+  const currentBlock = $from.node($from.depth);
+  const baseIndent = currentBlock?.attrs?.indent ?? 0;
+  
+  // Insert after current block
+  let insertPos = $from.after($from.depth);
+  
+  // 🛡️ GUARD: Validate position
+  if (insertPos <= 0 || insertPos > tr.doc.content.size) {
+    console.error('[Paste] INSERT_AFTER invalid position', {
+      insertPos,
+      docSize: tr.doc.content.size,
+    });
+    return false;
+  }
+  
+  console.log('[Paste] INSERT_AFTER', {
+    insertPos,
+    baseIndent,
+    pasteBlockCount: payload.blocks.length,
+  });
+  
+  const firstBlockIndent = payload.blocks[0]?.indent ?? 0;
+  const indentOffset = baseIndent - firstBlockIndent;
+  const firstInsertPos = insertPos;
+  
+  for (const block of payload.blocks) {
+    const newIndent = Math.max(0, block.indent + indentOffset);
+    
+    const node = createBlock(state, tr, {
+      type: block.type,
+      insertPos,
+      indent: newIndent,
+      attrs: block.attrs,
+      content: block.content?.content ?? null,
+    });
+    
+    if (!node) {
+      console.error('[Paste] Failed to create block in INSERT_AFTER');
+      continue;
+    }
+    
+    insertPos += node.nodeSize;
+  }
+  
+  // Cursor lands in first pasted block, offset 0
+  const $firstBlock = tr.doc.resolve(firstInsertPos + 1);
+  tr.setSelection(TextSelection.create(tr.doc, $firstBlock.pos));
+  
+  console.log('[Paste] INSERT_AFTER complete', {
+    cursorPos: tr.selection.from,
+  });
+  
+  return true;
+}
+
 /**
  * 📋 PASTE (INTERNAL): Insert copied blocks at cursor
  * 
+ * 🎯 Step 3B.2: Intent-based paste routing
+ * 
  * Algorithm:
- * 1. Determine insertion point
- * 2. Calculate base indent
- * 3. For each block:
- *    - Re-base indent: baseIndent + (block.indent - firstBlock.indent)
- *    - Create via createBlock()
- * 4. Cursor lands in first pasted block
+ * 1. Detect paste intent
+ * 2. Route to appropriate handler
+ * 3. Handler creates blocks + positions cursor
  * 
  * @returns true if paste succeeded
  */
@@ -212,82 +462,49 @@ export function pasteFromClipboard(
     return false;
   }
   
-  const { selection } = state;
-  const tr = state.tr;
   const payload = clipboardState.payload;
+  const tr = state.tr;
   
-  // Step 1: Determine insertion point
-  // For now, insert after current block
-  const $from = selection.$from;
-  let insertPos = $from.after($from.depth);
+  // 🎯 Step 1: Detect paste intent
+  const intent = detectPasteIntent(state, payload);
   
-  // 🛡️ GUARD 2: Validate insertion position
-  if (insertPos <= 0 || insertPos > tr.doc.content.size) {
-    console.error('[Clipboard] Invalid insertion position', {
-      insertPos,
-      docSize: tr.doc.content.size,
-    });
+  console.log('[Paste] Intent detected:', intent);
+  
+  // 🎯 Step 2: Route to appropriate handler
+  let success = false;
+  
+  switch (intent) {
+    case PasteIntent.REPLACE_BLOCK:
+      success = handleReplaceBlock(state, tr, payload);
+      break;
+      
+    case PasteIntent.INSERT_AFTER:
+      success = handleInsertAfter(state, tr, payload);
+      break;
+      
+    case PasteIntent.SPLIT_BLOCK:
+      // TODO: Implement in next commit
+      console.warn('[Paste] SPLIT_BLOCK not yet implemented, falling back to INSERT_AFTER');
+      success = handleInsertAfter(state, tr, payload);
+      break;
+      
+    case PasteIntent.APPEND_TO_BLOCK:
+      // TODO: Implement in next commit
+      console.warn('[Paste] APPEND_TO_BLOCK not yet implemented, falling back to INSERT_AFTER');
+      success = handleInsertAfter(state, tr, payload);
+      break;
+      
+    default:
+      console.error('[Paste] Unknown intent:', intent);
+      return false;
+  }
+  
+  if (!success) {
+    console.error('[Paste] Handler failed for intent:', intent);
     return false;
   }
   
-  // Step 2: Determine base indent
-  const currentBlock = $from.node($from.depth);
-  const baseIndent = currentBlock?.attrs?.indent ?? 0;
-  
-  // Step 3: Calculate relative indent offset
-  const firstBlockIndent = payload.blocks[0]?.indent ?? 0;
-  const indentOffset = baseIndent - firstBlockIndent;
-  
-  console.log('[Clipboard] Paste setup', {
-    insertPos,
-    baseIndent,
-    firstBlockIndent,
-    indentOffset,
-    blockCount: payload.blocks.length,
-  });
-  
-  // Step 4: Insert each block
-  let firstInsertedPos: number | null = null;
-  
-  for (let i = 0; i < payload.blocks.length; i++) {
-    const block = payload.blocks[i];
-    if (!block) continue;
-    
-    // Re-base indent
-    const newIndent = Math.max(0, block.indent + indentOffset);
-    
-    // Create block via centralized function
-    const node = createBlock(state, tr, {
-      type: block.type,
-      insertPos,
-      indent: newIndent,
-      attrs: block.attrs, // Safe attrs (no blockId)
-      content: block.content?.content ?? null,
-    });
-    
-    if (!node) {
-      console.error('[Clipboard] Failed to create block during paste', {
-        type: block.type,
-        index: i,
-      });
-      continue;
-    }
-    
-    // Track first inserted position for cursor
-    if (firstInsertedPos === null) {
-      firstInsertedPos = insertPos;
-    }
-    
-    // Move insertion point forward
-    insertPos += node.nodeSize;
-  }
-  
-  // Step 5: Position cursor in first pasted block
-  if (firstInsertedPos !== null) {
-    const $insertPos = tr.doc.resolve(firstInsertedPos + 1);
-    tr.setSelection(TextSelection.near($insertPos));
-  }
-  
+  // 🎯 Step 3: Finalize transaction
   tr.setMeta('addToHistory', true);
   tr.setMeta('closeHistory', true);
   
@@ -296,7 +513,8 @@ export function pasteFromClipboard(
   clipboardState.lastOperation = 'paste';
   clipboardState.lastOperationTime = Date.now();
   
-  console.log('[Clipboard] Paste complete', {
+  console.log('[Paste] Complete', {
+    intent,
     blocksInserted: payload.blocks.length,
     cursorPos: tr.selection.from,
   });
