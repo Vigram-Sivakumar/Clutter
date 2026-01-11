@@ -156,6 +156,16 @@ export function getOutdentAffectedBlocks(
     return true; // Continue traversing descendants
   });
 
+  // 🌿 FORENSIC CHECKPOINT 2: SUBTREE CALCULATION RESULT
+  console.group('🌿 SUBTREE RESULT');
+  console.log('root:', rootBlockId.slice(0, 8));
+  affected.forEach((b) => {
+    console.log(
+      `${b.blockId.slice(0, 8)} | old=${b.oldLevel} → new=${b.newLevel}`
+    );
+  });
+  console.groupEnd();
+
   return affected;
 }
 

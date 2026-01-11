@@ -225,6 +225,34 @@ function syncTipTapToEngine(
       blockCount: Object.keys(newTree.nodes).length - 1, // -1 for root
       blocks: Object.keys(newTree.nodes).filter((id) => id !== 'root'),
     });
+
+    // 🌳 FORENSIC CHECKPOINT 4: AFTER BRIDGE REBUILD (CRITICAL!)
+    console.group('🌳 TREE SNAPSHOT — AFTER BRIDGE REBUILD');
+    const blocksAfter = engine.getAllBlocks();
+    blocksAfter.forEach((b, i) => {
+      console.log(
+        `${i}. ${b.id.slice(0, 8)} | level=${b.level} | parent=${b.parentId?.slice(0, 8) ?? 'root'}`
+      );
+    });
+    console.groupEnd();
+
+    // 🚨 HARD ASSERT: Validate parent relationships
+    blocksAfter.forEach((block, i, blocks) => {
+      if (block.level === 0) return;
+
+      const hasValidParent = blocks
+        .slice(0, i)
+        .some((b) => b.level === block.level - 1 && b.id === block.parentId);
+
+      if (!hasValidParent) {
+        console.error('❌ INVALID PARENT DERIVATION', {
+          block: block.id.slice(0, 8),
+          level: block.level,
+          parentId: block.parentId?.slice(0, 8) ?? 'root',
+          issue: 'Parent not found at correct level',
+        });
+      }
+    });
   } finally {
     // Reset source after a tick
     setTimeout(() => {

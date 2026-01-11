@@ -50,6 +50,16 @@ export class IntentResolver {
       blockId: (intent as any).blockId,
     });
 
+    // 🌳 FORENSIC CHECKPOINT 1: BEFORE MUTATION
+    console.group('🌳 TREE SNAPSHOT — BEFORE MUTATION');
+    const blocksBefore = this._engine.getAllBlocks();
+    blocksBefore.forEach((b, i) => {
+      console.log(
+        `${i}. ${b.id.slice(0, 8)} | level=${b.level} | parent=${b.parentId?.slice(0, 8) ?? 'root'}`
+      );
+    });
+    console.groupEnd();
+
     const mode = this._engine.getMode();
 
     // CRITICAL: Check if intent is allowed in current mode
@@ -1002,12 +1012,15 @@ export class IntentResolver {
               newParentBlockId = affectedBlocks[0].blockId;
             }
 
-            // 🔗 PARENT REASSIGNMENT TRACE
-            console.log('🔗 [outdent reparent]', {
-              i,
-              block: item.blockId.slice(0, 8),
-              newParentBlockId,
-            });
+            // 🔗 FORENSIC CHECKPOINT 3: REPARENT DECISION
+            console.log(
+              '🔗 REPARENT',
+              item.blockId.slice(0, 8),
+              '→',
+              newParentBlockId === 'root'
+                ? 'root'
+                : newParentBlockId.slice(0, 8)
+            );
 
             tr.setNodeMarkup(item.pos, undefined, {
               ...node.attrs,
