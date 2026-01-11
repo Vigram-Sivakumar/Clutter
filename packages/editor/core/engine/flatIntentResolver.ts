@@ -134,10 +134,12 @@ export class FlatIntentResolver {
   /**
    * Outdent block (Shift+Tab)
    *
-   * RULE: Decrease indent by 1 (min 0)
-   * NO subtree logic
-   * NO parent assignment
-   * NO validation
+   * 🔥 FLAT MODEL RANGE RULE:
+   * Outdent operates on the selected block AND its contiguous visual subtree
+   * (all following blocks with indent > baseIndent)
+   *
+   * This ensures the flat-list invariant:
+   * "A block can never be more than +1 indent deeper than the block above it"
    */
   private handleOutdentBlock(
     intent: Extract<EditorIntent, { type: 'outdent-block' }>
@@ -156,20 +158,24 @@ export class FlatIntentResolver {
     const doc = state.doc;
     const tr = state.tr;
 
-    // Find block
-    let blockPos: number | null = null;
-    let blockNode: any = null;
-
+    // Collect all blocks in document order
+    const blocks: Array<{ pos: number; node: any; indent: number }> = [];
     doc.descendants((node: any, pos: number) => {
-      if (node.attrs?.blockId === blockId) {
-        blockPos = pos;
-        blockNode = node;
-        return false;
+      if (node.attrs?.blockId) {
+        blocks.push({
+          pos,
+          node,
+          indent: node.attrs.indent ?? 0,
+        });
       }
       return true;
     });
 
-    if (blockPos === null || !blockNode) {
+    // Find selected block index
+    const selectedIndex = blocks.findIndex(
+      (b) => b.node.attrs.blockId === blockId
+    );
+    if (selectedIndex === -1) {
       return {
         success: false,
         intent,
@@ -177,11 +183,11 @@ export class FlatIntentResolver {
       };
     }
 
-    // Get current indent
-    const currentIndent = blockNode.attrs.indent ?? 0;
+    const selectedBlock = blocks[selectedIndex];
+    const baseIndent = selectedBlock.indent;
 
     // Block if already at root
-    if (currentIndent === 0) {
+    if (baseIndent === 0) {
       return {
         success: false,
         intent,
@@ -189,11 +195,36 @@ export class FlatIntentResolver {
       };
     }
 
-    // CANONICAL RULE: Just decrease indent by 1 (min 0)
-    tr.setNodeMarkup(blockPos, undefined, {
-      ...blockNode.attrs,
-      indent: Math.max(0, currentIndent - 1),
+    // 🔥 RANGE DETECTION: Find all contiguous blocks with indent > baseIndent
+    // This is the "visual subtree" that moves with the selected block
+    const affectedRange = [selectedIndex];
+    for (let i = selectedIndex + 1; i < blocks.length; i++) {
+      if (blocks[i].indent > baseIndent) {
+        affectedRange.push(i);
+      } else {
+        break; // Stop at first block not deeper than base
+      }
+    }
+
+    console.log('[FLAT OUTDENT] Range:', {
+      selectedBlock: blockId.slice(0, 8),
+      baseIndent,
+      affectedCount: affectedRange.length,
+      affectedBlocks: affectedRange.map((i) => ({
+        blockId: blocks[i].node.attrs.blockId.slice(0, 8),
+        oldIndent: blocks[i].indent,
+        newIndent: Math.max(0, blocks[i].indent - 1),
+      })),
     });
+
+    // 🔥 RANGE MUTATION: Outdent all affected blocks
+    for (const index of affectedRange) {
+      const block = blocks[index];
+      tr.setNodeMarkup(block.pos, undefined, {
+        ...block.node.attrs,
+        indent: Math.max(0, block.indent - 1),
+      });
+    }
 
     // Mark for undo
     tr.setMeta('addToHistory', true);
