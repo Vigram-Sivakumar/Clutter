@@ -192,10 +192,14 @@ export function cutToClipboard(
   // Delete selection range
   tr.deleteSelection();
   
-  // 🛡️ GUARD: Ensure valid cursor position after delete
-  const newPos = Math.min(tr.selection.from, tr.doc.content.size - 1);
-  const $newPos = tr.doc.resolve(Math.max(1, newPos));
-  tr.setSelection(TextSelection.near($newPos));
+  // 🎯 Cursor finalization: Use explicit position (not TextSelection.near)
+  // After delete, cursor should be at the position where deleted content was
+  let newCursorPos = tr.selection.from;
+  
+  // 🛡️ GUARD: Ensure cursor is within bounds
+  newCursorPos = Math.max(1, Math.min(newCursorPos, tr.doc.content.size - 1));
+  
+  tr.setSelection(TextSelection.create(tr.doc, newCursorPos));
   
   tr.setMeta('addToHistory', true);
   tr.setMeta('closeHistory', true);
@@ -471,6 +475,43 @@ function getInsertPositionAfterBlock(
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 🎯 LAW 7: LIST CONTINUITY (Step 3B.3 Phase 2)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+/**
+ * Determine if first pasted block should inherit parent listType
+ * 
+ * 🔒 LAW 7: When pasting into listBlock at end, first pasted block inherits listType
+ * (only if same indent)
+ * 
+ * This creates natural list continuation:
+ *   - Bullet list + paste numbered → first becomes bullet, rest stay numbered
+ *   - Only applies when cursor at end of block
+ *   - Only applies when same indent level
+ */
+function shouldInheritListType(
+  currentBlock: PMNode,
+  firstPastedBlock: ClipboardPayloadV1['blocks'][0],
+  cursorAtEnd: boolean
+): boolean {
+  // Only when pasting into listBlock
+  if (currentBlock.type.name !== 'listBlock') return false;
+  
+  // Only when cursor at end
+  if (!cursorAtEnd) return false;
+  
+  // Only when first pasted is also listBlock
+  if (firstPastedBlock?.type !== 'listBlock') return false;
+  
+  // Only when same indent level
+  const currentIndent = currentBlock.attrs?.indent ?? 0;
+  const pastedIndent = firstPastedBlock.indent ?? 0;
+  if (currentIndent !== pastedIndent) return false;
+  
+  return true;
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 /**
  * 🔹 LAW 5: INSERT_AFTER - Insert pasted blocks after current block
@@ -508,10 +549,37 @@ function handleInsertAfter(
     return false;
   }
   
+  // Detect if cursor is at end of block
+  const cursorOffset = $from.parentOffset;
+  const blockContentSize = currentBlock?.content.size ?? 0;
+  const cursorAtEnd = cursorOffset === blockContentSize;
+  
+  // 🎯 LAW 7: List continuity - first pasted block may inherit parent listType
+  const inheritListType = shouldInheritListType(
+    currentBlock,
+    payload.blocks[0],
+    cursorAtEnd
+  );
+  
+  if (inheritListType && payload.blocks[0]) {
+    console.log('[Paste] List continuity: inheriting listType', {
+      from: currentBlock.attrs?.listType,
+      to: payload.blocks[0].attrs?.listType,
+    });
+    
+    // Override first block's listType (mutation is safe here, payload is transient)
+    payload.blocks[0].attrs = {
+      ...payload.blocks[0].attrs,
+      listType: currentBlock.attrs.listType,
+    };
+  }
+  
   console.log('[Paste] INSERT_AFTER', {
     insertPos,
     baseIndent,
     collapsed: currentBlock?.attrs?.collapsed === true,
+    cursorAtEnd,
+    listContinuity: inheritListType,
     pasteBlockCount: payload.blocks.length,
   });
   
@@ -889,10 +957,10 @@ export function pasteExternalText(
     insertPos += node.nodeSize;
   }
   
-  // Position cursor in first pasted block
+  // 🎯 Cursor finalization: Position in first pasted block, offset 0
   if (firstInsertedPos !== null) {
-    const $insertPos = tr.doc.resolve(firstInsertedPos + 1);
-    tr.setSelection(TextSelection.near($insertPos));
+    const cursorPos = firstInsertedPos + 1; // Inside first block
+    tr.setSelection(TextSelection.create(tr.doc, cursorPos));
   }
   
   tr.setMeta('addToHistory', true);
