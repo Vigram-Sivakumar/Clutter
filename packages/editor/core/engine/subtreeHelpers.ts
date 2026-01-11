@@ -28,54 +28,6 @@ import type { Node as PMNode } from '@tiptap/pm/model';
  * @param baseLevel - Level of the block
  * @returns Array of { pos: number, node: PMNode, level: number } for all descendants
  */
-export function getVisualSubtree(
-  doc: PMNode,
-  startPos: number,
-  baseLevel: number
-): Array<{ pos: number; node: PMNode; level: number; blockId: string }> {
-  const subtree: Array<{
-    pos: number;
-    node: PMNode;
-    level: number;
-    blockId: string;
-  }> = [];
-
-  let foundStart = false;
-
-  doc.descendants((node, pos) => {
-    // Skip until we find the starting block
-    if (!foundStart) {
-      if (pos === startPos) {
-        foundStart = true;
-      }
-      return true; // Keep searching
-    }
-
-    // We're past the start block - check if this is a descendant
-    const nodeLevel = node.attrs?.level ?? 0;
-
-    // If level <= baseLevel, we've exited the subtree
-    if (nodeLevel <= baseLevel) {
-      return false; // Stop traversing
-    }
-
-    // This block is part of the subtree
-    const blockId = node.attrs?.blockId;
-    if (blockId) {
-      subtree.push({
-        pos,
-        node,
-        level: nodeLevel,
-        blockId,
-      });
-    }
-
-    return true; // Continue traversing
-  });
-
-  return subtree;
-}
-
 /**
  * Get all blocks that need level adjustment when outdenting
  *
@@ -90,7 +42,7 @@ export function getVisualSubtree(
 export function getOutdentAffectedBlocks(
   doc: PMNode,
   rootBlockId: string,
-  rootLevel: number
+  _rootLevel: number
 ): Array<{
   blockId: string;
   pos: number;
@@ -98,19 +50,50 @@ export function getOutdentAffectedBlocks(
   newLevel: number;
 }> {
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // 🔑 CRITICAL FIX: Match by blockId (NOT position)
+  // 🔑 CRITICAL FIX: Parent-based DFS, NOT level-based scanning
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // Positions are unstable across:
-  // - Document rebuilds
-  // - NodeView wrapping
-  // - Selection changes
+  // WRONG (old approach):
+  //   - Scan forward while level > rootLevel
+  //   - Assumes visual nesting = structural nesting
+  //   - Fails when parentBlockId ≠ visual parent
   //
-  // blockId is the ONLY stable identifier for logical blocks.
-  //
-  // RULE: Include root + all following blocks with level > root.level
-  //       Stop when hitting a block with level <= root.level
+  // CORRECT (new approach):
+  //   - Build parent → children map from parentBlockId
+  //   - DFS from root to collect ALL descendants
+  //   - Parents are truth, levels are derived
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+  // PASS 1: Build parent → children map + blockId → node map
+  const childrenMap = new Map<string, string[]>();
+  const nodeMap = new Map<string, { node: any; pos: number }>();
+
+  doc.descendants((node: any, pos: number) => {
+    if (!node.attrs?.blockId) return true;
+
+    const { blockId, parentBlockId } = node.attrs;
+    nodeMap.set(blockId, { node, pos });
+
+    const parent = parentBlockId || 'root';
+    if (!childrenMap.has(parent)) {
+      childrenMap.set(parent, []);
+    }
+    childrenMap.get(parent)!.push(blockId);
+
+    return true;
+  });
+
+  // PASS 2: DFS from root to collect entire subtree
+  const subtreeIds: string[] = [];
+
+  function collectSubtree(id: string) {
+    subtreeIds.push(id);
+    const children = childrenMap.get(id) ?? [];
+    children.forEach(collectSubtree);
+  }
+
+  collectSubtree(rootBlockId);
+
+  // PASS 3: Build affected blocks with positions and level deltas
   const affected: Array<{
     blockId: string;
     pos: number;
@@ -118,43 +101,20 @@ export function getOutdentAffectedBlocks(
     newLevel: number;
   }> = [];
 
-  let collecting = false;
+  for (const blockId of subtreeIds) {
+    const data = nodeMap.get(blockId);
+    if (!data) continue;
 
-  doc.descendants((node: any, pos: number) => {
-    if (!node.attrs?.blockId) return true;
+    const oldLevel = data.node.attrs.level ?? 0;
+    const newLevel = oldLevel - 1; // Outdent by one level
 
-    const { blockId, level } = node.attrs;
-
-    // 🔑 Find root by blockId (NOT position)
-    if (blockId === rootBlockId) {
-      collecting = true;
-      affected.push({
-        blockId,
-        pos,
-        oldLevel: level ?? rootLevel,
-        newLevel: rootLevel - 1,
-      });
-      return true; // Continue to collect descendants
-    }
-
-    // Haven't found root yet, keep searching
-    if (!collecting) return true;
-
-    // 🛑 STOP: Reached sibling or ancestor (exited subtree)
-    if (level <= rootLevel) {
-      return false;
-    }
-
-    // ✅ INCLUDE: This is a descendant
     affected.push({
       blockId,
-      pos,
-      oldLevel: level,
-      newLevel: level - 1, // Outdent by one level
+      pos: data.pos,
+      oldLevel,
+      newLevel,
     });
-
-    return true; // Continue traversing descendants
-  });
+  }
 
   // 🌿 FORENSIC CHECKPOINT 2: SUBTREE CALCULATION RESULT
   console.group('🌿 SUBTREE RESULT');
@@ -191,7 +151,46 @@ export function getIndentAffectedBlocks(
   oldLevel: number;
   newLevel: number;
 }> {
+  // 🔑 Parent-based DFS (same as outdent)
   const levelDelta = newLevel - currentLevel;
+
+  // Get root block ID
+  const startNode = doc.nodeAt(startPos);
+  if (!startNode?.attrs?.blockId) return [];
+
+  const rootBlockId = startNode.attrs.blockId;
+
+  // PASS 1: Build parent → children map + blockId → node map
+  const childrenMap = new Map<string, string[]>();
+  const nodeMap = new Map<string, { node: any; pos: number }>();
+
+  doc.descendants((node: any, pos: number) => {
+    if (!node.attrs?.blockId) return true;
+
+    const { blockId, parentBlockId } = node.attrs;
+    nodeMap.set(blockId, { node, pos });
+
+    const parent = parentBlockId || 'root';
+    if (!childrenMap.has(parent)) {
+      childrenMap.set(parent, []);
+    }
+    childrenMap.get(parent)!.push(blockId);
+
+    return true;
+  });
+
+  // PASS 2: DFS from root to collect entire subtree
+  const subtreeIds: string[] = [];
+
+  function collectSubtree(id: string) {
+    subtreeIds.push(id);
+    const children = childrenMap.get(id) ?? [];
+    children.forEach(collectSubtree);
+  }
+
+  collectSubtree(rootBlockId);
+
+  // PASS 3: Build affected blocks with level deltas
   const affected: Array<{
     blockId: string;
     pos: number;
@@ -199,25 +198,17 @@ export function getIndentAffectedBlocks(
     newLevel: number;
   }> = [];
 
-  // The block being indented
-  const startNode = doc.nodeAt(startPos);
-  if (startNode?.attrs?.blockId) {
-    affected.push({
-      blockId: startNode.attrs.blockId,
-      pos: startPos,
-      oldLevel: currentLevel,
-      newLevel,
-    });
-  }
+  for (const blockId of subtreeIds) {
+    const data = nodeMap.get(blockId);
+    if (!data) continue;
 
-  // All its visual descendants
-  const subtree = getVisualSubtree(doc, startPos, currentLevel);
-  for (const item of subtree) {
+    const oldLevel = data.node.attrs.level ?? 0;
+
     affected.push({
-      blockId: item.blockId,
-      pos: item.pos,
-      oldLevel: item.level,
-      newLevel: item.level + levelDelta,
+      blockId,
+      pos: data.pos,
+      oldLevel,
+      newLevel: oldLevel + levelDelta,
     });
   }
 
