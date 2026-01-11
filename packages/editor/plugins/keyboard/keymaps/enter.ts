@@ -12,6 +12,18 @@
  *   };
  * }
  * ```
+ *
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * 🔒 KEYBOARD INVARIANT (DO NOT VIOLATE)
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ *
+ * - Enter & Backspace are GLOBAL behaviors
+ * - Block-specific rules may only run when block is NON-EMPTY
+ * - Empty blocks MUST fall through to global rules
+ * - One keypress = ONE history group
+ * - Emptiness beats structure (always)
+ *
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  */
 
 import type { Editor } from '@tiptap/core';
@@ -20,8 +32,9 @@ import type { IntentResolver } from '../../../core/engine';
 import type { KeyHandlingResult } from '../types/KeyHandlingResult';
 // FLAT TOGGLE FIX: Re-enable exit rules for empty list items
 import {
+  enterOnSelectedBlocks, // Priority 1000 - HIGHEST: ANY halo-selected blocks (single or multi) 🔒
   enterToggleCreatesChild, // Priority 120 - toggle creates child (not split)
-  // exitEmptyBlockInToggle, // Not needed for flat schema
+  exitEmptyBlockInToggle, // Priority 115 - outdent empty indented blocks
   splitListItem,
   // exitEmptyListInWrapper, // Not needed for flat schema
   outdentEmptyList, // RE-ENABLED: Outdent empty nested lists
@@ -30,12 +43,14 @@ import {
   // exitEmptyWrapper, // Let PM handle
   // createParagraphAfterHeading, // Let PM handle
 } from '../rules/enter';
+import { enterEmptyBlockFallback } from '../rules/enter/enterEmptyBlockFallback'; // Priority -1000 - GLOBAL FALLBACK (ALWAYS HANDLES ENTER)
 
 // Rules for Enter key
 // FLAT TOGGLE FIX: Re-enabled exit rules for proper empty list handling
 const enterRules = [
+  enterOnSelectedBlocks, // Priority 1000 - HIGHEST: ANY halo-selected blocks (single or multi) 🔒
   enterToggleCreatesChild, // Priority 120 - toggle creates child before split
-  // exitEmptyBlockInToggle, // Not needed - flat schema has no containers
+  exitEmptyBlockInToggle, // Priority 115 - outdent empty indented blocks
   splitListItem, // Priority 110 - split non-empty list items
   // exitEmptyListInWrapper, // Not needed - flat schema
   outdentEmptyList, // RE-ENABLED: Priority 95 - outdent empty nested lists
@@ -43,6 +58,7 @@ const enterRules = [
   // exitEmptyHeading, // Let PM handle naturally
   // exitEmptyWrapper, // Let PM handle naturally
   // createParagraphAfterHeading, // Let PM handle naturally
+  enterEmptyBlockFallback, // Priority -1000 - GLOBAL FALLBACK (ALWAYS HANDLES ENTER) 🔒
 ];
 
 // Create engine (will be initialized with resolver per-editor)

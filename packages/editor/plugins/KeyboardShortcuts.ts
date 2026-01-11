@@ -79,6 +79,16 @@ export const KeyboardShortcuts = Extension.create({
         return result.handled === true;
       },
 
+      // ✅ DELETE: Structural block deletion (when block is selected)
+      // Must run at high priority (before ListBlock node handler)
+      // For now, returns false to allow default PM behavior
+      // TODO: Add proper Delete key rules if needed
+      Delete: ({ editor }) => {
+        // Let ProseMirror handle Delete key for now
+        // In flat model, block selection delete is handled by PM default behavior
+        return false;
+      },
+
       // ✅ ARROW KEYS: Centralized cross-block navigation
       // Previously scattered across Paragraph, ListBlock, Heading
       // Now in ONE place to prevent TipTap handler collision

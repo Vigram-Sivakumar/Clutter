@@ -16,6 +16,7 @@ import { usePlaceholder } from '../hooks/usePlaceholder';
 import { useBlockSelection } from '../hooks/useBlockSelection';
 // import { Placeholder } from './Placeholder'; // No longer used - CSS handles placeholders
 import { BlockSelectionHalo } from './BlockSelectionHalo';
+import { useBlockHidden } from '../hooks/useBlockHidden';
 
 type CalloutType = 'info' | 'warning' | 'error' | 'success';
 
@@ -77,8 +78,9 @@ export function Callout({ node, editor, getPos }: NodeViewProps) {
   const { colors } = useTheme();
   const type = (node.attrs.type as CalloutType) || 'info';
   const styles = getCalloutStyles(type, colors);
-  const parentToggleId = node.attrs.parentToggleId || null;
-  const level = node.attrs.level || 0;
+  
+  // 🔥 FLAT MODEL: indent is the ONLY structural attribute
+  const blockIndent = node.attrs.indent ?? 0;
 
   // Canonical emptiness check (ProseMirror source of truth)
   const isEmpty = node.content.size === 0;
@@ -92,6 +94,9 @@ export function Callout({ node, editor, getPos }: NodeViewProps) {
 
   // Placeholder text (includes focus detection via usePlaceholder)
   const placeholderText = usePlaceholder({ node, editor, getPos });
+
+  // 🔥 COLLAPSE PROPAGATION: Check if we're hidden by a collapsed ancestor
+  const isHidden = useBlockHidden(editor, getPos);
 
   // Force re-render when document updates (to react to parent toggle collapse)
   const [, forceUpdate] = useState(0);
@@ -113,20 +118,18 @@ export function Callout({ node, editor, getPos }: NodeViewProps) {
     };
   }, [editor]);
 
-  // Calculate indent based on level (hierarchy + toggle grouping)
-  const hierarchyIndent = level * spacing.indent;
-  const toggleIndent = parentToggleId ? spacing.toggleIndent : 0;
-  const indent = hierarchyIndent + toggleIndent;
+  // Calculate indent (flat model)
+  const indent = blockIndent * spacing.indent;
 
   return (
     <NodeViewWrapper
       as="div"
       data-type="callout"
       data-callout-type={type}
-      data-parent-toggle-id={parentToggleId}
-      data-level={level}
+      data-indent={blockIndent}
       data-empty={isEmpty ? 'true' : undefined}
       data-placeholder={placeholderText || undefined}
+      data-hidden={isHidden ? 'true' : undefined}
       className="callout-block"
       style={{
         display: 'flex',

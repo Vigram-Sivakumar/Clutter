@@ -1,27 +1,30 @@
 /**
- * TipTap Bridge - Bidirectional sync between EditorEngine and TipTap
+ * TipTap Bridge - Unidirectional sync: PM → Engine
  *
- * 🔥 FLAT MODEL MODE (Phase C)
+ * 🔥 PHASE 2: ENGINE IS STATELESS MIRROR (CANONICAL MODEL)
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * When FLAT_MODEL = true:
+ * OWNERSHIP RULES (LOCKED):
+ * - Block existence → ProseMirror (authoritative)
+ * - Block order → ProseMirror (authoritative)
+ * - Engine → Stateless mirror (derived from PM)
+ * - Sync direction → ONE WAY (PM → Engine)
+ * 
+ * FLAT MODEL:
+ * - Blocks are a flat ordered list
+ * - indent is the ONLY structural attribute
  * - NO tree rebuilding
  * - NO parent inference
  * - NO level computation
- * - Blocks are a flat ordered list
- * - indent is the ONLY structural attribute
- * - Engine becomes a passive store
- * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  *
- * OWNERSHIP RULES (OLD - deprecated in flat mode):
- * - Block structure → EditorEngine
- * - Block order → EditorEngine
- * - Selection (block-level) → EditorEngine
+ * Text & Editing:
  * - Text content (inside block) → TipTap
  * - IME / composition → TipTap
  * - Cursor math (inside text) → TipTap
- * - Undo / redo → EditorEngine
- *
- * TipTap reflects. Engine decides.
+ * 
+ * Intent Resolution:
+ * - Structural intents → FlatIntentResolver
+ * - Undo / redo → ProseMirror history
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  */
 
 import { useEffect, useRef, useMemo } from 'react';
@@ -32,17 +35,6 @@ import { EditorEngine } from './index';
 import { FlatIntentResolver } from './flatIntentResolver';
 import type { BlockTree, BlockNode, BlockId } from './types';
 
-/**
- * 🔥 FLAT MODEL KILL SWITCH
- * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * When true:
- * - Bridge does NOT rebuild tree from parentBlockId
- * - Bridge does NOT compute levels
- * - Bridge does NOT enforce indent invariants
- * - indent attribute is the single source of truth
- * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- */
-const FLAT_MODEL = true;
 
 /**
  * Update source tracker - prevents infinite loops
@@ -59,6 +51,13 @@ interface BridgeState {
 }
 
 /**
+ * @deprecated - OLD TREE MODEL (Phase 2: No longer used)
+ * 
+ * This function reconstructs trees from parentBlockId, which violates the flat model.
+ * Use syncTipTapToEngine instead, which reads only: blockId, type, indent.
+ * 
+ * Kept for reference only - DO NOT USE.
+ * 
  * Convert ProseMirror document to BlockTree
  *
  * PHASE 3: Now understands CONTAINER nodes (toggleBlock)
@@ -237,53 +236,36 @@ function proseMirrorDocToBlockTree(pmDoc: any): BlockTree {
 /**
  * Sync TipTap document changes to engine
  *
- * BLOCK IDENTITY LAW:
- * - Engine is authoritative on block identity
- * - TipTap is authoritative on block existence
- * - Therefore: rebuild engine block index from TipTap after every change
+ * 🔥 PHASE 2: ENGINE IS STATELESS MIRROR OF PM
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * NEW OWNERSHIP MODEL:
+ * - PM is authoritative on block existence and order
+ * - Engine is a derived, stateless mirror
+ * - Sync flows ONE WAY: PM → Engine
+ *
+ * WHAT WE READ FROM PM:
+ * - blockId ✅
+ * - type ✅
+ * - indent ✅
+ *
+ * WHAT WE DO NOT READ:
+ * - parentBlockId ❌ (old tree model)
+ * - level ❌ (old tree model)
+ * - children ❌ (no tree reconstruction)
  *
  * CRITICAL: We walk editor.state.doc directly, NOT editor.getJSON()
  * because getJSON() returns serialized data that may not match runtime state.
  *
  * This is NOT incremental. This is a full rebuild.
- * Performance is fine - trust > micro-optimization.
+ * Performance is fine - correctness > micro-optimization.
  * This is how Notion / Craft / Tana work.
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  */
-function syncTipTapToEngine(
+export function syncTipTapToEngine(
   editor: Editor,
   engine: EditorEngine,
   updateSource: { current: UpdateSource }
 ): void {
-  // 🔥 FLAT MODEL: Bridge is DISABLED
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // In flat mode, the bridge does NOT:
-  // - Rebuild tree structure
-  // - Compute levels from parents
-  // - Infer parentBlockId
-  // - Normalize indent
-  //
-  // The engine becomes a passive store.
-  // indent is mutated directly by FlatIntentResolver.
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  if (FLAT_MODEL) {
-    console.log('[Bridge] FLAT MODE: Skipping tree rebuild (disabled)');
-    return;
-  }
-
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // 🔑 OLD TREE MODEL (DEPRECATED - below code disabled in flat mode)
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // - indent/outdent sets parentBlockId in TipTap attributes
-  // - proseMirrorDocToBlockTree READS those attributes
-  // - proseMirrorDocToBlockTree DERIVES level from parent chain
-  // - Engine tree is rebuilt from this canonical state
-  //
-  // This is correct because:
-  // 1. parentBlockId comes from TipTap (set by indent/outdent) ✅
-  // 2. level is COMPUTED, never trusted ✅
-  // 3. Engine derives structure from TipTap ✅
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
   // Skip if update originated from engine
   if (updateSource.current === 'engine') {
     console.log(
@@ -292,37 +274,72 @@ function syncTipTapToEngine(
     return;
   }
 
-  console.log('[Bridge] Syncing TipTap→Engine (full rebuild)');
+  console.log('[Bridge] Syncing TipTap→Engine (flat model)');
 
   // Mark as TipTap update
   updateSource.current = 'tiptap';
 
   try {
-    // CRITICAL: Walk ProseMirror document and rebuild engine tree
-    // - parentBlockId comes from node attributes (set by indent/outdent)
-    // - level is DERIVED from parent chain (never trusted)
+    // 🔥 FLAT MODEL SYNC: Read blocks as ordered list
     const pmDoc = editor.state.doc;
-    const newTree = proseMirrorDocToBlockTree(pmDoc);
+    const blocks: Array<{
+      id: BlockId;
+      type: string;
+      indent: number;
+      content: any;
+    }> = [];
 
-    // Replace engine's tree with canonical state from TipTap
-    engine.tree = newTree;
-
-    console.log('[Bridge] Engine block index rebuilt:', {
-      blockCount: Object.keys(newTree.nodes).length - 1, // -1 for root
-      blocks: Object.keys(newTree.nodes).filter((id) => id !== 'root'),
+    // Walk PM document and collect blocks (in document order)
+    pmDoc.descendants((node: any) => {
+      if (node.attrs?.blockId) {
+        blocks.push({
+          id: node.attrs.blockId,
+          type: node.type.name,
+          indent: node.attrs.indent ?? 0, // Read ONLY indent
+          content: node.toJSON(),
+        });
+      }
+      return true; // Continue descending
     });
 
-    // 🌳 TREE SNAPSHOT AFTER REBUILD
-    console.group('🌳 TREE SNAPSHOT — AFTER BRIDGE REBUILD');
-    const nodesAfter = Object.values(engine.tree.nodes).filter(
-      (n: any) => n.id !== 'root'
-    );
-    nodesAfter.forEach((b: any, i: number) => {
-      console.log(
-        `${i}. ${b.id.slice(0, 8)} | level=${b.level} | parent=${b.parentId?.slice(0, 8) ?? 'root'}`
-      );
+    // 🔑 BUILD MINIMAL TREE FOR BACKWARD COMPATIBILITY
+    // Engine code still expects a tree structure, but we derive it
+    // from the flat list + indent, NOT from parentBlockId
+    const nodes: Record<BlockId, BlockNode> = {};
+    const rootId = 'root';
+
+    nodes[rootId] = {
+      id: rootId,
+      type: 'doc',
+      parentId: null,
+      children: [],
+      content: null,
+    };
+
+    // For now, all blocks are children of root (flat)
+    // FlatIntentResolver doesn't use parent/child relationships
+    for (const block of blocks) {
+      nodes[block.id] = {
+        id: block.id,
+        type: block.type,
+        parentId: rootId, // All blocks under root (flat)
+        children: [], // No hierarchical children
+        content: block.content,
+      };
+
+      nodes[rootId].children.push(block.id);
+    }
+
+    // Replace engine's tree
+    engine.tree = {
+      rootId,
+      nodes,
+    };
+
+    console.log('[Bridge] Engine synced from PM:', {
+      blockCount: blocks.length,
+      blocks: blocks.map((b) => `${b.id.slice(0, 8)}:indent=${b.indent}`),
     });
-    console.groupEnd();
   } finally {
     // Reset source after a tick
     setTimeout(() => {
@@ -557,9 +574,20 @@ function syncSelectionToTipTap(
 function createBridge(editor: Editor): BridgeState {
   console.log('[Bridge] Creating TipTap ↔ Engine bridge');
 
-  // Initialize engine with current ProseMirror document
-  const initialTree = proseMirrorDocToBlockTree(editor.state.doc);
-  const engine = new EditorEngine(initialTree);
+  // 🔥 PHASE 2: Initialize engine with empty tree, then hydrate from PM
+  // Create empty engine first
+  const engine = new EditorEngine({
+    rootId: 'root',
+    nodes: {
+      root: {
+        id: 'root',
+        type: 'doc',
+        parentId: null,
+        children: [],
+        content: null,
+      },
+    },
+  });
 
   // 🔥 PHASE C: Use FlatIntentResolver (flat indent model)
   // Old parent-pointer model disabled
@@ -567,6 +595,9 @@ function createBridge(editor: Editor): BridgeState {
 
   // Update source tracker
   const updateSource: { current: UpdateSource } = { current: null };
+
+  // 1️⃣ HYDRATE ENGINE FROM PM (immediately on bridge creation)
+  syncTipTapToEngine(editor, engine, updateSource);
 
   // TipTap → Engine sync (on document changes)
   const handleUpdate = ({ editor: updatedEditor }: any) => {

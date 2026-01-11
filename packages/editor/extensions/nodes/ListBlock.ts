@@ -223,6 +223,15 @@ export const ListBlock = Node.create({
       },
 
       Backspace: ({ editor }) => {
+        // 🔥 FLAT MODEL: ALL structural deletion handled by KeyboardShortcuts → FlatIntentResolver
+        // This node-level handler must NOT handle structural operations
+        // Return false → pass through to high-priority KeyboardShortcuts plugin
+        return false;
+
+        // LEGACY CODE BELOW (DISABLED IN FLAT MODEL)
+        // This code used DeleteBlockCommand (tree model)
+        // In flat model, delete-block intent goes through FlatIntentResolver.handleDeleteBlock()
+        /*
         const { state } = editor;
         const { selection } = state;
         const { $from, empty } = selection;
@@ -252,99 +261,18 @@ export const ListBlock = Node.create({
         }
 
         // CASE 2: NON-EMPTY LIST BLOCK
-        // ✅ EXPLICIT MERGE LOGIC (NO PM DEFAULT)
-        //
-        // Contract: Backspace at start of non-empty block → merge with previous
-        // Survivor Rule: Previous block survives (Destructive Survivor Rule)
-        // Engine Safety: Delete source → promotes children
-
-        if (!atStart) {
-          // Not at start - let PM handle character deletion
-          return false;
-        }
-
-        // At start of non-empty list - check for previous block
-        const beforePos = listBlockPos;
-        let previousBlockNode = null;
-        let previousBlockPos = -1;
-
-        try {
-          const $before = state.doc.resolve(beforePos);
-          if ($before.nodeBefore) {
-            previousBlockNode = $before.nodeBefore;
-            previousBlockPos = beforePos - previousBlockNode.nodeSize;
-          }
-        } catch (e) {
-          // No previous block
-        }
-
-        if (!previousBlockNode) {
-          // No previous block - noop (at document start)
-          console.log('[ListBlock.Backspace] At document start - noop');
-          return false;
-        }
-
-        // Check if previous block is structural (cannot merge)
-        const isStructuralPrevious = ['codeBlock', 'divider', 'image'].includes(
-          previousBlockNode.type.name
-        );
-
-        if (isStructuralPrevious) {
-          console.log(
-            '[ListBlock.Backspace] Cannot merge with structural block - noop'
-          );
-          return false;
-        }
-
-        // ✅ MERGE WITH PREVIOUS BLOCK
-        const previousBlockId = previousBlockNode.attrs?.blockId;
-        const engine = getEngine(editor);
-
-        if (!engine) {
-          console.error('[ListBlock.Backspace] EditorEngine not found');
-          return false;
-        }
-
-        if (!currentBlockId || !previousBlockId) {
-          console.warn('[ListBlock.Backspace] Missing blockIds for merge');
-          return false;
-        }
-
-        // Extract current block's content BEFORE deletion
-        const currentContent = currentListBlock.content;
-
-        // Calculate merge position (end of previous block)
-        const previousBlockContentSize = previousBlockNode.content.size;
-        const mergePos = previousBlockPos + 1 + previousBlockContentSize; // +1 for opening tag
-
-        console.log(
-          `[ListBlock.Backspace] Merging into previous: ${previousBlockId}`
-        );
-
-        // ✅ USE ENGINE PRIMITIVE: Delete current block via DeleteBlockCommand
-        // This ensures children are promoted (Editor Law #8)
-        const cmd = new DeleteBlockCommand(currentBlockId);
-        engine.dispatch(cmd);
-
-        // After engine deletion, insert content into previous block
-        requestAnimationFrame(() => {
-          const { tr: newTr } = editor.state;
-          // Re-resolve merge position in new document
-          const newMergePos = Math.min(mergePos, newTr.doc.content.size - 1);
-
-          if (currentContent.size > 0) {
-            newTr.insert(newMergePos, currentContent);
-          }
-
-          // Position cursor at merge point
-          newTr.setSelection(TextSelection.create(newTr.doc, newMergePos));
-          editor.view.dispatch(newTr);
-        });
-
-        return true;
+        // (ALL LEGACY CODE COMMENTED OUT - SEE ABOVE)
+        */
       },
 
       Delete: ({ editor }) => {
+        // 🔥 FLAT MODEL: ALL structural deletion handled by KeyboardShortcuts → FlatIntentResolver
+        // This node-level handler must NOT handle structural operations
+        // Return false → pass through to high-priority KeyboardShortcuts plugin
+        return false;
+
+        // LEGACY CODE BELOW (DISABLED IN FLAT MODEL)
+        /*
         const { state } = editor;
         const { selection } = state;
         const { $from, empty } = selection;
@@ -506,6 +434,7 @@ export const ListBlock = Node.create({
         });
 
         return true;
+        */
       },
     };
   },

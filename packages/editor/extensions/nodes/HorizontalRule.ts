@@ -6,6 +6,12 @@
  * - Not editable (void node)
  * - Supports two styles: 'plain' and 'wavy'
  *
+ * 🔒 BLOCK IDENTITY LAW (Phase 2):
+ * Every structural node that occupies vertical space MUST have:
+ * - A unique blockId (generated via crypto.randomUUID())
+ * - An indent attribute (for flat model positioning)
+ * This ensures Engine can mirror PM state correctly.
+ *
  * INTEGRATION STATUS: ✅ Uses engine.deleteBlock() primitive
  * - Routes deletions through EditorEngine (Editor Law #8)
  * - Children are promoted (never orphaned)
@@ -79,27 +85,29 @@ export const HorizontalRule = Node.create({
         renderHTML: (attributes) => ({ 'data-color': attributes.color }),
       },
       blockId: {
-        default: null,
+        default: () => crypto.randomUUID(), // 🔒 BLOCK IDENTITY INVARIANT: Every block must have unique ID
         parseHTML: (element) => element.getAttribute('data-block-id'),
         renderHTML: (attributes) =>
           attributes.blockId ? { 'data-block-id': attributes.blockId } : {},
       },
-      parentBlockId: {
-        default: null,
-        parseHTML: (element) => element.getAttribute('data-parent-block-id'),
-        renderHTML: (attributes) =>
-          attributes.parentBlockId
-            ? { 'data-parent-block-id': attributes.parentBlockId }
-            : {},
-      },
-      level: {
+      // 🔥 FLAT MODEL: indent is the ONLY structural attribute
+      indent: {
         default: 0,
-        parseHTML: (element) => {
-          const levelAttr = element.getAttribute('data-level');
-          return levelAttr ? parseInt(levelAttr, 10) : 0;
-        },
+        parseHTML: (element) =>
+          parseInt(element.getAttribute('data-indent') || '0', 10),
         renderHTML: (attributes) => ({
-          'data-level': attributes.level,
+          'data-indent': attributes.indent || 0,
+        }),
+      },
+      // 🔒 COLLAPSE CONTRACT: All structural blocks must have collapsed attribute
+      // HR cannot collapse itself (it's a leaf node), but it must participate
+      // in the flat visibility algorithm so it can be hidden by collapsed parents
+      collapsed: {
+        default: false,
+        parseHTML: (element) =>
+          element.getAttribute('data-collapsed') === 'true',
+        renderHTML: (attributes) => ({
+          'data-collapsed': attributes.collapsed || false,
         }),
       },
     };
@@ -112,7 +120,16 @@ export const HorizontalRule = Node.create({
 
   // Render to HTML (for copy/paste, export)
   renderHTML({ node, HTMLAttributes }) {
-    return ['hr', { ...HTMLAttributes, 'data-style': node.attrs.style }];
+    return [
+      'hr',
+      {
+        ...HTMLAttributes,
+        'data-block-id': node.attrs.blockId,
+        'data-style': node.attrs.style,
+        'data-indent': node.attrs.indent || 0,
+        'data-collapsed': node.attrs.collapsed || false,
+      },
+    ];
   },
 
   // Use React NodeView for rendering in editor
@@ -140,8 +157,7 @@ export const HorizontalRule = Node.create({
               attrs: {
                 blockId: crypto.randomUUID(),
                 style: 'plain',
-                level: currentAttrs.level || 0,
-                parentBlockId: currentAttrs.parentBlockId || null,
+                indent: currentAttrs.indent || 0, // FLAT MODEL
               },
             })
             .run();
@@ -164,8 +180,7 @@ export const HorizontalRule = Node.create({
               attrs: {
                 blockId: crypto.randomUUID(),
                 style: 'wavy',
-                level: currentAttrs.level || 0,
-                parentBlockId: currentAttrs.parentBlockId || null,
+                indent: currentAttrs.indent || 0, // FLAT MODEL
               },
             })
             .run();

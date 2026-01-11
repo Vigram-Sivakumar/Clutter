@@ -43,6 +43,7 @@ export const deleteEmptyParagraph = defineRule({
     return {
       type: 'delete-block',
       blockId: currentNode.attrs.blockId,
+      source: 'backspace',
     };
   },
 });

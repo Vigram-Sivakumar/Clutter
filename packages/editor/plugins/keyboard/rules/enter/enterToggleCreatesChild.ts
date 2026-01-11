@@ -1,16 +1,17 @@
 /**
- * Enter Toggle Creates Paragraph Child Rule
+ * Enter Toggle Creates Paragraph Child Rule - FLAT MODEL
  *
  * When: Cursor inside a non-empty toggle list item
- * Do: Create paragraph child (not list item)
+ * Do: Create paragraph child (not list item) at end of toggle's visual subtree
  *
  * Priority 120 (higher than splitListItem) ensures toggle behavior
  * runs BEFORE split logic for other list types.
  *
- * This matches Notion/Craft/Logseq behavior:
- * - Toggle + Enter → paragraph child (not bullet)
- * - Engine accepts paragraph with parentBlockId
- * - No normalization, no flattening
+ * FLAT MODEL BEHAVIOR:
+ * - Toggle + Enter → paragraph child at correct indent
+ * - Inserts after entire visual subtree (all deeper-indented blocks)
+ * - Uses only `indent` attribute (no parentBlockId, no level)
+ * - Matches Notion/Craft UX
  */
 
 import { defineRule } from '../../types/KeyboardRule';
@@ -23,7 +24,7 @@ export const enterToggleCreatesChild = defineRule({
   priority: 120, // Higher than splitListItem (110) - must run first
 
   when(ctx: KeyboardContext): boolean {
-    const { editor, currentNode } = ctx;
+    const { editor } = ctx;
 
     // Must be in a list block
     const listBlock = findAncestorNode(editor, 'listBlock');
@@ -38,8 +39,10 @@ export const enterToggleCreatesChild = defineRule({
       return false;
     }
 
-    // ONLY non-empty
-    if (currentNode.textContent.length === 0) {
+    // 🔥 CRITICAL: ONLY non-empty toggles create children
+    // Empty toggles MUST follow global Enter rules (exit/outdent)
+    // This enforces: "Emptiness beats structure"
+    if (listBlock.node.textContent === '') {
       return false;
     }
 
@@ -57,27 +60,58 @@ export const enterToggleCreatesChild = defineRule({
 
     // Only toggles, only non-empty (double-check)
     if (attrs.listType !== 'toggle') return false;
-    if (ctx.currentNode.textContent.length === 0) return false;
+    if (listBlock.node.textContent === '') return false;
 
-    // Create paragraph child (not listBlock)
-    const paragraph = state.schema.nodes.paragraph.create({
-      blockId: crypto.randomUUID(),
-      parentBlockId: attrs.blockId, // Child of toggle
-      level: attrs.level, // Inherit level (not level+1 - flat hierarchy)
-      parentToggleId: null,
-    });
-
-    // Insert after toggle
-    const insertPos = pos + node.nodeSize;
-
-    return editor
-      .chain()
-      .command(({ tr }) => {
-        tr.insert(insertPos, paragraph);
-        const $pos = tr.doc.resolve(insertPos + 1);
+    // ✅ CANONICAL ENTER PATTERN: ONE Enter = ONE transaction
+    // Do NOT use editor.chain() - it can split into multiple transactions
+    return editor.commands.command(({ state, dispatch }) => {
+      if (!dispatch) return false;
+      
+      // 🔥 TOGGLE HEADER ENTER = PREPEND FIRST CHILD
+      // Insert immediately after toggle header (position + 1)
+      // No subtree scanning - we always insert as FIRST child
+      const baseIndent = attrs.indent ?? 0;
+      const tr = state.tr;
+      
+      // Insert position: immediately after toggle header
+      const insertAfterPos = pos + node.nodeSize;
+      
+      // New child indent: always toggleIndent + 1
+      const newIndent = baseIndent + 1;
+      
+      // Create new paragraph with ONLY indent (flat model)
+      const paragraph = state.schema.nodes.paragraph.create({
+        blockId: crypto.randomUUID(),
+        indent: newIndent,
+      });
+      
+      // Insert as FIRST child (right after toggle header)
+      tr.insert(insertAfterPos, paragraph);
+      
+      // Position cursor at start of new paragraph (SAME transaction)
+      const newCursorPos = insertAfterPos + 1;
+      try {
+        const $pos = tr.doc.resolve(newCursorPos);
         tr.setSelection(state.selection.constructor.near($pos));
-        return true;
-      })
-      .run();
+      } catch (e) {
+        console.warn('[enterToggleCreatesChild] Could not set selection:', e);
+      }
+      
+      // Mark for undo - FORCE history boundary (one undo per Enter)
+      tr.setMeta('addToHistory', true);
+      tr.setMeta('closeHistory', true); // Each Enter = separate undo step
+      
+      // 🔍 DIAGNOSTIC LOG
+      console.log(
+        '[ENTER TX] enterToggleCreatesChild',
+        'steps:', tr.steps.length,
+        'closeHistory:', tr.getMeta('closeHistory'),
+        'addToHistory:', tr.getMeta('addToHistory')
+      );
+      
+      // Dispatch ONCE - no more transactions after this
+      dispatch(tr);
+      return true; // HARD STOP - nothing else should run
+    });
   },
 });

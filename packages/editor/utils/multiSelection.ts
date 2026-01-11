@@ -86,18 +86,53 @@ export function getSelectedBlockCount(editor: Editor): number {
 }
 
 /**
+ * Get the single halo-selected block (NodeSelection only)
+ * Returns null if no block is selected or multiple blocks are selected
+ * 
+ * This is the SAFE way to get block info for keyboard rules.
+ * Never use $pos.after() directly - it crashes at doc depth.
+ */
+export function getSingleSelectedBlock(editor: Editor): SelectedBlock | null {
+  const { selection } = editor.state;
+  
+  // Only handle NodeSelection (single block via handle click)
+  if (!(selection instanceof NodeSelection)) {
+    return null;
+  }
+  
+  // Multi-block selection should not create blocks
+  if (isMultiBlockSelection(editor)) {
+    return null;
+  }
+  
+  const blocks = getSelectedBlocks(editor);
+  if (blocks.length !== 1) {
+    return null;
+  }
+  
+  const firstBlock = blocks[0];
+  return firstBlock ?? null; // Convert undefined to null
+}
+
+// Re-export NodeSelection for convenience
+import { NodeSelection } from '@tiptap/pm/state';
+
+/**
  * Execute an action on all selected blocks
  * Actions are executed in reverse order to preserve positions
  */
 export function executeOnSelectedBlocks(
   editor: Editor,
-  action: (block: SelectedBlock, index: number, total: number) => void
+  action: (_block: SelectedBlock, _index: number, _total: number) => void
 ): void {
   const blocks = getSelectedBlocks(editor);
   
   // Execute in reverse order to preserve positions during deletion/modification
   for (let i = blocks.length - 1; i >= 0; i--) {
-    action(blocks[i], i, blocks.length);
+    const block = blocks[i];
+    if (block) {
+      action(block, i, blocks.length);
+    }
   }
 }
 

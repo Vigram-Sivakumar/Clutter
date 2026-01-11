@@ -5,6 +5,7 @@
  * Exported in priority order (highest first).
  */
 
+export * from './enterOnSelectedBlock'; // Priority 1000 - HIGHEST: ANY halo-selected blocks (single or multi)
 export * from './enterToggleCreatesChild'; // Priority 120 - toggle creates child
 export * from './exitEmptyBlockInToggle'; // Priority 115 - exit nested/toggle blocks first
 export * from './splitListItem'; // Priority 110 - split non-empty lists
@@ -15,3 +16,4 @@ export * from './exitEmptyList'; // Priority 85 - convert empty list at level 0
 export * from './exitEmptyHeading'; // Priority 80
 export * from './exitEmptyWrapper'; // Priority 70
 export * from './createParagraphAfterHeading'; // Priority 60
+export * from './enterEmptyBlockFallback'; // Priority 0 - GLOBAL FALLBACK (LOWEST)

@@ -3,6 +3,10 @@
  *
  * Tab changes structure, never content.
  *
+ * 🔒 INTENT BOUNDARY SYNC (Phase 2):
+ * Before resolving any structural intent, Engine must be synced from PM.
+ * This ensures Engine is never stale at the moment of intent resolution.
+ *
  * Canonical Decision Tables:
  * - Tab → indent-block intent
  * - Shift+Tab → outdent-block intent
@@ -15,10 +19,35 @@ import { createKeyboardEngine } from '../engine/KeyboardEngine';
 import type { IntentResolver } from '../../../core/engine';
 import { indentBlock, outdentBlock } from '../rules/tab';
 import type { KeyHandlingResult } from '../types/KeyHandlingResult';
+import { syncTipTapToEngine } from '../../../core/engine/tiptapBridge';
 
 const tabRules = [indentBlock, outdentBlock];
 
 const tabEngine = createKeyboardEngine(tabRules);
+
+/**
+ * 🔒 INTENT BOUNDARY SYNC (Phase 2)
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * INVARIANT: Engine must be synced from PM before resolving structural intents
+ * 
+ * Why this is needed:
+ * - PM transactions complete before keyboard shortcuts fire
+ * - Editor lifecycle hooks (on('update')) fire too late for intent resolution
+ * - Structural intents (Tab, delete, etc.) need fresh Engine state
+ * 
+ * This is NOT a rebuild - it's an idempotent sync using the flat model.
+ * This is the standard "intent boundary sync" pattern used by Notion/Craft/Tana.
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ */
+function ensureFreshEngine(
+  editor: Editor,
+  engine: any,
+  source: 'keyboard' | 'command' | 'gesture' = 'keyboard'
+): void {
+  const updateSource = { current: null as any };
+  syncTipTapToEngine(editor, engine, updateSource);
+  console.log(`[Intent Boundary] Engine synced from PM (source: ${source})`);
+}
 
 export function handleTab(
   editor: Editor,
@@ -42,10 +71,10 @@ export function handleTab(
     tabEngine.setResolver(resolver);
   }
 
-  // HACK: Force Engine rebuild from current PM state before processing intent
-  // This ensures Engine always has up-to-date block inventory
-  // TODO: Remove this once bridge lifecycle is fixed to sync on content load
+  // 🔒 INTENT BOUNDARY SYNC - Ensure Engine is fresh before intent resolution
   if (engine && editor.state.doc) {
+    ensureFreshEngine(editor, engine, 'keyboard');
+
     const pmBlockCount = countPMBlocks(editor.state.doc);
     const engineBlockCount = Object.keys(engine.tree.nodes).length - 1;
 
@@ -56,14 +85,17 @@ export function handleTab(
       engineBlockCount
     );
 
+    // After sync, counts MUST match - if not, we have a sync bug
     if (pmBlockCount !== engineBlockCount) {
-      console.warn('📋 [handleTab] ⚠️  ENGINE DESYNC! Forcing rebuild...');
-      rebuildEngineFromPMDoc(editor.state.doc, engine);
-      console.log(
-        '📋 [handleTab] ✓ Engine rebuilt, now has',
-        Object.keys(engine.tree.nodes).length - 1,
-        'blocks'
-      );
+      console.error('❌ [handleTab] ENGINE DESYNC AFTER SYNC — SYNC BUG');
+      console.error('  PM blocks:', pmBlockCount);
+      console.error('  Engine blocks:', engineBlockCount);
+      console.error('  This should NEVER happen after ensureFreshEngine()');
+      
+      return {
+        handled: true,
+        reason: 'ENGINE_DESYNC_AFTER_SYNC',
+      };
     }
   }
 
@@ -84,53 +116,19 @@ function countPMBlocks(pmDoc: any): number {
   return count;
 }
 
-// Temporary helper: Rebuild Engine tree from PM doc
-// This is a simplified version of proseMirrorDocToBlockTree from the bridge
-function rebuildEngineFromPMDoc(pmDoc: any, engine: any): void {
-  const nodes: Record<string, any> = {};
-  const rootId = 'root';
-
-  nodes[rootId] = {
-    id: rootId,
-    type: 'doc',
-    parentId: null,
-    children: [],
-    content: null,
-  };
-
-  // First pass: collect all blocks
-  const blockList: any[] = [];
-  pmDoc.descendants((node: any) => {
-    if (node.attrs?.blockId) {
-      blockList.push({
-        id: node.attrs.blockId,
-        type: node.type.name,
-        parentBlockId: node.attrs.parentBlockId || null,
-        content: node.toJSON(),
-      });
-    }
-  });
-
-  // Second pass: build tree from parentBlockId attributes
-  for (const block of blockList) {
-    const parentId = block.parentBlockId || rootId;
-
-    nodes[block.id] = {
-      id: block.id,
-      type: block.type,
-      parentId,
-      children: [],
-      content: block.content,
-    };
-
-    // Add to parent's children
-    if (nodes[parentId]) {
-      nodes[parentId].children.push(block.id);
-    }
-  }
-
-  engine.tree = {
-    rootId,
-    nodes,
-  };
+/**
+ * @deprecated DELETED - No longer needed (Phase 2 complete)
+ * 
+ * This function was a hack that rebuilt Engine from PM during user input.
+ * It violated the flat model and caused selection corruption.
+ * 
+ * Replaced by: ensureFreshEngine() + syncTipTapToEngine()
+ * Which properly syncs at the intent boundary using the flat model.
+ * 
+ * Kept as a tombstone to prevent regression.
+ */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function rebuildEngineFromPMDoc_DELETED(_pmDoc: any, _engine: any): void {
+  // This function is intentionally empty (dead code tombstone)
+  // See ensureFreshEngine() for the correct implementation
 }

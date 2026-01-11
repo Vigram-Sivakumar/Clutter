@@ -15,6 +15,7 @@ import { useBlockSelection } from '../hooks/useBlockSelection';
 // import { Placeholder } from './Placeholder'; // No longer used - CSS handles placeholders
 import { BlockHandle } from './BlockHandle';
 import { BlockSelectionHalo } from './BlockSelectionHalo';
+import { useBlockHidden } from '../hooks/useBlockHidden';
 
 const headingStyles = {
   1: {
@@ -40,8 +41,9 @@ const headingStyles = {
 export function Heading({ node, editor, getPos }: NodeViewProps) {
   const headingLevel = (node.attrs.headingLevel || 1) as 1 | 2 | 3;
   const styles = headingStyles[headingLevel];
-  const parentToggleId = node.attrs.parentToggleId || null;
-  const indentLevel = node.attrs.level || 0;
+  
+  // 🔥 FLAT MODEL: indent is the ONLY structural attribute
+  const blockIndent = node.attrs.indent ?? 0;
 
   // Canonical emptiness check (ProseMirror source of truth)
   const isEmpty = node.content.size === 0;
@@ -55,6 +57,9 @@ export function Heading({ node, editor, getPos }: NodeViewProps) {
     getPos,
     nodeSize: node.nodeSize,
   });
+
+  // 🔥 COLLAPSE PROPAGATION: Check if we're hidden by a collapsed ancestor
+  const isHidden = useBlockHidden(editor, getPos);
 
   // Force re-render when document updates (to react to parent toggle collapse)
   const [, forceUpdate] = useState(0);
@@ -76,18 +81,16 @@ export function Heading({ node, editor, getPos }: NodeViewProps) {
     };
   }, [editor]);
 
-  // Calculate indent based on indentLevel (hierarchy + toggle grouping)
-  const hierarchyIndent = indentLevel * spacing.indent;
-  const toggleIndent = parentToggleId ? spacing.toggleIndent : 0;
-  const indent = hierarchyIndent + toggleIndent;
+  // Calculate indent (flat model)
+  const indent = blockIndent * spacing.indent;
 
   return (
     <NodeViewWrapper
       as="div"
       data-type="heading"
       data-heading-level={headingLevel}
-      data-level={indentLevel}
-      data-parent-toggle-id={parentToggleId}
+      data-indent={blockIndent}
+      data-hidden={isHidden ? 'true' : undefined}
       data-empty={isEmpty ? 'true' : undefined}
       data-placeholder={placeholderText || undefined}
       className="block-handle-wrapper"

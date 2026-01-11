@@ -11,9 +11,7 @@ import { ReactNodeViewRenderer } from '@tiptap/react';
 import { TextSelection } from '@tiptap/pm/state';
 import { ParagraphBlock } from '../../components/ParagraphBlock';
 import {
-  createSiblingAttrs,
   findAncestorNode,
-  handleEmptyBlockInToggle,
 } from '../../utils/keyboardHelpers';
 import { HASHTAG_REGEX, insertTag } from '@clutter/ui';
 import { BackspaceRules } from '../../utils/keyboardRules';
@@ -59,7 +57,7 @@ export const Paragraph = Node.create({
   addAttributes() {
     return {
       blockId: {
-        default: null,
+        default: () => crypto.randomUUID(), // 🔒 BLOCK IDENTITY LAW: Every block must have unique ID
         parseHTML: (element) =>
           element.getAttribute('data-block-id') || crypto.randomUUID(),
         renderHTML: (attributes) => {
@@ -187,16 +185,9 @@ export const Paragraph = Node.create({
           if (currentAttrs.parentBlockId) {
             const isEmpty = $from.parent.textContent === '';
 
-            // SIMPLIFIED EXIT: Empty paragraph with parentBlockId
+            // SIMPLIFIED EXIT: Empty paragraph - delegate to keyboard rules
             if (isEmpty) {
-              const paragraphPos = $from.before();
-              const paragraphNode = $from.parent;
-              return handleEmptyBlockInToggle(
-                editor,
-                paragraphPos,
-                paragraphNode,
-                'paragraph'
-              );
+              return false; // Let keyboard rules handle empty block Enter
             }
 
             // NON-EMPTY: Split paragraph, preserve structural context
@@ -316,6 +307,13 @@ export const Paragraph = Node.create({
 
       // Backspace: Prevent joining back into structural blocks
       Backspace: ({ editor }) => {
+        // 🔥 FLAT MODEL: ALL structural deletion handled by KeyboardShortcuts → FlatIntentResolver
+        // This node-level handler must NOT handle structural operations
+        // Return false → pass through to high-priority KeyboardShortcuts plugin
+        return false;
+
+        // LEGACY CODE BELOW (DISABLED IN FLAT MODEL)
+        /*
         // PHASE 1 REFACTOR: Use detectors for checks
 
         // Check 1: Is cursor in empty paragraph at start?
@@ -399,10 +397,18 @@ export const Paragraph = Node.create({
 
         // Let default behavior handle other cases
         return false;
+        */
       },
 
       // Delete: Forward delete (symmetric to Backspace, directionally opposite)
       Delete: ({ editor }) => {
+        // 🔥 FLAT MODEL: ALL structural deletion handled by KeyboardShortcuts → FlatIntentResolver
+        // This node-level handler must NOT handle structural operations
+        // Return false → pass through to high-priority KeyboardShortcuts plugin
+        return false;
+
+        // LEGACY CODE BELOW (DISABLED IN FLAT MODEL)
+        /*
         const { state } = editor;
         const { selection } = state;
         const { $from } = selection;
@@ -585,6 +591,7 @@ export const Paragraph = Node.create({
 
         // Fallback: let PM handle
         return false;
+        */
       },
     };
   },

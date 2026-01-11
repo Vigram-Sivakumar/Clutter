@@ -71,38 +71,44 @@ export const exitEmptyList = defineRule({
     const listBlock = findAncestorNode(editor, 'listBlock');
     if (!listBlock) return false;
 
-    // 🔥 CORRECT BEHAVIOR: Convert empty list to paragraph at indent 0
+    // ✅ CANONICAL ENTER PATTERN: ONE Enter = ONE transaction
+    // Convert empty list to paragraph at indent 0
     // This matches Notion/Craft - don't create new block, just convert
-    // User can press Enter again on the paragraph to create new blocks
-    return editor
-      .chain()
-      .command(({ tr, state }) => {
-        const { pos, node } = listBlock;
+    return editor.commands.command(({ state, dispatch }) => {
+      if (!dispatch) return false;
 
-        // Convert the listBlock node to a paragraph node
-        // Preserve the blockId and indent
-        const paragraph = state.schema.nodes.paragraph.create(
-          {
-            blockId: node.attrs.blockId,
-            indent: 0,
-          },
-          node.content // Keep any content (though it should be empty)
-        );
+      const tr = state.tr;
+      const { pos, node } = listBlock;
 
-        // Replace the list block with paragraph
-        tr.replaceWith(pos, pos + node.nodeSize, paragraph);
+      // Convert the listBlock node to a paragraph node
+      // Preserve the blockId and indent
+      const paragraph = state.schema.nodes.paragraph.create(
+        {
+          blockId: node.attrs.blockId,
+          indent: 0,
+        },
+        node.content // Keep any content (though it should be empty)
+      );
 
-        // Keep cursor in the converted paragraph (inside the content)
-        const newCursorPos = pos + 1;
-        try {
-          const $pos = tr.doc.resolve(newCursorPos);
-          tr.setSelection(state.selection.constructor.near($pos));
-        } catch (e) {
-          console.warn('[exitEmptyList] Could not set selection:', e);
-        }
+      // Replace the list block with paragraph
+      tr.replaceWith(pos, pos + node.nodeSize, paragraph);
 
-        return true;
-      })
-      .run();
+      // Keep cursor in the converted paragraph (inside the content)
+      const newCursorPos = pos + 1;
+      try {
+        const $pos = tr.doc.resolve(newCursorPos);
+        tr.setSelection(state.selection.constructor.near($pos));
+      } catch (e) {
+        console.warn('[exitEmptyList] Could not set selection:', e);
+      }
+
+      // Mark for undo - FORCE history boundary (one undo per Enter)
+      tr.setMeta('addToHistory', true);
+      tr.setMeta('closeHistory', true); // Each Enter = separate undo step
+
+      // Dispatch ONCE - no more transactions
+      dispatch(tr);
+      return true; // HARD STOP
+    });
   },
 });

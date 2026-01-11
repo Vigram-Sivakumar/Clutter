@@ -68,11 +68,10 @@ function findBlockBoundaries(state: any, $from: any) {
 
 // Helper to extract attributes to preserve when converting blocks
 function getPreservedAttrs(currentBlock: any) {
+  // 🔥 FLAT MODEL: Only preserve blockId and indent
   return {
     blockId: currentBlock.attrs?.blockId,
-    parentBlockId: currentBlock.attrs?.parentBlockId,
-    level: currentBlock.attrs?.level,
-    parentToggleId: currentBlock.attrs?.parentToggleId,
+    indent: currentBlock.attrs?.indent ?? 0,
   };
 }
 

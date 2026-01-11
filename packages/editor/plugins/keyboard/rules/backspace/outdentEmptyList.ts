@@ -90,6 +90,10 @@ export const outdentEmptyList = defineRule({
           console.warn('[convertEmptyList] Could not set selection:', e);
         }
 
+        // Mark for undo
+        tr.setMeta('addToHistory', true);
+        tr.setMeta('historyGroup', 'convert-empty-list');
+
         return true;
       })
       .run();

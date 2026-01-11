@@ -12,6 +12,18 @@
  *   };
  * }
  * ```
+ *
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * 🔒 KEYBOARD INVARIANT (DO NOT VIOLATE)
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ *
+ * - Enter & Backspace are GLOBAL behaviors
+ * - Block-specific rules may only run when block is NON-EMPTY
+ * - Empty blocks MUST fall through to global rules
+ * - One keypress = ONE history group
+ * - Emptiness beats structure (always)
+ *
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  */
 
 import type { Editor } from '@tiptap/core';

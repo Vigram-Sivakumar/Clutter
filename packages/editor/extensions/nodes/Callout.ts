@@ -49,16 +49,6 @@ export const Callout = Node.create({
           return { 'data-block-id': blockId };
         },
       },
-      parentBlockId: {
-        default: null,
-        parseHTML: (element) => element.getAttribute('data-parent-block-id') || null,
-        renderHTML: (attributes) => {
-          if (attributes.parentBlockId) {
-            return { 'data-parent-block-id': attributes.parentBlockId };
-          }
-          return {};
-        },
-      },
       type: {
         default: 'info',
         parseHTML: (element) => element.getAttribute('data-callout-type') || 'info',
@@ -68,10 +58,23 @@ export const Callout = Node.create({
           };
         },
       },
-      level: {
+      // 🔥 FLAT MODEL: indent is the ONLY structural attribute
+      indent: {
         default: 0,
-        parseHTML: (element) => parseInt(element.getAttribute('data-level') || '0', 10),
-        renderHTML: (attributes) => ({ 'data-level': attributes.level || 0 }),
+        parseHTML: (element) =>
+          parseInt(element.getAttribute('data-indent') || '0', 10),
+        renderHTML: (attributes) => ({
+          'data-indent': attributes.indent || 0,
+        }),
+      },
+      // 🔒 COLLAPSE CONTRACT: All structural blocks must have collapsed attribute
+      collapsed: {
+        default: false,
+        parseHTML: (element) =>
+          element.getAttribute('data-collapsed') === 'true',
+        renderHTML: (attributes) => ({
+          'data-collapsed': attributes.collapsed || false,
+        }),
       },
     };
   },

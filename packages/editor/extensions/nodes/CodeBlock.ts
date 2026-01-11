@@ -11,7 +11,7 @@ import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer } from '@tiptap/react';
 import { TextSelection } from '@tiptap/pm/state';
 import { CodeBlock as CodeBlockComponent } from '../../components/CodeBlock';
-import { createSiblingAttrs, handleEmptyBlockInToggle } from '../../utils/keyboardHelpers';
+// NOTE: Structural keyboard logic is handled via keyboard rules (indent/outdent intents)
 
 // NOTE: indentBlock/outdentBlock removed - now handled via keyboard rules
 
@@ -60,16 +60,6 @@ export const CodeBlock = Node.create({
           return { 'data-block-id': blockId };
         },
       },
-      parentBlockId: {
-        default: null,
-        parseHTML: (element) => element.getAttribute('data-parent-block-id') || null,
-        renderHTML: (attributes) => {
-          if (attributes.parentBlockId) {
-            return { 'data-parent-block-id': attributes.parentBlockId };
-          }
-          return {};
-        },
-      },
       language: {
         default: null,
         parseHTML: (element) => element.getAttribute('data-language'),
@@ -78,10 +68,23 @@ export const CodeBlock = Node.create({
           return { 'data-language': attributes.language };
         },
       },
-      level: {
+      // 🔥 FLAT MODEL: indent is the ONLY structural attribute
+      indent: {
         default: 0,
-        parseHTML: (element) => parseInt(element.getAttribute('data-level') || '0', 10),
-        renderHTML: (attributes) => ({ 'data-level': attributes.level || 0 }),
+        parseHTML: (element) =>
+          parseInt(element.getAttribute('data-indent') || '0', 10),
+        renderHTML: (attributes) => ({
+          'data-indent': attributes.indent || 0,
+        }),
+      },
+      // 🔒 COLLAPSE CONTRACT: All structural blocks must have collapsed attribute
+      collapsed: {
+        default: false,
+        parseHTML: (element) =>
+          element.getAttribute('data-collapsed') === 'true',
+        renderHTML: (attributes) => ({
+          'data-collapsed': attributes.collapsed || false,
+        }),
       },
     };
   },
@@ -175,9 +178,9 @@ export const CodeBlock = Node.create({
         const codeBlockEnd = $from.end();
         const fullText = state.doc.textBetween(codeBlockStart, codeBlockEnd);
         
-        // Handle empty code block using shared handler
+        // Handle empty code block - delegate to keyboard rules
         if (fullText === '' || fullText === '\n') {
-          return handleEmptyBlockInToggle(editor, codeBlockPos, codeBlockNode, 'codeBlock');
+          return false; // Let keyboard rules handle empty block Enter
         }
         
         // Check if we're at the end of the code block
@@ -196,15 +199,11 @@ export const CodeBlock = Node.create({
           // Remove the trailing newline
           tr.delete(codeBlockEnd - 1, codeBlockEnd);
           
-          // Insert new paragraph after code block
-          // ✅ Create sibling of code block - preserve structural context
-          const siblingAttrs = createSiblingAttrs(attrs);
-          
+          // Insert new paragraph after code block (FLAT MODEL)
           const afterCodeBlock = codeBlockPos + codeBlockNode.nodeSize - 1;
           const newParagraph = paragraphType.create({
-            blockId: crypto.randomUUID(),  // Generate blockId immediately
-            level: attrs.level || 0,  // Same level as code block
-            ...siblingAttrs,  // ✅ Enforce invariant
+            blockId: crypto.randomUUID(),
+            indent: attrs.indent || 0,  // FLAT MODEL: same indent
           });
           tr.insert(afterCodeBlock, newParagraph);
           

@@ -1,13 +1,16 @@
 /**
  * UndoRedo - Keyboard shortcuts for undo/redo
  *
- * This replaces TipTap's History extension with our UndoController.
+ * 🔥 FLAT MODEL: Uses TipTap's native History extension
+ *
+ * This provides keyboard shortcuts that call TipTap's undo/redo commands.
+ * The History extension tracks all transactions with addToHistory metadata.
  *
  * Cmd+Z → undo()
  * Cmd+Shift+Z → redo()
+ * Cmd+Y → redo() (alternative)
  *
- * NOTE: This extension requires EditorEngine to be attached to the editor
- * via the TipTap bridge (useEditorEngine hook).
+ * NOTE: Requires History extension to be registered in EditorCore
  */
 
 import { Extension } from '@tiptap/core';
@@ -19,38 +22,17 @@ export const UndoRedo = Extension.create({
     return {
       // Undo
       'Mod-z': () => {
-        const engine = (this.editor as any).engine;
-
-        if (!engine) {
-          console.warn('[UndoRedo] EditorEngine not found on editor');
-          return false;
-        }
-
-        return engine.undo();
+        return this.editor.commands.undo();
       },
 
       // Redo
       'Mod-Shift-z': () => {
-        const engine = (this.editor as any).engine;
-
-        if (!engine) {
-          console.warn('[UndoRedo] EditorEngine not found on editor');
-          return false;
-        }
-
-        return engine.redo();
+        return this.editor.commands.redo();
       },
 
       // Alternative redo shortcut (Cmd+Y on Mac)
       'Mod-y': () => {
-        const engine = (this.editor as any).engine;
-
-        if (!engine) {
-          console.warn('[UndoRedo] EditorEngine not found on editor');
-          return false;
-        }
-
-        return engine.redo();
+        return this.editor.commands.redo();
       },
     };
   },

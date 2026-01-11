@@ -17,28 +17,16 @@ import { useBlockSelection } from '../hooks/useBlockSelection';
 // import { Placeholder } from './Placeholder'; // No longer used - CSS handles placeholders
 import { BlockHandle } from './BlockHandle';
 import { BlockSelectionHalo } from './BlockSelectionHalo';
-
-interface CodeBlockProps extends NodeViewProps {
-  node: {
-    attrs: {
-      language: string | null;
-      parentToggleId?: string | null;
-      level?: number;
-    };
-    textContent: string;
-    childCount: number;
-    nodeSize: number;
-  };
-}
+import { useBlockHidden } from '../hooks/useBlockHidden';
 
 export function CodeBlock({
   node,
   editor,
   getPos,
   updateAttributes: _updateAttributes,
-}: CodeBlockProps) {
+}: NodeViewProps) {
   const { colors } = useTheme();
-  const { language, parentToggleId, level } = node.attrs;
+  const { language, indent = 0 } = node.attrs;
 
   // Check if this block is selected
   const isSelected = useBlockSelection({
@@ -57,6 +45,9 @@ export function CodeBlock({
     getPos,
     customText: placeholders.codeBlock,
   });
+
+  // 🔥 COLLAPSE PROPAGATION: Check if we're hidden by a collapsed ancestor
+  const isHidden = useBlockHidden(editor, getPos);
 
   // Force re-render when document updates (to react to parent toggle collapse)
   const [, forceUpdate] = useState(0);
@@ -78,25 +69,24 @@ export function CodeBlock({
     };
   }, [editor]);
 
-  // Calculate indent based on level (hierarchy + toggle grouping)
-  const hierarchyIndent = (level || 0) * spacing.indent;
-  const toggleIndent = parentToggleId ? spacing.toggleIndent : 0;
-  const indent = hierarchyIndent + toggleIndent;
+  // Calculate indent based on flat model indent attribute
+  const totalIndent = indent * spacing.indent;
 
   return (
     <NodeViewWrapper
       as="pre"
       data-type="codeBlock"
       data-language={language}
-      data-parent-toggle-id={parentToggleId}
+      data-indent={indent}
       data-empty={isEmpty ? 'true' : undefined}
       data-placeholder={placeholderText || undefined}
-      data-level={level}
+      data-hidden={isHidden ? 'true' : undefined}
       className="block-handle-wrapper"
       style={{
         // No margin - parent uses gap for spacing
         display: 'flex',
         padding: 16,
+        paddingLeft: 16 + totalIndent, // FLAT MODEL: indent from left
         backgroundColor: colors.background.secondary,
         border: `1px solid ${colors.border.default}`,
         borderRadius: 4,

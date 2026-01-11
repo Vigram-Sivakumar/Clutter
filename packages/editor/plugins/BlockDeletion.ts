@@ -18,7 +18,7 @@ import {
   getSelectedBlocks,
 } from '../utils/multiSelection';
 import type { EditorEngine } from '../core/engine/EditorEngine';
-import { DeleteBlockCommand } from '../core/engine/command';
+// DeleteBlockCommand removed - using FlatIntentResolver instead
 
 /**
  * Check if selection is a NodeSelection on a single block
@@ -75,17 +75,34 @@ export const BlockDeletion = Extension.create({
                 `[BlockDeletion] Multi-block delete: ${blocks.length} blocks`
               );
 
-              // ✅ USE ENGINE PRIMITIVE: Delete blocks via DeleteBlockCommand
-              // This ensures children are promoted (Editor Law #8)
-              // Delete in document order (engine handles child promotion per block)
+              // 🔥 FLAT MODEL: Use FlatIntentResolver for multi-block delete
+              // Get resolver from editor (attached by EditorCore)
+              const resolver = (editor as any)._resolver;
+              if (!resolver) {
+                console.error('[BlockDeletion] Resolver not found on editor');
+                return false;
+              }
+
+              // Delete each block using flat resolver
+              // Note: In flat model, deleting multiple blocks does NOT promote children
+              // (user explicitly selected the range, everything in it should be deleted)
               for (const block of blocks) {
                 const blockId = block.node.attrs?.blockId;
                 if (blockId) {
-                  const cmd = new DeleteBlockCommand(blockId);
-                  engine.dispatch(cmd);
-                  console.log(
-                    `[BlockDeletion] ✅ Deleted block ${blockId} (children promoted)`
-                  );
+                  const result = resolver.resolve({
+                    type: 'delete-block',
+                    blockId,
+                    source: 'delete',
+                  });
+                  if (result.success) {
+                    console.log(
+                      `[BlockDeletion] ✅ Deleted block ${blockId}`
+                    );
+                  } else {
+                    console.warn(
+                      `[BlockDeletion] Delete failed for ${blockId}: ${result.reason}`
+                    );
+                  }
                 } else {
                   console.warn(
                     '[BlockDeletion] Block has no blockId, skipping',
@@ -94,18 +111,9 @@ export const BlockDeletion = Extension.create({
                 }
               }
 
-              // After engine deletions, position cursor in first remaining block
-              // Wait for next frame for PM to sync with engine changes
-              requestAnimationFrame(() => {
-                const { state: newState } = editor;
-                if (newState.doc.content.size > 0 && newState.doc.firstChild) {
-                  const firstBlockStart = 1;
-                  const tr = newState.tr.setSelection(
-                    TextSelection.create(newState.doc, firstBlockStart)
-                  );
-                  editor.view.dispatch(tr);
-                }
-              });
+              // ✅ CURSOR PLACEMENT HANDLED BY ENGINE
+              // Each delete-block intent places cursor correctly
+              // Final cursor position = END of block before deleted range
 
               return true; // Prevent default behavior
             }
@@ -156,33 +164,34 @@ export const BlockDeletion = Extension.create({
 
                 console.log(`[BlockDeletion] Single node delete: ${blockId}`);
 
-                // ✅ USE ENGINE PRIMITIVE: Delete block via DeleteBlockCommand
-                // This ensures children are promoted (Editor Law #8)
-                const cmd = new DeleteBlockCommand(blockId);
-                engine.dispatch(cmd);
-                console.log(
-                  `[BlockDeletion] ✅ Deleted block ${blockId} (children promoted)`
-                );
-
-                // After engine deletion, position cursor in a valid block
-                // Wait for next frame for PM to sync with engine changes
-                requestAnimationFrame(() => {
-                  const { state: newState } = editor;
-                  let cursorPos = pos;
-                  if (cursorPos >= newState.doc.content.size) {
-                    cursorPos = newState.doc.content.size - 1;
-                  }
-                  // Ensure we're inside a block, not at document boundaries
-                  if (cursorPos <= 0 && newState.doc.firstChild) {
-                    cursorPos = 1; // Inside the first block
-                  }
-                  if (cursorPos > 0) {
-                    const tr = newState.tr.setSelection(
-                      TextSelection.create(newState.doc, cursorPos)
+                // 🔥 FLAT MODEL: Use FlatIntentResolver, not old DeleteBlockCommand
+                // Get resolver from editor (attached by EditorCore)
+                const resolver = (editor as any)._resolver;
+                if (resolver) {
+                  // Dispatch delete-block intent through flat resolver
+                  const result = resolver.resolve({
+                    type: 'delete-block',
+                    blockId,
+                    source: 'delete',
+                  });
+                  if (result.success) {
+                    console.log(
+                      `[BlockDeletion] ✅ Deleted block ${blockId} (children promoted)`
                     );
-                    editor.view.dispatch(tr);
+                  } else {
+                    console.warn(
+                      `[BlockDeletion] Delete failed: ${result.reason}`
+                    );
+                    return false;
                   }
-                });
+                } else {
+                  console.error('[BlockDeletion] Resolver not found on editor');
+                  return false;
+                }
+
+                // ✅ CURSOR PLACEMENT HANDLED BY ENGINE
+                // FlatIntentResolver.handleDeleteBlock() already places cursor at END of previous block
+                // No need for requestAnimationFrame or manual cursor placement here
 
                 return true; // Prevent default behavior
               }

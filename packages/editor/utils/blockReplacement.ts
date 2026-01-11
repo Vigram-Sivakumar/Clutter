@@ -56,9 +56,15 @@ export function replaceBlock(
 
 /**
  * Helper attributes that should be preserved when converting blocks
+ * 
+ * 🔒 BLOCK IDENTITY LAW (Phase 2):
+ * When a node type changes (paragraph → heading, paragraph → HR, etc.),
+ * blockId MUST be regenerated. NEVER preserve blockId across type changes.
+ * 
+ * Only preserve structural attributes (indent, level, parent relationships).
  */
 export interface PreservedAttrs {
-  blockId?: string;
+  blockId?: string; // ⚠️ DEPRECATED - Do not preserve across type changes
   parentBlockId?: string | null;
   parentToggleId?: string | null;
   level?: number;
@@ -240,11 +246,11 @@ export const createBlock: BlockCreator = {
   },
 
   horizontalRule: (schema, style, preservedAttrs) => {
+    // 🔒 BLOCK IDENTITY LAW: Node type change = new identity
+    // NEVER preserve blockId when transforming paragraph → horizontalRule
     return schema.nodes.horizontalRule.create({
-      blockId: preservedAttrs?.blockId || crypto.randomUUID(),
-      parentBlockId: preservedAttrs?.parentBlockId || null,
-      parentToggleId: preservedAttrs?.parentToggleId || null,
-      level: preservedAttrs?.level || 0,
+      blockId: crypto.randomUUID(), // ✅ Always generate new ID
+      indent: preservedAttrs?.indent || 0, // 🔥 FLAT MODEL: Preserve indent
       style,
     });
   },

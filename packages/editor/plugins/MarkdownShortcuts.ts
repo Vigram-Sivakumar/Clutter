@@ -47,12 +47,10 @@ export const MarkdownShortcuts = Extension.create({
             }
 
             // Extract preserved attributes from current block
-            // ✅ Preserve all structural context (parentBlockId, level, parentToggleId)
+            // 🔥 FLAT MODEL: Preserve indent (structural attribute)
             const preservedAttrs = {
               blockId: parent.attrs.blockId,
-              parentBlockId: parent.attrs.parentBlockId || null,
-              level: parent.attrs.level || 0,
-              parentToggleId: parent.attrs.parentToggleId || null,
+              indent: parent.attrs.indent || 0, // FLAT MODEL
             };
 
             // Determine what to create

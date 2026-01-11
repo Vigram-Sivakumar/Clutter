@@ -67,83 +67,90 @@ export const splitListItem = defineRule({
     // Split the content at cursor
     const contentAfter = listBlockNode.content.cut(cursorPosInBlock);
 
-    // FIXED: Single atomic transaction to prevent extra block creation
-    return editor
-      .chain()
-      .command(({ tr, state: cmdState }) => {
-        // Step 1: Delete content after cursor in current block
-        if (contentAfter.size > 0) {
-          const deleteFrom = listBlockPos + 1 + cursorPosInBlock;
-          const deleteTo = deleteFrom + contentAfter.size;
-          tr.delete(deleteFrom, deleteTo);
+    // ✅ CANONICAL ENTER PATTERN: ONE Enter = ONE transaction
+    return editor.commands.command(({ state: cmdState, dispatch }) => {
+      if (!dispatch) return false;
+
+      const tr = cmdState.tr;
+
+      // Step 1: Delete content after cursor in current block
+      if (contentAfter.size > 0) {
+        const deleteFrom = listBlockPos + 1 + cursorPosInBlock;
+        const deleteTo = deleteFrom + contentAfter.size;
+        tr.delete(deleteFrom, deleteTo);
+      }
+
+      // Step 2: Calculate insert position AFTER deletion
+      // Current block now ends at: listBlockPos + 1 + cursorPosInBlock + 1 (closing)
+      // We want to insert right after the current block
+      const currentBlockEndPos = listBlockPos + cursorPosInBlock + 2;
+
+      // 🔥 FLAT MODEL: Calculate indent for new block
+      // RULE: Find subtree depth, then decide sibling vs continue
+      const baseIndent = attrs.indent ?? 0;
+
+      // Scan forward to find subtree and max depth
+      let maxIndent = baseIndent;
+      const doc = cmdState.doc;
+      const blocks: any[] = [];
+
+      doc.descendants((node) => {
+        if (node.attrs?.blockId) {
+          blocks.push(node);
         }
-
-        // Step 2: Calculate insert position AFTER deletion
-        // Current block now ends at: listBlockPos + 1 + cursorPosInBlock + 1 (closing)
-        // We want to insert right after the current block
-        const currentBlockEndPos = listBlockPos + cursorPosInBlock + 2;
-
-        // 🔥 FLAT MODEL: Calculate indent for new block
-        // RULE: Find subtree depth, then decide sibling vs continue
-        const baseIndent = attrs.indent ?? 0;
-
-        // Scan forward to find subtree and max depth
-        let maxIndent = baseIndent;
-        const doc = cmdState.doc;
-        const blocks: any[] = [];
-
-        doc.descendants((node) => {
-          if (node.attrs?.blockId) {
-            blocks.push(node);
-          }
-          return true;
-        });
-
-        const currentIndex = blocks.findIndex(
-          (n) => n.attrs.blockId === attrs.blockId
-        );
-
-        if (currentIndex !== -1) {
-          // Scan forward through subtree
-          for (let i = currentIndex + 1; i < blocks.length; i++) {
-            const blockIndent = blocks[i].attrs.indent ?? 0;
-            if (blockIndent <= baseIndent) break; // Exit subtree
-            maxIndent = Math.max(maxIndent, blockIndent);
-          }
-        }
-
-        // ENTER INVARIANT: Sibling if no children, continue depth if children
-        const newIndent = maxIndent === baseIndent ? baseIndent : maxIndent;
-
-        // Step 3: Create and insert new list item with "after" content
-        const newListBlock = cmdState.schema.nodes.listBlock.create(
-          {
-            blockId: crypto.randomUUID(),
-            listType: attrs.listType,
-            checked: attrs.listType === 'task' ? false : null,
-            indent: newIndent,
-            collapsed: false,
-          },
-          contentAfter
-        );
-
-        tr.insert(currentBlockEndPos, newListBlock);
-
-        // Step 4: Position cursor at start of new list item (inside the content)
-        // New block starts at currentBlockEndPos
-        // Content starts at currentBlockEndPos + 1
-        const newCursorPos = currentBlockEndPos + 1;
-
-        try {
-          const $pos = tr.doc.resolve(newCursorPos);
-          tr.setSelection(cmdState.selection.constructor.near($pos));
-        } catch (e) {
-          // Fallback: just put cursor at the position
-          console.warn('[splitListItem] Could not set selection:', e);
-        }
-
         return true;
-      })
-      .run();
+      });
+
+      const currentIndex = blocks.findIndex(
+        (n) => n.attrs.blockId === attrs.blockId
+      );
+
+      if (currentIndex !== -1) {
+        // Scan forward through subtree
+        for (let i = currentIndex + 1; i < blocks.length; i++) {
+          const blockIndent = blocks[i].attrs.indent ?? 0;
+          if (blockIndent <= baseIndent) break; // Exit subtree
+          maxIndent = Math.max(maxIndent, blockIndent);
+        }
+      }
+
+      // ENTER INVARIANT: Sibling if no children, continue depth if children
+      const newIndent = maxIndent === baseIndent ? baseIndent : maxIndent;
+
+      // Step 3: Create and insert new list item with "after" content
+      const newListBlock = cmdState.schema.nodes.listBlock.create(
+        {
+          blockId: crypto.randomUUID(),
+          listType: attrs.listType,
+          checked: attrs.listType === 'task' ? false : null,
+          indent: newIndent,
+          collapsed: false,
+        },
+        contentAfter
+      );
+
+      tr.insert(currentBlockEndPos, newListBlock);
+
+      // Step 4: Position cursor at start of new list item (inside the content)
+      // New block starts at currentBlockEndPos
+      // Content starts at currentBlockEndPos + 1
+      const newCursorPos = currentBlockEndPos + 1;
+
+      try {
+        const $pos = tr.doc.resolve(newCursorPos);
+        tr.setSelection(cmdState.selection.constructor.near($pos));
+      } catch (e) {
+        // Fallback: just put cursor at the position
+        console.warn('[splitListItem] Could not set selection:', e);
+      }
+
+      // Mark for undo - FORCE history boundary (one undo per Enter)
+      tr.setMeta('addToHistory', true);
+      tr.setMeta('closeHistory', true); // Each Enter = separate undo step
+
+      // Dispatch ONCE - no more transactions
+      dispatch(tr);
+      return true; // HARD STOP
+    });
   },
 });

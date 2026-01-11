@@ -46,6 +46,7 @@ import { NoteLink } from '../extensions/nodes/NoteLink';
 
 // TipTap built-in extensions
 import Gapcursor from '@tiptap/extension-gapcursor';
+import History from '@tiptap/extension-history';
 
 // Plugins
 import { MarkdownShortcuts } from '../plugins/MarkdownShortcuts';
@@ -146,6 +147,7 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
           onNavigate, // Pass navigation callback to NoteLink extension
         }), // Note/folder links (no @) - atomic inline node
         Gapcursor, // Shows cursor when navigating around atomic nodes
+        History, // Undo/redo support - REQUIRED for tr.setMeta('addToHistory') to work
 
         // Marks
         Bold,

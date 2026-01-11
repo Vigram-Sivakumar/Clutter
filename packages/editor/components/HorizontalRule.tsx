@@ -16,6 +16,7 @@ import { FoldHorizontal, UnfoldHorizontal } from '@clutter/ui';
 import { sizing } from '@clutter/ui';
 import { BlockSelectionHalo } from './BlockSelectionHalo';
 import { BlockHandle } from './BlockHandle';
+import { useBlockHidden } from '../hooks/useBlockHidden';
 
 interface HorizontalRuleProps extends NodeViewProps {
   // NodeViewProps already includes node, we just need to specify updateAttributes
@@ -35,9 +36,6 @@ export function HorizontalRule({
   const hrStyle = node.attrs.style || 'plain';
   const fullWidth = node.attrs.fullWidth ?? true;
   const colorMode = node.attrs.color || 'default';
-  const level = node.attrs.level || 0;
-  const parentBlockId = node.attrs.parentBlockId || null;
-  const parentToggleId = node.attrs.parentToggleId || null;
   const [isHovered, setIsHovered] = useState(false);
 
   // Check if this block is selected
@@ -47,10 +45,18 @@ export function HorizontalRule({
     nodeSize: node.nodeSize,
   });
 
-  // Calculate indent based on level and toggle grouping
-  const hierarchyIndent = level * spacing.indent;
-  const toggleIndent = parentToggleId ? spacing.toggleIndent : 0;
-  const indent = hierarchyIndent + toggleIndent;
+  // 🔥 FLAT MODEL: Read indent directly from attributes
+  const blockIndent = node.attrs.indent || 0;
+  const INDENT_WIDTH = spacing.indent;
+  const paddingLeft = blockIndent * INDENT_WIDTH;
+
+  // 🔒 BLOCK IDENTITY: Read blockId (required for Engine sync)
+  const blockId = node.attrs.blockId;
+
+  // 🎯 INDENT RENDERING RULE:
+  // indent = 0 → Full width (section separator)
+  // indent >= 1 → Indented like any other block (left-aligned, not centered)
+  const isFullWidth = blockIndent === 0;
 
   // Toggle between default divider color and accent orange
   const dividerColor =
@@ -64,23 +70,32 @@ export function HorizontalRule({
     updateAttributes({ color: colorMode === 'default' ? 'accent' : 'default' });
   };
 
+  // 🔒 COLLAPSE CONTRACT: All blocks must expose collapsed state to DOM
+  // HR is always collapsed=false (it's a leaf node), but must expose the attribute
+  const collapsed = node.attrs.collapsed ?? false;
+
+  // 🔥 COLLAPSE PROPAGATION: Check if we're hidden by a collapsed ancestor
+  const isHidden = useBlockHidden(editor, getPos);
+
   return (
     <NodeViewWrapper
       as="div"
       data-type="horizontalRule"
+      data-block-id={blockId}
       data-style={hrStyle}
       data-full-width={fullWidth}
-      data-level={level}
-      data-parent-block-id={parentBlockId}
+      data-indent={blockIndent}
+      data-collapsed={collapsed}
+      data-hidden={isHidden ? 'true' : undefined}
       className="block-handle-wrapper"
       style={{
         height: HR_HEIGHT,
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'center',
+        justifyContent: isFullWidth ? 'center' : 'flex-start', // 🔥 Left-align when indented
         position: 'relative',
         cursor: 'pointer',
-        paddingLeft: indent,
+        paddingLeft,
         // No margin - parent uses gap for spacing
       }}
       onMouseEnter={() => setIsHovered(true)}
@@ -90,7 +105,7 @@ export function HorizontalRule({
       <div
         style={{
           position: 'absolute',
-          left: indent - 32,
+          left: paddingLeft - 32,
           top: 0,
           width: 32,
           height: '100%',
@@ -99,11 +114,16 @@ export function HorizontalRule({
       />
 
       {/* Block handle (⋮⋮) - shows on hover */}
-      <BlockHandle editor={editor} getPos={getPos} indent={indent} />
+      <BlockHandle editor={editor} getPos={getPos} indent={paddingLeft} />
       {/* HR line container with conditional width */}
       <div
         style={{
-          width: fullWidth ? '100%' : '128px',
+          width:
+            isFullWidth && fullWidth
+              ? '100%' // Full width at root level
+              : fullWidth
+              ? `calc(100% - ${paddingLeft}px)` // Full remaining width when indented
+              : '128px', // Fixed width when toggled off
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -241,7 +261,7 @@ export function HorizontalRule({
       </div>
 
       {/* Block selection halo */}
-      <BlockSelectionHalo isSelected={isSelected} indent={indent} />
+      <BlockSelectionHalo isSelected={isSelected} indent={paddingLeft} />
 
       {/* CSS to show handle on hover or when menu is open (but not while typing or in multi-selection) */}
       <style>{`

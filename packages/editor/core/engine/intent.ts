@@ -40,7 +40,7 @@ export type EditorIntent =
       parentId?: BlockId;
       content?: unknown;
     }
-  | { type: 'delete-block'; blockId: BlockId }
+  | { type: 'delete-block'; blockId: BlockId; source?: 'backspace' | 'delete' | 'command' }
   | { type: 'merge-blocks'; sourceId: BlockId; targetId: BlockId }
   | { type: 'split-block'; blockId: BlockId; at: number }
   | { type: 'convert-block'; blockId: BlockId; to: string }

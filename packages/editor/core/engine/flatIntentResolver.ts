@@ -29,6 +29,9 @@ export class FlatIntentResolver {
         case 'outdent-block':
           return this.handleOutdentBlock(intent);
 
+        case 'delete-block':
+          return this.handleDeleteBlock(intent);
+
         default:
           return {
             success: false,
@@ -279,6 +282,182 @@ export class FlatIntentResolver {
     // Mark for undo
     tr.setMeta('addToHistory', true);
     tr.setMeta('historyGroup', 'outdent-block');
+
+    // Apply
+    view.dispatch(tr);
+
+    return {
+      success: true,
+      intent,
+      mode: this._engine.getMode(),
+    };
+  }
+
+  /**
+   * Delete block (Backspace at start / Delete key)
+   *
+   * 🔥 DELETE LAW (FLAT MODEL):
+   * Delete removes the block and promotes its children by -1 indent
+   *
+   * Rule: Delete is structure-aware, not text-aware
+   * - Remove the selected block
+   * - Promote all children (indent -= 1)
+   * - Never leave children orphaned
+   * - Never reorder blocks
+   *
+   * Example:
+   * A (0)
+   *   B (1)  ← delete this
+   *     C (2)
+   *     D (2)
+   *
+   * After:
+   * A (0)
+   *   C (1)  ← promoted
+   *   D (1)  ← promoted
+   */
+  private handleDeleteBlock(
+    intent: Extract<EditorIntent, { type: 'delete-block' }>
+  ): IntentResult {
+    const { blockId } = intent;
+
+    if (!this._editor || !this._editor.state) {
+      return {
+        success: false,
+        intent,
+        reason: 'Editor not available',
+      };
+    }
+
+    const { state, view } = this._editor;
+    const doc = state.doc;
+    const tr = state.tr;
+
+    // Collect all blocks in document order
+    const blocks: Array<{ pos: number; node: any; indent: number }> = [];
+    doc.descendants((node: any, pos: number) => {
+      if (node.attrs?.blockId) {
+        blocks.push({
+          pos,
+          node,
+          indent: node.attrs.indent ?? 0,
+        });
+      }
+      return true;
+    });
+
+    // Find selected block index
+    const selectedIndex = blocks.findIndex(
+      (b) => b.node.attrs.blockId === blockId
+    );
+
+    if (selectedIndex === -1) {
+      return {
+        success: false,
+        intent,
+        reason: 'Block not found',
+      };
+    }
+
+    const selectedBlock = blocks[selectedIndex];
+    const baseIndent = selectedBlock.indent;
+
+    // 🔥 PROMOTION RULE: Find visual subtree (children to promote)
+    // These are all contiguous blocks after the selected block with indent > baseIndent
+    const childrenToPromote: number[] = [];
+    for (let i = selectedIndex + 1; i < blocks.length; i++) {
+      if (blocks[i].indent > baseIndent) {
+        childrenToPromote.push(i);
+      } else {
+        break; // Stop at first block not deeper than base
+      }
+    }
+
+    console.log('[FLAT DELETE]:', {
+      block: blockId.slice(0, 8),
+      baseIndent,
+      childrenCount: childrenToPromote.length,
+      willPromote: childrenToPromote.length > 0,
+    });
+
+    // 🔥 STEP 1: Promote children BEFORE deleting parent
+    // (Positions remain valid because we haven't deleted anything yet)
+    for (const index of childrenToPromote) {
+      const child = blocks[index];
+      tr.setNodeMarkup(child.pos, undefined, {
+        ...child.node.attrs,
+        indent: child.indent - 1, // Promote by -1
+      });
+    }
+
+    // 🔥 STEP 2: Delete the selected block
+    const blockPos = selectedBlock.pos;
+    const blockSize = selectedBlock.node.nodeSize;
+    tr.delete(blockPos, blockPos + blockSize);
+
+    // 🔥 STEP 3: POST-DELETE CURSOR PLACEMENT (INVARIANT)
+    //
+    // RULE: After ANY delete, cursor moves to END of previous visible block
+    // This matches Craft/Workflowy UX and prevents "cursor outside editor" bugs
+    //
+    // Implementation:
+    // - Find previous block in NEW document (tr.doc, not old doc)
+    // - Calculate END position of that block's text content
+    // - Use TextSelection.create for explicit placement (not .near())
+    // - Fallback: If no previous block, cursor goes to first block
+
+    if (selectedIndex > 0) {
+      // There's a previous block - move cursor to its END
+      const prevBlock = blocks[selectedIndex - 1];
+      
+      // Calculate the END of the previous block's content
+      // prevBlock.pos = start of block node
+      // +1 = inside the block (skip opening tag)
+      // +prevBlock.node.content.size = end of text content
+      const targetPos = prevBlock.pos + 1 + prevBlock.node.content.size;
+      
+      try {
+        const $pos = tr.doc.resolve(targetPos);
+        const selection = state.selection.constructor.create(tr.doc, targetPos);
+        tr.setSelection(selection);
+        console.log('[FLAT DELETE] Cursor → end of previous block:', {
+          prevBlockId: prevBlock.node.attrs?.blockId?.slice(0, 8),
+          targetPos,
+        });
+      } catch (e) {
+        console.warn('[handleDeleteBlock] Could not set cursor to prev block end:', e);
+        // Fallback: use .near() as last resort
+        try {
+          const fallbackPos = Math.min(targetPos, tr.doc.content.size - 1);
+          const $pos = tr.doc.resolve(fallbackPos);
+          tr.setSelection(state.selection.constructor.near($pos));
+        } catch (e2) {
+          console.error('[handleDeleteBlock] Cursor placement completely failed:', e2);
+        }
+      }
+    } else {
+      // First block deleted - move cursor to START of first remaining block
+      // The new first block is at position 1 (inside doc node)
+      try {
+        const $pos = tr.doc.resolve(1);
+        const selection = state.selection.constructor.create(tr.doc, 1);
+        tr.setSelection(selection);
+        console.log('[FLAT DELETE] Cursor → start of first block (first block was deleted)');
+      } catch (e) {
+        console.warn('[handleDeleteBlock] Could not set cursor to first block:', e);
+        // Fallback: use .near() as last resort
+        try {
+          const $pos = tr.doc.resolve(1);
+          tr.setSelection(state.selection.constructor.near($pos));
+        } catch (e2) {
+          console.error('[handleDeleteBlock] Cursor placement completely failed:', e2);
+        }
+      }
+    }
+
+    // Mark for undo
+    tr.setMeta('addToHistory', true);
+    tr.setMeta('historyGroup', 'delete-block');
 
     // Apply
     view.dispatch(tr);

@@ -21,6 +21,7 @@ import { useBlockSelection } from '../hooks/useBlockSelection';
 import { BlockTagEditor } from './BlockTagEditor';
 import { BlockHandle } from './BlockHandle';
 import { BlockSelectionHalo } from './BlockSelectionHalo';
+import { useBlockHidden } from '../hooks/useBlockHidden';
 
 export function ParagraphBlock({
   node,
@@ -50,6 +51,9 @@ export function ParagraphBlock({
     getPos,
     nodeSize: node.nodeSize,
   });
+
+  // 🔥 COLLAPSE PROPAGATION: Check if we're hidden by a collapsed ancestor
+  const isHidden = useBlockHidden(editor, getPos);
 
   // Force re-render when document updates (to react to parent toggle collapse and selection changes)
   const [, forceUpdate] = useState(0);
@@ -88,6 +92,7 @@ export function ParagraphBlock({
       data-indent={blockIndent}
       data-empty={isEmpty ? 'true' : undefined}
       data-placeholder={placeholderText || undefined}
+      data-hidden={isHidden ? 'true' : undefined}
       className="block-handle-wrapper"
       style={{
         display: 'block',

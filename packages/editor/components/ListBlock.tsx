@@ -767,7 +767,7 @@ export function ListBlock({
       {renderToggleRow()}
 
       {/* Block selection halo */}
-      <BlockSelectionHalo isSelected={isSelected} indent={indent} />
+      <BlockSelectionHalo isSelected={isSelected} indent={totalIndent} />
 
       {/* CSS to show handle on hover or when menu is open (but not while typing or in multi-selection) */}
       <style>{`
