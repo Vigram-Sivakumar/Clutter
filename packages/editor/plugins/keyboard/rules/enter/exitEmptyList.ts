@@ -1,10 +1,26 @@
 /**
- * Exit Empty List Rule (Enter)
+ * Exit Empty List Rule (Enter) — FLAT MODEL
  *
- * When: Empty list block at level 0 (not in wrapper)
- * Do: Convert to paragraph
+ * 🔥 THE ENTER LAW (EMPTY BLOCKS AT ROOT):
+ * When block is empty AND indent === 0 and Enter is pressed:
+ *   → Create a NEW sibling block after current block
+ *   → Keep current empty block (don't delete or convert)
  *
- * This is the base case for exiting lists.
+ * This is the final step of the "walk to root" flow.
+ *
+ * Example:
+ * A
+ *   B
+ * E  ← empty, indent=0, cursor here
+ *
+ * Enter →
+ * A
+ *   B
+ * E
+ * F  ← NEW block created
+ *
+ * When: Empty list block at indent === 0 (not in wrapper)
+ * Do: Create new paragraph sibling
  */
 
 import { defineRule } from '../../types/KeyboardRule';
@@ -14,7 +30,7 @@ import { findAncestorNode } from '../../../../utils/keyboardHelpers';
 
 export const exitEmptyList = defineRule({
   id: 'enter:exitEmptyList',
-  description: 'Convert empty list at level 0 to paragraph on Enter',
+  description: 'Create new block after empty list at indent=0 - FLAT MODEL',
   priority: 85, // Between outdentEmptyList (90) and exitEmptyHeading (80)
 
   when(ctx: KeyboardContext): boolean {
@@ -31,9 +47,11 @@ export const exitEmptyList = defineRule({
       return false;
     }
 
-    // Must be at level 0 (otherwise outdentEmptyList handles it)
+    // 🔥 FLAT MODEL: Must be at indent === 0
+    // If indent > 0, outdentEmptyList handles it (decreases indent)
     const attrs = listBlock.node.attrs;
-    if (attrs.level > 0) {
+    const indent = attrs.indent ?? 0;
+    if (indent > 0) {
       return false;
     }
 
@@ -52,27 +70,25 @@ export const exitEmptyList = defineRule({
     const listBlock = findAncestorNode(editor, 'listBlock');
     if (!listBlock) return false;
 
-    // TEMPORARY: Direct TipTap command until ConvertBlockCommand is implemented
-    // This converts the list block to a paragraph
+    // 🔥 FLAT MODEL: Create NEW paragraph after current block
+    // Don't convert or delete current block - just insert new sibling
     return editor
       .chain()
       .command(({ tr, state }) => {
-        const { pos } = listBlock;
+        const { pos, node } = listBlock;
+        const blockEndPos = pos + node.nodeSize;
 
-        // Convert the listBlock node to a paragraph node
-        // Preserve the blockId for consistency
-        const paragraph = state.schema.nodes.paragraph.create(
-          {
-            blockId: listBlock.node.attrs.blockId,
-          },
-          listBlock.node.content // Keep any content (though it should be empty)
-        );
+        // Create new paragraph at indent 0
+        const newParagraph = state.schema.nodes.paragraph.create({
+          blockId: crypto.randomUUID(),
+          indent: 0,
+        });
 
-        // Replace the list block with paragraph
-        tr.replaceWith(pos, pos + listBlock.node.nodeSize, paragraph);
+        // Insert after current block
+        tr.insert(blockEndPos, newParagraph);
 
-        // Set cursor to start of new paragraph (inside the content)
-        const newCursorPos = pos + 1;
+        // Move cursor to new paragraph
+        const newCursorPos = blockEndPos + 1;
         try {
           const $pos = tr.doc.resolve(newCursorPos);
           tr.setSelection(state.selection.constructor.near($pos));
@@ -83,12 +99,5 @@ export const exitEmptyList = defineRule({
         return true;
       })
       .run();
-
-    // TODO: Once ConvertBlockCommand is implemented, use this instead:
-    // return {
-    //   type: 'convert-block',
-    //   blockId: listBlock.node.attrs.blockId,
-    //   to: 'paragraph',
-    // };
   },
 });
