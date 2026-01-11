@@ -316,6 +316,9 @@ export function ListBlock({
     };
   }, [editor]);
 
+  // 🔥 FLAT MODEL: Calculate indent FIRST (used by other calculations)
+  const blockIndent = indent ?? 0;
+
   // Calculate list number for numbered lists
   const listNumber = useMemo(() => {
     if (listType !== 'numbered') return 0;
@@ -411,8 +414,7 @@ export function ListBlock({
     return result;
   };
 
-  // 🔥 FLAT MODEL: indent is the ONLY structural attribute
-  const blockIndent = indent ?? 0;
+  // 🔥 FLAT MODEL: Calculate total padding for rendering
   const totalIndent = blockIndent * spacing.indent;
 
   // Calculate display level for marker styling (cycles based on indent)
