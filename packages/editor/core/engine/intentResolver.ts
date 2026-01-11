@@ -43,13 +43,18 @@ import {
  * Called after EVERY structural change (indent/outdent/move/paste).
  */
 function recomputeAllLevels(doc: any, tr: any): void {
+  // 🔥 CRITICAL: Read from tr.doc (AFTER mutations), not doc (BEFORE mutations)
+  // If we just changed parentBlockId via tr.setNodeMarkup, we need to compute
+  // levels based on the NEW parent structure, not the old one!
+  const docToRead = tr.doc;
+
   // Build blockId → block data map
   const blocks = new Map<
     string,
     { node: any; pos: number; parentBlockId: string }
   >();
 
-  doc.descendants((node: any, pos: number) => {
+  docToRead.descendants((node: any, pos: number) => {
     if (node.attrs?.blockId) {
       blocks.set(node.attrs.blockId, {
         node,
@@ -85,11 +90,16 @@ function recomputeAllLevels(doc: any, tr: any): void {
   // Apply computed levels to ALL blocks
   blocks.forEach((block, blockId) => {
     const correctLevel = computeLevel(blockId);
-    const currentLevel = block.node.attrs.level ?? 0;
+
+    // Get the CURRENT node from tr.doc (after pending mutations)
+    const currentNode = docToRead.nodeAt(block.pos);
+    if (!currentNode) return;
+
+    const currentLevel = currentNode.attrs.level ?? 0;
 
     if (currentLevel !== correctLevel) {
       tr.setNodeMarkup(block.pos, undefined, {
-        ...block.node.attrs,
+        ...currentNode.attrs,
         level: correctLevel,
       });
     }
