@@ -344,16 +344,24 @@ function handleReplaceBlock(
   const { node: selectedNode, $from } = selection;
   const selectedBlockPos = $from.before($from.depth);
   const baseIndent = selectedNode.attrs?.indent ?? 0;
+  const isCollapsed = selectedNode.attrs?.collapsed === true;
+  
+  // 🎯 LAW 6: If selected block is collapsed, delete entire subtree
+  const deleteEndPos = isCollapsed
+    ? getEndOfCollapsedSubtree(state.doc, selectedBlockPos)
+    : selectedBlockPos + selectedNode.nodeSize;
   
   console.log('[Paste] REPLACE_BLOCK', {
     selectedBlockPos,
     selectedBlockType: selectedNode.type.name,
     baseIndent,
+    collapsed: isCollapsed,
+    deleteEndPos,
     pasteBlockCount: payload.blocks.length,
   });
   
-  // Delete selected block
-  tr.delete(selectedBlockPos, selectedBlockPos + selectedNode.nodeSize);
+  // Delete selected block (and subtree if collapsed)
+  tr.delete(selectedBlockPos, deleteEndPos);
   
   // Insert pasted blocks at same position
   let insertPos = selectedBlockPos;
@@ -390,6 +398,80 @@ function handleReplaceBlock(
   return true;
 }
 
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 🎯 LAW 6: COLLAPSED PARENT HANDLING (Step 3B.3)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+/**
+ * Get end position of collapsed subtree (skip all visual children)
+ * 
+ * In flat model: visual children = all contiguous blocks with indent > baseIndent
+ * 
+ * Example:
+ *   Toggle (indent=0, collapsed=true)
+ *     Child 1 (indent=1) ← hidden
+ *     Child 2 (indent=1) ← hidden
+ *   Next block (indent=0) ← returns this position
+ */
+function getEndOfCollapsedSubtree(
+  doc: PMNode,
+  collapsedBlockPos: number
+): number {
+  const collapsedBlock = doc.nodeAt(collapsedBlockPos);
+  if (!collapsedBlock) return collapsedBlockPos;
+  
+  const baseIndent = collapsedBlock.attrs?.indent ?? 0;
+  let pos = collapsedBlockPos + collapsedBlock.nodeSize;
+  
+  // Skip all deeper-indented blocks (visual children in flat model)
+  while (pos < doc.content.size) {
+    const $nextPos = doc.resolve(pos);
+    if ($nextPos.depth !== 1) break; // Only check top-level blocks
+    
+    const nextBlock = $nextPos.node($nextPos.depth);
+    if (!nextBlock) break;
+    
+    const nextIndent = nextBlock.attrs?.indent ?? 0;
+    
+    // End of subtree when we hit block at same or lower indent
+    if (nextIndent <= baseIndent) break;
+    
+    pos += nextBlock.nodeSize;
+  }
+  
+  return pos;
+}
+
+/**
+ * Get insertion position after a block, accounting for collapsed subtrees
+ * 
+ * 🔒 LAW 6: Paste never expands collapsed blocks.
+ * If block is collapsed, insert after entire subtree.
+ */
+function getInsertPositionAfterBlock(
+  doc: PMNode,
+  blockPos: number
+): number {
+  const block = doc.nodeAt(blockPos);
+  if (!block) return blockPos;
+  
+  // If block is collapsed, skip entire visual subtree
+  if (block.attrs?.collapsed === true) {
+    const endPos = getEndOfCollapsedSubtree(doc, blockPos);
+    console.log('[Paste] Collapsed parent detected', {
+      blockPos,
+      baseIndent: block.attrs?.indent ?? 0,
+      subtreeEndPos: endPos,
+    });
+    return endPos;
+  }
+  
+  // Otherwise, insert right after current block
+  return blockPos + block.nodeSize;
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 /**
  * 🔹 LAW 5: INSERT_AFTER - Insert pasted blocks after current block
  * 
@@ -411,10 +493,11 @@ function handleInsertAfter(
   const { selection } = state;
   const { $from } = selection;
   const currentBlock = $from.node($from.depth);
+  const currentBlockPos = $from.before($from.depth);
   const baseIndent = currentBlock?.attrs?.indent ?? 0;
   
-  // Insert after current block
-  let insertPos = $from.after($from.depth);
+  // 🎯 LAW 6: Insert after current block, accounting for collapsed subtree
+  let insertPos = getInsertPositionAfterBlock(state.doc, currentBlockPos);
   
   // 🛡️ GUARD: Validate position
   if (insertPos <= 0 || insertPos > tr.doc.content.size) {
@@ -428,6 +511,7 @@ function handleInsertAfter(
   console.log('[Paste] INSERT_AFTER', {
     insertPos,
     baseIndent,
+    collapsed: currentBlock?.attrs?.collapsed === true,
     pasteBlockCount: payload.blocks.length,
   });
   
