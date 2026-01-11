@@ -115,6 +115,27 @@ export class FlatIntentResolver {
     const selectedBlock = blocks[selectedIndex];
     const baseIndent = selectedBlock.indent;
 
+    // 🔥 INDENT VALIDATION: Can only indent to prevBlock.indent + 1
+    // This prevents indent jumps and maintains flat list invariant
+    const prevBlock = selectedIndex > 0 ? blocks[selectedIndex - 1] : null;
+    const maxAllowedIndent = prevBlock ? prevBlock.indent + 1 : 0;
+    const newIndent = baseIndent + 1;
+
+    if (newIndent > maxAllowedIndent) {
+      console.log('[FLAT INDENT] Blocked:', {
+        selectedBlock: blockId.slice(0, 8),
+        currentIndent: baseIndent,
+        attemptedIndent: newIndent,
+        maxAllowed: maxAllowedIndent,
+        prevBlockIndent: prevBlock?.indent,
+      });
+      return {
+        success: false,
+        intent,
+        reason: `Cannot indent beyond previous block level (max: ${maxAllowedIndent})`,
+      };
+    }
+
     // 🔥 RANGE DETECTION: Find all contiguous blocks with indent > baseIndent
     // This is the "visual subtree" that moves with the selected block
     const affectedRange = [selectedIndex];
