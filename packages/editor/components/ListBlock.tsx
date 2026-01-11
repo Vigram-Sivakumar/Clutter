@@ -160,10 +160,10 @@ function blockHasChildren(
 }
 
 /**
- * Count hidden children (STEP 4: Collapsed children counter)
+ * Count hidden children (FLAT MODEL)
  *
- * Returns the number of direct children of a collapsed block.
- * This is purely derived state for visual affordance.
+ * RULE: Count all contiguous following blocks with indent > current indent
+ * This is the "visual subtree" - same logic as range-based outdent
  */
 function countHiddenChildren(
   editor: NodeViewProps['editor'],
@@ -176,18 +176,33 @@ function countHiddenChildren(
   const currentNode = doc.nodeAt(pos);
   if (!currentNode) return 0;
 
-  const currentBlockId = currentNode.attrs.blockId;
-  if (!currentBlockId) return 0;
+  const currentIndent = currentNode.attrs.indent ?? 0;
 
-  let count = 0;
-
-  // Count all blocks that have this as their parent
+  // Collect all blocks in order
+  const blocks: any[] = [];
   doc.descendants((node) => {
-    if (node.attrs?.parentBlockId === currentBlockId) {
-      count++;
+    if (node.attrs?.blockId) {
+      blocks.push(node);
     }
-    return true; // Continue traversal
+    return true;
   });
+
+  // Find current block index
+  const currentIndex = blocks.findIndex(
+    (n) => n.attrs.blockId === currentNode.attrs.blockId
+  );
+  if (currentIndex === -1) return 0;
+
+  // 🔥 FLAT MODEL: Count contiguous following blocks with indent > current
+  let count = 0;
+  for (let i = currentIndex + 1; i < blocks.length; i++) {
+    const blockIndent = blocks[i].attrs.indent ?? 0;
+    if (blockIndent > currentIndent) {
+      count++;
+    } else {
+      break; // Stop at first block not deeper than current
+    }
+  }
 
   return count;
 }
