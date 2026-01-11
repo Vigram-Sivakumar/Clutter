@@ -33,9 +33,9 @@
  *    → Block selection = structural truth (always at block level)
  */
 
-import { TextSelection } from '@tiptap/pm/state';
+import { TextSelection, NodeSelection } from '@tiptap/pm/state';
 import { defineRule } from '../../types/KeyboardRule';
-import { getSelectedBlocks } from '../../../../utils/multiSelection';
+import { getSelectedBlocks, isMultiBlockSelection } from '../../../../utils/multiSelection';
 import { createBlock } from '../../../../core/createBlock';
 
 export const enterOnSelectedBlocks = defineRule({
@@ -43,10 +43,28 @@ export const enterOnSelectedBlocks = defineRule({
   priority: 1000, // HIGHEST - runs before ALL other Enter rules
 
   when: ({ editor }) => {
-    // Match ANY block selection (single or multi)
-    // DO NOT check PM selection type - multi-halo uses TextSelection
-    const blocks = getSelectedBlocks(editor);
-    return Array.isArray(blocks) && blocks.length > 0;
+    const { selection } = editor.state;
+    
+    // 🛡️ STRICT GUARD: Only fire for actual block selection (halo)
+    // This rule must NEVER fire for normal TextSelection inside a paragraph
+    
+    // Case 1: NodeSelection (single block via handle click)
+    const isSingleBlockSelection = selection instanceof NodeSelection;
+    
+    // Case 2: Multi-block selection (Shift+Click, Cmd+A across blocks)
+    const isMultiBlock = isMultiBlockSelection(editor);
+    
+    // Debug log to catch regressions
+    if (isSingleBlockSelection || isMultiBlock) {
+      console.log('[enter:onSelectedBlocks] Halo detected', {
+        selectionType: selection.constructor.name,
+        isSingleBlock: isSingleBlockSelection,
+        isMultiBlock,
+      });
+    }
+    
+    // Only fire when blocks are explicitly selected (halo state)
+    return isSingleBlockSelection || isMultiBlock;
   },
 
   execute: ({ editor }) => {
