@@ -36,6 +36,7 @@
 import { TextSelection } from '@tiptap/pm/state';
 import { defineRule } from '../../types/KeyboardRule';
 import { getSelectedBlocks } from '../../../../utils/multiSelection';
+import { createBlock } from '../../../../core/createBlock';
 
 export const enterOnSelectedBlocks = defineRule({
   id: 'enter:onSelectedBlocks',
@@ -75,39 +76,19 @@ export const enterOnSelectedBlocks = defineRule({
 
       const tr = state.tr;
 
-      // 🛡️ GUARD 1: Position Safety
-      // Prevents "RangeError: There is no position after the top-level node"
-      // If this fires, someone broke the explicit calculation rule
-      if (insertPos <= 0 || insertPos > tr.doc.content.size) {
-        console.error('[ENTER][GUARD] Invalid insert position', {
-          insertPos,
-          docSize: tr.doc.content.size,
-          blockPos: lastBlock.pos,
-          blockSize: lastBlock.node.nodeSize,
-          blockType: lastBlock.node.type.name,
-        });
-        return false;
-      }
-
-      // Create new paragraph with same indent as last selected block
-      const paragraphNode = state.schema.nodes.paragraph.create({
-        blockId: crypto.randomUUID(),
+      // 🔑 STEP 2B: Use centralized createBlock()
+      // All block creation now goes through ONE function
+      // Guards are inside createBlock() - no duplication
+      const paragraphNode = createBlock(state, tr, {
+        type: 'paragraph',
+        insertPos,
         indent,
       });
 
-      // 🛡️ GUARD 2: Indent Preservation
-      // Collapse logic depends entirely on indent being correct
-      // If this fires, schema default or creation logic is broken
-      if (paragraphNode.attrs.indent !== indent) {
-        console.error('[ENTER][GUARD] Indent mismatch', {
-          expected: indent,
-          actual: paragraphNode.attrs.indent,
-          sourceBlockType: lastBlock.node.type.name,
-          targetBlockType: paragraphNode.type.name,
-        });
+      // If createBlock failed, abort
+      if (!paragraphNode) {
+        return false;
       }
-
-      tr.insert(insertPos, paragraphNode);
       
       // Move cursor into the new paragraph
       // Position is after opening tag of new paragraph
