@@ -389,7 +389,68 @@ function syncSelectionToTipTap(
   //   }
   // }
 
-  // TODO: Handle text selection sync if needed
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // 🎯 TEXT SELECTION SYNC: Cursor Stability After Structural Moves
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // After indent/outdent, the cursor MUST stay on the same logical block.
+  //
+  // GOLDEN RULE: Cursor identity beats cursor position.
+  // - Cursor is attached to blockId, not DOM position
+  // - After structural changes, find block by blockId and restore cursor
+  // - Never jump to parent/child/sibling
+  //
+  // This ensures:
+  // ✅ Tab → cursor stays in indented block
+  // ✅ Shift+Tab → cursor stays in outdented block
+  // ✅ No jarring cursor jumps
+  // ✅ Matches Notion/Workflowy behavior
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  if (selection.kind === 'text' && engine.cursor) {
+    const { blockId, offset } = engine.cursor;
+    const { doc } = editor.state;
+
+    // Find the block by blockId (identity, not position)
+    let blockPos: number | null = null;
+    let blockNode: any = null;
+    doc.descendants((node, pos) => {
+      if (node.attrs?.blockId === blockId) {
+        blockPos = pos;
+        blockNode = node;
+        return false; // Stop traversal
+      }
+      return true;
+    });
+
+    if (blockPos !== null && blockNode) {
+      // Calculate safe cursor position inside the block
+      // Content starts at blockPos + 1 (after opening tag)
+      const contentStart = blockPos + 1;
+      const contentEnd = blockPos + blockNode.nodeSize - 1; // Before closing tag
+      const textLength = contentEnd - contentStart;
+
+      // Clamp offset to valid range
+      const safeOffset = Math.min(Math.max(0, offset), textLength);
+      const cursorPos = contentStart + safeOffset;
+
+      // Only update if cursor position actually changed
+      if (
+        editor.state.selection.from !== cursorPos ||
+        editor.state.selection.to !== cursorPos
+      ) {
+        try {
+          editor.commands.setTextSelection(cursorPos);
+          console.log(
+            `[Bridge] Restored cursor to block ${blockId.slice(0, 8)} at offset ${safeOffset}`
+          );
+        } catch (err) {
+          console.warn(
+            `[Bridge] Failed to restore cursor to block ${blockId.slice(0, 8)}:`,
+            err
+          );
+        }
+      }
+    }
+  }
 }
 
 /**
