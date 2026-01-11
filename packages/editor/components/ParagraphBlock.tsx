@@ -30,9 +30,8 @@ export function ParagraphBlock({
 }: NodeViewProps) {
   const tags = node.attrs.tags || [];
   const hasTags = tags.length > 0;
-  const level = node.attrs.level || 0;
-  // 🔥 FLAT MODEL: Use `indent` attribute (fallback to `level` for migration)
-  const blockIndent = node.attrs.indent ?? level;
+  // 🔥 FLAT MODEL: indent is the ONLY structural attribute
+  const blockIndent = node.attrs.indent ?? 0;
 
   // Canonical emptiness check (ProseMirror source of truth)
   const isEmpty = node.content.size === 0;
@@ -86,7 +85,7 @@ export function ParagraphBlock({
     <NodeViewWrapper
       as="div"
       data-type="paragraph"
-      data-level={level}
+      data-indent={blockIndent}
       data-empty={isEmpty ? 'true' : undefined}
       data-placeholder={placeholderText || undefined}
       className="block-handle-wrapper"

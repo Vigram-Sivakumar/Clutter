@@ -84,43 +84,19 @@ export const ListBlock = Node.create({
           return { 'data-block-id': blockId };
         },
       },
-      parentBlockId: {
-        default: null,
-        parseHTML: (element) =>
-          element.getAttribute('data-parent-block-id') || null,
-        renderHTML: (attributes) => {
-          if (attributes.parentBlockId) {
-            return { 'data-parent-block-id': attributes.parentBlockId };
-          }
-          return {};
-        },
-      },
       listType: {
         default: 'bullet' as ListType,
         parseHTML: (element) =>
           element.getAttribute('data-list-type') || 'bullet',
         renderHTML: (attributes) => ({ 'data-list-type': attributes.listType }),
       },
-      level: {
-        default: 0,
-        parseHTML: (element) =>
-          parseInt(element.getAttribute('data-level') || '0', 10),
-        renderHTML: (attributes) => ({ 'data-level': attributes.level || 0 }),
-      },
-      // 🔥 FLAT MODEL: indent replaces level (Phase C)
+      // 🔥 FLAT MODEL: indent is the ONLY structural attribute
       indent: {
         default: 0,
-        parseHTML: (element) => {
-          // Try indent first, fallback to level for migration
-          const indentAttr = element.getAttribute('data-indent');
-          if (indentAttr !== null) {
-            return parseInt(indentAttr, 10);
-          }
-          // Fallback: read from level for old data
-          return parseInt(element.getAttribute('data-level') || '0', 10);
-        },
+        parseHTML: (element) =>
+          parseInt(element.getAttribute('data-indent') || '0', 10),
         renderHTML: (attributes) => ({
-          'data-indent': attributes.indent ?? attributes.level ?? 0,
+          'data-indent': attributes.indent || 0,
         }),
       },
       checked: {

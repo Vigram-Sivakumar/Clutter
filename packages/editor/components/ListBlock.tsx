@@ -286,15 +286,7 @@ export function ListBlock({
 }: ListBlockProps) {
   const { colors } = useTheme();
   const attrs = node.attrs as ListBlockAttrs;
-  const {
-    listType,
-    level,
-    checked,
-    collapsed,
-    parentToggleId,
-    priority,
-    indent,
-  } = attrs;
+  const { listType, checked, collapsed, priority, indent } = attrs;
 
   // Check if this block is selected
   const isSelected = useBlockSelection({
@@ -327,8 +319,8 @@ export function ListBlock({
   // Calculate list number for numbered lists
   const listNumber = useMemo(() => {
     if (listType !== 'numbered') return 0;
-    return calculateListNumber(editor, getPos, level);
-  }, [editor, getPos, listType, level, editor.state.doc]);
+    return calculateListNumber(editor, getPos, blockIndent);
+  }, [editor, getPos, listType, blockIndent, editor.state.doc]);
 
   // Get children info for tasks
   const childrenInfo = useMemo(() => {
@@ -419,16 +411,12 @@ export function ListBlock({
     return result;
   };
 
-  // Calculate indent (hierarchy + toggle grouping)
-  // 🔥 FLAT MODEL: Use `indent` attribute (fallback to `level` for migration)
-  const blockIndent = indent ?? level ?? 0;
-  const hierarchyIndent = blockIndent * spacing.indent;
-  const toggleIndent = parentToggleId ? spacing.toggleIndent : 0;
-  const totalIndent = hierarchyIndent + toggleIndent;
+  // 🔥 FLAT MODEL: indent is the ONLY structural attribute
+  const blockIndent = indent ?? 0;
+  const totalIndent = blockIndent * spacing.indent;
 
-  // Calculate display level for marker styling
-  // If nested under a toggle, subtract 1 so first-level lists under toggle show first-level markers
-  const displayLevel = parentToggleId ? Math.max(0, level - 1) : level;
+  // Calculate display level for marker styling (cycles based on indent)
+  const displayLevel = blockIndent;
 
   // Render the marker content (bullet, number, or checkbox)
   const renderMarkerContent = () => {
@@ -647,10 +635,9 @@ export function ListBlock({
     <NodeViewWrapper
       data-type="listBlock"
       data-list-type={listType}
-      data-level={level}
+      data-indent={blockIndent}
       data-checked={checked}
       data-collapsed={collapsed}
-      data-parent-toggle-id={parentToggleId}
       data-empty={isEmpty ? 'true' : undefined}
       data-placeholder={placeholderText || undefined}
       className="block-handle-wrapper"
