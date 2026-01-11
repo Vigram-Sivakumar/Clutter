@@ -174,6 +174,36 @@ function proseMirrorDocToBlockTree(pmDoc: any): BlockTree {
     }
   }
 
+  // 🔑 PASS 3: CRITICAL FIX - Compute level from parent chain
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // Without level, the Engine cannot reason about hierarchy.
+  // Level MUST be derived from parent chain, not stored redundantly.
+  //
+  // This was the root cause of all outdent/indent corruption:
+  // - level=undefined everywhere
+  // - All level comparisons (prev.level >= current.level) failed
+  // - Subtree detection broke
+  // - Parent inference was impossible
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  function computeLevel(blockId: BlockId): number {
+    let level = 0;
+    let current = nodes[blockId]?.parentId;
+
+    while (current && current !== rootId) {
+      level++;
+      current = nodes[current]?.parentId;
+    }
+
+    return level;
+  }
+
+  // Apply level to all blocks
+  for (const blockId in nodes) {
+    if (blockId !== rootId) {
+      (nodes[blockId] as any).level = computeLevel(blockId);
+    }
+  }
+
   return {
     rootId,
     nodes,
