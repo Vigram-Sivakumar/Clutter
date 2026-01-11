@@ -56,13 +56,56 @@ function isCopyableBlockType(typeName: string): typeName is BlockType {
 }
 
 /**
+ * 🔧 PHASE 2: Resolve blocks from TextSelection
+ * 
+ * TextSelection can span text inside blocks, but we always copy WHOLE blocks.
+ * This derives the owning blocks from the text selection range.
+ */
+function resolveBlocksFromSelection(
+  doc: PMNode,
+  from: number,
+  to: number
+): PMNode[] {
+  const blocks: PMNode[] = [];
+  const seen = new Set<number>();
+  
+  doc.nodesBetween(from, to, (node, pos) => {
+    // Only process top-level blocks (depth 1)
+    const $pos = doc.resolve(pos);
+    if ($pos.depth !== 1) return;
+    
+    // Skip if already seen (nodesBetween can visit same node multiple times)
+    if (seen.has(pos)) return;
+    seen.add(pos);
+    
+    // 🛡️ GUARD: Only copyable block types
+    if (!isCopyableBlockType(node.type.name)) {
+      console.warn('[Clipboard] Skipping non-copyable block', {
+        type: node.type.name,
+        pos,
+      });
+      return;
+    }
+    
+    blocks.push(node);
+  });
+  
+  return blocks;
+}
+
+/**
  * ✂️ COPY: Serialize selected blocks to internal clipboard
  * 
+ * 🎯 Step 3B.2 Phase 2: TextSelection support
+ * 
  * Algorithm:
- * 1. Resolve selection → blocks (ordered)
+ * 1. Resolve selection → derive owning blocks
  * 2. Extract: type, content, indent, safe attrs
  * 3. Store payload in memory
  * 4. No document mutation
+ * 
+ * TextSelection copies WHOLE blocks (not inline text fragments).
+ * This matches Craft/Workflowy behavior.
  * 
  * @returns true if copy succeeded
  */
@@ -81,36 +124,22 @@ export function copyToClipboard(state: EditorState): boolean {
     return false;
   }
   
-  // Extract blocks from selection
-  const blocks: ClipboardPayloadV1['blocks'] = [];
+  // 🎯 Phase 2: Derive blocks from selection (handles TextSelection)
+  const selectedBlocks = resolveBlocksFromSelection(doc, selection.from, selection.to);
   
-  doc.nodesBetween(selection.from, selection.to, (node, pos) => {
-    // Only process top-level blocks (depth 1)
-    const $pos = doc.resolve(pos);
-    if ($pos.depth !== 1) return;
-    
-    // 🛡️ GUARD 2: Only copyable block types
-    if (!isCopyableBlockType(node.type.name)) {
-      console.warn('[Clipboard] Skipping non-copyable block', {
-        type: node.type.name,
-        pos,
-      });
-      return;
-    }
-    
-    blocks.push({
-      type: node.type.name as BlockType,
-      content: node.content.size > 0 ? node : null,
-      indent: node.attrs.indent ?? 0,
-      attrs: getSafeAttrs(node),
-    });
-  });
-  
-  // 🛡️ GUARD 3: At least one block copied
-  if (blocks.length === 0) {
-    console.warn('[Clipboard] No blocks selected for copy');
+  // 🛡️ GUARD 2: At least one block resolved
+  if (selectedBlocks.length === 0) {
+    console.warn('[Clipboard] No blocks resolved from selection');
     return false;
   }
+  
+  // Serialize blocks to clipboard payload
+  const blocks: ClipboardPayloadV1['blocks'] = selectedBlocks.map((node) => ({
+    type: node.type.name as BlockType,
+    content: node.content.size > 0 ? node : null,
+    indent: node.attrs.indent ?? 0,
+    attrs: getSafeAttrs(node),
+  }));
   
   // Store in internal clipboard
   clipboardState = {
@@ -127,6 +156,7 @@ export function copyToClipboard(state: EditorState): boolean {
     blockCount: blocks.length,
     types: blocks.map((b) => b.type),
     indents: blocks.map((b) => b.indent),
+    selectionType: selection.constructor.name,
   });
   
   return true;

@@ -170,25 +170,28 @@ export const KeyboardShortcuts = Extension.create({
         const { state, view } = editor;
         const clipboardState = getClipboardState();
         
+        // 🔒 PHASE 3: NEVER fall back to PM default paste
+        // PM default paste causes blockId duplication and structural corruption.
+        // If internal clipboard is empty, do nothing (safe no-op).
+        
         // Detect source: internal vs external
         if (clipboardState.payload && clipboardState.payload.blocks.length > 0) {
-          // ✅ INTERNAL PASTE: Structured blocks with re-based indent
+          // ✅ INTERNAL PASTE: Structured blocks with intent-based routing
           console.log('[Clipboard] Internal clipboard detected, pasting blocks');
           const success = pasteFromClipboard(state, view.dispatch.bind(view));
           
           if (success) {
-            console.log('[Clipboard] Internal paste succeeded');
-            return true; // Prevent default browser paste
+            console.log('[Clipboard] Paste succeeded');
           } else {
-            console.warn('[Clipboard] Internal paste failed');
-            return false;
+            console.error('[Clipboard] Paste failed (handler error)');
           }
+          
+          return true; // Always consume paste event
         } else {
-          // ⏳ EXTERNAL PASTE: Will be handled by ProseMirror's clipboardParser
-          // For now, we let PM handle it (it will use schema defaults)
-          // TODO Step 3A.3: Intercept external paste and use pasteExternalText()
-          console.log('[Clipboard] No internal clipboard, allowing PM default paste');
-          return false;
+          // ⚠️ NO INTERNAL CLIPBOARD: Do nothing (safe no-op)
+          // External clipboard support will be added in Step 3C
+          console.warn('[Clipboard] No internal clipboard, ignoring paste');
+          return true; // Consume event (do not delegate to PM)
         }
       },
     };
