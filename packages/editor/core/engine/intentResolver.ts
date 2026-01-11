@@ -908,14 +908,12 @@ export class IntentResolver {
       });
 
       if (blockPos !== null && currentLevel > 0) {
-        const newLevel = currentLevel - 1;
-
         // Get all blocks that need level adjustment (parent + subtree)
+        // 🔑 CRITICAL: Pass blockId (not position) for stable identification
         const affectedBlocks = getOutdentAffectedBlocks(
           doc,
-          blockPos,
-          currentLevel,
-          newLevel
+          blockId,
+          currentLevel
         );
 
         // 🌳 SUBTREE DETECTION TRACE (CRITICAL!)

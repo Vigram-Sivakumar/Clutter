@@ -89,9 +89,8 @@ export function getVisualSubtree(
  */
 export function getOutdentAffectedBlocks(
   doc: PMNode,
-  blockPos: number,
-  currentLevel: number,
-  newLevel: number
+  rootBlockId: string,
+  rootLevel: number
 ): Array<{
   blockId: string;
   pos: number;
@@ -99,12 +98,17 @@ export function getOutdentAffectedBlocks(
   newLevel: number;
 }> {
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // 🔥 FIX: Self-contained subtree detection (no helper dependencies)
+  // 🔑 CRITICAL FIX: Match by blockId (NOT position)
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // Positions are unstable across:
+  // - Document rebuilds
+  // - NodeView wrapping
+  // - Selection changes
+  //
+  // blockId is the ONLY stable identifier for logical blocks.
+  //
   // RULE: Include root + all following blocks with level > root.level
   //       Stop when hitting a block with level <= root.level
-  //
-  // This is the Notion-grade subtree invariant.
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   const affected: Array<{
@@ -114,36 +118,36 @@ export function getOutdentAffectedBlocks(
     newLevel: number;
   }> = [];
 
-  let started = false;
+  let collecting = false;
 
   doc.descendants((node: any, pos: number) => {
     if (!node.attrs?.blockId) return true;
 
-    // Find root block
-    if (pos === blockPos) {
-      started = true;
+    const { blockId, level } = node.attrs;
+
+    // 🔑 Find root by blockId (NOT position)
+    if (blockId === rootBlockId) {
+      collecting = true;
       affected.push({
-        blockId: node.attrs.blockId,
+        blockId,
         pos,
-        oldLevel: currentLevel,
-        newLevel,
+        oldLevel: level ?? rootLevel,
+        newLevel: rootLevel - 1,
       });
-      return true; // Continue to find descendants
+      return true; // Continue to collect descendants
     }
 
     // Haven't found root yet, keep searching
-    if (!started) return true;
-
-    const level = node.attrs.level ?? 0;
+    if (!collecting) return true;
 
     // 🛑 STOP: Reached sibling or ancestor (exited subtree)
-    if (level <= currentLevel) {
+    if (level <= rootLevel) {
       return false;
     }
 
     // ✅ INCLUDE: This is a descendant
     affected.push({
-      blockId: node.attrs.blockId,
+      blockId,
       pos,
       oldLevel: level,
       newLevel: level - 1, // Outdent by one level
