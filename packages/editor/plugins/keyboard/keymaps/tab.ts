@@ -32,6 +32,12 @@ export function handleTab(
 
   console.log('📋 [handleTab] Resolver:', resolver ? 'found' : 'NOT FOUND');
 
+  // 🧭 TAB FLOW TRACE
+  console.log('🧭 TAB FLOW', {
+    isShift,
+    selectedBlock: engine?.cursor?.blockId,
+  });
+
   if (resolver) {
     tabEngine.setResolver(resolver);
   }

@@ -44,6 +44,12 @@ export class IntentResolver {
    * This is the brain of the editor.
    */
   resolve(intent: EditorIntent): IntentResult {
+    // 🧠 INTENT RESOLUTION TRACE
+    console.log('🧠 [IntentResolver.resolve]', {
+      intent: intent.type,
+      blockId: (intent as any).blockId,
+    });
+
     const mode = this._engine.getMode();
 
     // CRITICAL: Check if intent is allowed in current mode
@@ -830,6 +836,11 @@ export class IntentResolver {
   ): IntentResult {
     const { blockId } = intent;
 
+    // ⬆️ OUTDENT FLOW TRACE
+    console.log('⬆️ [handleOutdentBlock] START', {
+      blockId,
+    });
+
     // 1. Get block
     const block = this._engine.getBlock(blockId);
     if (!block) {
@@ -889,6 +900,13 @@ export class IntentResolver {
         return true;
       });
 
+      // 📍 BLOCK POSITION TRACE
+      console.log('📍 [handleOutdentBlock] blockPos found', {
+        blockId,
+        blockPos,
+        currentLevel,
+      });
+
       if (blockPos !== null && currentLevel > 0) {
         const newLevel = currentLevel - 1;
 
@@ -899,6 +917,18 @@ export class IntentResolver {
           currentLevel,
           newLevel
         );
+
+        // 🌳 SUBTREE DETECTION TRACE (CRITICAL!)
+        console.log('🌳 [getOutdentAffectedBlocks] RESULT', {
+          root: blockId,
+          count: affectedBlocks.length,
+          blocks: affectedBlocks.map((b) => ({
+            id: b.blockId.slice(0, 8),
+            pos: b.pos,
+            oldLevel: b.oldLevel,
+            newLevel: b.newLevel,
+          })),
+        });
 
         console.log(
           `🔧 [handleOutdentBlock] Updating ${affectedBlocks.length} blocks:`,
@@ -973,6 +1003,13 @@ export class IntentResolver {
               // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
               newParentBlockId = affectedBlocks[0].blockId;
             }
+
+            // 🔗 PARENT REASSIGNMENT TRACE
+            console.log('🔗 [outdent reparent]', {
+              i,
+              block: item.blockId.slice(0, 8),
+              newParentBlockId,
+            });
 
             tr.setNodeMarkup(item.pos, undefined, {
               ...node.attrs,
