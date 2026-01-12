@@ -100,6 +100,7 @@ export function CodeBlock({
     >
       {/* Invisible hover bridge - covers gap between handle and content */}
       <div
+        contentEditable={false}
         style={{
           position: 'absolute',
           left: indent - 32,
@@ -107,6 +108,7 @@ export function CodeBlock({
           width: 32,
           height: '100%',
           pointerEvents: 'auto',
+          userSelect: 'none',
         }}
       />
 

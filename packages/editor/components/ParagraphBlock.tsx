@@ -105,6 +105,7 @@ export function ParagraphBlock({
     >
       {/* Invisible hover bridge - covers gap between handle and content */}
       <div
+        contentEditable={false}
         style={{
           position: 'absolute',
           left: indent - 32,
@@ -112,6 +113,7 @@ export function ParagraphBlock({
           width: 32,
           height: '100%',
           pointerEvents: 'auto',
+          userSelect: 'none',
         }}
       />
 

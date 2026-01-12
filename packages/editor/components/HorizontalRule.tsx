@@ -103,6 +103,7 @@ export function HorizontalRule({
     >
       {/* Invisible hover bridge - covers gap between handle and content */}
       <div
+        contentEditable={false}
         style={{
           position: 'absolute',
           left: paddingLeft - 32,
@@ -110,6 +111,7 @@ export function HorizontalRule({
           width: 32,
           height: '100%',
           pointerEvents: 'auto',
+          userSelect: 'none',
         }}
       />
 
@@ -122,8 +124,8 @@ export function HorizontalRule({
             isFullWidth && fullWidth
               ? '100%' // Full width at root level
               : fullWidth
-              ? `calc(100% - ${paddingLeft}px)` // Full remaining width when indented
-              : '128px', // Fixed width when toggled off
+                ? `calc(100% - ${paddingLeft}px)` // Full remaining width when indented
+                : '128px', // Fixed width when toggled off
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',

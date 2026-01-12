@@ -21,11 +21,20 @@ export type EnterContext = {
   /** Whether the cursor is at the very end */
   atEnd: boolean;
 
-  /** Whether the current block can have children (hierarchy-aware blocks) */
-  canHaveChildren: boolean;
+  /** Block ID of current block (for hierarchy checks) */
+  blockId: string;
 
   /** Block type name for context-specific rules */
   blockType: string;
+
+  /** Current block's indent level (from PM) */
+  indent: number;
+
+  /** ProseMirror document (for checking sibling indents) */
+  pmDoc: any; // PM Node - typed loosely to avoid dep on prosemirror-model
+
+  /** Engine instance (for hierarchy queries) */
+  engine: any; // EditorEngine - typed loosely to avoid circular deps
 };
 
 export type EnterStructureIntent =

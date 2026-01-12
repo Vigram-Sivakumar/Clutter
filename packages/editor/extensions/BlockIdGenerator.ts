@@ -40,6 +40,11 @@ export const BlockIdGenerator = Extension.create({
           // This ensures children use parent's NEW level, not old level from document
           const levelUpdates = new Map<string, number>();
 
+          // 🔒 CRITICAL: Track seen blockIds to detect duplicates (cloned nodes)
+          // ProseMirror clones nodes WITH their attributes, causing duplicate blockIds
+          // We must regenerate blockIds for clones to maintain uniqueness invariant
+          const seenBlockIds = new Set<string>();
+
           // Helper: Compute level as parent's level + 1
           const computeLevel = (blockNode: any): number => {
             const parentBlockId = blockNode.attrs.parentBlockId;
@@ -89,11 +94,14 @@ export const BlockIdGenerator = Extension.create({
           // This cleans up legacy data where inline/text nodes incorrectly have blockIds
           newState.doc.descendants((node, pos) => {
             if (!node.isBlock && node.attrs?.blockId !== undefined) {
-              console.warn('[BlockIdGenerator] Stripping blockId from non-block node:', {
-                type: node.type.name,
-                blockId: node.attrs.blockId?.substring(0, 8),
-                pos,
-              });
+              console.warn(
+                '[BlockIdGenerator] Stripping blockId from non-block node:',
+                {
+                  type: node.type.name,
+                  blockId: node.attrs.blockId?.substring(0, 8),
+                  pos,
+                }
+              );
               tr.setNodeMarkup(pos, undefined, {
                 ...node.attrs,
                 blockId: undefined,
@@ -119,14 +127,14 @@ export const BlockIdGenerator = Extension.create({
               const isFromKeyboardNormalization = transactions.some(
                 (tr) => tr.getMeta('keyboardNormalization') === true
               );
-              
+
               if (isFromKeyboardNormalization) {
-                const isEmptyNonParagraph = 
+                const isEmptyNonParagraph =
                   node.type.name !== 'paragraph' &&
                   node.type.name !== 'horizontalRule' && // HR is not a textblock
                   node.content.size === 0 &&
                   (node.attrs.indent === 0 || node.attrs.level === 0);
-                
+
                 if (isEmptyNonParagraph) {
                   console.error(
                     '[Invariant] Empty non-paragraph block at root persisted after keyboard normalization:',
@@ -141,29 +149,54 @@ export const BlockIdGenerator = Extension.create({
               }
             }
 
-            // 🔒 BLOCK IDENTITY LAW: After initialization, NEVER regenerate blockIds
-            // BlockIdGenerator should only touch NEW nodes, not existing ones
+            // 🔒 BLOCK IDENTITY LAW: blockIds must be UNIQUE per node instance
+            // ProseMirror clones nodes (e.g., during normalization, wrapping, lifting)
+            // Cloned nodes retain their attributes, including blockId
+            // We must detect duplicates and regenerate them
             const currentBlockId = node.attrs.blockId;
-            
-            // Add blockId ONLY if missing AND editor is still initializing
-            if (!currentBlockId || currentBlockId === '') {
+
+            // CASE 1: Node has no blockId → generate one
+            // CASE 2: Node has blockId but it's a DUPLICATE (cloned) → regenerate
+            const isDuplicate =
+              currentBlockId && seenBlockIds.has(currentBlockId);
+            const needsNewId =
+              !currentBlockId || currentBlockId === '' || isDuplicate;
+
+            if (needsNewId) {
               const newBlockId = crypto.randomUUID();
 
-              console.log('[BlockIdGenerator] Adding missing blockId:', {
-                type: node.type.name,
-                newBlockId: newBlockId.substring(0, 8),
-                pos,
-                editorInitialized: this.editor?.isInitialized ?? 'unknown',
-              });
+              if (isDuplicate) {
+                console.warn(
+                  '[BlockIdGenerator] Duplicate blockId detected (cloned node) - regenerating:',
+                  {
+                    type: node.type.name,
+                    duplicateId: currentBlockId.substring(0, 8),
+                    newBlockId: newBlockId.substring(0, 8),
+                    pos,
+                  }
+                );
+              } else {
+                console.log('[BlockIdGenerator] Adding missing blockId:', {
+                  type: node.type.name,
+                  newBlockId: newBlockId.substring(0, 8),
+                  pos,
+                  editorInitialized: this.editor?.isInitialized ?? 'unknown',
+                });
+              }
 
               tr.setNodeMarkup(pos, undefined, {
                 ...node.attrs,
                 blockId: newBlockId,
               });
 
+              // Track the NEW blockId
+              seenBlockIds.add(newBlockId);
               modified = true;
               return; // Skip level sync for this node (do it next time)
             }
+
+            // Track this blockId as seen
+            seenBlockIds.add(currentBlockId);
 
             // HARD CLEANUP: illegal parentBlockId
             if (node.attrs.parentBlockId === node.attrs.blockId) {
@@ -203,13 +236,16 @@ export const BlockIdGenerator = Extension.create({
           if (process.env.NODE_ENV !== 'production') {
             newState.doc.descendants((node) => {
               if (!node.isBlock && node.attrs?.blockId !== undefined) {
-                console.error('[BlockIdGenerator] ❌ INVARIANT VIOLATION: Non-block node has blockId:', {
-                  type: node.type.name,
-                  blockId: node.attrs.blockId?.substring(0, 8),
-                  isBlock: node.isBlock,
-                  isText: node.isText,
-                  isLeaf: node.isLeaf,
-                });
+                console.error(
+                  '[BlockIdGenerator] ❌ INVARIANT VIOLATION: Non-block node has blockId:',
+                  {
+                    type: node.type.name,
+                    blockId: node.attrs.blockId?.substring(0, 8),
+                    isBlock: node.isBlock,
+                    isText: node.isText,
+                    isLeaf: node.isLeaf,
+                  }
+                );
               }
             });
           }
@@ -240,6 +276,9 @@ export const BlockIdGenerator = Extension.create({
 
       // Track level updates within this transaction
       const levelUpdates = new Map<string, number>();
+
+      // 🔒 CRITICAL: Track seen blockIds to detect duplicates during onCreate
+      const seenBlockIds = new Set<string>();
 
       // Helper: Compute level as parent's level + 1, capped at MAX_INDENT_LEVEL
       const computeLevel = (blockNode: any): number => {
@@ -292,34 +331,60 @@ export const BlockIdGenerator = Extension.create({
 
         const currentBlockId = node.attrs.blockId;
 
-        // 🔒 IMMUTABILITY LAW: Never mutate existing blockIds
-        // If node already has blockId, skip it entirely
-        if (currentBlockId && currentBlockId !== '') {
-          // Node already has valid blockId - DO NOT TOUCH
+        // 🔒 BLOCK IDENTITY LAW: blockIds must be UNIQUE per node instance
+        // During onCreate, content may already have blockIds (e.g., from database)
+        // But we must detect duplicates in case of data corruption
+        const isDuplicate = currentBlockId && seenBlockIds.has(currentBlockId);
+        const needsNewId =
+          !currentBlockId || currentBlockId === '' || isDuplicate;
+
+        if (!needsNewId) {
+          // Node has valid, unique blockId - preserve it
+          seenBlockIds.add(currentBlockId);
           if (process.env.NODE_ENV !== 'production') {
-            console.log('[BlockIdGenerator] onCreate - node has blockId, skipping:', {
-              type: node.type.name,
-              blockId: currentBlockId.substring(0, 8),
-            });
+            console.log(
+              '[BlockIdGenerator] onCreate - node has blockId, skipping:',
+              {
+                type: node.type.name,
+                blockId: currentBlockId.substring(0, 8),
+              }
+            );
           }
           return; // ✅ Skip this node completely
         }
 
-        // Add blockId ONLY if missing
-        if (!currentBlockId || currentBlockId === '') {
+        // Add or regenerate blockId
+        if (needsNewId) {
           const newBlockId = crypto.randomUUID();
 
-          console.log('[BlockIdGenerator] onCreate - adding missing blockId:', {
-            type: node.type.name,
-            newBlockId: newBlockId.substring(0, 8),
-            pos,
-          });
+          if (isDuplicate) {
+            console.warn(
+              '[BlockIdGenerator] onCreate - duplicate blockId detected (data corruption) - regenerating:',
+              {
+                type: node.type.name,
+                duplicateId: currentBlockId.substring(0, 8),
+                newBlockId: newBlockId.substring(0, 8),
+                pos,
+              }
+            );
+          } else {
+            console.log(
+              '[BlockIdGenerator] onCreate - adding missing blockId:',
+              {
+                type: node.type.name,
+                newBlockId: newBlockId.substring(0, 8),
+                pos,
+              }
+            );
+          }
 
           tr.setNodeMarkup(pos, undefined, {
             ...node.attrs,
             blockId: newBlockId,
           });
 
+          // Track the new blockId
+          seenBlockIds.add(newBlockId);
           modified = true;
           return; // Skip level sync for newly created blocks
         }

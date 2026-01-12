@@ -704,6 +704,7 @@ export function ListBlock({
       {/* Invisible hover bridge - covers gap between handle and content */}
       {/* Applied to ALL blocks (bullet, numbered, task) to keep handle visible when hovering */}
       <div
+        contentEditable={false}
         style={{
           position: 'absolute',
           left: indent - 32, // Adjust with indentation: cover handle (24px) + gap (8px)
@@ -711,6 +712,7 @@ export function ListBlock({
           width: 32,
           height: '100%',
           pointerEvents: 'auto',
+          userSelect: 'none',
           // Uncomment to visualize: backgroundColor: 'rgba(255,0,0,0.1)',
         }}
       />

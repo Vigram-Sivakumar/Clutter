@@ -8,7 +8,7 @@
  * - Block order → ProseMirror (authoritative)
  * - Engine → Stateless mirror (derived from PM)
  * - Sync direction → ONE WAY (PM → Engine)
- * 
+ *
  * FLAT MODEL:
  * - Blocks are a flat ordered list
  * - indent is the ONLY structural attribute
@@ -20,7 +20,7 @@
  * - Text content (inside block) → TipTap
  * - IME / composition → TipTap
  * - Cursor math (inside text) → TipTap
- * 
+ *
  * Intent Resolution:
  * - Structural intents → FlatIntentResolver
  * - Undo / redo → ProseMirror history
@@ -34,7 +34,6 @@ import { NodeSelection as _NodeSelection } from '@tiptap/pm/state';
 import { EditorEngine } from './index';
 import { FlatIntentResolver } from './flatIntentResolver';
 import type { BlockTree, BlockNode, BlockId } from './types';
-
 
 /**
  * Update source tracker - prevents infinite loops
@@ -58,12 +57,12 @@ interface BridgeState {
 
 /**
  * @deprecated - OLD TREE MODEL (Phase 2: No longer used)
- * 
+ *
  * This function reconstructs trees from parentBlockId, which violates the flat model.
  * Use syncTipTapToEngine instead, which reads only: blockId, type, indent.
- * 
+ *
  * Kept for reference only - DO NOT USE.
- * 
+ *
  * Convert ProseMirror document to BlockTree
  *
  * PHASE 3: Now understands CONTAINER nodes (toggleBlock)
@@ -79,7 +78,7 @@ interface BridgeState {
  *
  * This hybrid approach supports both legacy flat blocks and new container blocks.
  */
-function proseMirrorDocToBlockTree(pmDoc: any): BlockTree {
+function _proseMirrorDocToBlockTree(pmDoc: any): BlockTree {
   const nodes: Record<BlockId, BlockNode> = {};
   const rootId = 'root';
 
@@ -300,6 +299,25 @@ export function syncTipTapToEngine(
     return false; // Do not descend into block children
   });
 
+  // 🔒 INVARIANT: blockIds must be UNIQUE across the entire document
+  // Duplicate blockIds indicate corruption (normalization replayed incorrectly, cloned nodes, etc.)
+  const seenIds = new Set<string>();
+  for (const id of currentBlockIds) {
+    if (seenIds.has(id)) {
+      console.error('[INVARIANT VIOLATION] Duplicate blockId detected:', {
+        duplicateId: id,
+        allBlockIds: currentBlockIds.map((bid) => bid.substring(0, 8)),
+        pmBlockCount: currentBlockIds.length,
+        uniqueCount: seenIds.size,
+      });
+      throw new Error(
+        `[INVARIANT VIOLATION] Duplicate blockId detected: ${id.substring(0, 8)}... ` +
+          `This indicates a critical bug in block creation/normalization logic.`
+      );
+    }
+    seenIds.add(id);
+  }
+
   // 🔒 FORCED SYNC (bypasses all checks)
   if (forceBridgeSync) {
     console.log('[Bridge] Forced sync requested – bypassing structure check');
@@ -313,26 +331,31 @@ export function syncTipTapToEngine(
     // 🔒 CRITICAL: Always rebuild if PM block count ≠ Engine block count
     // This is the PRIMARY structural invariant for a block-based editor
     const pmBlockCount = currentBlockIds.length;
-    const engineBlockCount = Object.keys(engine.tree.nodes).filter(id => id !== 'root').length;
+    const engineBlockCount = Object.keys(engine.tree.nodes).filter(
+      (id) => id !== 'root'
+    ).length;
 
     if (pmBlockCount !== engineBlockCount) {
       console.log('[Bridge] Block count mismatch – forcing rebuild:', {
         pmBlockCount,
         engineBlockCount,
-        pmBlockIds: currentBlockIds.map(id => id.substring(0, 8)),
-        engineBlockIds: Object.keys(engine.tree.nodes).filter(id => id !== 'root').map(id => id.substring(0, 8)),
+        pmBlockIds: currentBlockIds.map((id) => id.substring(0, 8)),
+        engineBlockIds: Object.keys(engine.tree.nodes)
+          .filter((id) => id !== 'root')
+          .map((id) => id.substring(0, 8)),
       });
       // Fall through to rebuild
     } else {
       // 🔒 SECONDARY CHECK: Block IDs changed (reordering, deletion, etc.)
-      const structureChanged =
-        currentBlockIds.some((id, i) => id !== lastSyncedBlockIds[i]);
+      const structureChanged = currentBlockIds.some(
+        (id, i) => id !== lastSyncedBlockIds[i]
+      );
 
       if (!structureChanged) {
         console.log('[Bridge] Block structure unchanged – skipping sync');
         return;
       }
-      
+
       console.log('[Bridge] Block order changed – syncing Engine');
     }
   }
@@ -396,14 +419,17 @@ export function syncTipTapToEngine(
 
     // 🔒 INVARIANT CHECK: PM blockIds should match Engine blockIds after sync
     if (process.env.NODE_ENV !== 'production') {
-      const engineBlockIds = Object.keys(nodes).filter(id => id !== 'root');
+      const engineBlockIds = Object.keys(nodes).filter((id) => id !== 'root');
       for (const pmId of currentBlockIds) {
         if (!engineBlockIds.includes(pmId)) {
-          console.error('[Bridge][INVARIANT VIOLATION] PM blockId not in Engine:', {
-            pmBlockId: pmId.substring(0, 8),
-            pmBlockIds: currentBlockIds.map(id => id.substring(0, 8)),
-            engineBlockIds: engineBlockIds.map(id => id.substring(0, 8)),
-          });
+          console.error(
+            '[Bridge][INVARIANT VIOLATION] PM blockId not in Engine:',
+            {
+              pmBlockId: pmId.substring(0, 8),
+              pmBlockIds: currentBlockIds.map((id) => id.substring(0, 8)),
+              engineBlockIds: engineBlockIds.map((id) => id.substring(0, 8)),
+            }
+          );
         }
       }
     }
@@ -673,7 +699,7 @@ function createBridge(editor: Editor): BridgeState {
   // TipTap → Engine sync (on document changes)
   const handleUpdate = ({ editor: updatedEditor, transaction }: any) => {
     const forceBridgeSync = transaction?.getMeta('forceBridgeSync');
-    
+
     // 🔒 POST-TRANSACTION INVARIANT CHECK
     // ALWAYS verify PM block count matches Engine block count after ANY transaction
     // This catches structural changes that don't set docChanged or other meta flags
@@ -685,18 +711,22 @@ function createBridge(editor: Editor): BridgeState {
       }
       return false; // Do not descend into block children
     });
-    
-    const engineBlockCount = Object.keys(engine.tree.nodes).filter(id => id !== 'root').length;
+
+    const engineBlockCount = Object.keys(engine.tree.nodes).filter(
+      (id) => id !== 'root'
+    ).length;
     const pmBlockCount = pmBlockIds.length;
-    
+
     console.log('[Bridge] Update event received:', {
       docChanged: transaction?.docChanged,
-      meta: transaction?.getMeta('blockIdGenerator') ? 'BlockIdGenerator' : 'other',
+      meta: transaction?.getMeta('blockIdGenerator')
+        ? 'BlockIdGenerator'
+        : 'other',
       forceBridgeSync: forceBridgeSync ? 'YES' : 'no',
       pmBlockCount,
       engineBlockCount,
     });
-    
+
     // 🔒 CRITICAL: If block counts don't match, FORCE rebuild immediately
     // This ensures Engine is never more than 0 transactions behind PM
     if (pmBlockCount !== engineBlockCount) {
@@ -704,7 +734,7 @@ function createBridge(editor: Editor): BridgeState {
       syncTipTapToEngine(updatedEditor, engine, updateSource, true);
       return;
     }
-    
+
     // Normal sync path (with all guards)
     syncTipTapToEngine(updatedEditor, engine, updateSource, forceBridgeSync);
   };

@@ -20,7 +20,7 @@ import { useBlockHidden } from '../hooks/useBlockHidden';
 
 export function Blockquote({ node, editor, getPos }: NodeViewProps) {
   const { colors } = useTheme();
-  
+
   // 🔥 FLAT MODEL: indent is the ONLY structural attribute
   const blockIndent = node.attrs.indent ?? 0;
 
@@ -100,6 +100,7 @@ export function Blockquote({ node, editor, getPos }: NodeViewProps) {
     >
       {/* Invisible hover bridge - covers gap between handle and content */}
       <div
+        contentEditable={false}
         style={{
           position: 'absolute',
           left: indent - 32,
@@ -107,6 +108,7 @@ export function Blockquote({ node, editor, getPos }: NodeViewProps) {
           width: 32,
           height: '100%',
           pointerEvents: 'auto',
+          userSelect: 'none',
         }}
       />
 
