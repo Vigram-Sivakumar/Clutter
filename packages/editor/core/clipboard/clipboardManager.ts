@@ -124,13 +124,22 @@ function resolveBlocksFromSelection(
   if (blocks.length === 0) {
     try {
       const $from = doc.resolve(from);
-      const depth = $from.depth;
-      const owningBlock = $from.node(depth);
+      
+      // 🛡️ HARDEN: Walk up to find the first actual block (not inline node)
+      // Start from current depth and walk up until we find a block
+      let d = $from.depth;
+      while (d > 0 && !$from.node(d).type.isBlock) {
+        d--;
+      }
+      
+      const owningBlock = $from.node(d);
+      const blockPos = $from.before(d);
       
       if (owningBlock?.type.isBlock && owningBlock.attrs?.blockId) {
         console.log('[Clipboard] Fallback: resolved cursor owning block', {
           type: owningBlock.type.name,
-          pos: $from.before(depth),
+          pos: blockPos,
+          depth: d,
         });
         blocks.push(owningBlock);
       }
@@ -237,15 +246,44 @@ export function cutToClipboard(
     return false;
   }
   
-  const { selection } = state;
+  const { selection, doc } = state;
   const tr = state.tr;
   
-  // Delete selection range
-  tr.deleteSelection();
+  // 🎯 BUG FIX: Delete BLOCKS, not text selection
+  // tr.deleteSelection() leaves block shells corrupted → unstable Enter
+  // Must resolve blocks and delete entire structures
+  const blocksToDelete = resolveBlocksFromSelection(doc, selection.from, selection.to);
   
-  // 🎯 Cursor finalization: Use explicit position (not TextSelection.near)
-  // After delete, cursor should be at the position where deleted content was
-  let newCursorPos = tr.selection.from;
+  if (blocksToDelete.length === 0) {
+    console.warn('[Clipboard] Cut: No blocks to delete');
+    return false;
+  }
+  
+  // Calculate positions of blocks to delete
+  const positions: number[] = [];
+  doc.forEach((node, offset) => {
+    if (blocksToDelete.includes(node)) {
+      positions.push(offset);
+    }
+  });
+  
+  if (positions.length === 0) {
+    console.warn('[Clipboard] Cut: Could not locate blocks in document');
+    return false;
+  }
+  
+  // Delete from first block start to last block end
+  const deleteFrom = Math.min(...positions);
+  const lastBlockIndex = positions.length - 1;
+  const lastBlockPos = positions[lastBlockIndex];
+  const lastBlock = blocksToDelete[lastBlockIndex];
+  const deleteTo = lastBlockPos + (lastBlock?.nodeSize ?? 0);
+  
+  tr.delete(deleteFrom, deleteTo);
+  
+  // 🎯 Cursor finalization: Place at safe block boundary
+  // After block deletion, cursor should be at start of next block or end of previous block
+  let newCursorPos = Math.max(1, Math.min(deleteFrom, tr.doc.content.size - 1));
   
   // 🛡️ GUARD: Ensure cursor is within bounds
   newCursorPos = Math.max(1, Math.min(newCursorPos, tr.doc.content.size - 1));
