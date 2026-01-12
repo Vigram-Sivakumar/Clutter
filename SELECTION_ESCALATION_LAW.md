@@ -1,8 +1,26 @@
-# Selection Escalation Law
+# Selection Semantics & Escalation Law
 
-**Status:** ✅ Implemented and Enforced  
+**Status:** 🟡 Partially Implemented (Phase 4 in progress)  
 **Date:** January 2026  
 **Authority:** Constitutional (never regress)
+
+---
+
+## ⚠️ IMPLEMENTATION STATUS
+
+| Component                                       | Status                     | Phase              |
+| ----------------------------------------------- | -------------------------- | ------------------ |
+| **Selection Types** (Sections I-II)             | ✅ Implemented             | Phase 4 (Current)  |
+| **Selection Ownership**                         | ✅ Implemented             | Phase 4 (Current)  |
+| **Visual Rendering Rules**                      | ✅ Implemented             | Phase 4 (Current)  |
+| **Ctrl+A Progressive Escalation** (Section III) | ⏭️ **NOT YET IMPLEMENTED** | Phase 5 (Deferred) |
+| **Placeholder Rules** (Section IV)              | ✅ Implemented             | Phase 4 (Current)  |
+| **Cursor Recovery** (Section V)                 | ✅ Implemented             | Phase 4 (Current)  |
+
+**This document serves dual purposes:**
+
+1. **Authoritative contract** for implemented selection semantics (Sections I, II, IV-XII)
+2. **Target specification** for future Ctrl+A behavior (Section III - deferred to Phase 5)
 
 ---
 
@@ -26,7 +44,7 @@
 - Mouse drag in text
 - Shift + arrows
 - Double/triple click
-- Ctrl+A (cursor inside text, first press)
+- Ctrl+A (cursor inside text) - ⏭️ Phase 5
 
 **Forbidden Forever:**
 
@@ -54,7 +72,7 @@
 
 - Click block handle
 - Shift+click handles
-- Ctrl+A (second press, when block fully selected)
+- Ctrl+A (second press) - ⏭️ Phase 5
 
 **Correct Suppression:**
 
@@ -102,6 +120,17 @@ Spatial selection
 ---
 
 ## III. Ctrl+A Progressive Escalation
+
+> **⏭️ PHASE 5 - NOT YET IMPLEMENTED**
+>
+> This section defines the **intended behavior** for Ctrl+A keyboard shortcuts.
+> It is a **target specification**, not current reality.
+>
+> **Current Status:** Ctrl+A behavior is not yet implemented according to this spec.
+> **Timeline:** Will be implemented in Phase 5, after selection semantics are fully audited and enforced.
+>
+> **Do not use this section for auditing current behavior.**
+> Use Sections I-II for that purpose.
 
 ### The Golden Rule
 
@@ -287,14 +316,20 @@ if (++pressCount === 3) selectAll(); // ❌ WRONG
 
 When this law is enforced:
 
-| Guarantee                     | Status |
-| ----------------------------- | ------ |
-| Text selection always visible | ✅     |
-| Ctrl+A feels intentional      | ✅     |
-| Undo never surprises          | ✅     |
-| Placeholder never overlaps    | ✅     |
-| No DOM selection hacks        | ✅     |
-| Industry-standard behavior    | ✅     |
+| Guarantee                     | Status      | Phase   |
+| ----------------------------- | ----------- | ------- |
+| Text selection always visible | 🔍 Auditing | Phase 4 |
+| Ctrl+A feels intentional      | ⏭️ Phase 5  | Phase 5 |
+| Undo never surprises          | ✅ Verified | Phase 4 |
+| Placeholder never overlaps    | ✅ Verified | Phase 4 |
+| No DOM selection hacks        | 🔍 Auditing | Phase 4 |
+| Industry-standard behavior    | 🔍 Auditing | Phase 4 |
+
+**Legend:**
+
+- ✅ Verified - Audited and confirmed working
+- 🔍 Auditing - Needs verification against contract
+- ⏭️ Phase 5 - Deferred to Ctrl+A implementation phase
 
 ---
 
@@ -369,6 +404,7 @@ If unsure whether a change violates this law:
 
 ---
 
-**Last Updated:** January 2026  
-**Status:** ✅ Implemented, Enforced, Verified  
-**Regressions:** 0
+**Last Updated:** January 12, 2026  
+**Status:** 🟡 Phase 4 (Selection Semantics) - Implemented & Being Audited  
+**Status:** ⏭️ Phase 5 (Ctrl+A Escalation) - Not Yet Implemented  
+**Regressions:** TBD (audit in progress)
