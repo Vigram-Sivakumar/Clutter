@@ -1,6 +1,6 @@
 /**
  * BlockHandle - Drag handle with actions menu (Craft/Notion style)
- * 
+ *
  * Shows ⋮⋮ icon on hover to the left of every block
  * - Click to select block and open actions menu
  * - Menu stays open until item selected or click outside
@@ -9,9 +9,19 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Editor } from '@tiptap/react';
 import { NodeSelection, TextSelection } from '@tiptap/pm/state';
-import { DragHandle, Trash2, Copy, ChevronUp, ChevronDown, Type } from '@clutter/ui';
+import {
+  DragHandle,
+  Trash2,
+  Copy,
+  ChevronUp,
+  ChevronDown,
+  Type,
+} from '@clutter/ui';
 import { useTheme } from '@clutter/ui';
-import { isMultiBlockSelection, getSelectedBlocks, executeOnSelectedBlocks, getSelectedBlockCount } from '../utils/multiSelection';
+import {
+  isMultiBlockSelection,
+  getSelectedBlocks,
+} from '../utils/multiSelection';
 
 export interface BlockHandleProps {
   editor: Editor;
@@ -28,10 +38,14 @@ export function BlockHandle({ editor, getPos, indent = 0 }: BlockHandleProps) {
   const [isFirstInMultiSelection, setIsFirstInMultiSelection] = useState(false);
   const [isInMultiSelection, setIsInMultiSelection] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
-  const [hasMouseMovedAfterTyping, setHasMouseMovedAfterTyping] = useState(true);
-  const [menuPosition, setMenuPosition] = useState<{ top: string; transform: string }>({ 
-    top: '50%', 
-    transform: 'translateY(-50%)' 
+  const [hasMouseMovedAfterTyping, setHasMouseMovedAfterTyping] =
+    useState(true);
+  const [menuPosition, setMenuPosition] = useState<{
+    top: string;
+    transform: string;
+  }>({
+    top: '50%',
+    transform: 'translateY(-50%)',
   });
   const menuRef = useRef<HTMLDivElement>(null);
   const handleRef = useRef<HTMLDivElement>(null);
@@ -42,12 +56,12 @@ export function BlockHandle({ editor, getPos, indent = 0 }: BlockHandleProps) {
     const handleTyping = () => {
       setIsTyping(true);
       setHasMouseMovedAfterTyping(false); // Require mouse movement after typing
-      
+
       // Clear existing timeout
       if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current);
       }
-      
+
       // Set new timeout: mark typing as stopped after 1 second
       typingTimeoutRef.current = setTimeout(() => {
         setIsTyping(false);
@@ -56,7 +70,7 @@ export function BlockHandle({ editor, getPos, indent = 0 }: BlockHandleProps) {
     };
 
     editor.on('update', handleTyping);
-    
+
     return () => {
       editor.off('update', handleTyping);
       if (typingTimeoutRef.current) {
@@ -75,7 +89,7 @@ export function BlockHandle({ editor, getPos, indent = 0 }: BlockHandleProps) {
 
     // Listen to global mouse movement
     document.addEventListener('mousemove', handleMouseMove);
-    
+
     return () => {
       document.removeEventListener('mousemove', handleMouseMove);
     };
@@ -85,7 +99,7 @@ export function BlockHandle({ editor, getPos, indent = 0 }: BlockHandleProps) {
   useEffect(() => {
     const handleSelectionChange = () => {
       const { selection } = editor.state;
-      
+
       // If selection is just a cursor (collapsed), reset anchor
       if (selection.empty) {
         anchorBlockPos = null;
@@ -93,7 +107,7 @@ export function BlockHandle({ editor, getPos, indent = 0 }: BlockHandleProps) {
     };
 
     editor.on('selectionUpdate', handleSelectionChange);
-    
+
     return () => {
       editor.off('selectionUpdate', handleSelectionChange);
     };
@@ -163,7 +177,7 @@ export function BlockHandle({ editor, getPos, indent = 0 }: BlockHandleProps) {
       if (pos === undefined) return;
 
       const { selection } = editor.state;
-      
+
       // If selection is a NodeSelection but not on this block, close menu
       if (selection instanceof NodeSelection) {
         if (selection.$from.pos !== pos) {
@@ -187,12 +201,13 @@ export function BlockHandle({ editor, getPos, indent = 0 }: BlockHandleProps) {
       const viewportHeight = window.innerHeight;
 
       // Calculate ideal centered position
-      const idealTop = handleRect.top + (handleRect.height / 2);
+      const idealTop = handleRect.top + handleRect.height / 2;
       const menuHalfHeight = menuRect.height / 2;
 
       // Check if menu would overflow top or bottom
       const wouldOverflowTop = idealTop - menuHalfHeight < 10;
-      const wouldOverflowBottom = idealTop + menuHalfHeight > viewportHeight - 10;
+      const wouldOverflowBottom =
+        idealTop + menuHalfHeight > viewportHeight - 10;
 
       if (wouldOverflowTop) {
         // Align to top with small margin
@@ -214,33 +229,33 @@ export function BlockHandle({ editor, getPos, indent = 0 }: BlockHandleProps) {
     // Shift+Click: Range selection (Finder-style)
     if (e?.shiftKey && anchorBlockPos !== null && anchorBlockPos !== pos) {
       const doc = editor.state.doc;
-      
+
       // Get the anchor and target block nodes
       const anchorNode = doc.nodeAt(anchorBlockPos);
       const targetNode = doc.nodeAt(pos);
-      
+
       if (anchorNode && targetNode) {
         // Determine selection direction
         const firstBlockPos = Math.min(anchorBlockPos, pos);
         const lastBlockPos = Math.max(anchorBlockPos, pos);
-        
+
         // Calculate positions inside the content (not at block boundaries)
         // This ensures the selection is properly detected as multi-block
         const fromNode = doc.nodeAt(firstBlockPos);
         const toNode = doc.nodeAt(lastBlockPos);
-        
+
         if (fromNode && toNode) {
           // Select from start of first block's content to end of last block's content
           const from = firstBlockPos + 1; // Inside first block
           const to = lastBlockPos + toNode.nodeSize - 1; // Inside last block
-          
+
           // Create a TextSelection spanning the content of all blocks
           const tr = editor.state.tr.setSelection(
             TextSelection.create(doc, from, to)
           );
           editor.view.dispatch(tr);
           editor.view.focus();
-          
+
           // Don't update anchor - keep it for further Shift+Clicks
           return;
         }
@@ -250,7 +265,7 @@ export function BlockHandle({ editor, getPos, indent = 0 }: BlockHandleProps) {
     // Normal click (without Shift):
     // - If in multi-selection and clicking first block, keep selection (for bulk actions)
     // - Otherwise, select just this block and reset anchor
-    
+
     if (isInMultiSelection && isFirstInMultiSelection) {
       // Clicking the first block's handle in a multi-selection: keep the selection
       // (user wants to perform bulk action on all selected blocks)
@@ -261,7 +276,7 @@ export function BlockHandle({ editor, getPos, indent = 0 }: BlockHandleProps) {
     // Normal single-block selection (or clicking non-first block in multi-selection)
     // Reset anchor and select just this block
     anchorBlockPos = pos;
-    
+
     // ═══════════════════════════════════════════════════════════════════════════
     // 🔒 SELECTION INVARIANT: Halo click updates ENGINE selection, NOT PM selection
     // ═══════════════════════════════════════════════════════════════════════════
@@ -277,39 +292,39 @@ export function BlockHandle({ editor, getPos, indent = 0 }: BlockHandleProps) {
     //   - Halo is view affordance, not selection authority
     //
     // ═══════════════════════════════════════════════════════════════════════════
-    
+
     const node = editor.state.doc.nodeAt(pos);
     if (!node) return;
-    
+
     const blockId = node.attrs?.blockId;
     if (!blockId) {
       console.warn('[BlockHandle] Cannot select block without blockId');
       return;
     }
-    
+
     // Get engine from editor (attached by EditorCore)
     const engine = (editor as any)._engine;
     if (!engine) {
       console.warn('[BlockHandle] Engine not found on editor instance');
       return;
     }
-    
+
     // Update ENGINE selection (not ProseMirror)
     engine.selection = {
       kind: 'block',
       blockIds: [blockId],
     };
-    
+
     // Ensure editor has focus (but don't move cursor)
     if (!editor.view.hasFocus()) {
       editor.view.focus();
     }
-    
+
     console.log('[BlockHandle] Engine selection updated:', {
       blockId: blockId.slice(0, 8),
       pmSelectionType: editor.state.selection.constructor.name,
     });
-    
+
     // 🎯 EXCEPTION: For empty text blocks with explicit EDIT intent,
     // place cursor inside to enable immediate typing.
     // This is NOT for structural selection - it's for UX convenience.
@@ -318,7 +333,10 @@ export function BlockHandle({ editor, getPos, indent = 0 }: BlockHandleProps) {
     // placement is implemented. For now, it's a contained UX improvement.
     if (node.isTextblock && node.content.size === 0) {
       // Empty block: place cursor inside for editing
-      editor.chain().setTextSelection(pos + 1).run();
+      editor
+        .chain()
+        .setTextSelection(pos + 1)
+        .run();
       console.log('[BlockHandle] Empty block: cursor placed for editing');
     }
   };
@@ -327,7 +345,7 @@ export function BlockHandle({ editor, getPos, indent = 0 }: BlockHandleProps) {
     if (isMultiBlockSelection(editor)) {
       // Bulk delete all selected blocks
       const blocks = getSelectedBlocks(editor);
-      
+
       // Delete in reverse order to preserve positions
       let tr = editor.state.tr;
       for (let i = blocks.length - 1; i >= 0; i--) {
@@ -335,14 +353,14 @@ export function BlockHandle({ editor, getPos, indent = 0 }: BlockHandleProps) {
         // Delete the entire block including its wrapper
         tr = tr.delete(block.pos, block.pos + block.nodeSize);
       }
-      
+
       // After deletion, place cursor inside the remaining content
       // This prevents "sticky halo" and allows immediate typing
       const pos = Math.min(tr.doc.content.size - 1, tr.selection.from);
       if (pos >= 0) {
         tr.setSelection(TextSelection.create(tr.doc, pos));
       }
-      
+
       editor.view.dispatch(tr);
       editor.view.focus();
       setShowMenu(false);
@@ -352,20 +370,20 @@ export function BlockHandle({ editor, getPos, indent = 0 }: BlockHandleProps) {
     // Single block delete
     const pos = getPos();
     if (pos === undefined) return;
-    
+
     const node = editor.state.doc.nodeAt(pos);
     if (!node) return;
-    
+
     // Delete the block
     const tr = editor.state.tr.deleteRange(pos, pos + node.nodeSize);
-    
+
     // After deletion, place cursor inside the remaining content
     // This prevents "sticky halo" and allows immediate typing
     const cursorPos = Math.min(tr.doc.content.size - 1, pos);
     if (cursorPos >= 0) {
       tr.setSelection(TextSelection.create(tr.doc, cursorPos));
     }
-    
+
     editor.view.dispatch(tr);
     editor.view.focus();
     setShowMenu(false);
@@ -376,36 +394,36 @@ export function BlockHandle({ editor, getPos, indent = 0 }: BlockHandleProps) {
       // Bulk duplicate all selected blocks
       const blocks = getSelectedBlocks(editor);
       if (blocks.length === 0) return;
-      
+
       // Insert ALL duplicates as a group after the last selected block (Notion behavior)
       const lastBlock = blocks[blocks.length - 1];
       let insertPos = lastBlock.pos + lastBlock.nodeSize;
-      
+
       let tr = editor.state.tr;
-      
+
       // Insert each duplicate at the end position
       for (let i = 0; i < blocks.length; i++) {
         const block = blocks[i];
-        
+
         // Clone the node and clear blockId so BlockIdGenerator creates new ones
         const duplicateNode = block.node.copy(block.node.content);
         const clearedAttrs = {
           ...duplicateNode.attrs,
-          blockId: '',  // Clear blockId - BlockIdGenerator will assign new unique ID
-          parentBlockId: null,  // Reset parent relationship
+          blockId: '', // Clear blockId - BlockIdGenerator will assign new unique ID
+          parentBlockId: null, // Reset parent relationship
         };
-        
+
         // Create new node with cleared attributes
         const nodeWithoutId = duplicateNode.type.create(
           clearedAttrs,
           duplicateNode.content,
           duplicateNode.marks
         );
-        
+
         tr = tr.insert(insertPos, nodeWithoutId);
         insertPos += nodeWithoutId.nodeSize;
       }
-      
+
       editor.view.dispatch(tr);
       editor.commands.focus();
       setShowMenu(false);
@@ -415,11 +433,15 @@ export function BlockHandle({ editor, getPos, indent = 0 }: BlockHandleProps) {
     // Single block duplicate
     const pos = getPos();
     if (pos === undefined) return;
-    
+
     const node = editor.state.doc.nodeAt(pos);
     if (!node) return;
 
-    editor.chain().focus().insertContentAt(pos + node.nodeSize, node.toJSON()).run();
+    editor
+      .chain()
+      .focus()
+      .insertContentAt(pos + node.nodeSize, node.toJSON())
+      .run();
     setShowMenu(false);
   };
 
@@ -428,43 +450,43 @@ export function BlockHandle({ editor, getPos, indent = 0 }: BlockHandleProps) {
       // Bulk move all selected blocks up
       const blocks = getSelectedBlocks(editor);
       if (blocks.length === 0) return;
-      
+
       const firstBlock = blocks[0];
       if (firstBlock.pos === 0) return; // Already at top
-      
+
       const { doc } = editor.state;
-      
+
       // Find the block immediately before the first selected block
       let prevBlockPos = -1;
-      let prevBlockSize = 0;
-      
+      let _prevBlockSize = 0;
+
       doc.forEach((node, offset) => {
         if (offset < firstBlock.pos) {
           prevBlockPos = offset;
-          prevBlockSize = node.nodeSize;
+          _prevBlockSize = node.nodeSize;
         }
       });
-      
+
       if (prevBlockPos === -1) return; // No previous block
-      
+
       // Build transaction: delete selected blocks, then insert before previous
       let tr = editor.state.tr;
-      
+
       // Collect the nodes before deleting
-      const nodesToMove = blocks.map(b => b.node.copy(b.node.content));
-      
+      const nodesToMove = blocks.map((b) => b.node.copy(b.node.content));
+
       // Delete blocks in reverse order
       for (let i = blocks.length - 1; i >= 0; i--) {
         tr = tr.delete(blocks[i].pos, blocks[i].pos + blocks[i].nodeSize);
       }
-      
+
       // Insert blocks at new position (before the previous block)
       let insertPos = prevBlockPos;
       for (const node of nodesToMove) {
         tr = tr.insert(insertPos, node);
         insertPos += node.nodeSize;
       }
-      
+
       editor.view.dispatch(tr);
       editor.commands.focus();
       setShowMenu(false);
@@ -474,19 +496,20 @@ export function BlockHandle({ editor, getPos, indent = 0 }: BlockHandleProps) {
     // Single block move up
     const pos = getPos();
     if (pos === undefined || pos === 0) return;
-    
+
     const node = editor.state.doc.nodeAt(pos);
     if (!node) return;
 
     const $pos = editor.state.doc.resolve(pos);
     const indexInParent = $pos.index($pos.depth);
-    
+
     if (indexInParent === 0) return;
-    
+
     const prevNode = $pos.parent.child(indexInParent - 1);
     const prevNodePos = pos - prevNode.nodeSize;
 
-    editor.chain()
+    editor
+      .chain()
       .focus()
       .deleteRange({ from: pos, to: pos + node.nodeSize })
       .insertContentAt(prevNodePos, node.toJSON())
@@ -499,16 +522,16 @@ export function BlockHandle({ editor, getPos, indent = 0 }: BlockHandleProps) {
       // Bulk move all selected blocks down
       const blocks = getSelectedBlocks(editor);
       if (blocks.length === 0) return;
-      
+
       const { doc } = editor.state;
       const lastBlock = blocks[blocks.length - 1];
       const lastBlockEnd = lastBlock.pos + lastBlock.nodeSize;
-      
+
       // Find the block immediately after the last selected block
       let nextBlockPos = -1;
       let nextBlockSize = 0;
       let found = false;
-      
+
       doc.forEach((node, offset) => {
         if (!found && offset >= lastBlockEnd) {
           nextBlockPos = offset;
@@ -516,28 +539,29 @@ export function BlockHandle({ editor, getPos, indent = 0 }: BlockHandleProps) {
           found = true;
         }
       });
-      
+
       if (nextBlockPos === -1) return; // No next block
-      
+
       // Build transaction: delete selected blocks, then insert after next
       let tr = editor.state.tr;
-      
+
       // Collect the nodes before deleting
-      const nodesToMove = blocks.map(b => b.node.copy(b.node.content));
-      
+      const nodesToMove = blocks.map((b) => b.node.copy(b.node.content));
+
       // Delete blocks in reverse order
       for (let i = blocks.length - 1; i >= 0; i--) {
         tr = tr.delete(blocks[i].pos, blocks[i].pos + blocks[i].nodeSize);
       }
-      
+
       // Insert blocks at new position (after the next block)
       // Note: positions shift after deletion, so recalculate
-      let insertPos = nextBlockPos - (lastBlockEnd - blocks[0].pos) + nextBlockSize;
+      let insertPos =
+        nextBlockPos - (lastBlockEnd - blocks[0].pos) + nextBlockSize;
       for (const node of nodesToMove) {
         tr = tr.insert(insertPos, node);
         insertPos += node.nodeSize;
       }
-      
+
       editor.view.dispatch(tr);
       editor.commands.focus();
       setShowMenu(false);
@@ -547,19 +571,20 @@ export function BlockHandle({ editor, getPos, indent = 0 }: BlockHandleProps) {
     // Single block move down
     const pos = getPos();
     if (pos === undefined) return;
-    
+
     const node = editor.state.doc.nodeAt(pos);
     if (!node) return;
 
     const $pos = editor.state.doc.resolve(pos);
     const indexInParent = $pos.index($pos.depth);
-    
+
     if (indexInParent >= $pos.parent.childCount - 1) return;
-    
+
     const nextNode = $pos.parent.child(indexInParent + 1);
     const nextNodePos = pos + node.nodeSize;
 
-    editor.chain()
+    editor
+      .chain()
       .focus()
       .deleteRange({ from: pos, to: pos + node.nodeSize })
       .insertContentAt(nextNodePos + nextNode.nodeSize, node.toJSON())
@@ -589,7 +614,7 @@ export function BlockHandle({ editor, getPos, indent = 0 }: BlockHandleProps) {
       editor.storage.slashCommands.startPos = pos;
       editor.storage.slashCommands.selectedIndex = 0;
       editor.storage.slashCommands.manuallyClosedAt = null;
-      
+
       const tr = editor.view.state.tr;
       tr.setMeta('forceUpdate', true);
       editor.view.dispatch(tr);
@@ -616,7 +641,8 @@ export function BlockHandle({ editor, getPos, indent = 0 }: BlockHandleProps) {
   };
 
   // Check if handles should be disabled (typing or waiting for mouse movement)
-  const isHandleDisabled = (isTyping || !hasMouseMovedAfterTyping) && !isFirstInMultiSelection;
+  const isHandleDisabled =
+    (isTyping || !hasMouseMovedAfterTyping) && !isFirstInMultiSelection;
 
   return (
     <div
@@ -624,7 +650,9 @@ export function BlockHandle({ editor, getPos, indent = 0 }: BlockHandleProps) {
       contentEditable={false}
       data-menu-open={showMenu}
       data-is-typing={isHandleDisabled ? 'true' : undefined}
-      data-in-multi-selection={isInMultiSelection && !isFirstInMultiSelection ? 'true' : undefined}
+      data-in-multi-selection={
+        isInMultiSelection && !isFirstInMultiSelection ? 'true' : undefined
+      }
       style={{
         position: 'absolute',
         left: indent - 32, // Move with indented content
@@ -641,6 +669,28 @@ export function BlockHandle({ editor, getPos, indent = 0 }: BlockHandleProps) {
       }}
     >
       <div
+        onMouseDown={(e) => {
+          e.preventDefault(); // 🔒 CRITICAL: Prevents cursor jump & text selection
+
+          const pos = getPos();
+          if (pos === undefined) return;
+
+          const node = editor.state.doc.nodeAt(pos);
+          if (!node) return;
+
+          const blockId = node.attrs?.blockId;
+          if (!blockId) return;
+
+          // Get engine from editor (attached by EditorCore)
+          const engine = (editor as any)._engine;
+          if (!engine) return;
+
+          // Update ENGINE selection (not ProseMirror)
+          engine.selection = {
+            kind: 'block',
+            blockIds: [blockId],
+          };
+        }}
         onClick={(e) => {
           e.stopPropagation();
           handleClick(e);
@@ -684,19 +734,45 @@ export function BlockHandle({ editor, getPos, indent = 0 }: BlockHandleProps) {
           }}
           onClick={(e) => e.stopPropagation()}
         >
-          <MenuItem icon={<Copy size={16} />} label="Duplicate" onClick={handleDuplicate} colors={colors} />
+          <MenuItem
+            icon={<Copy size={16} />}
+            label="Duplicate"
+            onClick={handleDuplicate}
+            colors={colors}
+          />
           {/* Turn into only available for single block */}
           {!isMultiBlockSelection(editor) && (
             <>
-              <MenuItem icon={<Type size={16} />} label="Turn into" onClick={handleTurnInto} colors={colors} />
+              <MenuItem
+                icon={<Type size={16} />}
+                label="Turn into"
+                onClick={handleTurnInto}
+                colors={colors}
+              />
               <Divider colors={colors} />
             </>
           )}
           {isMultiBlockSelection(editor) && <Divider colors={colors} />}
-          <MenuItem icon={<ChevronUp size={16} />} label="Move up" onClick={handleMoveUp} colors={colors} />
-          <MenuItem icon={<ChevronDown size={16} />} label="Move down" onClick={handleMoveDown} colors={colors} />
+          <MenuItem
+            icon={<ChevronUp size={16} />}
+            label="Move up"
+            onClick={handleMoveUp}
+            colors={colors}
+          />
+          <MenuItem
+            icon={<ChevronDown size={16} />}
+            label="Move down"
+            onClick={handleMoveDown}
+            colors={colors}
+          />
           <Divider colors={colors} />
-          <MenuItem icon={<Trash2 size={16} />} label="Delete" onClick={handleDelete} colors={colors} danger />
+          <MenuItem
+            icon={<Trash2 size={16} />}
+            label="Delete"
+            onClick={handleDelete}
+            colors={colors}
+            danger
+          />
         </div>
       )}
     </div>
@@ -704,10 +780,16 @@ export function BlockHandle({ editor, getPos, indent = 0 }: BlockHandleProps) {
 }
 
 // Helper components
-function MenuItem({ icon, label, onClick, colors, danger }: { 
-  icon: React.ReactNode; 
-  label: string; 
-  onClick: () => void; 
+function MenuItem({
+  icon,
+  label,
+  onClick,
+  colors,
+  danger,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  onClick: () => void;
   colors: any;
   danger?: boolean;
 }) {
@@ -733,22 +815,26 @@ function MenuItem({ icon, label, onClick, colors, danger }: {
         userSelect: 'none',
       }}
     >
-      <div style={{ 
-        width: 16, 
-        height: 16, 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'center',
-        color: danger ? colors.semantic.error : colors.text.secondary,
-      }}>
+      <div
+        style={{
+          width: 16,
+          height: 16,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: danger ? colors.semantic.error : colors.text.secondary,
+        }}
+      >
         {icon}
       </div>
-      <span style={{ 
-        flex: 1,
-        fontSize: 14,
-        fontWeight: 400,
-        color: danger ? colors.semantic.error : colors.text.secondary,
-      }}>
+      <span
+        style={{
+          flex: 1,
+          fontSize: 14,
+          fontWeight: 400,
+          color: danger ? colors.semantic.error : colors.text.secondary,
+        }}
+      >
         {label}
       </span>
     </div>
@@ -757,12 +843,13 @@ function MenuItem({ icon, label, onClick, colors, danger }: {
 
 function Divider({ colors }: { colors: any }) {
   return (
-    <div style={{ 
-      width: '100%', 
-      height: 1, 
-      backgroundColor: colors.border.divider, 
-      margin: '4px 0'
-    }} />
+    <div
+      style={{
+        width: '100%',
+        height: 1,
+        backgroundColor: colors.border.divider,
+        margin: '4px 0',
+      }}
+    />
   );
 }
-
