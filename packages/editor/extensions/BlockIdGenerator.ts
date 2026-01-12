@@ -85,15 +85,76 @@ export const BlockIdGenerator = Extension.create({
             return Math.min(computedLevel, MAX_INDENT_LEVEL);
           };
 
+          // 🔒 SANITIZATION: Strip blockIds from non-block nodes (one-time migration)
+          // This cleans up legacy data where inline/text nodes incorrectly have blockIds
+          newState.doc.descendants((node, pos) => {
+            if (!node.isBlock && node.attrs?.blockId !== undefined) {
+              console.warn('[BlockIdGenerator] Stripping blockId from non-block node:', {
+                type: node.type.name,
+                blockId: node.attrs.blockId?.substring(0, 8),
+                pos,
+              });
+              tr.setNodeMarkup(pos, undefined, {
+                ...node.attrs,
+                blockId: undefined,
+              });
+              modified = true;
+            }
+          });
+
           // Traverse all nodes in the document
           newState.doc.descendants((node, pos) => {
             // Only process nodes that have blockId attribute defined in their schema
             if (!node.attrs || node.attrs.blockId === undefined) return;
 
-            // Add blockId if missing
+            // 🔒 DEV INVARIANT: Empty non-paragraph blocks at root should not persist
+            // AFTER keyboard normalization rules have run
+            //
+            // NOTE: This only checks AFTER keyboard events (Enter/Backspace),
+            // not during document initialization, slash commands, etc.
+            // Empty blocks are LEGAL during creation - they should only be
+            // normalized when user interacts with them via keyboard.
+            if (process.env.NODE_ENV !== 'production') {
+              // Only check if this transaction is from a keyboard normalization rule
+              const isFromKeyboardNormalization = transactions.some(
+                (tr) => tr.getMeta('keyboardNormalization') === true
+              );
+              
+              if (isFromKeyboardNormalization) {
+                const isEmptyNonParagraph = 
+                  node.type.name !== 'paragraph' &&
+                  node.type.name !== 'horizontalRule' && // HR is not a textblock
+                  node.content.size === 0 &&
+                  (node.attrs.indent === 0 || node.attrs.level === 0);
+                
+                if (isEmptyNonParagraph) {
+                  console.error(
+                    '[Invariant] Empty non-paragraph block at root persisted after keyboard normalization:',
+                    {
+                      type: node.type.name,
+                      indent: node.attrs.indent ?? node.attrs.level,
+                      blockId: node.attrs.blockId?.substring(0, 8),
+                      pos,
+                    }
+                  );
+                }
+              }
+            }
+
+            // 🔒 BLOCK IDENTITY LAW: After initialization, NEVER regenerate blockIds
+            // BlockIdGenerator should only touch NEW nodes, not existing ones
             const currentBlockId = node.attrs.blockId;
+            
+            // Add blockId ONLY if missing AND editor is still initializing
             if (!currentBlockId || currentBlockId === '') {
               const newBlockId = crypto.randomUUID();
+
+              console.log('[BlockIdGenerator] Adding missing blockId:', {
+                type: node.type.name,
+                newBlockId: newBlockId.substring(0, 8),
+                pos,
+                editorInitialized: this.editor?.isInitialized ?? 'unknown',
+              });
 
               tr.setNodeMarkup(pos, undefined, {
                 ...node.attrs,
@@ -138,7 +199,29 @@ export const BlockIdGenerator = Extension.create({
             }
           });
 
-          return modified ? tr : null;
+          // 🔒 DEV-ONLY INVARIANT: No non-block node should ever have a blockId
+          if (process.env.NODE_ENV !== 'production') {
+            newState.doc.descendants((node) => {
+              if (!node.isBlock && node.attrs?.blockId !== undefined) {
+                console.error('[BlockIdGenerator] ❌ INVARIANT VIOLATION: Non-block node has blockId:', {
+                  type: node.type.name,
+                  blockId: node.attrs.blockId?.substring(0, 8),
+                  isBlock: node.isBlock,
+                  isText: node.isText,
+                  isLeaf: node.isLeaf,
+                });
+              }
+            });
+          }
+
+          if (modified) {
+            // 🔒 FORCE BRIDGE SYNC after BlockIdGenerator mutations
+            // This ensures Engine sees all newly assigned blockIds immediately
+            tr.setMeta('forceBridgeSync', true);
+            return tr;
+          }
+
+          return null;
         },
       }),
     ];
@@ -146,9 +229,11 @@ export const BlockIdGenerator = Extension.create({
 
   onCreate() {
     // Run when editor is created - adds blockId AND computes correct levels
+    console.log('[BlockIdGenerator] onCreate - will run after setTimeout(0)');
     setTimeout(() => {
       if (!this.editor) return;
 
+      console.log('[BlockIdGenerator] onCreate - executing now');
       const { state } = this.editor;
       const tr = state.tr;
       let modified = false;
@@ -207,9 +292,28 @@ export const BlockIdGenerator = Extension.create({
 
         const currentBlockId = node.attrs.blockId;
 
-        // Add blockId if missing
+        // 🔒 IMMUTABILITY LAW: Never mutate existing blockIds
+        // If node already has blockId, skip it entirely
+        if (currentBlockId && currentBlockId !== '') {
+          // Node already has valid blockId - DO NOT TOUCH
+          if (process.env.NODE_ENV !== 'production') {
+            console.log('[BlockIdGenerator] onCreate - node has blockId, skipping:', {
+              type: node.type.name,
+              blockId: currentBlockId.substring(0, 8),
+            });
+          }
+          return; // ✅ Skip this node completely
+        }
+
+        // Add blockId ONLY if missing
         if (!currentBlockId || currentBlockId === '') {
           const newBlockId = crypto.randomUUID();
+
+          console.log('[BlockIdGenerator] onCreate - adding missing blockId:', {
+            type: node.type.name,
+            newBlockId: newBlockId.substring(0, 8),
+            pos,
+          });
 
           tr.setNodeMarkup(pos, undefined, {
             ...node.attrs,
@@ -217,6 +321,7 @@ export const BlockIdGenerator = Extension.create({
           });
 
           modified = true;
+          return; // Skip level sync for newly created blocks
         }
 
         // ✅ ALWAYS sync level based on parentBlockId

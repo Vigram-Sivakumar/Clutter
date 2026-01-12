@@ -2,14 +2,19 @@
  * Delete Empty Paragraph Rule (Backspace)
  *
  * When: Cursor at start of empty paragraph
- * Do: Delete the paragraph
+ * Do: Delegate to structural delete authority
  *
- * Canonical Decision Table: Step 2B-2 (Block is empty AND structural)
+ * 🔒 PURE DELEGATOR - does NOT:
+ * - Perform deletion
+ * - Place cursor
+ * - Mutate PM state
+ *
+ * ONLY delegates to performStructuralDelete()
  */
 
 import { defineRule } from '../../types/KeyboardRule';
 import type { KeyboardContext } from '../../types/KeyboardContext';
-import type { EditorIntent } from '../../../../core/engine';
+import { performStructuralDelete } from '../../../../core/structuralDelete/performStructuralDelete';
 
 export const deleteEmptyParagraph = defineRule({
   id: 'backspace:deleteEmptyParagraph',
@@ -37,13 +42,30 @@ export const deleteEmptyParagraph = defineRule({
     return true;
   },
 
-  execute(ctx: KeyboardContext): EditorIntent {
-    const { currentNode } = ctx;
+  execute(ctx: KeyboardContext): boolean {
+    const { currentNode, editor } = ctx;
 
-    return {
-      type: 'delete-block',
-      blockId: currentNode.attrs.blockId,
-      source: 'backspace',
-    };
+    // 🔒 Create snapshot from PM document (source of truth)
+    // This avoids timing dependencies on Engine sync
+    const blocks: Array<{ blockId: string; indent: number }> = [];
+    editor.state.doc.descendants((node: any) => {
+      if (node.attrs?.blockId) {
+        blocks.push({
+          blockId: node.attrs.blockId,
+          indent: node.attrs.indent ?? 0,
+        });
+      }
+      return true;
+    });
+
+    const engineSnapshot = { blocks };
+
+    // 🔒 DELEGATE TO AUTHORITY
+    return performStructuralDelete({
+      editor,
+      engineSnapshot,
+      blockIds: [currentNode.attrs.blockId],
+      source: 'keyboard:backspace',
+    });
   },
 });

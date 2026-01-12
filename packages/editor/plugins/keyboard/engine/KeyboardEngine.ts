@@ -5,6 +5,26 @@
  * Rules emit intents, which are routed through IntentResolver.
  *
  * This is the only place where rules are actually evaluated.
+ * 
+ * ═══════════════════════════════════════════════════════════════════════════
+ * 🔒 SELECTION INVARIANT (ARCHITECTURAL LAW)
+ * ═══════════════════════════════════════════════════════════════════════════
+ * 
+ * ProseMirror:
+ *   - TextSelection ONLY
+ *   - NEVER NodeSelection
+ * 
+ * Block selection:
+ *   - Represented by blockId(s) in the Engine
+ *   - Keyboard rules operate on Engine block selection
+ *   - PM selection remains TextSelection at all times
+ * 
+ * Keyboard rules MUST NOT:
+ *   - Check for NodeSelection
+ *   - Rely on NodeSelection state
+ *   - Mutate PM selection to NodeSelection
+ * 
+ * ═══════════════════════════════════════════════════════════════════════════
  */
 
 import type { Editor } from '@tiptap/core';
@@ -147,13 +167,20 @@ export class KeyboardEngine {
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       //
       // If intent SUCCEEDED → consume key (preventDefault)
-      // If intent FAILED → allow fallback (let browser/PM handle key)
+      // If intent FAILED:
+      //   - Structural intents → STILL consume key (no fallback)
+      //   - Text intents → allow fallback (let browser/PM handle key)
       //
-      // Example: Tab is blocked because not siblings
-      //   → Don't consume Tab
-      //   → Allow cursor to move naturally
+      // 🔒 STRUCTURAL INTENT LAW (Apple-level behavior):
+      // Structural keys (Tab, Shift+Tab, structural Enter/Backspace)
+      // must NEVER fall back to browser/PM, even when intent fails.
       //
-      // This matches Notion/Roam behavior.
+      // Why: PM fallback on Tab causes:
+      //   - Focus to leave editor
+      //   - Cursor to disappear
+      //   - Selection to drift
+      //
+      // This matches Apple Notes, Craft, Notion, Workflowy.
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       if (intents.length > 0) {
         if (allSucceeded) {
@@ -163,11 +190,35 @@ export class KeyboardEngine {
             return handled(intents[0].type, 'Success');
           }
         } else {
-          console.log(
-            `   ⚠️  Intent emitted but failed: ${rule.id} - allowing fallback`
-          );
-          // 🔁 FALLBACK: Intent failed → let browser/PM handle key
-          return notHandled(failureReason || 'Intent failed');
+          // 🔒 Check if this is a structural intent
+          const firstIntent = intents[0];
+          const isStructuralIntent = [
+            'indent-block',
+            'outdent-block',
+            'delete-block',
+            'merge-blocks',
+            'split-block',
+            'convert-block',
+            'move-block',
+            'toggle-collapse',
+          ].includes(firstIntent.type);
+
+          if (isStructuralIntent) {
+            // 🔒 STRUCTURAL INTENT: Consume key even on failure
+            console.log(
+              `   🛡️  Structural intent failed: ${rule.id} - consuming key (no fallback)`
+            );
+            return handled(
+              firstIntent.type,
+              `Structural intent blocked: ${failureReason || 'Intent failed'}`
+            );
+          } else {
+            // 🔁 TEXT INTENT: Allow fallback
+            console.log(
+              `   ⚠️  Intent emitted but failed: ${rule.id} - allowing fallback`
+            );
+            return notHandled(failureReason || 'Intent failed');
+          }
         }
         console.log(`   ⏩ Continuing to next rule (fallthrough)`);
       }

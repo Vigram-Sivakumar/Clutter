@@ -11,6 +11,7 @@ import { TextSelection, NodeSelection, AllSelection } from '@tiptap/pm/state';
 import type { ClipboardPayloadV1, ClipboardState } from './types';
 import type { BlockType } from '../../types';
 import { createBlock } from '../createBlock';
+import { collectSubtreeFromDoc } from '../../utils/subtreeUtils';
 
 /**
  * In-memory clipboard state
@@ -55,10 +56,14 @@ function isCopyableBlockType(typeName: string): typeName is BlockType {
   return copyableTypes.includes(typeName as BlockType);
 }
 
+// 🔒 REMOVED: collectBlockWithSubtree - replaced with shared collectSubtreeFromDoc utility
+// See: packages/editor/utils/subtreeUtils.ts
+
 /**
- * 🔧 CANONICAL BLOCK RESOLVER (Step 3B.3 Phase 3)
+ * 🔧 CANONICAL BLOCK RESOLVER (Step 3B.3 Phase 3 - SUBTREE-AWARE)
  * 
  * 🔒 ARCHITECTURAL LAW: Clipboard must be block-first, never node-first.
+ * 🔒 CLIPBOARD LAW: When copying a block, copy its entire visual subtree (indent-based).
  * 
  * TextSelection can span text inside blocks, but we ALWAYS copy WHOLE blocks.
  * This resolves the owning top-level blocks from ANY selection type.
@@ -68,8 +73,9 @@ function isCopyableBlockType(typeName: string): typeName is BlockType {
  * Algorithm:
  * 1. Iterate top-level blocks only (doc.content direct children)
  * 2. Check if block intersects selection range
- * 3. Skip text nodes, inline nodes, non-blocks entirely
- * 4. Fallback: if no blocks found, resolve cursor's owning block
+ * 3. If intersection, collect block + entire subtree (indent-based)
+ * 4. Deduplicate by position
+ * 5. Fallback: if no blocks found, resolve cursor's owning block + subtree
  */
 function resolveBlocksFromSelection(
   doc: PMNode,
@@ -88,9 +94,9 @@ function resolveBlocksFromSelection(
     const intersects = blockStart < to && blockEnd > from;
     if (!intersects) return;
     
-    // Skip if already processed
+    // 🔒 CRITICAL: Skip if already processed (do NOT add to seen yet)
+    // We let collectSubtreeFromDoc handle adding all positions (including root)
     if (seen.has(blockStart)) return;
-    seen.add(blockStart);
     
     // 🛡️ INVARIANT: We should NEVER see text nodes here
     if (node.type.name === 'text') {
@@ -117,7 +123,20 @@ function resolveBlocksFromSelection(
       return;
     }
     
-    blocks.push(node);
+    // 🔒 SUBTREE-AWARE COPY: Collect block + all children (indent-based)
+    // Uses canonical subtree utility (SUBTREE LAW enforced)
+    const subtree = collectSubtreeFromDoc(doc, blockStart);
+    for (const entry of subtree) {
+      // Deduplicate by position
+      if (!seen.has(entry.pos)) {
+        seen.add(entry.pos);
+        
+        // Validate copyable before adding
+        if (isCopyableBlockType(entry.node.type.name)) {
+          blocks.push(entry.node);
+        }
+      }
+    }
   });
   
   // Fallback: if no blocks found, try to resolve cursor's owning block
@@ -136,12 +155,19 @@ function resolveBlocksFromSelection(
       const blockPos = $from.before(d);
       
       if (owningBlock?.type.isBlock && owningBlock.attrs?.blockId) {
-        console.log('[Clipboard] Fallback: resolved cursor owning block', {
+        console.log('[Clipboard] Fallback: resolved cursor owning block + subtree', {
           type: owningBlock.type.name,
           pos: blockPos,
           depth: d,
         });
-        blocks.push(owningBlock);
+        
+        // 🔒 SUBTREE-AWARE: Collect owning block + all children (canonical)
+        const subtree = collectSubtreeFromDoc(doc, blockPos);
+        for (const entry of subtree) {
+          if (isCopyableBlockType(entry.node.type.name)) {
+            blocks.push(entry.node);
+          }
+        }
       }
     } catch (e) {
       console.error('[Clipboard] Failed to resolve cursor owning block', e);
@@ -201,6 +227,21 @@ export function copyToClipboard(state: EditorState): boolean {
     attrs: getSafeAttrs(node),
   }));
   
+  // 🛡️ DEV INVARIANT: Clipboard payload must have root at indent 0
+  if (process.env.NODE_ENV !== 'production') {
+    const firstBlock = blocks[0];
+    if (firstBlock && firstBlock.indent !== 0) {
+      console.error(
+        '[Clipboard][INVARIANT VIOLATION] Payload root must have indent 0',
+        {
+          firstIndent: firstBlock.indent,
+          allIndents: blocks.map((b) => b.indent),
+          blockCount: blocks.length,
+        }
+      );
+    }
+  }
+  
   // Store in internal clipboard
   clipboardState = {
     payload: {
@@ -218,6 +259,13 @@ export function copyToClipboard(state: EditorState): boolean {
     indents: blocks.map((b) => b.indent),
     selectionType: selection.constructor.name,
   });
+  
+  // 🛡️ DEV: Show final payload structure
+  if (process.env.NODE_ENV !== 'production') {
+    console.log('[Clipboard Debug] Payload structure:', 
+      blocks.map((b) => `${b.type}:${b.indent}`)
+    );
+  }
   
   return true;
 }
@@ -461,8 +509,22 @@ function handleReplaceBlock(
   const firstBlockIndent = payload.blocks[0]?.indent ?? 0;
   const indentOffset = baseIndent - firstBlockIndent;
   
-  for (const block of payload.blocks) {
-    const newIndent = Math.max(0, block.indent + indentOffset);
+  for (let i = 0; i < payload.blocks.length; i++) {
+    const block = payload.blocks[i];
+    const isFirstBlock = i === 0;
+    
+    // 🔒 BUG FIX: First listBlock is normalized to baseIndent, not rebased
+    let newIndent: number;
+    
+    if (isFirstBlock && block.type === 'listBlock') {
+      newIndent = baseIndent;
+      console.log('[Paste] First listBlock normalized to baseIndent', {
+        originalIndent: block.indent,
+        baseIndent,
+      });
+    } else {
+      newIndent = Math.max(0, block.indent + indentOffset);
+    }
     
     const node = createBlock(state, tr, {
       type: block.type,
@@ -677,8 +739,26 @@ function handleInsertAfter(
   const indentOffset = baseIndent - firstBlockIndent;
   const firstInsertPos = insertPos;
   
-  for (const block of payload.blocks) {
-    const newIndent = Math.max(0, block.indent + indentOffset);
+  for (let i = 0; i < payload.blocks.length; i++) {
+    const block = payload.blocks[i];
+    const isFirstBlock = i === 0;
+    
+    // 🔒 BUG FIX: First listBlock is normalized to baseIndent, not rebased
+    // This prevents "indent mismatch" errors in createBlock validation
+    let newIndent: number;
+    
+    if (isFirstBlock && block.type === 'listBlock') {
+      // First listBlock aligns to insertion level (root normalization)
+      newIndent = baseIndent;
+      console.log('[Paste] First listBlock normalized to baseIndent', {
+        originalIndent: block.indent,
+        baseIndent,
+        indentOffset,
+      });
+    } else {
+      // All other blocks use relative rebasing
+      newIndent = Math.max(0, block.indent + indentOffset);
+    }
     
     const node = createBlock(state, tr, {
       type: block.type,
@@ -776,8 +856,22 @@ function handleSplitBlock(
   const indentOffset = baseIndent - firstBlockIndent;
   let lastPastedBlockEnd = insertPos;
   
-  for (const block of payload.blocks) {
-    const newIndent = Math.max(0, block.indent + indentOffset);
+  for (let i = 0; i < payload.blocks.length; i++) {
+    const block = payload.blocks[i];
+    const isFirstBlock = i === 0;
+    
+    // 🔒 BUG FIX: First listBlock is normalized to baseIndent, not rebased
+    let newIndent: number;
+    
+    if (isFirstBlock && block.type === 'listBlock') {
+      newIndent = baseIndent;
+      console.log('[Paste] First listBlock normalized to baseIndent', {
+        originalIndent: block.indent,
+        baseIndent,
+      });
+    } else {
+      newIndent = Math.max(0, block.indent + indentOffset);
+    }
     
     const node = createBlock(state, tr, {
       type: block.type,

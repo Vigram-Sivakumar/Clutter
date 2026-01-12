@@ -85,8 +85,13 @@ export const HorizontalRule = Node.create({
         renderHTML: (attributes) => ({ 'data-color': attributes.color }),
       },
       blockId: {
-        default: () => crypto.randomUUID(), // 🔒 BLOCK IDENTITY INVARIANT: Every block must have unique ID
-        parseHTML: (element) => element.getAttribute('data-block-id'),
+        // 🔒 BLOCK IDENTITY LAW: blockId assigned ONLY by:
+        // 1. BlockIdGenerator.onCreate() (fills gaps on mount)
+        // 2. performStructuralEnter() (explicit creation)
+        // 3. parseHTML (loading saved content)
+        // NEVER by PM schema defaults (prevents regeneration during transactions)
+        default: null,
+        parseHTML: (element) => element.getAttribute('data-block-id') || null,
         renderHTML: (attributes) =>
           attributes.blockId ? { 'data-block-id': attributes.blockId } : {},
       },

@@ -54,10 +54,12 @@ export const CodeBlock = Node.create({
     return {
       blockId: {
         default: null,
-        parseHTML: (element) => element.getAttribute('data-block-id') || crypto.randomUUID(),
+        parseHTML: (element) => element.getAttribute('data-block-id') || null,
         renderHTML: (attributes) => {
-          const blockId = attributes.blockId || crypto.randomUUID();
-          return { 'data-block-id': blockId };
+          if (attributes.blockId) {
+            return { 'data-block-id': attributes.blockId };
+          }
+          return {};
         },
       },
       language: {
@@ -157,65 +159,15 @@ export const CodeBlock = Node.create({
         return false;
       },
 
-      // Exit on double Enter (empty line at end)
-      Enter: ({ editor }) => {
-        if (!editor.isActive('codeBlock')) return false;
-        
-        const { state } = editor;
-        const { $from } = state.selection;
-        
-        // Get the code block node and position
-        const codeBlockDepth = $from.depth;
-        const codeBlockPos = $from.before(codeBlockDepth);
-        const codeBlockNode = state.doc.nodeAt(codeBlockPos);
-        
-        if (!codeBlockNode) return false;
-        
-        const attrs = codeBlockNode.attrs;
-        
-        // Get the code block bounds
-        const codeBlockStart = $from.start();
-        const codeBlockEnd = $from.end();
-        const fullText = state.doc.textBetween(codeBlockStart, codeBlockEnd);
-        
-        // Handle empty code block - delegate to keyboard rules
-        if (fullText === '' || fullText === '\n') {
-          return false; // Let keyboard rules handle empty block Enter
-        }
-        
-        // Check if we're at the end of the code block
-        const isAtEnd = $from.pos === codeBlockEnd;
-        
-        // Check if the last character is a newline (meaning we're on an empty line)
-        const endsWithNewline = fullText.endsWith('\n');
-        
-        // Double-enter: if at end and previous char is newline, exit the code block
-        if (isAtEnd && endsWithNewline) {
-          const { tr } = state;
-          const paragraphType = state.schema.nodes.paragraph;
-          
-          if (!paragraphType) return false;
-          
-          // Remove the trailing newline
-          tr.delete(codeBlockEnd - 1, codeBlockEnd);
-          
-          // Insert new paragraph after code block (FLAT MODEL)
-          const afterCodeBlock = codeBlockPos + codeBlockNode.nodeSize - 1;
-          const newParagraph = paragraphType.create({
-            blockId: crypto.randomUUID(),
-            indent: attrs.indent || 0,  // FLAT MODEL: same indent
-          });
-          tr.insert(afterCodeBlock, newParagraph);
-          
-          // Move cursor to new paragraph
-          tr.setSelection(TextSelection.create(tr.doc, afterCodeBlock + 1));
-          
-          editor.view.dispatch(tr);
-          return true;
-        }
-        
-        // Normal Enter: insert newline
-        return editor.commands.insertContent('\n');
+      // 🔒 Enter - NEUTERED (Step 4 - Exclusive Ownership)
+      // ALL Enter behavior now handled by KeyboardShortcuts → KeyboardEngine → Rules
+      // Node extensions must NEVER mutate state in keyboard handlers.
+      //
+      // REMOVED LOGIC (to be reintroduced centrally if needed):
+      // - Double-enter exit from code block
+      //
+      Enter: () => {
+        return false; // Delegate to KeyboardEngine
       },
     };
   },

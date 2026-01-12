@@ -1,18 +1,36 @@
 /**
  * useBlockSelection - Hook to detect if current block is selected
  *
+ * ═══════════════════════════════════════════════════════════════════════════
+ * 🔒 SELECTION INVARIANT: Engine owns selection, PM does not
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * This hook ONLY reads Engine selection state.
+ * It NEVER observes ProseMirror selection.
+ *
+ * PM selection is write-only from this system's perspective.
+ * Reading PM selection creates an observer feedback loop:
+ *   PM → DOM → Hook → DOM → PM (resurrection)
+ *
+ * By reading Engine only, we break the cycle:
+ *   Engine → Hook → DOM (paint only)
+ *   PM selection → ignored
+ *
  * Returns true when:
- * - Block is in a NodeSelection (handle click)
- * - Block is part of a multi-block TextSelection (Shift+Click, Cmd+A)
+ * - Block is in Engine.selection.blockIds (halo click)
+ * - Block is part of multi-block Engine selection (Shift+Click, Cmd+A)
  *
  * Returns false when:
- * - Single block TextSelection (triple-click, normal text selection)
+ * - Engine selection is 'none' or 'text'
+ * - Block is not in Engine.selection.blockIds
+ *
+ * ═══════════════════════════════════════════════════════════════════════════
  */
 
 import { useEffect, useState } from 'react';
 import { Editor } from '@tiptap/core';
-import { NodeSelection } from '@tiptap/pm/state';
 import { isMultiBlockSelection } from '../utils/multiSelection';
+import { warnIfNodeViewMutates } from '../core/devInvariants';
 
 interface UseBlockSelectionProps {
   editor: Editor;
@@ -35,20 +53,49 @@ export function useBlockSelection({
         return;
       }
 
-      const { selection } = editor.state;
-      const blockStart = pos;
-      const blockEnd = pos + nodeSize;
+      // Get Engine from editor (attached by EditorCore)
+      const engine = (editor as any)._engine;
+      if (!engine) {
+        setIsSelected(false);
+        return;
+      }
 
-      // Case 1: NodeSelection (clicking handle) → show halo
-      if (selection instanceof NodeSelection) {
-        const selected = selection.$from.pos === pos;
+      // Get current block's blockId
+      const currentNode = editor.state.doc.nodeAt(pos);
+      const blockId = currentNode?.attrs?.blockId;
+      if (!blockId) {
+        setIsSelected(false);
+        return;
+      }
+
+      // 🔒 Read from ENGINE selection ONLY (never PM selection)
+      // This prevents the observer feedback loop that resurrects NodeSelection
+
+      // Case 1: Engine block selection (halo click) → show halo
+      if (engine.selection.kind === 'block') {
+        const selected = engine.selection.blockIds.includes(blockId);
+        
+        // 🛡️ DEV INVARIANT: Warn if halo mutation during structural delete
+        if (selected !== isSelected) {
+          warnIfNodeViewMutates('useBlockSelection/engine-block', {
+            blockId: blockId.slice(0, 8),
+            wasSelected: isSelected,
+            nowSelected: selected,
+          });
+        }
+        
         setIsSelected(selected);
         return;
       }
 
       // Case 2: Multi-block TextSelection (Shift+Click, Cmd+A) → show halo
+      // This is the only case where we check PM selection, because
+      // multi-block text selection is still represented as TextSelection in PM
       const isMultiBlock = isMultiBlockSelection(editor);
       if (isMultiBlock) {
+        const { selection } = editor.state;
+        const blockStart = pos;
+        const blockEnd = pos + nodeSize;
         const { from, to } = selection;
         const contentStart = blockStart + 1;
         const contentEnd = blockEnd - 1;
@@ -56,16 +103,28 @@ export function useBlockSelection({
         // Check if this block is covered by the selection
         const isFullyCovered = from <= contentStart && to >= contentEnd;
         const finalSelected = isFullyCovered && from !== to;
+        
+        // 🛡️ DEV INVARIANT: Warn if halo mutation during structural delete
+        if (finalSelected !== isSelected) {
+          warnIfNodeViewMutates('useBlockSelection/multi-block', {
+            blockId: blockId.slice(0, 8),
+            wasSelected: isSelected,
+            nowSelected: finalSelected,
+          });
+        }
+        
         setIsSelected(finalSelected);
         return;
       }
 
-      // Case 3: Single-block TextSelection (triple-click, normal selection) → NO halo
+      // Case 3: Engine selection is 'none' or 'text' → NO halo
       setIsSelected(false);
     };
 
+    // Listen to both editor events and engine changes
     editor.on('selectionUpdate', checkSelection);
     editor.on('focus', checkSelection);
+    editor.on('update', checkSelection); // Also check on document updates
 
     // Initial check
     checkSelection();
@@ -73,6 +132,7 @@ export function useBlockSelection({
     return () => {
       editor.off('selectionUpdate', checkSelection);
       editor.off('focus', checkSelection);
+      editor.off('update', checkSelection);
     };
   }, [editor, getPos, nodeSize]);
 

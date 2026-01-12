@@ -103,8 +103,12 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(({
   
   // Track if we're updating from the editor (to prevent clearing history)
   const isInternalUpdate = useRef(false);
+  // 🔒 BLOCK IDENTITY LAW: Track if initial content has been loaded
+  // This ensures we NEVER recreate the PM document after initialization
+  const didInitContent = useRef(false);
 
   // Create editor instance
+  // 🔒 CRITICAL: NO CONTENT HERE - prevents PM document recreation
   const editor = useEditor({
     extensions: [
       // Core nodes
@@ -172,10 +176,7 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(({
       // We use React-based placeholders in each component instead
       // Placeholder.configure({...}),
     ] as any[],
-    content: content || {
-      type: 'doc',
-      content: [{ type: 'paragraph' }],
-    },
+    // 🔒 NO CONTENT - editor starts empty, content loaded via effect
     editable,
     onUpdate: ({ editor, transaction }) => {
       // Only fire onChange if document actually changed (not just selection)
@@ -267,30 +268,44 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(({
     },
   }), [editor]);
 
-  // Update content when prop changes
+  // 🔒 BLOCK IDENTITY LAW: Load initial content exactly ONCE
+  // This prevents PM document recreation which would regenerate all blockIds
   useEffect(() => {
-    // Skip if this update is from the editor itself (internal)
-    // This prevents clearing history on every keystroke
-    if (isInternalUpdate.current) {
-      // Clear the flag after a short delay to allow for any pending renders
-      const timeoutId = setTimeout(() => {
-        isInternalUpdate.current = false;
-      }, 100);
-      return () => clearTimeout(timeoutId);
+    if (!editor || !content) return;
+
+    // 🔒 CRITICAL: Only allow ONE document load in editor lifetime
+    // After this, content updates must go through incremental transactions
+    if (didInitContent.current) {
+      console.log('[EditorCore] Skipping content load (already initialized)');
+      return;
     }
 
-    if (editor && content) {
-      // Only update if content is different (semantic comparison)
-      const currentContent = JSON.stringify(editor.getJSON());
-      const newContent = JSON.stringify(content);
+    didInitContent.current = true;
 
-      if (currentContent !== newContent) {
-        // Note: setContent clears history, so only call when content truly changed externally
-        // (e.g., loading a different note or external sync)
-        editor.commands.setContent(content, false);
+    // 🔍 DIAGNOSTIC: Check if incoming content has blockIds
+    const blockIdsInContent: string[] = [];
+    const walkContent = (node: any) => {
+      if (node.attrs?.blockId) {
+        blockIdsInContent.push(node.attrs.blockId.substring(0, 8));
       }
+      if (node.content) {
+        node.content.forEach(walkContent);
+      }
+    };
+    if (content.content) {
+      content.content.forEach(walkContent);
     }
-  }, [content, editor]);
+    
+    console.log('[EditorCore] Loading initial content (ONE TIME ONLY):', {
+      hasBlockIds: blockIdsInContent.length > 0,
+      blockIds: blockIdsInContent,
+    });
+
+    // Load content - this is the ONLY time we replace the entire document
+    editor.commands.setContent(content, false, {
+      preserveWhitespace: false,
+    });
+  }, [editor, content]);
 
   // Update editable state
   useEffect(() => {

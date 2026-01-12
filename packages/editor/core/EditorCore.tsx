@@ -2,6 +2,34 @@
  * EditorCore - Main Tiptap editor component
  *
  * Core editor with all extensions, plugins, and behavior.
+ * 
+ * ═══════════════════════════════════════════════════════════════════════════
+ * 🔒 SELECTION INVARIANT (ARCHITECTURAL LAW)
+ * ═══════════════════════════════════════════════════════════════════════════
+ * 
+ * ProseMirror:
+ *   - TextSelection ONLY
+ *   - NEVER NodeSelection
+ * 
+ * Block selection:
+ *   - Represented by blockId(s) in the Engine
+ *   - Reflected visually via UI (halo)
+ *   - PM selection does NOT change when halo is clicked
+ * 
+ * Keyboard / Delete / Backspace:
+ *   - Operate on Engine block selection (blockId-based)
+ *   - Never rely on PM NodeSelection
+ *   - PM selection remains TextSelection at all times
+ * 
+ * WHY THIS MATTERS:
+ *   Model owns truth. View reflects it. Never the reverse.
+ *   NodeSelection leaks view authority into the model, causing:
+ *   - Delete breaking backspace
+ *   - Backspace breaking delete
+ *   - Enter breaking lists
+ *   - Cascading selection bugs
+ * 
+ * ═══════════════════════════════════════════════════════════════════════════
  */
 
 import React, {

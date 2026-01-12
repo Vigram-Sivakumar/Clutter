@@ -1,32 +1,35 @@
 /**
  * Block Deletion Plugin
  *
- * Handles DELETE and Backspace keys when blocks are node-selected (halo)
+ * ═══════════════════════════════════════════════════════════════════════════
+ * 🔒 STRUCTURAL DELETE LAW (ARCHITECTURAL)
+ * ═══════════════════════════════════════════════════════════════════════════
  *
- * INTEGRATION STATUS: ✅ Uses engine.deleteBlock() primitive
- * - Routes all deletions through EditorEngine (Editor Law #8)
- * - Children are promoted (never orphaned)
- * - Undo/redo restores structure + relationships
- * - No PM default deletion (tr.delete removed)
+ * This plugin is a PURE DELEGATOR.
+ * It does NOT:
+ * - Perform deletions
+ * - Place cursors
+ * - Mutate PM state
+ * - Understand structure
+ *
+ * It ONLY:
+ * - Detects delete intent (keyboard, handle)
+ * - Delegates to performStructuralDelete()
+ *
+ * All structural delete logic lives in:
+ *   packages/editor/core/structuralDelete/performStructuralDelete.ts
+ *
+ * ═══════════════════════════════════════════════════════════════════════════
  */
 
 import { Extension } from '@tiptap/core';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
-import { NodeSelection, TextSelection } from '@tiptap/pm/state';
 import {
   isMultiBlockSelection,
   getSelectedBlocks,
 } from '../utils/multiSelection';
+import { performStructuralDelete } from '../core/structuralDelete/performStructuralDelete';
 import type { EditorEngine } from '../core/engine/EditorEngine';
-// DeleteBlockCommand removed - using FlatIntentResolver instead
-
-/**
- * Check if selection is a NodeSelection on a single block
- */
-function isNodeSelected(state: any): boolean {
-  const { selection } = state;
-  return selection instanceof NodeSelection;
-}
 
 /**
  * Get EditorEngine from TipTap editor instance
@@ -36,168 +39,108 @@ function getEngine(editor: any): EditorEngine | null {
   return editor._engine || null;
 }
 
+const blockDeletionPluginKey = new PluginKey('blockDeletion');
+
 export const BlockDeletion = Extension.create({
   name: 'blockDeletion',
 
-  // Use ProseMirror plugins for low-level key handling
   addProseMirrorPlugins() {
-    const editor = this.editor;
-
     return [
       new Plugin({
-        key: new PluginKey('blockDeletion'),
+        key: blockDeletionPluginKey,
         props: {
-          handleClick(_view, _pos, _event) {
-            return false; // Let normal click handling proceed
-          },
           handleKeyDown(view, event) {
-            // Only handle DELETE and Backspace
+            const { state } = view;
+            const { selection } = state;
+            const editor = (this as any).editor;
+
+            if (!editor) return false;
+
+            const engine = getEngine(editor);
+            if (!engine) return false;
+
+            // Only handle Delete and Backspace keys
             if (event.key !== 'Delete' && event.key !== 'Backspace') {
               return false;
             }
 
-            const { state } = view;
-            const { selection } = state;
-
-            // Case 1: Multi-block selection (Cmd+A, Shift+Click)
-            if (isMultiBlockSelection(editor)) {
+            // Case 1: Multi-block selection (Shift+Click, Cmd+A)
+            const isMultiBlock = isMultiBlockSelection(editor);
+            if (isMultiBlock) {
               const blocks = getSelectedBlocks(editor);
-              const engine = getEngine(editor);
+              if (blocks && blocks.length > 1) {
+                event.preventDefault();
+                event.stopPropagation();
 
-              if (!engine) {
-                console.error(
-                  '[BlockDeletion] EditorEngine not found on editor instance'
+                console.log(
+                  `[BlockDeletion] Multi-block delete: ${blocks.length} blocks`
                 );
-                return false;
+
+                const blockIds = blocks
+                  .map((b) => b.node.attrs?.blockId)
+                  .filter(Boolean);
+
+                // Create explicit snapshot
+                if (!engine || !engine.blocks) {
+                  console.warn('[BlockDeletion] Engine or blocks not available');
+                  return false;
+                }
+
+                const engineSnapshot = {
+                  blocks: engine.blocks.map((b: any) => ({
+                    blockId: b.blockId,
+                    indent: b.indent,
+                  })),
+                };
+
+                // 🔒 DELEGATE TO AUTHORITY
+                performStructuralDelete({
+                  editor,
+                  engineSnapshot,
+                  blockIds,
+                  source: 'handle',
+                });
+
+                return true;
               }
+            }
+
+            // Case 2: Engine block selection (halo click)
+            if (engine.selection.kind === 'block') {
+              event.preventDefault();
+              event.stopPropagation();
+
+              const blockIds = engine.selection.blockIds;
 
               console.log(
-                `[BlockDeletion] Multi-block delete: ${blocks.length} blocks`
+                `[BlockDeletion] Engine block delete: ${blockIds.length} block(s)`
               );
 
-              // 🔥 FLAT MODEL: Use FlatIntentResolver for multi-block delete
-              // Get resolver from editor (attached by EditorCore)
-              const resolver = (editor as any)._resolver;
-              if (!resolver) {
-                console.error('[BlockDeletion] Resolver not found on editor');
+              // Create explicit snapshot
+              if (!engine.blocks) {
+                console.warn('[BlockDeletion] Engine blocks not available');
                 return false;
               }
 
-              // Delete each block using flat resolver
-              // Note: In flat model, deleting multiple blocks does NOT promote children
-              // (user explicitly selected the range, everything in it should be deleted)
-              for (const block of blocks) {
-                const blockId = block.node.attrs?.blockId;
-                if (blockId) {
-                  const result = resolver.resolve({
-                    type: 'delete-block',
-                    blockId,
-                    source: 'delete',
-                  });
-                  if (result.success) {
-                    console.log(
-                      `[BlockDeletion] ✅ Deleted block ${blockId}`
-                    );
-                  } else {
-                    console.warn(
-                      `[BlockDeletion] Delete failed for ${blockId}: ${result.reason}`
-                    );
-                  }
-                } else {
-                  console.warn(
-                    '[BlockDeletion] Block has no blockId, skipping',
-                    block
-                  );
-                }
-              }
+              const engineSnapshot = {
+                blocks: engine.blocks.map((b: any) => ({
+                  blockId: b.blockId,
+                  indent: b.indent,
+                })),
+              };
 
-              // ✅ CURSOR PLACEMENT HANDLED BY ENGINE
-              // Each delete-block intent places cursor correctly
-              // Final cursor position = END of block before deleted range
+              // 🔒 DELEGATE TO AUTHORITY
+              performStructuralDelete({
+                editor,
+                engineSnapshot,
+                blockIds,
+                source: 'handle',
+              });
 
-              return true; // Prevent default behavior
+              return true;
             }
 
-            // Case 2: Single node selection (clicked handle)
-            if (isNodeSelected(state)) {
-              const pos = selection.$from.pos;
-              const node = state.doc.nodeAt(pos);
-
-              if (node) {
-                // PHASE 3: Only process Engine blocks (not structural nodes)
-                // Engine blocks: paragraph, listBlock, toggleBlock, heading, etc.
-                // NOT: toggleHeaderNew, toggleContent, doc, text
-                const engineBlockTypes = [
-                  'paragraph',
-                  'listBlock',
-                  'toggleBlock',
-                  'heading',
-                  'blockquote',
-                  'callout',
-                  'codeBlock',
-                  'horizontalRule',
-                  'toggleHeader', // Legacy toggle (still in use)
-                ];
-
-                if (!engineBlockTypes.includes(node.type.name)) {
-                  // Structural node, not an Engine block - skip silently
-                  return false;
-                }
-
-                const blockId = node.attrs?.blockId;
-                const engine = getEngine(editor);
-
-                if (!engine) {
-                  console.error(
-                    '[BlockDeletion] EditorEngine not found on editor instance'
-                  );
-                  return false;
-                }
-
-                if (!blockId) {
-                  console.warn(
-                    '[BlockDeletion] Engine block has no blockId, skipping',
-                    node.type.name
-                  );
-                  return false;
-                }
-
-                console.log(`[BlockDeletion] Single node delete: ${blockId}`);
-
-                // 🔥 FLAT MODEL: Use FlatIntentResolver, not old DeleteBlockCommand
-                // Get resolver from editor (attached by EditorCore)
-                const resolver = (editor as any)._resolver;
-                if (resolver) {
-                  // Dispatch delete-block intent through flat resolver
-                  const result = resolver.resolve({
-                    type: 'delete-block',
-                    blockId,
-                    source: 'delete',
-                  });
-                  if (result.success) {
-                    console.log(
-                      `[BlockDeletion] ✅ Deleted block ${blockId} (children promoted)`
-                    );
-                  } else {
-                    console.warn(
-                      `[BlockDeletion] Delete failed: ${result.reason}`
-                    );
-                    return false;
-                  }
-                } else {
-                  console.error('[BlockDeletion] Resolver not found on editor');
-                  return false;
-                }
-
-                // ✅ CURSOR PLACEMENT HANDLED BY ENGINE
-                // FlatIntentResolver.handleDeleteBlock() already places cursor at END of previous block
-                // No need for requestAnimationFrame or manual cursor placement here
-
-                return true; // Prevent default behavior
-              }
-            }
-
-            // Not a block selection, let default behavior handle
+            // Case 3: Not a block selection → let keyboard rules handle
             return false;
           },
         },

@@ -64,10 +64,12 @@ export const Heading = Node.create({
       blockId: {
         default: null,
         parseHTML: (element) =>
-          element.getAttribute('data-block-id') || crypto.randomUUID(),
+          element.getAttribute('data-block-id') || null,
         renderHTML: (attributes) => {
-          const blockId = attributes.blockId || crypto.randomUUID();
-          return { 'data-block-id': blockId };
+          if (attributes.blockId) {
+            return { 'data-block-id': attributes.blockId };
+          }
+          return {};
         },
       },
       headingLevel: {

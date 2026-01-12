@@ -75,10 +75,12 @@ export const ListBlock = Node.create({
       blockId: {
         default: null,
         parseHTML: (element) =>
-          element.getAttribute('data-block-id') || crypto.randomUUID(),
+          element.getAttribute('data-block-id') || null,
         renderHTML: (attributes) => {
-          const blockId = attributes.blockId || crypto.randomUUID();
-          return { 'data-block-id': blockId };
+          if (attributes.blockId) {
+            return { 'data-block-id': attributes.blockId };
+          }
+          return {};
         },
       },
       listType: {
@@ -265,176 +267,11 @@ export const ListBlock = Node.create({
         */
       },
 
-      Delete: ({ editor }) => {
-        // 🔥 FLAT MODEL: ALL structural deletion handled by KeyboardShortcuts → FlatIntentResolver
-        // This node-level handler must NOT handle structural operations
-        // Return false → pass through to high-priority KeyboardShortcuts plugin
-        return false;
-
-        // LEGACY CODE BELOW (DISABLED IN FLAT MODEL)
-        /*
-        const { state } = editor;
-        const { selection } = state;
-        const { $from, empty } = selection;
-
-        // Only handle if selection is empty (cursor, not range)
-        if (!empty) return false;
-
-        // Get current list block
-        const currentListBlock = $from.parent;
-        if (currentListBlock.type.name !== 'listBlock') return false;
-
-        const listBlockPos = $from.before($from.depth);
-        const currentBlockId = currentListBlock.attrs?.blockId;
-        const isEmpty = currentListBlock.textContent.length === 0;
-
-        // Check if cursor is at end of block
-        const atEnd = $from.parentOffset === currentListBlock.content.size;
-
-        // CASE 1: EMPTY LIST BLOCK
-        if (isEmpty) {
-          // 🔒 EDITOR INVARIANT: Document must always contain ≥ 1 block
-          let blockCount = 0;
-          state.doc.descendants((node) => {
-            if (node.isBlock && node.type.name !== 'doc') {
-              blockCount++;
-            }
-          });
-
-          if (blockCount <= 1) {
-            console.log(
-              '🔒 [ListBlock.Delete] Cannot delete only block in document'
-            );
-            return false; // noop - preserve document invariant
-          }
-
-          const engine = getEngine(editor);
-          if (!engine) {
-            console.error('[ListBlock.Delete] EditorEngine not found');
-            return false;
-          }
-
-          if (!currentBlockId) {
-            console.warn('[ListBlock.Delete] No blockId found');
-            return false;
-          }
-
-          console.log(
-            `[ListBlock.Delete] Deleting empty list: ${currentBlockId}`
-          );
-
-          // ✅ USE ENGINE PRIMITIVE: Delete via DeleteBlockCommand
-          const cmd = new DeleteBlockCommand(currentBlockId);
-          engine.dispatch(cmd);
-
-          // Position cursor after engine processes deletion
-          requestAnimationFrame(() => {
-            const beforePos = Math.max(0, listBlockPos - 1);
-            try {
-              const $pos = editor.state.tr.doc.resolve(beforePos);
-              const selection = TextSelection.near($pos, -1);
-              const tr = editor.state.tr.setSelection(selection);
-              editor.view.dispatch(tr);
-            } catch (e) {
-              const $pos = editor.state.tr.doc.resolve(Math.max(0, beforePos));
-              const selection = TextSelection.near($pos);
-              const tr = editor.state.tr.setSelection(selection);
-              editor.view.dispatch(tr);
-            }
-          });
-
-          return true;
-        }
-
-        // CASE 2: NON-EMPTY LIST BLOCK
-        // ✅ EXPLICIT MERGE LOGIC (NO PM DEFAULT)
-        //
-        // Contract: Delete at end of non-empty block → merge next into current
-        // Survivor Rule: Current block survives (Destructive Survivor Rule)
-        // Engine Safety: Delete next → promotes its children
-
-        if (!atEnd) {
-          // Not at end - let PM handle character deletion
-          return false;
-        }
-
-        // At end of non-empty list - check for next block
-        const afterPos = listBlockPos + currentListBlock.nodeSize;
-        let nextBlockNode = null;
-
-        try {
-          const $after = state.doc.resolve(afterPos);
-          if ($after.nodeAfter) {
-            nextBlockNode = $after.nodeAfter;
-          }
-        } catch (e) {
-          // No next block
-        }
-
-        if (!nextBlockNode) {
-          // No next block - noop (at document end)
-          console.log('[ListBlock.Delete] At document end - noop');
-          return false;
-        }
-
-        // Check if next block is structural (cannot merge)
-        const isStructuralNext = ['codeBlock', 'divider', 'image'].includes(
-          nextBlockNode.type.name
-        );
-
-        if (isStructuralNext) {
-          console.log(
-            '[ListBlock.Delete] Cannot merge with structural block - noop'
-          );
-          return false;
-        }
-
-        // ✅ MERGE NEXT BLOCK INTO CURRENT
-        const nextBlockId = nextBlockNode.attrs?.blockId;
-        const engine = getEngine(editor);
-
-        if (!engine) {
-          console.error('[ListBlock.Delete] EditorEngine not found');
-          return false;
-        }
-
-        if (!currentBlockId || !nextBlockId) {
-          console.warn('[ListBlock.Delete] Missing blockIds for merge');
-          return false;
-        }
-
-        // Store cursor position at merge point (end of current list)
-        const mergePos = $from.pos;
-
-        // Extract next block's content BEFORE deletion
-        const nextContent = nextBlockNode.content;
-
-        console.log(
-          `[ListBlock.Delete] Merging next into current: ${nextBlockId}`
-        );
-
-        // ✅ USE ENGINE PRIMITIVE: Delete next block via DeleteBlockCommand
-        // This ensures next block's children are promoted (Editor Law #8)
-        const cmd = new DeleteBlockCommand(nextBlockId);
-        engine.dispatch(cmd);
-
-        // After engine deletion, insert content into current block
-        requestAnimationFrame(() => {
-          const { tr: newTr } = editor.state;
-          // Re-resolve merge position in new document
-          const newMergePos = Math.min(mergePos, newTr.doc.content.size - 1);
-
-          if (nextContent.size > 0) {
-            newTr.insert(newMergePos, nextContent);
-          }
-
-          // Position cursor at merge point
-          newTr.setSelection(TextSelection.create(newTr.doc, newMergePos));
-          editor.view.dispatch(newTr);
-        });
-
-        return true;
-        */
+      // 🔒 Delete - NEUTERED (Step 4 - Exclusive Ownership)
+      // ALL Delete behavior now handled by KeyboardShortcuts → KeyboardEngine → Rules
+      // Node extensions must NEVER mutate state in keyboard handlers.
+      Delete: () => {
+        return false; // Delegate to KeyboardEngine
       },
     };
   },

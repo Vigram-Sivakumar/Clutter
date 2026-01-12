@@ -262,15 +262,64 @@ export function BlockHandle({ editor, getPos, indent = 0 }: BlockHandleProps) {
     // Reset anchor and select just this block
     anchorBlockPos = pos;
     
-    // 🎯 FIX: For empty text blocks, place cursor inside (TextSelection)
-    // This prevents "halo lock" and allows immediate typing
+    // ═══════════════════════════════════════════════════════════════════════════
+    // 🔒 SELECTION INVARIANT: Halo click updates ENGINE selection, NOT PM selection
+    // ═══════════════════════════════════════════════════════════════════════════
+    //
+    // BEFORE (WRONG): editor.chain().focus().setNodeSelection(pos).run()
+    //   - Created PM NodeSelection
+    //   - Leaked view authority into model
+    //   - Caused delete/backspace/keyboard bugs
+    //
+    // AFTER (CORRECT): engine.selection = { kind: 'block', blockIds: [...] }
+    //   - Updates Engine selection only
+    //   - PM selection stays TextSelection (doesn't move)
+    //   - Halo is view affordance, not selection authority
+    //
+    // ═══════════════════════════════════════════════════════════════════════════
+    
     const node = editor.state.doc.nodeAt(pos);
-    if (node && node.isTextblock && node.content.size === 0) {
-      // Empty block: place cursor inside
-      editor.chain().focus().setTextSelection(pos + 1).run();
-    } else {
-      // Non-empty or container block: select the whole block
-      editor.chain().focus().setNodeSelection(pos).run();
+    if (!node) return;
+    
+    const blockId = node.attrs?.blockId;
+    if (!blockId) {
+      console.warn('[BlockHandle] Cannot select block without blockId');
+      return;
+    }
+    
+    // Get engine from editor (attached by EditorCore)
+    const engine = (editor as any)._engine;
+    if (!engine) {
+      console.warn('[BlockHandle] Engine not found on editor instance');
+      return;
+    }
+    
+    // Update ENGINE selection (not ProseMirror)
+    engine.selection = {
+      kind: 'block',
+      blockIds: [blockId],
+    };
+    
+    // Ensure editor has focus (but don't move cursor)
+    if (!editor.view.hasFocus()) {
+      editor.view.focus();
+    }
+    
+    console.log('[BlockHandle] Engine selection updated:', {
+      blockId: blockId.slice(0, 8),
+      pmSelectionType: editor.state.selection.constructor.name,
+    });
+    
+    // 🎯 EXCEPTION: For empty text blocks with explicit EDIT intent,
+    // place cursor inside to enable immediate typing.
+    // This is NOT for structural selection - it's for UX convenience.
+    //
+    // NOTE: This exception may be removed once Engine-driven cursor
+    // placement is implemented. For now, it's a contained UX improvement.
+    if (node.isTextblock && node.content.size === 0) {
+      // Empty block: place cursor inside for editing
+      editor.chain().setTextSelection(pos + 1).run();
+      console.log('[BlockHandle] Empty block: cursor placed for editing');
     }
   };
 

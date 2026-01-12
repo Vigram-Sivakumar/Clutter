@@ -58,10 +58,12 @@ export const Blockquote = Node.create({
     return {
       blockId: {
         default: null,
-        parseHTML: (element) => element.getAttribute('data-block-id') || crypto.randomUUID(),
+        parseHTML: (element) => element.getAttribute('data-block-id') || null,
         renderHTML: (attributes) => {
-          const blockId = attributes.blockId || crypto.randomUUID();
-          return { 'data-block-id': blockId };
+          if (attributes.blockId) {
+            return { 'data-block-id': attributes.blockId };
+          }
+          return {};
         },
       },
       // 🔥 FLAT MODEL: indent is the ONLY structural attribute
@@ -133,12 +135,18 @@ export const Blockquote = Node.create({
       // Shift+Enter: Insert line break (hard break)
       'Shift-Enter': createShiftEnterHandler('blockquote'),
 
-      // PHASE 2: Use generic wrapper handlers
-      // Enter in middle: insert line break (not split block)
-      // Enter at end: create paragraph after blockquote
-      // Backspace in empty: convert to paragraph
-      Enter: createWrapperEnterHandler('blockquote'),
-      Backspace: createWrapperBackspaceHandler('blockquote'),
+      // 🔒 Enter - NEUTERED (Step 4 - Exclusive Ownership)
+      // ALL Enter behavior now handled by KeyboardShortcuts → KeyboardEngine → Rules
+      // Node extensions must NEVER mutate state in keyboard handlers.
+      Enter: () => {
+        return false; // Delegate to KeyboardEngine
+      },
+
+      // 🔒 Backspace - NEUTERED (Step 4 - Exclusive Ownership)
+      // ALL Backspace behavior now handled by KeyboardShortcuts → KeyboardEngine → Rules
+      Backspace: () => {
+        return false; // Delegate to KeyboardEngine
+      },
     };
   },
 });

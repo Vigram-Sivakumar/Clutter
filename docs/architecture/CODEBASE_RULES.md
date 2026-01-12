@@ -99,7 +99,7 @@ These rules exist to keep the codebase **honest, refactorable, and scalable**.
 **Core Principle:** The editor never disappears. Only the document changes.
 
 **Implementation:**
-- Editor instance lifetime = note lifetime (enforced via `key={currentNoteId}`)
+- Editor instance lifetime = app lifetime (single instance reused across notes, content updated via props)
 - Editor mounts once per note, documents flow through it
 - No "Loading editor" spinners or blank states
 - Smooth 120ms opacity transition during note switches (0.92 opacity)

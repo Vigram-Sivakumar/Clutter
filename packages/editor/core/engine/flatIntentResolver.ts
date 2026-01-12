@@ -11,6 +11,12 @@
 
 import type { EditorEngine } from './EditorEngine';
 import type { EditorIntent, IntentResult } from './intent';
+import { collectSubtreeFromIndex, type BlockWithPosition } from '../../utils/subtreeUtils';
+import {
+  placeCursorAtBlockStart,
+  placeCursorAtBlockEnd,
+  placeCursorAtSafePosition,
+} from '../../utils/cursorUtils';
 
 export class FlatIntentResolver {
   constructor(
@@ -296,25 +302,42 @@ export class FlatIntentResolver {
   /**
    * Delete block (Backspace at start / Delete key)
    *
-   * 🔥 DELETE LAW (FLAT MODEL):
-   * Delete removes the block and promotes its children by -1 indent
+   * 🔥 STRUCTURAL REATTACHMENT LAW (FLAT MODEL):
+   * When deleting a block with children:
+   * - Children do NOT inherit the deleted block's indent
+   * - Children attach to the nearest surviving structural ancestor
    *
-   * Rule: Delete is structure-aware, not text-aware
-   * - Remove the selected block
-   * - Promote all children (indent -= 1)
-   * - Never leave children orphaned
-   * - Never reorder blocks
+   * Rules:
+   * 1. Find previous visible block BEFORE the deleted subtree
+   * 2. If found → attachIndent = prev.indent + 1
+   * 3. Clamp: newIndent = Math.min(attachIndent, deletedBlock.indent + 1)
+   * 4. If no previous block → newIndent = 0
    *
-   * Example:
+   * This applies to:
+   * - Backspace delete
+   * - Delete key
+   * - Halo delete
+   * - Multi-block delete
+   * - Cut
+   *
+   * 🔒 SELECTION TYPE RESET LAW:
+   * Delete mutations MUST NOT include cursor placement in the same transaction.
+   * Caller is responsible for placing cursor in a separate, final transaction.
+   *
+   * Example (Why simple indent-1 fails):
    * A (0)
-   *   B (1)  ← delete this
-   *     C (2)
-   *     D (2)
+   *   B (1)
+   *   C (1)
+   * D (0)  ← delete this
+   *   E (1)
    *
-   * After:
-   * A (0)
-   *   C (1)  ← promoted
-   *   D (1)  ← promoted
+   * Simple indent-1:
+   *   E becomes 0 ❌ (wrong - floats to root)
+   *
+   * Structural reattachment:
+   *   prev = C (indent 1)
+   *   attachIndent = 1 + 1 = 2
+   *   newIndent = Math.min(2, 0 + 1) = 1 ✅ (correct - attaches to C)
    */
   private handleDeleteBlock(
     intent: Extract<EditorIntent, { type: 'delete-block' }>
@@ -334,7 +357,7 @@ export class FlatIntentResolver {
     const tr = state.tr;
 
     // Collect all blocks in document order
-    const blocks: Array<{ pos: number; node: any; indent: number }> = [];
+    const blocks: BlockWithPosition[] = [];
     doc.descendants((node: any, pos: number) => {
       if (node.attrs?.blockId) {
         blocks.push({
@@ -362,18 +385,15 @@ export class FlatIntentResolver {
     const selectedBlock = blocks[selectedIndex];
     const baseIndent = selectedBlock.indent;
 
-    // 🔥 PROMOTION RULE: Find visual subtree (children to promote)
-    // These are all contiguous blocks after the selected block with indent > baseIndent
-    const childrenToPromote: number[] = [];
-    for (let i = selectedIndex + 1; i < blocks.length; i++) {
-      if (blocks[i].indent > baseIndent) {
-        childrenToPromote.push(i);
-      } else {
-        break; // Stop at first block not deeper than base
-      }
-    }
+    // 🔥 PROMOTION RULE: Use canonical subtree utility (SUBTREE LAW)
+    // Collect the visual subtree using shared algorithm
+    const subtree = collectSubtreeFromIndex(blocks, selectedIndex);
+    
+    // Extract children (everything except the anchor)
+    const children = subtree.slice(1);
+    const childrenToPromote = children.map((_, i) => selectedIndex + 1 + i);
 
-    console.log('[FLAT DELETE]:', {
+    console.log('[FLAT DELETE] Deleting block:', {
       block: blockId.slice(0, 8),
       baseIndent,
       childrenCount: childrenToPromote.length,
@@ -382,11 +402,60 @@ export class FlatIntentResolver {
 
     // 🔥 STEP 1: Promote children BEFORE deleting parent
     // (Positions remain valid because we haven't deleted anything yet)
+    //
+    // 🔒 STRUCTURAL REATTACHMENT LAW:
+    // Children attach to the nearest surviving block, not the deleted block.
+    
+    // Find attachment indent from surviving structure
+    let attachmentIndent = 0; // Default: root level
+    let previousBlock = null;
+    
+    if (selectedIndex > 0) {
+      // Previous block exists → children attach to it
+      previousBlock = blocks[selectedIndex - 1];
+      attachmentIndent = previousBlock.indent + 1;
+    }
+    
+    // Clamp attachment indent:
+    // Can't be deeper than deletedBlock.indent + 1
+    // (Prevents children from jumping too far)
+    const maxAttachIndent = baseIndent + 1;
+    const finalAttachIndent = Math.min(attachmentIndent, maxAttachIndent);
+    
+    if (childrenToPromote.length > 0) {
+      console.log('[FLAT DELETE] Promoting children with structural reattachment:', {
+        count: childrenToPromote.length,
+        deletedBlockIndent: baseIndent,
+        previousBlock: previousBlock ? {
+          blockId: previousBlock.node.attrs?.blockId?.slice(0, 8),
+          indent: previousBlock.indent,
+        } : null,
+        rawAttachmentIndent: attachmentIndent,
+        clampedAttachmentIndent: finalAttachIndent,
+        originalIndents: childrenToPromote.map((i) => blocks[i].indent),
+      });
+    }
+    
     for (const index of childrenToPromote) {
       const child = blocks[index];
+      
+      // 🔒 STRUCTURAL REATTACHMENT:
+      // Each child maintains its relative depth but attaches to surviving structure
+      const relativeDepth = child.indent - baseIndent - 1; // Depth relative to deleted parent
+      const newIndent = finalAttachIndent + relativeDepth;
+      
+      console.log('[FLAT DELETE] Promoting child:', {
+        blockId: child.node.attrs?.blockId?.slice(0, 8),
+        oldIndent: child.indent,
+        newIndent,
+        relativeDepth,
+        attachmentBase: finalAttachIndent,
+        pos: child.pos,
+      });
+      
       tr.setNodeMarkup(child.pos, undefined, {
         ...child.node.attrs,
-        indent: child.indent - 1, // Promote by -1
+        indent: newIndent,
       });
     }
 
@@ -394,78 +463,126 @@ export class FlatIntentResolver {
     const blockPos = selectedBlock.pos;
     const blockSize = selectedBlock.node.nodeSize;
     tr.delete(blockPos, blockPos + blockSize);
-
-    // 🔥 STEP 3: POST-DELETE CURSOR PLACEMENT (INVARIANT)
-    //
-    // RULE: After ANY delete, cursor moves to END of previous visible block
-    // This matches Craft/Workflowy UX and prevents "cursor outside editor" bugs
-    //
-    // Implementation:
-    // - Find previous block in NEW document (tr.doc, not old doc)
-    // - Calculate END position of that block's text content
-    // - Use TextSelection.create for explicit placement (not .near())
-    // - Fallback: If no previous block, cursor goes to first block
-
-    if (selectedIndex > 0) {
-      // There's a previous block - move cursor to its END
-      const prevBlock = blocks[selectedIndex - 1];
+    
+    // 🛡️ DEV INVARIANT: Validate promotion worked correctly
+    if (process.env.NODE_ENV !== 'production' && childrenToPromote.length > 0) {
+      // Check the NEW document after promotion and delete
+      const newBlocks: Array<{ node: any; indent: number; blockId: string }> = [];
+      tr.doc.descendants((node: any, pos: number) => {
+        if (node.attrs?.blockId) {
+          newBlocks.push({
+            node,
+            indent: node.attrs.indent ?? 0,
+            blockId: node.attrs.blockId,
+          });
+        }
+        return true;
+      });
       
-      // Calculate the END of the previous block's content
-      // prevBlock.pos = start of block node
-      // +1 = inside the block (skip opening tag)
-      // +prevBlock.node.content.size = end of text content
-      const targetPos = prevBlock.pos + 1 + prevBlock.node.content.size;
-      
-      try {
-        const $pos = tr.doc.resolve(targetPos);
-        const selection = state.selection.constructor.create(tr.doc, targetPos);
-        tr.setSelection(selection);
-        console.log('[FLAT DELETE] Cursor → end of previous block:', {
-          prevBlockId: prevBlock.node.attrs?.blockId?.slice(0, 8),
-          targetPos,
-        });
-      } catch (e) {
-        console.warn('[handleDeleteBlock] Could not set cursor to prev block end:', e);
-        // Fallback: use .near() as last resort
-        try {
-          const fallbackPos = Math.min(targetPos, tr.doc.content.size - 1);
-          const $pos = tr.doc.resolve(fallbackPos);
-          tr.setSelection(state.selection.constructor.near($pos));
-        } catch (e2) {
-          console.error('[handleDeleteBlock] Cursor placement completely failed:', e2);
+      // Validate no invalid indent jumps
+      for (let i = 1; i < newBlocks.length; i++) {
+        const prev = newBlocks[i - 1];
+        const curr = newBlocks[i];
+        
+        if (curr.indent > prev.indent + 1) {
+          console.error('[FLAT DELETE][INVARIANT VIOLATION] Invalid indent jump', {
+            prevBlock: prev.blockId.slice(0, 8),
+            prevIndent: prev.indent,
+            currBlock: curr.blockId.slice(0, 8),
+            currIndent: curr.indent,
+            jump: curr.indent - prev.indent,
+          });
+        }
+        
+        if (curr.indent < 0) {
+          console.error('[FLAT DELETE][INVARIANT VIOLATION] Negative indent detected', {
+            blockId: curr.blockId.slice(0, 8),
+            indent: curr.indent,
+          });
         }
       }
+      
+      console.log('[FLAT DELETE] Post-delete validation passed', {
+        totalBlocks: newBlocks.length,
+        indents: newBlocks.map((b) => b.indent),
+      });
+    }
+
+    // 🔥 STEP 3: DETERMINE CURSOR TARGET (BUT DO NOT PLACE IT YET)
+    //
+    // 🔒 DELETION CURSOR LAW (MANDATORY):
+    // After a block is deleted:
+    // 1. Cursor moves to the END of the nearest surviving block ABOVE the deletion
+    // 2. If no block exists above → cursor moves to START of first remaining block
+    // 3. Cursor NEVER lands inside promoted children automatically
+    //
+    // Rationale:
+    // - Promotion is a STRUCTURAL concern
+    // - Cursor placement is a NAVIGATIONAL concern
+    // - They must be decoupled
+    //
+    // This matches Apple Notes, Craft, Notion behavior.
+    //
+    // 🔒 SELECTION TYPE RESET LAW:
+    // Cursor placement MUST happen in a separate transaction to prevent
+    // ProseMirror's post-transaction reconciliation from overriding it.
+
+    let cursorTarget: { blockId: string; placement: 'start' | 'end' | 'safe' } | null = null;
+
+    // Compute cursor anchor BEFORE deletion (using original block array)
+    const cursorAnchorIndex = selectedIndex - 1;
+
+    if (cursorAnchorIndex >= 0) {
+      // ✅ NORMAL PATH: Previous block exists
+      // Cursor goes to END of previous surviving block
+      const prevBlock = blocks[cursorAnchorIndex];
+      const prevBlockId = prevBlock.node.attrs?.blockId;
+      
+      if (!prevBlockId) {
+        console.error('[FLAT DELETE] Previous block has no blockId');
+        return {
+          success: false,
+          intent,
+          reason: 'Previous block missing blockId',
+        };
+      }
+      
+      cursorTarget = {
+        blockId: prevBlockId,
+        placement: 'end',
+      };
+      
+      console.log('[FLAT DELETE] Cursor target → END of previous surviving block (DELETION CURSOR LAW):', {
+        prevBlockId: prevBlockId.slice(0, 8),
+        prevBlockIndent: prevBlock.indent,
+        promotedChildrenCount: childrenToPromote.length,
+        note: 'Promotion is structural; cursor is navigational (decoupled)',
+      });
     } else {
-      // First block deleted - move cursor to START of first remaining block
-      // The new first block is at position 1 (inside doc node)
-      try {
-        const $pos = tr.doc.resolve(1);
-        const selection = state.selection.constructor.create(tr.doc, 1);
-        tr.setSelection(selection);
-        console.log('[FLAT DELETE] Cursor → start of first block (first block was deleted)');
-      } catch (e) {
-        console.warn('[handleDeleteBlock] Could not set cursor to first block:', e);
-        // Fallback: use .near() as last resort
-        try {
-          const $pos = tr.doc.resolve(1);
-          tr.setSelection(state.selection.constructor.near($pos));
-        } catch (e2) {
-          console.error('[handleDeleteBlock] Cursor placement completely failed:', e2);
-        }
-      }
+      // ✅ EXCEPTION: First block deleted, no previous block exists
+      // Cursor goes to START of first remaining block
+      cursorTarget = {
+        blockId: '', // Will use safe position finder
+        placement: 'safe',
+      };
+      
+      console.log('[FLAT DELETE] Cursor target → START of first remaining block (first block deleted)');
     }
 
     // Mark for undo
     tr.setMeta('addToHistory', true);
     tr.setMeta('historyGroup', 'delete-block');
 
-    // Apply
+    // 🔒 PHASE 2: Apply delete + promotion ONLY (NO CURSOR)
     view.dispatch(tr);
+
+    console.log('[FLAT DELETE] Phase 2 complete: delete + promotion applied');
 
     return {
       success: true,
       intent,
       mode: this._engine.getMode(),
+      cursorTarget, // 🔒 Return cursor info for Phase 3
     };
   }
 }

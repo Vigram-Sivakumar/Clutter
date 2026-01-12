@@ -43,10 +43,12 @@ export const Callout = Node.create({
     return {
       blockId: {
         default: null,
-        parseHTML: (element) => element.getAttribute('data-block-id') || crypto.randomUUID(),
+        parseHTML: (element) => element.getAttribute('data-block-id') || null,
         renderHTML: (attributes) => {
-          const blockId = attributes.blockId || crypto.randomUUID();
-          return { 'data-block-id': blockId };
+          if (attributes.blockId) {
+            return { 'data-block-id': attributes.blockId };
+          }
+          return {};
         },
       },
       type: {
@@ -105,9 +107,18 @@ export const Callout = Node.create({
 
       'Shift-Enter': createShiftEnterHandler('callout'),
       
-      // PHASE 2: Use generic wrapper handlers
-      Backspace: createWrapperBackspaceHandler('callout'),
-      Enter: createWrapperEnterHandler('callout'),
+      // 🔒 Enter - NEUTERED (Step 4 - Exclusive Ownership)
+      // ALL Enter behavior now handled by KeyboardShortcuts → KeyboardEngine → Rules
+      // Node extensions must NEVER mutate state in keyboard handlers.
+      Enter: () => {
+        return false; // Delegate to KeyboardEngine
+      },
+
+      // 🔒 Backspace - NEUTERED (Step 4 - Exclusive Ownership)
+      // ALL Backspace behavior now handled by KeyboardShortcuts → KeyboardEngine → Rules
+      Backspace: () => {
+        return false; // Delegate to KeyboardEngine
+      },
     };
   },
 });

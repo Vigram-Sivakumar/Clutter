@@ -24,12 +24,21 @@
 
 import { defineRule } from '../../types/KeyboardRule';
 import { createBlock } from '../../../../core/createBlock';
+import { isStructuralDeleteInProgress } from '../../../../core/structuralDeleteState';
 
 export const normalizeEmptyBlock = defineRule({
   id: 'backspace:normalizeEmptyBlock',
   priority: 110, // HIGHEST - must run before all block-specific rules
+  stopPropagation: true, // 🔒 TERMINAL - prevent any further Backspace processing
   
   when: ({ state }) => {
+    // 🔒 CURSOR AUTHORITY LAW: Skip if structural delete is in progress
+    // Normalization is a text-level rule; structural delete wins
+    if (isStructuralDeleteInProgress()) {
+      console.log('[Backspace][Normalize] Skipped (structural delete in progress)');
+      return false;
+    }
+    
     const { selection, doc } = state;
     const { $from } = selection;
     
@@ -57,26 +66,30 @@ export const normalizeEmptyBlock = defineRule({
     const depth = $from.depth;
     const currentBlock = $from.node(depth);
     const blockPos = $from.before(depth);
+    const indent = currentBlock.attrs?.indent ?? 0;
     
-    console.log('[Backspace] Normalizing empty block to paragraph', {
+    console.log('[Backspace][Normalize] TERMINAL - Converting empty block to paragraph', {
       blockType: currentBlock.type.name,
-      indent: currentBlock.attrs?.indent ?? 0,
-      blockId: currentBlock.attrs?.blockId,
+      indent,
+      blockId: currentBlock.attrs?.blockId?.slice(0, 8),
+      atRoot: indent === 0,
     });
     
     // 🛡️ GUARD: Cannot normalize if no blockId (shouldn't happen)
     if (!currentBlock.attrs?.blockId) {
-      console.error('[Backspace] Cannot normalize block without blockId');
+      console.error('[Backspace][Normalize] Cannot normalize block without blockId');
       return false;
     }
+    
+    // 🔒 EMPTY ROOT BLOCK LAW:
+    // If this block is at indent=0 and empty, this normalization is TERMINAL.
+    // NO delete logic should run afterward. This is a conversion, not a deletion.
+    const isRootBlock = indent === 0;
     
     editor.commands.command(({ state: cmdState, dispatch }) => {
       if (!dispatch) return false;
       
       const tr = cmdState.tr;
-      
-      // Get indent to preserve
-      const indent = currentBlock.attrs.indent ?? 0;
       
       // Delete current block
       const blockEnd = blockPos + currentBlock.nodeSize;
@@ -90,7 +103,7 @@ export const normalizeEmptyBlock = defineRule({
       });
       
       if (!paragraph) {
-        console.error('[Backspace] Failed to create paragraph during normalization');
+        console.error('[Backspace][Normalize] Failed to create paragraph during normalization');
         return false;
       }
       
@@ -101,10 +114,22 @@ export const normalizeEmptyBlock = defineRule({
       tr.setMeta('addToHistory', true);
       tr.setMeta('closeHistory', true); // Each normalization is its own undo step
       
+      // 🔒 CRITICAL: Mark this transaction as TERMINAL
+      // This prevents any delete/merge logic from running afterward
+      tr.setMeta('blockNormalized', true);
+      tr.setMeta('terminalBackspace', true);
+      tr.setMeta('keyboardNormalization', true); // 🛡️ For DEV invariant checking
+      
       dispatch(tr);
       return true;
     });
     
+    console.log('[Backspace][Normalize] Event CONSUMED - no further processing', {
+      isRootBlock,
+    });
+    
+    // 🔒 RETURN TRUE = CONSUME EVENT
+    // This MUST prevent any further Backspace processing
     return true;
   },
 });

@@ -30,37 +30,25 @@ import type { Editor } from '@tiptap/core';
 import { createKeyboardEngine } from '../engine/KeyboardEngine';
 import type { IntentResolver } from '../../../core/engine';
 import type { KeyHandlingResult } from '../types/KeyHandlingResult';
-// FLAT TOGGLE FIX: Re-enable exit rules for empty list items
+// 🔒 STRUCTURAL ENTER: All Enter operations delegate to performStructuralEnter
 import {
   enterOnSelectedBlocks, // Priority 1000 - HIGHEST: ANY halo-selected blocks (single or multi) 🔒
   enterToggleCreatesChild, // Priority 120 - toggle creates child (not split)
   exitEmptyBlockInToggle, // Priority 115 - outdent empty indented blocks
-  splitListItem,
-  normalizeEmptyBlockOnEnter, // Priority 105 - UNIVERSAL: empty non-paragraph/list → paragraph below
-  // exitEmptyListInWrapper, // Not needed for flat schema
-  outdentEmptyList, // RE-ENABLED: Outdent empty nested lists
-  exitEmptyList, // RE-ENABLED: Convert empty root lists to paragraph
-  // exitEmptyHeading, // Let PM handle
-  // exitEmptyWrapper, // Let PM handle
-  // createParagraphAfterHeading, // Let PM handle
+  outdentEmptyList, // Priority 90 - outdent empty nested lists
+  exitEmptyList, // Priority 85 - convert empty root lists to paragraph
+  enterEmptyBlockFallback, // Priority -1000 - GLOBAL FALLBACK (delegates to authority)
 } from '../rules/enter';
-import { enterEmptyBlockFallback } from '../rules/enter/enterEmptyBlockFallback'; // Priority -1000 - GLOBAL FALLBACK (ALWAYS HANDLES ENTER)
 
 // Rules for Enter key
-// FLAT TOGGLE FIX: Re-enabled exit rules for proper empty list handling
+// 🔒 STRUCTURAL ENTER: All rules delegate to performStructuralEnter authority
 const enterRules = [
   enterOnSelectedBlocks, // Priority 1000 - HIGHEST: ANY halo-selected blocks (single or multi) 🔒
   enterToggleCreatesChild, // Priority 120 - toggle creates child before split
   exitEmptyBlockInToggle, // Priority 115 - outdent empty indented blocks
-  splitListItem, // Priority 110 - split non-empty list items
-  normalizeEmptyBlockOnEnter, // Priority 105 - UNIVERSAL: empty non-paragraph/list → paragraph below
-  // exitEmptyListInWrapper, // Not needed - flat schema
-  outdentEmptyList, // RE-ENABLED: Priority 95 - outdent empty nested lists
-  exitEmptyList, // RE-ENABLED: Priority 90 - convert empty root lists to paragraph
-  // exitEmptyHeading, // Let PM handle naturally
-  // exitEmptyWrapper, // Let PM handle naturally
-  // createParagraphAfterHeading, // Let PM handle naturally
-  enterEmptyBlockFallback, // Priority -1000 - GLOBAL FALLBACK (ALWAYS HANDLES ENTER) 🔒
+  outdentEmptyList, // Priority 90 - outdent empty nested lists
+  exitEmptyList, // Priority 85 - convert empty root lists to paragraph
+  enterEmptyBlockFallback, // Priority -1000 - GLOBAL FALLBACK (delegates to authority) 🔒
 ];
 
 // Create engine (will be initialized with resolver per-editor)

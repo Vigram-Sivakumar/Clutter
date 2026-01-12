@@ -44,6 +44,9 @@ export type CreateBlockOptions = {
   /** Indent level (default: 0) */
   indent?: number;
   
+  /** Block ID (if provided, uses this; otherwise generates new UUID) */
+  blockId?: string;
+  
   /** Additional attributes (e.g., listType, collapsed, etc.) */
   attrs?: Record<string, any>;
   
@@ -76,7 +79,7 @@ export function createBlock(
   tr: Transaction,
   options: CreateBlockOptions
 ): PMNode | null {
-  const { type, insertPos, indent = 0, attrs = {}, content = null } = options;
+  const { type, insertPos, indent = 0, blockId, attrs = {}, content = null } = options;
 
   // Lookup node type from schema
   const nodeType = state.schema.nodes[type];
@@ -97,9 +100,10 @@ export function createBlock(
 
   // 🔑 Create node with guaranteed blockId and indent
   // Content parameter supports split operations (Enter in middle of block)
+  // 🔒 BLOCK IDENTITY LAW: Use provided blockId if available, otherwise generate new UUID
   const node = nodeType.create(
     {
-      blockId: crypto.randomUUID(), // 🔒 ALWAYS new ID
+      blockId: blockId || crypto.randomUUID(), // 🔒 Explicit ID or new ID
       indent, // 🔒 ALWAYS explicit
       ...attrs, // Additional attrs (listType, collapsed, etc.)
     },

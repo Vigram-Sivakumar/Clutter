@@ -1991,7 +1991,6 @@ export const NoteEditor = ({
                 }}
               >
                 <TipTapWrapper
-                  key={currentNoteId}
                   ref={editorRef}
                   value={
                     editorState.status === 'ready'
