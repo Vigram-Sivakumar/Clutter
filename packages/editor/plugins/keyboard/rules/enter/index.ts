@@ -5,10 +5,11 @@
  * Exported in priority order (highest first).
  */
 
-export * from './enterOnSelectedBlock'; // Priority 1000 - HIGHEST: ANY halo-selected blocks (single or multi)
+export * from './enterOnSelectedBlock'; // Priority 1000 - halo-selected blocks (single or multi)
 export * from './enterToggleCreatesChild'; // Priority 120 - toggle creates child
 export * from './exitEmptyBlockInToggle'; // Priority 115 - exit nested/toggle blocks first
 export * from './splitListItem'; // Priority 110 - split non-empty lists
+export * from './normalizeEmptyBlockOnEnter'; // Priority 105 - UNIVERSAL: empty non-paragraph/list → paragraph below
 export * from './exitEmptyListInWrapper'; // Priority 100
 export * from './enterSkipHiddenBlocks'; // Priority 95 - STEP 2: skip collapsed subtrees
 export * from './outdentEmptyList'; // Priority 90

@@ -36,6 +36,7 @@ import {
   enterToggleCreatesChild, // Priority 120 - toggle creates child (not split)
   exitEmptyBlockInToggle, // Priority 115 - outdent empty indented blocks
   splitListItem,
+  normalizeEmptyBlockOnEnter, // Priority 105 - UNIVERSAL: empty non-paragraph/list → paragraph below
   // exitEmptyListInWrapper, // Not needed for flat schema
   outdentEmptyList, // RE-ENABLED: Outdent empty nested lists
   exitEmptyList, // RE-ENABLED: Convert empty root lists to paragraph
@@ -52,6 +53,7 @@ const enterRules = [
   enterToggleCreatesChild, // Priority 120 - toggle creates child before split
   exitEmptyBlockInToggle, // Priority 115 - outdent empty indented blocks
   splitListItem, // Priority 110 - split non-empty list items
+  normalizeEmptyBlockOnEnter, // Priority 105 - UNIVERSAL: empty non-paragraph/list → paragraph below
   // exitEmptyListInWrapper, // Not needed - flat schema
   outdentEmptyList, // RE-ENABLED: Priority 95 - outdent empty nested lists
   exitEmptyList, // RE-ENABLED: Priority 90 - convert empty root lists to paragraph

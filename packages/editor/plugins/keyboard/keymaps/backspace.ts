@@ -32,16 +32,18 @@ import type { IntentResolver } from '../../../core/engine';
 import type { KeyHandlingResult } from '../types/KeyHandlingResult';
 // FLAT MODEL: Re-enable rules for proper empty list → paragraph flow
 import {
-  deleteEmptyParagraph,
+  normalizeEmptyBlock, // UNIVERSAL: empty non-paragraph → paragraph (priority 110)
   outdentEmptyList, // Converts empty list to paragraph (priority 105)
+  deleteEmptyParagraph,
   // exitEmptyWrapper, // Still disabled
   mergeWithStructuralBlock,
 } from '../rules/backspace';
 
 // Rules for Backspace key (sorted by priority internally by KeyboardEngine)
 const backspaceRules = [
-  outdentEmptyList, // Priority 105 - convert empty list to paragraph first
-  deleteEmptyParagraph, // Priority 100 - delete empty paragraph second
+  normalizeEmptyBlock, // Priority 110 - UNIVERSAL empty block → paragraph (all types)
+  outdentEmptyList, // Priority 105 - empty list → paragraph (list-specific, backup)
+  deleteEmptyParagraph, // Priority 100 - delete empty paragraph
   mergeWithStructuralBlock, // Safety guard for structural blocks
 ];
 
