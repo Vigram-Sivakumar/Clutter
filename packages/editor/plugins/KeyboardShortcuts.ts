@@ -117,8 +117,15 @@ export const KeyboardShortcuts = Extension.create({
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
       // ✂️ COPY: Serialize selected blocks to internal clipboard
-      'Mod-c': ({ editor }) => {
-        console.log('[Clipboard] Cmd/Ctrl+C pressed');
+      'Mod-c': (props: any) => {
+        const { editor, event } = props;
+        
+        // 🔒 PHYSICAL SEAL: Block native clipboard + PM clipboard at DOM level
+        // Returning true is NOT enough - must explicitly prevent default
+        event?.preventDefault();
+        event?.stopPropagation();
+        
+        console.log('[Clipboard] Cmd/Ctrl+C pressed (event sealed)');
         
         const { state } = editor;
         
@@ -130,15 +137,23 @@ export const KeyboardShortcuts = Extension.create({
         
         copyToClipboard(state);
         
-        // 🔒 CRITICAL: ALWAYS consume Cmd+C, NEVER delegate to PM
-        // PM default copy is FORBIDDEN (causes blockId duplication)
-        console.log('[Clipboard] Copy complete, event consumed');
+        // 🔒 CRITICAL: clipboardManager.ts is now sole authority
+        // Browser clipboard: ❌ blocked
+        // ProseMirror clipboard: ❌ blocked
+        // clipboardManager.ts: ✅ sole owner
+        console.log('[Clipboard] Copy complete, event physically sealed');
         return true;
       },
 
       // ✂️ CUT: Copy + delete selected blocks
-      'Mod-x': ({ editor }) => {
-        console.log('[Clipboard] Cmd/Ctrl+X pressed');
+      'Mod-x': (props: any) => {
+        const { editor, event } = props;
+        
+        // 🔒 PHYSICAL SEAL: Block native clipboard + PM clipboard at DOM level
+        event?.preventDefault();
+        event?.stopPropagation();
+        
+        console.log('[Clipboard] Cmd/Ctrl+X pressed (event sealed)');
         
         const { state, view } = editor;
         
@@ -150,20 +165,28 @@ export const KeyboardShortcuts = Extension.create({
         
         cutToClipboard(state, view.dispatch.bind(view));
         
-        // 🔒 CRITICAL: ALWAYS consume Cmd+X, NEVER delegate to PM
-        // PM default cut is FORBIDDEN (causes blockId duplication)
-        console.log('[Clipboard] Cut complete, event consumed');
+        // 🔒 CRITICAL: clipboardManager.ts is now sole authority
+        // Browser clipboard: ❌ blocked
+        // ProseMirror clipboard: ❌ blocked
+        // clipboardManager.ts: ✅ sole owner
+        console.log('[Clipboard] Cut complete, event physically sealed');
         return true;
       },
 
       // 📋 PASTE: Insert from internal or external clipboard
-      'Mod-v': ({ editor }) => {
-        console.log('[Clipboard] Cmd/Ctrl+V pressed');
+      'Mod-v': (props: any) => {
+        const { editor, event } = props;
+        
+        // 🔒 PHYSICAL SEAL: Block native clipboard + PM clipboard at DOM level
+        event?.preventDefault();
+        event?.stopPropagation();
+        
+        console.log('[Clipboard] Cmd/Ctrl+V pressed (event sealed)');
         
         const { state, view } = editor;
         const clipboardState = getClipboardState();
         
-        // 🔒 PHASE 3: NEVER fall back to PM default paste
+        // 🔒 CRITICAL: NEVER fall back to PM default paste
         // PM default paste causes blockId duplication and structural corruption.
         // If internal clipboard is empty, do nothing (safe no-op).
         
@@ -183,7 +206,7 @@ export const KeyboardShortcuts = Extension.create({
         } else {
           // ⚠️ NO INTERNAL CLIPBOARD: Do nothing (safe no-op)
           // External clipboard support will be added in Step 3C
-          console.warn('[Clipboard] No internal clipboard, ignoring paste');
+          console.warn('[Clipboard] No internal clipboard, ignoring paste (event sealed)');
           return true; // Consume event (do not delegate to PM)
         }
       },
