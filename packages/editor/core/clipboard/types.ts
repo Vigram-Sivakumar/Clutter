@@ -23,7 +23,7 @@
  */
 
 import type { Node as PMNode } from '@tiptap/pm/model';
-import type { BlockType } from '../engine/types';
+import type { BlockType } from '../../types';
 
 /**
  * Internal clipboard payload (memory only)

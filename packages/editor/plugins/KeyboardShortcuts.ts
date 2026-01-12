@@ -27,7 +27,6 @@ import {
   copyToClipboard,
   cutToClipboard,
   pasteFromClipboard,
-  pasteExternalText,
   getClipboardState,
 } from '../core/clipboard/clipboardManager';
 
@@ -90,7 +89,7 @@ export const KeyboardShortcuts = Extension.create({
       // Must run at high priority (before ListBlock node handler)
       // For now, returns false to allow default PM behavior
       // TODO: Add proper Delete key rules if needed
-      Delete: ({ editor }) => {
+      Delete: () => {
         // Let ProseMirror handle Delete key for now
         // In flat model, block selection delete is handled by PM default behavior
         return false;
@@ -125,19 +124,16 @@ export const KeyboardShortcuts = Extension.create({
         
         // 🛡️ GUARD: Don't copy empty selection
         if (state.selection.empty) {
-          console.log('[Clipboard] Empty selection, allowing default copy');
-          return false;
+          console.log('[Clipboard] Empty selection, no-op');
+          return true; // Consume event, don't delegate to PM
         }
         
-        const success = copyToClipboard(state);
+        copyToClipboard(state);
         
-        if (success) {
-          console.log('[Clipboard] Copy succeeded, preventing default');
-          return true; // Prevent default browser copy
-        } else {
-          console.warn('[Clipboard] Copy failed, allowing default');
-          return false;
-        }
+        // 🔒 CRITICAL: ALWAYS consume Cmd+C, NEVER delegate to PM
+        // PM default copy is FORBIDDEN (causes blockId duplication)
+        console.log('[Clipboard] Copy complete, event consumed');
+        return true;
       },
 
       // ✂️ CUT: Copy + delete selected blocks
@@ -148,19 +144,16 @@ export const KeyboardShortcuts = Extension.create({
         
         // 🛡️ GUARD: Don't cut empty selection
         if (state.selection.empty) {
-          console.log('[Clipboard] Empty selection, allowing default cut');
-          return false;
+          console.log('[Clipboard] Empty selection, no-op');
+          return true; // Consume event, don't delegate to PM
         }
         
-        const success = cutToClipboard(state, view.dispatch.bind(view));
+        cutToClipboard(state, view.dispatch.bind(view));
         
-        if (success) {
-          console.log('[Clipboard] Cut succeeded, preventing default');
-          return true; // Prevent default browser cut
-        } else {
-          console.warn('[Clipboard] Cut failed, allowing default');
-          return false;
-        }
+        // 🔒 CRITICAL: ALWAYS consume Cmd+X, NEVER delegate to PM
+        // PM default cut is FORBIDDEN (causes blockId duplication)
+        console.log('[Clipboard] Cut complete, event consumed');
+        return true;
       },
 
       // 📋 PASTE: Insert from internal or external clipboard

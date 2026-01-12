@@ -9,7 +9,7 @@ import type { EditorState, Transaction } from '@tiptap/pm/state';
 import type { Node as PMNode } from '@tiptap/pm/model';
 import { TextSelection, NodeSelection, AllSelection } from '@tiptap/pm/state';
 import type { ClipboardPayloadV1, ClipboardState } from './types';
-import type { BlockType } from '../engine/types';
+import type { BlockType } from '../../types';
 import { createBlock } from '../createBlock';
 
 /**
@@ -56,10 +56,20 @@ function isCopyableBlockType(typeName: string): typeName is BlockType {
 }
 
 /**
- * 🔧 PHASE 2: Resolve blocks from TextSelection
+ * 🔧 CANONICAL BLOCK RESOLVER (Step 3B.3 Phase 3)
  * 
- * TextSelection can span text inside blocks, but we always copy WHOLE blocks.
- * This derives the owning blocks from the text selection range.
+ * 🔒 ARCHITECTURAL LAW: Clipboard must be block-first, never node-first.
+ * 
+ * TextSelection can span text inside blocks, but we ALWAYS copy WHOLE blocks.
+ * This resolves the owning top-level blocks from ANY selection type.
+ * 
+ * This function MUST NEVER see text nodes. If it does, that's a bug.
+ * 
+ * Algorithm:
+ * 1. Iterate top-level blocks only (doc.content direct children)
+ * 2. Check if block intersects selection range
+ * 3. Skip text nodes, inline nodes, non-blocks entirely
+ * 4. Fallback: if no blocks found, resolve cursor's owning block
  */
 function resolveBlocksFromSelection(
   doc: PMNode,
@@ -69,26 +79,65 @@ function resolveBlocksFromSelection(
   const blocks: PMNode[] = [];
   const seen = new Set<number>();
   
-  doc.nodesBetween(from, to, (node, pos) => {
-    // Only process top-level blocks (depth 1)
-    const $pos = doc.resolve(pos);
-    if ($pos.depth !== 1) return;
+  // 🎯 STRATEGY: Iterate top-level blocks (doc children), not all nodes
+  doc.forEach((node, offset, _index) => {
+    const blockStart = offset;
+    const blockEnd = offset + node.nodeSize;
     
-    // Skip if already seen (nodesBetween can visit same node multiple times)
-    if (seen.has(pos)) return;
-    seen.add(pos);
+    // Check if this block intersects the selection range
+    const intersects = blockStart < to && blockEnd > from;
+    if (!intersects) return;
+    
+    // Skip if already processed
+    if (seen.has(blockStart)) return;
+    seen.add(blockStart);
+    
+    // 🛡️ INVARIANT: We should NEVER see text nodes here
+    if (node.type.name === 'text') {
+      throw new Error(
+        `[Clipboard][INVARIANT VIOLATION] Text node reached block-level logic (pos: ${blockStart})`
+      );
+    }
+    
+    // 🛡️ GUARD: Only top-level blocks
+    if (!node.type.isBlock) {
+      console.warn('[Clipboard] Skipping non-block node', {
+        type: node.type.name,
+        pos: blockStart,
+      });
+      return;
+    }
     
     // 🛡️ GUARD: Only copyable block types
     if (!isCopyableBlockType(node.type.name)) {
-      console.warn('[Clipboard] Skipping non-copyable block', {
+      console.warn('[Clipboard] Skipping non-copyable block type', {
         type: node.type.name,
-        pos,
+        pos: blockStart,
       });
       return;
     }
     
     blocks.push(node);
   });
+  
+  // Fallback: if no blocks found, try to resolve cursor's owning block
+  if (blocks.length === 0) {
+    try {
+      const $from = doc.resolve(from);
+      const depth = $from.depth;
+      const owningBlock = $from.node(depth);
+      
+      if (owningBlock?.type.isBlock && owningBlock.attrs?.blockId) {
+        console.log('[Clipboard] Fallback: resolved cursor owning block', {
+          type: owningBlock.type.name,
+          pos: $from.before(depth),
+        });
+        blocks.push(owningBlock);
+      }
+    } catch (e) {
+      console.error('[Clipboard] Failed to resolve cursor owning block', e);
+    }
+  }
   
   return blocks;
 }
@@ -129,8 +178,10 @@ export function copyToClipboard(state: EditorState): boolean {
   
   // 🛡️ GUARD 2: At least one block resolved
   if (selectedBlocks.length === 0) {
-    console.warn('[Clipboard] No blocks resolved from selection');
-    return false;
+    console.warn('[Clipboard] No blocks resolved from selection - consuming event');
+    // 🔒 CRITICAL: ALWAYS consume event, NEVER delegate to PM
+    // Even on failure, we must prevent PM default copy
+    return true;
   }
   
   // Serialize blocks to clipboard payload
@@ -555,11 +606,12 @@ function handleInsertAfter(
   const cursorAtEnd = cursorOffset === blockContentSize;
   
   // 🎯 LAW 7: List continuity - first pasted block may inherit parent listType
-  const inheritListType = shouldInheritListType(
+  const firstBlock = payload.blocks[0];
+  const inheritListType = firstBlock ? shouldInheritListType(
     currentBlock,
-    payload.blocks[0],
+    firstBlock,
     cursorAtEnd
-  );
+  ) : false;
   
   if (inheritListType && payload.blocks[0]) {
     console.log('[Paste] List continuity: inheriting listType', {
@@ -663,7 +715,15 @@ function handleSplitBlock(
   
   // Insert first block with content before cursor
   let insertPos = blockPos;
-  const firstBlock = state.schema.nodes[currentBlock.type.name].create(
+  const nodeType = state.schema.nodes[currentBlock.type.name];
+  if (!nodeType) {
+    console.error('[Paste] SPLIT_BLOCK: unknown node type', {
+      typeName: currentBlock.type.name,
+    });
+    return false;
+  }
+  
+  const firstBlock = nodeType.create(
     {
       ...currentBlock.attrs,
       blockId: crypto.randomUUID(), // New ID for first split
@@ -699,7 +759,7 @@ function handleSplitBlock(
   }
   
   // Insert second block with content after cursor
-  const secondBlock = state.schema.nodes[currentBlock.type.name].create(
+  const secondBlock = nodeType.create(
     {
       ...currentBlock.attrs,
       blockId: crypto.randomUUID(), // New ID for second split
@@ -935,6 +995,12 @@ export function pasteExternalText(
   // Insert each chunk as paragraph
   let firstInsertedPos: number | null = null;
   
+  const paragraphNodeType = state.schema.nodes.paragraph;
+  if (!paragraphNodeType) {
+    console.error('[Clipboard] External paste: paragraph node type not found');
+    return;
+  }
+  
   for (const chunk of chunks) {
     const textNode = state.schema.text(chunk.trim());
     
@@ -942,7 +1008,7 @@ export function pasteExternalText(
       type: 'paragraph',
       insertPos,
       indent: baseIndent,
-      content: textNode ? state.schema.nodes.paragraph.create(null, textNode).content : null,
+      content: textNode ? paragraphNodeType.create(null, textNode).content : null,
     });
     
     if (!node) {
