@@ -392,6 +392,71 @@ You now have:
 
 ---
 
+## XI-A. Phase 4 → Phase 5 Migration Notes
+
+### NodeSelection Transitional Usage
+
+**Current Status (Phase 4 - January 2026):**
+
+NodeSelection is used in **2 strategic places** as a transitional bridge:
+
+1. **EditorCore.scrollToBlock()** - Programmatic block highlighting
+   - **File:** `packages/editor/core/EditorCore.tsx` (line ~375)
+   - **Purpose:** Trigger PM's `.ProseMirror-selectednode` class for halo rendering
+   - **Scope:** Single method, opt-in via `highlight` parameter
+   - **Usage:** Public API for scrolling to and highlighting blocks
+
+2. **SelectAll.ts** - Ctrl+A escalation (Phase 5 feature)
+   - **File:** `packages/editor/plugins/SelectAll.ts` (line ~145)
+   - **Purpose:** Second Ctrl+A press behavior (block-level selection)
+   - **Status:** Part of deferred Phase 5 Ctrl+A policy implementation
+
+**Why This Is Acceptable (Temporarily):**
+
+- ✅ NodeSelection is NOT the source of truth for block selection
+- ✅ Engine.selection remains authoritative for structural operations
+- ✅ NodeSelection used purely for visual effects via PM's class system
+- ✅ Scoped to exactly 2 locations (not spreading through codebase)
+- ✅ Dev invariants warn if NodeSelection appears unexpectedly (`devInvariants.ts`)
+
+**Key Distinction:**
+
+- ❌ **Forbidden:** Using NodeSelection as the model (source of truth)
+- ✅ **Allowed:** Using NodeSelection as a visual trigger (PM classes)
+
+**Phase 5 Target Architecture:**
+
+When Ctrl+A policy and selection unification land:
+
+1. Remove NodeSelection creation entirely from both locations
+2. Replace with pure engine-driven selection:
+   - `engine.selection.blockIds` = authoritative state
+   - `data-block-selected="true"` = visual rendering trigger
+   - Halos driven by CSS + data attributes, not PM classes
+3. PM selection remains TextSelection at all times, no exceptions
+4. All block highlighting via engine state propagation
+
+**Migration Path:**
+
+```typescript
+// BEFORE (Phase 4 - Current)
+const tr = editor.state.tr.setSelection(NodeSelection.create(doc, blockPos));
+
+// AFTER (Phase 5 - Target)
+// PM selection stays TextSelection
+// Engine owns block selection
+engine.setSelection({
+  kind: 'block',
+  blockIds: [blockId],
+  anchorBlockId: blockId,
+});
+// Halo appears via data-block-selected attribute
+```
+
+**Audit Status:** Documented in Phase 4 Audit B (January 12, 2026)
+
+---
+
 ## XII. Authority Contact
 
 If unsure whether a change violates this law:

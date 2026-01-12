@@ -7,27 +7,36 @@
  * 🔒 SELECTION INVARIANT (ARCHITECTURAL LAW)
  * ═══════════════════════════════════════════════════════════════════════════
  *
- * ProseMirror:
- *   - TextSelection ONLY
- *   - NEVER NodeSelection
+ * ProseMirror Selection Model:
+ *   - TextSelection is the primary selection model
+ *   - NodeSelection used transitionally in 2 places (Phase 4 → Phase 5 migration):
+ *     1. scrollToBlock() - programmatic block highlighting (this file, line ~370)
+ *     2. SelectAll.ts - Ctrl+A escalation policy (Phase 5 feature, deferred)
+ *   - Engine owns block selection truth, NOT NodeSelection
  *
- * Block selection:
- *   - Represented by blockId(s) in the Engine
- *   - Reflected visually via UI (halo)
- *   - PM selection does NOT change when halo is clicked
+ * Block Selection Authority:
+ *   - Represented by blockId(s) in Engine.selection
+ *   - Reflected visually via halo (data-block-selected attribute)
+ *   - PM selection does NOT change when halo is clicked (engine-only state)
  *
  * Keyboard / Delete / Backspace:
  *   - Operate on Engine block selection (blockId-based)
- *   - Never rely on PM NodeSelection
- *   - PM selection remains TextSelection at all times
+ *   - Never rely on PM NodeSelection as source of truth
+ *   - PM selection remains TextSelection for text editing
  *
  * WHY THIS MATTERS:
  *   Model owns truth. View reflects it. Never the reverse.
- *   NodeSelection leaks view authority into the model, causing:
+ *   Using NodeSelection as the model (not just a visual trigger) causes:
  *   - Delete breaking backspace
  *   - Backspace breaking delete
  *   - Enter breaking lists
  *   - Cascading selection bugs
+ *
+ * PHASE 5 TARGET:
+ *   - Remove NodeSelection creation entirely
+ *   - Replace with pure engine-driven block selection
+ *   - Halos driven by data-block-selected attribute only (CSS + Engine state)
+ *   - PM selection remains TextSelection at all times, no exceptions
  *
  * ═══════════════════════════════════════════════════════════════════════════
  */
@@ -367,7 +376,10 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
 
           // Highlight the block by selecting it (shows the blue halo)
           if (highlight) {
-            // Use NodeSelection to select the entire block (triggers halo effect)
+            // ⏭️ PHASE 5 MIGRATION: Replace NodeSelection with engine-only selection
+            // Current: NodeSelection triggers halo via PM's .ProseMirror-selectednode class
+            // Target: Halo driven purely by engine.selection state + data-block-selected CSS
+            // This is one of 2 places NodeSelection is created (see contract header above)
             const tr = editor.state.tr.setSelection(
               NodeSelection.create(doc, blockPos)
             );

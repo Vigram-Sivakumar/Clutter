@@ -141,7 +141,10 @@ function selectCurrentBlockAsNode(state: any, dispatch: any): boolean {
   // Get the position of the current block
   const blockPos = $from.before(blockDepth);
 
-  // Create NodeSelection
+  // ⏭️ PHASE 5 MIGRATION: Part of Ctrl+A escalation policy (deferred to Phase 5)
+  // Current: NodeSelection represents "block selected" state
+  // Target: Engine.selection owns block state, PM remains TextSelection only
+  // This is one of 2 places NodeSelection is created (see EditorCore.tsx contract)
   const tr = state.tr.setSelection(NodeSelection.create(doc, blockPos));
   dispatch(tr);
   return true;
