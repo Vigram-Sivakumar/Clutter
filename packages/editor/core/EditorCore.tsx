@@ -2,25 +2,25 @@
  * EditorCore - Main Tiptap editor component
  *
  * Core editor with all extensions, plugins, and behavior.
- * 
+ *
  * ═══════════════════════════════════════════════════════════════════════════
  * 🔒 SELECTION INVARIANT (ARCHITECTURAL LAW)
  * ═══════════════════════════════════════════════════════════════════════════
- * 
+ *
  * ProseMirror:
  *   - TextSelection ONLY
  *   - NEVER NodeSelection
- * 
+ *
  * Block selection:
  *   - Represented by blockId(s) in the Engine
  *   - Reflected visually via UI (halo)
  *   - PM selection does NOT change when halo is clicked
- * 
+ *
  * Keyboard / Delete / Backspace:
  *   - Operate on Engine block selection (blockId-based)
  *   - Never rely on PM NodeSelection
  *   - PM selection remains TextSelection at all times
- * 
+ *
  * WHY THIS MATTERS:
  *   Model owns truth. View reflects it. Never the reverse.
  *   NodeSelection leaks view authority into the model, causing:
@@ -28,7 +28,7 @@
  *   - Backspace breaking delete
  *   - Enter breaking lists
  *   - Cascading selection bugs
- * 
+ *
  * ═══════════════════════════════════════════════════════════════════════════
  */
 
@@ -528,13 +528,12 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
          * 
          * Result: Placeholder appears inline in text area, like native <input placeholder>
          */
-        .ProseMirror [data-empty="true"][data-placeholder] [data-node-view-content]::before {
+        .ProseMirror [data-empty="true"][data-placeholder] [contenteditable="true"]::before {
           content: attr(data-placeholder);
           color: ${colors.text.placeholder};
           pointer-events: none;
           user-select: none;
           white-space: nowrap;
-          /* Inline placement - same visual plane as text */
         }
 
         /* Focus styles */
