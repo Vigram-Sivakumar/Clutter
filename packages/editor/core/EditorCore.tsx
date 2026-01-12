@@ -285,19 +285,6 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
     // Initialize EditorEngine bridge
     const { engine, resolver } = useEditorEngine(editor);
 
-    // Attach engine to editor instance for UndoRedo plugin
-    useEffect(() => {
-      if (editor && engine) {
-        (editor as any).engine = engine;
-        (editor as any).resolver = resolver;
-
-        console.log('[EditorCore] Engine and resolver attached to editor', {
-          engine,
-          resolver,
-        });
-      }
-    }, [editor, engine, resolver]);
-
     // Store onTagClick callback in editor instance so node views can access it
     useEffect(() => {
       if (editor) {
@@ -305,7 +292,8 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
       }
     }, [editor, onTagClick]);
 
-    // Store engine and resolver in editor instance for access by plugins
+    // Attach engine and resolver to editor instance
+    // Used by structural commands, keyboard handlers, and block logic
     useEffect(() => {
       if (editor && engine && resolver) {
         (editor as any)._engine = engine;
