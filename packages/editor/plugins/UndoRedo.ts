@@ -20,19 +20,28 @@ export const UndoRedo = Extension.create({
 
   addKeyboardShortcuts() {
     return {
+      // 🔒 CRITICAL: Always read canonical editor at execution time
+      // NEVER use this.editor - it captures stale references
+
       // Undo
       'Mod-z': () => {
-        return this.editor.commands.undo();
+        const editor = (window as any).__editor;
+        if (!editor) return false;
+        return editor.commands.undo();
       },
 
       // Redo
       'Mod-Shift-z': () => {
-        return this.editor.commands.redo();
+        const editor = (window as any).__editor;
+        if (!editor) return false;
+        return editor.commands.redo();
       },
 
       // Alternative redo shortcut (Cmd+Y on Mac)
       'Mod-y': () => {
-        return this.editor.commands.redo();
+        const editor = (window as any).__editor;
+        if (!editor) return false;
+        return editor.commands.redo();
       },
     };
   },

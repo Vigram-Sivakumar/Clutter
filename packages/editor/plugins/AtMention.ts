@@ -1,6 +1,6 @@
 /**
  * AtMention Plugin - @ trigger for dates and note/folder linking
- * 
+ *
  * Shows dropdown with date options and link suggestions when typing @
  */
 
@@ -34,15 +34,19 @@ export const AtMention = Extension.create<AtMentionOptions>({
 
   addProseMirrorPlugins() {
     const pluginKey = new PluginKey('atMention');
-    const editor = this.editor;
+    // 🔒 CRITICAL: Read canonical editor at execution time
+    const getEditor = () => (window as any).__editor;
 
     return [
       new Plugin({
         key: pluginKey,
-        
+
         view() {
           return {
             update(view) {
+              const editor = getEditor();
+              if (!editor) return;
+
               const { selection } = view.state;
               const storage = editor.storage.atMention;
               if (!storage) return;
@@ -56,11 +60,14 @@ export const AtMention = Extension.create<AtMentionOptions>({
 
               const pos = selection.from;
               const $pos = view.state.doc.resolve(pos);
-              const textBefore = $pos.parent.textContent.slice(0, $pos.parentOffset);
-              
+              const textBefore = $pos.parent.textContent.slice(
+                0,
+                $pos.parentOffset
+              );
+
               // Match @ at the end of text (with optional query after it, including spaces)
               const match = textBefore.match(/@([\w\s]*)$/);
-              
+
               if (match) {
                 const query = match[1]; // Capture query (can include spaces)
                 const atPos = pos - query.length - 1; // Position of @
@@ -78,6 +85,9 @@ export const AtMention = Extension.create<AtMentionOptions>({
 
         props: {
           handleKeyDown(view, event) {
+            const editor = getEditor();
+            if (!editor) return false;
+
             const storage = editor.storage.atMention;
             if (!storage || !storage.active) {
               return false;
@@ -87,11 +97,11 @@ export const AtMention = Extension.create<AtMentionOptions>({
             if (event.key === 'Enter') {
               event.preventDefault();
               event.stopPropagation();
-              
+
               // Trigger selection via storage flag
               storage.shouldSelect = true;
               view.dispatch(view.state.tr);
-              
+
               return true;
             }
 
@@ -128,4 +138,3 @@ export const AtMention = Extension.create<AtMentionOptions>({
     ];
   },
 });
-

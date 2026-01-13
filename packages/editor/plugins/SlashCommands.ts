@@ -527,10 +527,16 @@ export const SlashCommands = Extension.create({
   },
 
   addKeyboardShortcuts() {
+    // 🔒 CRITICAL: Helper to always read canonical editor
+    const getEditor = () => (window as any).__editor;
+
     return {
       // Tab: Select first command
       Tab: () => {
-        const storage = this.editor.storage.slashCommands;
+        const editor = getEditor();
+        if (!editor) return false;
+
+        const storage = editor.storage.slashCommands;
 
         if (!storage || !storage.isOpen) {
           return false;
@@ -546,16 +552,19 @@ export const SlashCommands = Extension.create({
         if (!command) return false;
 
         storage.isOpen = false;
-        const { from } = this.editor.state.selection;
+        const { from } = editor.state.selection;
         const range = { from: storage.startPos, to: from };
 
-        command.execute(this.editor, range);
+        command.execute(editor, range);
 
         return true;
       },
 
       Enter: () => {
-        const storage = this.editor.storage.slashCommands;
+        const editor = getEditor();
+        if (!editor) return false;
+
+        const storage = editor.storage.slashCommands;
 
         if (!storage || !storage.isOpen) {
           return false; // Let default Enter behavior work
@@ -571,17 +580,20 @@ export const SlashCommands = Extension.create({
         // Close menu and get slash range
         storage.isOpen = false;
         storage.query = '';
-        const { from } = this.editor.state.selection;
+        const { from } = editor.state.selection;
         const range = { from: storage.startPos, to: from };
 
         // Execute command with slash range - it handles deletion in single transaction
-        command.execute(this.editor, range);
+        command.execute(editor, range);
 
         return true; // Prevent default Enter behavior
       },
 
       ArrowUp: () => {
-        const storage = this.editor.storage.slashCommands;
+        const editor = getEditor();
+        if (!editor) return false;
+
+        const storage = editor.storage.slashCommands;
 
         if (!storage.isOpen) {
           return false;
@@ -591,14 +603,17 @@ export const SlashCommands = Extension.create({
         if (commands.length > 0) {
           storage.selectedIndex =
             (storage.selectedIndex - 1 + commands.length) % commands.length;
-          this.editor.view.dispatch(this.editor.state.tr);
+          editor.view.dispatch(editor.state.tr);
         }
 
         return true;
       },
 
       ArrowDown: () => {
-        const storage = this.editor.storage.slashCommands;
+        const editor = getEditor();
+        if (!editor) return false;
+
+        const storage = editor.storage.slashCommands;
 
         if (!storage.isOpen) {
           return false;
@@ -607,14 +622,17 @@ export const SlashCommands = Extension.create({
         const commands = filterSlashCommands(storage.query);
         if (commands.length > 0) {
           storage.selectedIndex = (storage.selectedIndex + 1) % commands.length;
-          this.editor.view.dispatch(this.editor.state.tr);
+          editor.view.dispatch(editor.state.tr);
         }
 
         return true;
       },
 
       Escape: () => {
-        const storage = this.editor.storage.slashCommands;
+        const editor = getEditor();
+        if (!editor) return false;
+
+        const storage = editor.storage.slashCommands;
 
         if (!storage.isOpen) {
           return false;
@@ -622,7 +640,7 @@ export const SlashCommands = Extension.create({
 
         storage.isOpen = false;
         storage.manuallyClosedAt = Date.now(); // PHASE 5: Mark as manually closed
-        this.editor.view.dispatch(this.editor.state.tr);
+        editor.view.dispatch(editor.state.tr);
 
         return true;
       },
@@ -630,7 +648,9 @@ export const SlashCommands = Extension.create({
   },
 
   addProseMirrorPlugins() {
-    const editor = this.editor;
+    // 🔒 CRITICAL: Read canonical editor at execution time
+    // NEVER capture this.editor in closure
+    const getEditor = () => (window as any).__editor;
 
     return [
       new Plugin({
@@ -639,6 +659,9 @@ export const SlashCommands = Extension.create({
         view() {
           return {
             update(view, prevState) {
+              const editor = getEditor();
+              if (!editor) return;
+
               const storage = editor.storage.slashCommands;
               const { from, to } = view.state.selection;
               const { $from } = view.state.selection;
@@ -780,6 +803,9 @@ export const SlashCommands = Extension.create({
 
         props: {
           decorations(state) {
+            const editor = getEditor();
+            if (!editor) return null;
+
             const storage = editor.storage.slashCommands;
 
             // Only show decoration when menu is open
@@ -821,6 +847,9 @@ export const SlashCommands = Extension.create({
           },
 
           handleTextInput(view, from, _to, text) {
+            const editor = getEditor();
+            if (!editor) return false;
+
             // Don't trigger in code blocks
             if (editor.isActive('codeBlock')) {
               return false;
@@ -894,6 +923,9 @@ export const SlashCommands = Extension.create({
           },
 
           handleKeyDown(view, event) {
+            const editor = getEditor();
+            if (!editor) return false;
+
             const storage = editor.storage.slashCommands;
 
             // PHASE 5: Handle Backspace to reopen menu intelligently

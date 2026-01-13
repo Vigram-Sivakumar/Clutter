@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { ChevronLeft, ChevronRight, Calendar } from '../../../../../icons';
+import { ChevronLeft, ChevronRight, CalendarBlank } from '../../../../../icons';
 import { TertiaryButton } from '../../../../ui-buttons';
 import { sidebarLayout } from '../../../../../tokens/sidebar';
 import { useTheme } from '../../../../../hooks/useTheme';
@@ -7,11 +7,15 @@ import { spacing } from '../../../../../tokens/spacing';
 
 interface CalendarMonthHeaderProps {
   currentWeekStart: Date;
-  onWeekChange: (newWeekStart: Date) => void;
-  onDateSelect?: (date: Date) => void;
+  onWeekChange: (_newWeekStart: Date) => void;
+  onDateSelect?: (_date: Date) => void;
 }
 
-export const CalendarMonthHeader = ({ currentWeekStart, onWeekChange, onDateSelect }: CalendarMonthHeaderProps) => {
+export const CalendarMonthHeader = ({
+  currentWeekStart,
+  onWeekChange,
+  onDateSelect,
+}: CalendarMonthHeaderProps) => {
   const { colors } = useTheme();
 
   // Calculate month and year from the current week
@@ -66,30 +70,30 @@ export const CalendarMonthHeader = ({ currentWeekStart, onWeekChange, onDateSele
         paddingRight: spacing['2'],
       }}
     >
-        {/* Month and Year */}
-        <div
-          style={{
-            fontSize: '14px',
-            fontWeight: sidebarLayout.headerFontWeight,
-            letterSpacing: sidebarLayout.headerLetterSpacing,
-            color: colors.text.default,
-            flex: 1,
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          {month} <span style={{ color: colors.text.placeholder }}>{year}</span>
-        </div>
+      {/* Month and Year */}
+      <div
+        style={{
+          fontSize: '14px',
+          fontWeight: sidebarLayout.headerFontWeight,
+          letterSpacing: sidebarLayout.headerLetterSpacing,
+          color: colors.text.default,
+          flex: 1,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        {month} <span style={{ color: colors.text.placeholder }}>{year}</span>
+      </div>
 
-        {/* Navigation buttons */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: sidebarLayout.itemActionsGap,
-          }}
-        >
+      {/* Navigation buttons */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: sidebarLayout.itemActionsGap,
+        }}
+      >
         {/* Previous week - ChevronLeft icon */}
         <TertiaryButton
           icon={<ChevronLeft size={16} />}
@@ -104,14 +108,13 @@ export const CalendarMonthHeader = ({ currentWeekStart, onWeekChange, onDateSele
           size="small"
         />
 
-          {/* Today button - Calendar icon */}
-          <TertiaryButton
-            icon={<Calendar size={16} />}
-            onClick={handleCurrentDateClick}
-            size="small"
-          />
-        </div>
+        {/* Today button - CalendarBlank icon */}
+        <TertiaryButton
+          icon={<CalendarBlank size={16} />}
+          onClick={handleCurrentDateClick}
+          size="small"
+        />
+      </div>
     </div>
   );
 };
-
