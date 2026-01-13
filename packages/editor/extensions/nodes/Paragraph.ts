@@ -10,21 +10,9 @@ import { Node } from '@tiptap/core';
 import { ReactNodeViewRenderer } from '@tiptap/react';
 import { TextSelection } from '@tiptap/pm/state';
 import { ParagraphBlock } from '../../components/ParagraphBlock';
-import type { EditorEngine } from '../../core/engine/EditorEngine';
 
 // NOTE: indentBlock/outdentBlock removed - now handled via keyboard rules
 // NOTE: Arrow navigation removed - now centralized in KeyboardShortcuts.ts
-
-/**
- * Get EditorEngine from CANONICAL TipTap editor instance
- * Engine is attached by EditorCore during initialization
- *
- * 🔒 CRITICAL: Always read from window.__editor to avoid stale references
- */
-function _getEngine(_editor: any): EditorEngine | null {
-  const canonicalEditor = (window as any).__editor;
-  return canonicalEditor?._engine || null;
-}
 
 declare module '@tiptap/core' {
   // eslint-disable-next-line no-unused-vars

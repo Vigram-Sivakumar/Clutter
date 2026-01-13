@@ -4,6 +4,7 @@ import {
   beginStructuralDelete,
   endStructuralDelete,
 } from '../structuralDeleteState';
+import { getEngine, getResolver } from '../engine/getEngine';
 import type { StructuralDeleteParams } from './types';
 
 /**
@@ -33,8 +34,8 @@ export function performStructuralDelete({
 
   // 🔒 CRITICAL: Always read from canonical editor to avoid stale references
   const canonicalEditor = (window as any).__editor;
-  const engine = canonicalEditor?._engine;
-  const resolver = canonicalEditor?._resolver;
+  const engine = getEngine(canonicalEditor);
+  const resolver = getResolver(canonicalEditor);
 
   if (!engine || !resolver) {
     if (process.env.NODE_ENV !== 'production') {

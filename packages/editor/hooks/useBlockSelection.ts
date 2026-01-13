@@ -31,6 +31,7 @@ import { useEffect, useState } from 'react';
 import { Editor } from '@tiptap/core';
 import { isMultiBlockSelection } from '../utils/multiSelection';
 import { warnIfNodeViewMutates } from '../core/devInvariants';
+import { getEngine } from '../core/engine/getEngine';
 
 interface UseBlockSelectionProps {
   editor: Editor;
@@ -61,7 +62,7 @@ export function useBlockSelection({
       }
 
       // Get Engine from canonical editor (attached by EditorCore)
-      const engine = (canonicalEditor as any)._engine;
+      const engine = getEngine(canonicalEditor);
       if (!engine) {
         setIsSelected(false);
         return;

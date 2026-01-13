@@ -24,19 +24,8 @@ import { ListBlock as ListBlockComponent } from '../../components/ListBlock';
 import { createShiftEnterHandler } from '../../utils/keyboardHelpers';
 import { handleEnter } from '../../plugins/keyboard';
 // NOTE: Arrow navigation removed - now centralized in KeyboardShortcuts.ts
-import { EditorEngine } from '../../core/engine/EditorEngine';
 
 // NOTE: indentBlock/outdentBlock removed - now handled via keyboard rules
-
-/**
- * Get EditorEngine from CANONICAL TipTap editor instance
- *
- * 🔒 CRITICAL: Always read from window.__editor to avoid stale references
- */
-function _getEngine(_editor: any): EditorEngine | null {
-  const canonicalEditor = (window as any).__editor;
-  return canonicalEditor?._engine || null;
-}
 
 declare module '@tiptap/core' {
   // eslint-disable-next-line no-unused-vars

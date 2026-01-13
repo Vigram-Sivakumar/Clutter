@@ -22,6 +22,7 @@ import {
   isMultiBlockSelection,
   getSelectedBlocks,
 } from '../utils/multiSelection';
+import { getEngine } from '../core/engine/getEngine';
 
 export interface BlockHandleProps {
   editor: Editor;
@@ -177,7 +178,7 @@ export function BlockHandle({ editor, getPos, indent = 0 }: BlockHandleProps) {
       const canonicalEditor = (window as any).__editor;
       if (!canonicalEditor) return;
 
-      const engine = (canonicalEditor as any)._engine;
+      const engine = getEngine(canonicalEditor);
       if (!engine) return;
 
       const pos = getPos();
@@ -252,7 +253,7 @@ export function BlockHandle({ editor, getPos, indent = 0 }: BlockHandleProps) {
     const canonicalEditor = (window as any).__editor;
     if (!canonicalEditor) return;
 
-    const engine = (canonicalEditor as any)._engine;
+    const engine = getEngine(canonicalEditor);
     if (!engine) return;
 
     const pos = getPos();
@@ -360,7 +361,7 @@ export function BlockHandle({ editor, getPos, indent = 0 }: BlockHandleProps) {
     }
 
     // Get engine from editor (attached by EditorCore)
-    const engine = (canonicalEditor as any)._engine;
+    const engine = getEngine(canonicalEditor);
     if (!engine) {
       console.warn('[BlockHandle] Engine not found on editor instance');
       return;
@@ -750,7 +751,7 @@ export function BlockHandle({ editor, getPos, indent = 0 }: BlockHandleProps) {
           }
 
           // 🔒 Validate engine attachment
-          const engine = (canonicalEditor as any)._engine;
+          const engine = getEngine(canonicalEditor);
           if (!engine) {
             console.error(
               '[BlockHandle] Engine not attached to canonical editor'

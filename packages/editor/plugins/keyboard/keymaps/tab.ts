@@ -15,15 +15,9 @@
  */
 
 import type { Editor } from '@tiptap/core';
-import { createKeyboardEngine } from '../engine/KeyboardEngine';
-import type { IntentResolver } from '../../../core/engine';
-import { indentBlock, outdentBlock } from '../rules/tab';
+import { getEngine, getResolver } from '../../../core/engine/getEngine';
 import type { KeyHandlingResult } from '../types/KeyHandlingResult';
 import { syncTipTapToEngine } from '../../../core/engine/tiptapBridge';
-
-const tabRules = [indentBlock, outdentBlock];
-
-const tabEngine = createKeyboardEngine(tabRules);
 
 /**
  * 🔒 INTENT BOUNDARY SYNC (Phase 2)
@@ -57,10 +51,8 @@ export function handleTab(
 
   // 🔒 CRITICAL: Get resolver and engine from CANONICAL editor (avoid stale references)
   const canonicalEditor = (window as any).__editor;
-  const resolver = (canonicalEditor as any)?._resolver as
-    | IntentResolver
-    | undefined;
-  const engine = (canonicalEditor as any)?._engine;
+  const resolver = getResolver(canonicalEditor);
+  const engine = getEngine(canonicalEditor);
 
   console.log('📋 [handleTab] Resolver:', resolver ? 'found' : 'NOT FOUND');
 
@@ -69,10 +61,6 @@ export function handleTab(
     isShift,
     selectedBlock: engine?.cursor?.blockId,
   });
-
-  if (resolver) {
-    tabEngine.setResolver(resolver);
-  }
 
   // 🔒 INTENT BOUNDARY SYNC - Ensure Engine is fresh before intent resolution
   if (engine && editor.state.doc) {
@@ -102,12 +90,12 @@ export function handleTab(
     }
   }
 
-  // Pass modifier info through the context by storing it on the editor
-  (editor as any)._shiftPressed = isShift;
-
-  const result = tabEngine.handle(editor, 'Tab');
-  console.log('📋 [handleTab] Result:', result);
-  return result;
+  // TODO: Re-implement tab handling after keyboard engine removal
+  console.log('📋 [handleTab] Tab handling temporarily disabled');
+  return {
+    handled: false,
+    reason: 'Keyboard engine removed - needs re-implementation',
+  };
 }
 
 // Temporary helper: Count blocks in PM doc

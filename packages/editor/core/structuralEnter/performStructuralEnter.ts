@@ -2,6 +2,7 @@
 
 import type { Editor } from '@tiptap/core';
 import { createBlock } from '../createBlock';
+import { getEngine } from '../engine/getEngine';
 import { resolveStructuralEnter } from './cursorLaw';
 import type { EnterContext, StructuralEnterSource } from './types';
 
@@ -32,7 +33,7 @@ export function performStructuralEnter({
 
   // 🔒 CRITICAL: Always read from canonical editor to avoid stale references
   const canonicalEditor = (window as any).__editor;
-  const engine = (canonicalEditor as any)?._engine;
+  const engine = getEngine(canonicalEditor);
 
   if (!engine) {
     if (process.env.NODE_ENV !== 'production') {
@@ -308,7 +309,7 @@ export function performStructuralEnter({
     requestAnimationFrame(() => {
       // 🔒 CRITICAL: Read from canonical editor
       const canonicalEditor = (window as any).__editor;
-      const engine = (canonicalEditor as any)?._engine;
+      const engine = getEngine(canonicalEditor);
       if (engine && engine.tree && engine.tree.nodes) {
         const ids = Object.keys(engine.tree.nodes).filter(
           (id) => id !== 'root'

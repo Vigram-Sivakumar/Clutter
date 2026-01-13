@@ -14,7 +14,6 @@ import { PageContent } from '../../shared/page-content';
 import { TitleInputHandle } from '../../shared/content-header/title';
 import { TipTapWrapper, TipTapWrapperHandle } from './TipTapWrapper';
 import { useEditorContext } from './useEditorContext';
-import { EditorEngine } from '@clutter/editor';
 import { EmojiTray } from '../../shared/emoji';
 import { MarkdownShortcuts } from '../../../ui-modals';
 import {
@@ -199,13 +198,13 @@ export const NoteEditor = ({
     | { status: 'loading' }
     | { status: 'ready'; document: string }; // JSON string document
 
-  // Canonical empty document (empty ≠ undefined ≠ not loaded)
-  const EMPTY_DOC = JSON.stringify({
-    type: 'doc',
-    content: [{ type: 'paragraph' }],
-  });
+  // TODO: Re-implement empty document handling after engine removal
+  // const EMPTY_DOC = JSON.stringify({
+  //   type: 'doc',
+  //   content: [{ type: 'paragraph' }],
+  // });
 
-  const [editorState, setEditorState] = useState<EditorLoadState>({
+  const [editorState, _setEditorState] = useState<EditorLoadState>({
     status: 'loading',
   });
 
@@ -222,44 +221,12 @@ export const NoteEditor = ({
   const [isHydrated, setIsHydrated] = useState(false);
   const lastHydratedNoteIdRef = useRef<string | null>(null); // Track which note was last hydrated
 
-  // 🎯 EditorEngine - Single source of truth for editor state
-  // Instantiated once, survives note switches
-  const editorEngineRef = useRef<InstanceType<typeof EditorEngine> | null>(
-    null
-  );
-  if (!editorEngineRef.current) {
-    editorEngineRef.current = new EditorEngine();
-  }
-  const editorEngine = editorEngineRef.current;
-
   // Report hydration state to parent (for auto-save gating)
   useEffect(() => {
     if (onHydrationChange) {
       onHydrationChange(isHydrated);
     }
   }, [isHydrated, onHydrationChange]);
-
-  // 🎯 Subscribe UI to EditorEngine (React becomes passive viewer)
-  useEffect(() => {
-    return editorEngine.onChange(
-      (event: {
-        document: string;
-        noteId: string;
-        source: 'user' | 'programmatic';
-      }) => {
-        // Update React state (UI mirror)
-        setEditorState({
-          status: 'ready',
-          document: event.document,
-        });
-
-        // Persist user edits to database
-        if (event.source === 'user') {
-          updateNoteContent(event.noteId, event.document);
-        }
-      }
-    );
-  }, [editorEngine, updateNoteContent]);
 
   // Main view state
   const [mainView, setMainView] = useState<MainView>({ type: 'editor' });
@@ -477,14 +444,6 @@ export const NoteEditor = ({
     // 🛡️ CRITICAL: Cancel any pending debounced saves from previous note
     cancelDebouncedSave();
 
-    // ⬇️ DB → Editor: Load content into engine
-    const document =
-      currentNote.content && currentNote.content.trim() !== ''
-        ? currentNote.content
-        : EMPTY_DOC;
-
-    editorEngine.setDocument(document, currentNote.id);
-
     // Wait for React + ProseMirror to fully settle before mounting editor
     requestAnimationFrame(() => {
       // Sync UI state
@@ -526,33 +485,8 @@ export const NoteEditor = ({
     }
   }, [currentNote, currentNoteId, tags]); // Watch for currentNote changes
 
-  // 🔄 Sync editor content when it changes externally (e.g., task toggle from sidebar)
-  // This handles updates to the current note's content from outside the editor
-  useEffect(() => {
-    if (!currentNote || !currentNoteId || !isHydrated) {
-      return;
-    }
-
-    // Only apply if this is the current note in the editor
-    if (currentNote.id !== currentNoteId) {
-      return;
-    }
-
-    // Get current content from store and editor
-    const storeContent =
-      currentNote.content && currentNote.content.trim() !== ''
-        ? currentNote.content
-        : EMPTY_DOC;
-    const editorContent = editorEngine.getDocument();
-
-    // If content differs and editor is not hydrating, it's an external change
-    if (storeContent !== editorContent && !editorEngine.isHydratingDocument()) {
-      console.log(
-        '[NoteEditor] Detected external content change, updating editor'
-      );
-      editorEngine.setDocument(storeContent, currentNote.id);
-    }
-  }, [currentNote?.content, currentNoteId, isHydrated]); // Watch for content changes
+  // TODO: Re-implement external content change detection
+  // (removed document ownership engine)
 
   // Update view context when current note is deleted
   useEffect(() => {
@@ -1900,7 +1834,8 @@ export const NoteEditor = ({
                   value={currentNote?.content || undefined}
                   autoFocus={false}
                   onChange={(value) => {
-                    editorEngine.applyEdit(value, currentNoteId);
+                    // Update note content directly
+                    updateNoteContent(currentNoteId, value);
                   }}
                   onTagClick={handleShowTagFilter}
                   onNavigate={handleNavigate}

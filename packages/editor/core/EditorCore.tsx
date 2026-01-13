@@ -120,7 +120,7 @@ import { useTheme } from '@clutter/ui';
 import { useEditorContext } from '../context/EditorContext';
 
 // Editor Engine
-import { useEditorEngine } from './engine';
+import { useEditorEngine, getEngine } from './engine';
 
 // HardBreak extension for line breaks (Shift+Enter)
 import HardBreak from '@tiptap/extension-hard-break';
@@ -433,7 +433,7 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
       if (!editor || !engine || !resolver) return;
 
       // 🔒 CRITICAL: Only attach if not already attached (prevents double attachment)
-      if ((editor as any)._engine) {
+      if (getEngine(editor)) {
         console.warn('[EditorCore] Engine already attached, skipping');
         return;
       }
@@ -460,7 +460,7 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
         const canonicalEditor = (window as any).__editor;
         if (!canonicalEditor) return;
 
-        const engine = (canonicalEditor as any)._engine;
+        const engine = getEngine(canonicalEditor);
         if (!engine) return;
 
         // Only clear if there's currently a block selection

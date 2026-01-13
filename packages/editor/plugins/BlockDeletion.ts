@@ -29,18 +29,9 @@ import {
   getSelectedBlocks,
 } from '../utils/multiSelection';
 import { performStructuralDelete } from '../core/structuralDelete/performStructuralDelete';
-import type { EditorEngine } from '../core/engine/EditorEngine';
 
-/**
- * Get EditorEngine from CANONICAL TipTap editor instance
- * Engine is attached by EditorCore during initialization
- *
- * 🔒 CRITICAL: Always read from window.__editor to avoid stale references
- */
-function getEngine(_editor: any): EditorEngine | null {
-  const canonicalEditor = (window as any).__editor;
-  return canonicalEditor?._engine || null;
-}
+// Import centralized engine accessor
+import { getEngine } from '../core/engine/getEngine';
 
 const blockDeletionPluginKey = new PluginKey('blockDeletion');
 

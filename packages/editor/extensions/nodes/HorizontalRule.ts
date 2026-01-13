@@ -22,18 +22,10 @@
 import { Node } from '@tiptap/core';
 import { ReactNodeViewRenderer } from '@tiptap/react';
 import { HorizontalRule as HorizontalRuleComponent } from '../../components/HorizontalRule';
-import type { EditorEngine } from '../../core/engine/EditorEngine';
 import { DeleteBlockCommand } from '../../core/engine/command';
 
-/**
- * Get EditorEngine from CANONICAL TipTap editor instance
- *
- * 🔒 CRITICAL: Always read from window.__editor to avoid stale references
- */
-function getEngine(_editor: any): EditorEngine | null {
-  const canonicalEditor = (window as any).__editor;
-  return canonicalEditor?._engine || null;
-}
+// Import centralized engine accessor
+import { getEngine } from '../../core/engine/getEngine';
 
 declare module '@tiptap/core' {
   // eslint-disable-next-line no-unused-vars

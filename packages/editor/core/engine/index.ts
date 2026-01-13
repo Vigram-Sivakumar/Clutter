@@ -44,3 +44,6 @@ export { UndoController } from './undoController';
 
 // TipTap bridge
 export { useEditorEngine, getResolverForEditor } from './tiptapBridge';
+
+// Centralized engine access (prevents stale references)
+export { getEngine, getResolver } from './getEngine';
