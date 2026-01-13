@@ -96,7 +96,7 @@ import { BackspaceHandler } from '../plugins/BackspaceHandler';
 import { TabHandler } from '../plugins/TabHandler';
 import { KeyboardShortcuts } from '../plugins/KeyboardShortcuts';
 import { EscapeMarks } from '../plugins/EscapeMarks';
-import { CollapsePlugin } from '../plugins/CollapsePlugin';
+// import { CollapsePlugin } from '../plugins/CollapsePlugin'; // Removed for minimal schema test
 import { DoubleSpaceEscape } from '../plugins/DoubleSpaceEscape';
 import { HashtagDetection } from '../plugins/HashtagDetection';
 import { HashtagAutocomplete } from '../plugins/HashtagAutocomplete';
@@ -328,7 +328,7 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
           class: 'editor-content',
         },
         // ProseMirror plugins (not TipTap extensions)
-        plugins: [CollapsePlugin],
+        // plugins: [CollapsePlugin], // Removed for minimal schema test
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         // 🔑 Tab handling is done by TipTap extensions (KeyboardShortcuts)
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
