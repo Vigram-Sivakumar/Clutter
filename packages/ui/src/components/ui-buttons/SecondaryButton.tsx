@@ -7,11 +7,12 @@ interface SecondaryButtonProps {
   iconSize?: number;
   iconPosition?: 'left' | 'right';
   shortcut?: string;
-  onClick?: (e: MouseEvent<HTMLButtonElement>) => void;
-  onMouseDown?: (e: MouseEvent<HTMLButtonElement>) => void;
+  onClick?: (_e: MouseEvent<HTMLButtonElement>) => void;
+  onMouseDown?: (_e: MouseEvent<HTMLButtonElement>) => void;
   danger?: boolean;
   size?: 'xs' | 'small' | 'medium';
   fullWidth?: boolean;
+  centerText?: boolean;
   withBackground?: boolean;
   onBackground?: 'default' | 'secondary' | 'tertiary';
   noBorder?: boolean;
@@ -29,6 +30,7 @@ export const SecondaryButton = ({
   danger,
   size = 'medium',
   fullWidth = false,
+  centerText = false,
   withBackground = false,
   onBackground = 'secondary',
   noBorder = false,
@@ -46,6 +48,7 @@ export const SecondaryButton = ({
       onMouseDown={onMouseDown}
       danger={danger}
       fullWidth={fullWidth}
+      centerText={centerText}
       withBackground={withBackground}
       onBackground={onBackground}
       noBorder={noBorder}

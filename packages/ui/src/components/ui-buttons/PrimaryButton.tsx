@@ -7,11 +7,12 @@ interface PrimaryButtonProps {
   iconSize?: number;
   iconPosition?: 'left' | 'right';
   shortcut?: string;
-  onClick?: (e: MouseEvent<HTMLButtonElement>) => void;
-  onMouseDown?: (e: MouseEvent<HTMLButtonElement>) => void;
+  onClick?: (_e: MouseEvent<HTMLButtonElement>) => void;
+  onMouseDown?: (_e: MouseEvent<HTMLButtonElement>) => void;
   danger?: boolean;
   size?: 'xs' | 'small' | 'medium';
   fullWidth?: boolean;
+  centerText?: boolean;
   disabled?: boolean;
 }
 
@@ -26,6 +27,7 @@ export const PrimaryButton = ({
   danger,
   size = 'medium',
   fullWidth = false,
+  centerText = false,
   disabled = false,
 }: PrimaryButtonProps) => {
   return (
@@ -40,10 +42,10 @@ export const PrimaryButton = ({
       onMouseDown={onMouseDown}
       danger={danger}
       fullWidth={fullWidth}
+      centerText={centerText}
       disabled={disabled}
     >
       {children}
     </Button>
   );
 };
-

@@ -60,8 +60,8 @@ export const ConfirmationDialog = () => {
             backgroundColor: colors.background.default,
             borderRadius: radius['12'],
             padding: spacing['16'],
-            minWidth: '256px',
-            maxWidth: '320px',
+            minWidth: '220px',
+            maxWidth: '256px',
             boxShadow: `0 20px 25px -5px ${colors.shadow.md}, 0 10px 10px -5px ${colors.shadow.sm}`,
             border: `1px solid ${colors.border.default}`,
           }}
@@ -111,6 +111,7 @@ export const ConfirmationDialog = () => {
                     key={index}
                     size="medium"
                     fullWidth
+                    centerText
                     danger={action.variant === 'danger'}
                     onClick={() => {
                       action.onClick();
@@ -133,12 +134,18 @@ export const ConfirmationDialog = () => {
                 justifyContent: 'flex-end',
               }}
             >
-              <SecondaryButton size="medium" fullWidth onClick={close}>
+              <SecondaryButton
+                size="medium"
+                fullWidth
+                centerText
+                onClick={close}
+              >
                 Cancel
               </SecondaryButton>
               <PrimaryButton
                 size="medium"
                 fullWidth
+                centerText
                 danger={isDangerous}
                 onClick={handleConfirm}
               >

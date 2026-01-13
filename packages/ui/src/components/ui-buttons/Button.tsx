@@ -27,6 +27,7 @@ interface ButtonProps {
   active?: boolean;
   onBackground?: 'default' | 'secondary' | 'tertiary'; // For filled variant context
   fullWidth?: boolean; // Control whether button fills width or hugs content
+  centerText?: boolean; // Center align text (default: left for text with icons, left for text-only)
   withBackground?: boolean; // Add background color to secondary variant
   noBorder?: boolean; // Remove border from button
   disabled?: boolean; // Disabled state
@@ -51,6 +52,7 @@ export const Button = ({
   active = false,
   onBackground = 'secondary', // Default context for filled variant
   fullWidth = false,
+  centerText = false,
   withBackground = false,
   noBorder = false,
   disabled = false,
@@ -104,7 +106,7 @@ export const Button = ({
     opacity: disabled && !disabledNoFade && variant !== 'primary' ? 0.4 : 1,
     display: 'flex',
     alignItems: 'center',
-    justifyContent: isIconOnly ? 'center' : 'flex-start',
+    justifyContent: isIconOnly || centerText ? 'center' : 'flex-start',
     gap: gap || '4px',
     textTransform: 'capitalize', // Automatically capitalize button labels
     transition:
@@ -416,13 +418,18 @@ export const Button = ({
       style={{
         ...baseStyles,
         ...variantStyles,
-        justifyContent: isIconOnly ? 'center' : 'flex-start',
+        justifyContent: isIconOnly || centerText ? 'center' : 'flex-start',
         paddingRight: shortcut ? '6px' : baseStyles.padding,
       }}
     >
       {iconPosition === 'left' && iconElement}
       {children && (
-        <span style={{ flex: shortcut ? 1 : 'none', textAlign: 'left' }}>
+        <span
+          style={{
+            flex: shortcut ? 1 : 'none',
+            textAlign: centerText ? 'center' : 'left',
+          }}
+        >
           {children}
         </span>
       )}

@@ -1621,25 +1621,20 @@ export const AppSidebar = ({
         // Empty folder - delete immediately without confirmation
         deleteFolder(folderId);
       } else {
-        // Has notes - show confirmation with 3 options
+        // Has notes - show confirmation with 2 options
         openMultiActionConfirmation(
           'Delete Folder',
-          `"${folderName}" contains ${noteCount} note${noteCount === 1 ? '' : 's'}.\n\nWhat would you like to do?`,
+          `"${folderName}" contains ${noteCount} note${noteCount === 1 ? '' : 's'}. What would you like to do?`,
           [
-            {
-              label: 'Cancel',
-              variant: 'secondary',
-              onClick: () => {}, // Just closes
-            },
-            {
-              label: 'Delete Folder Only',
-              variant: 'primary',
-              onClick: () => deleteFolder(folderId, { keepNotes: true }),
-            },
             {
               label: 'Delete All',
               variant: 'danger',
               onClick: () => deleteFolder(folderId, { keepNotes: false }),
+            },
+            {
+              label: 'Delete only Folder',
+              variant: 'secondary',
+              onClick: () => deleteFolder(folderId, { keepNotes: true }),
             },
           ]
         );
