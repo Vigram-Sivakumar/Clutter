@@ -156,15 +156,12 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
     },
     ref
   ) => {
-    // 🚨 GUARD: Prevent double mount (React StrictMode in dev)
-    if ((window as any).__EDITORCORE_MOUNTED__) {
-      console.warn('[EditorCore] Already mounted, skipping (StrictMode)');
-      return null; // ← Prevent second editor instance creation
-    }
-    (window as any).__EDITORCORE_MOUNTED__ = true;
-
     const { colors } = useTheme();
     const { availableTags } = useEditorContext();
+
+    // 🔒 CRITICAL: Store editor instance for StrictMode reuse
+    // React StrictMode mounts twice in dev - we reuse the same editor instance
+    const editorInstanceRef = useRef<Editor | null>(null);
 
     // Track if we're updating from the editor (to prevent clearing history)
     const isInternalUpdate = useRef(false);
@@ -195,13 +192,6 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
     useEffect(() => {
       onTagClickRef.current = onTagClick;
     }, [onTagClick]);
-
-    // 🚨 DIAGNOSTIC: Cleanup mount guard on unmount (REMOVE AFTER DEBUGGING)
-    useEffect(() => {
-      return () => {
-        delete (window as any).__EDITORCORE_MOUNTED__;
-      };
-    }, []);
 
     // 🔒 CRITICAL: Freeze extensions array to prevent editor recreation
     // Extensions must be stable for the lifetime of the editor
@@ -345,34 +335,48 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
       []
     ); // 🔒 EMPTY DEPS: editorProps frozen for editor lifetime
 
-    // 🔒 CRITICAL: Create editor instance ONCE with factory function
-    // EMPTY dependency array = editor created once and NEVER recreated
-    // This prevents the "split editor authority" bug where multiple editor instances exist
+    // 🔒 CRITICAL: Create editor instance ONCE (StrictMode-safe)
+    // Factory pattern with ref ensures same instance is reused across StrictMode double-mount
+    // This prevents schema errors and maintains stable editor authority
     const editor = useEditor(
-      () => ({
-        extensions,
-        content: {
-          type: 'doc',
-          content: [{ type: 'paragraph' }],
-        }, // Static initial content only
-        editable: true, // Start editable (will be updated via effect)
-        editorProps,
-        onUpdate: ({ editor, transaction }) => {
-          // Only fire onChange if document actually changed (not just selection)
-          if (transaction.docChanged && onChangeRef.current) {
-            // Mark that this update is coming from the editor (internal)
-            isInternalUpdate.current = true;
-            onChangeRef.current(editor.getJSON());
-            // Reset flag after a short delay to allow parent to update prop
-            setTimeout(() => {
-              isInternalUpdate.current = false;
-            }, 0);
-          }
-        },
-        onSelectionUpdate: ({ editor: _editor, transaction: _transaction }) => {
-          // Selection update callback (can be used for future selection tracking)
-        },
-      }),
+      () => {
+        // Reuse existing instance on second mount (StrictMode)
+        if (editorInstanceRef.current) {
+          console.log('[EditorCore] Reusing editor instance (StrictMode)');
+          return editorInstanceRef.current;
+        }
+
+        // Create new instance on first mount
+        console.log('[EditorCore] Creating new editor instance');
+        const instance = new Editor({
+          extensions,
+          content: {
+            type: 'doc',
+            content: [{ type: 'paragraph' }],
+          },
+          editable: true,
+          editorProps,
+          onUpdate: ({ editor, transaction }) => {
+            // Only fire onChange if document actually changed (not just selection)
+            if (transaction.docChanged && onChangeRef.current) {
+              // Mark that this update is coming from the editor (internal)
+              isInternalUpdate.current = true;
+              onChangeRef.current(editor.getJSON());
+              // Reset flag after a short delay to allow parent to update prop
+              queueMicrotask(() => {
+                isInternalUpdate.current = false;
+              });
+            }
+          },
+          onSelectionUpdate: () => {
+            // Selection update callback (can be used for future selection tracking)
+          },
+        });
+
+        // Store instance for reuse
+        editorInstanceRef.current = instance;
+        return instance;
+      },
       [] // 🔒 EMPTY DEPS: Editor created once, never recreated
     );
 
