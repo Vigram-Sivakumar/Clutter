@@ -23,29 +23,11 @@ import {
   EditorCoreHandle,
   EditorProvider,
   EditorContextValue,
-  Document,
-  Text,
-  Paragraph,
-  Heading,
-  ListBlock,
-  Blockquote,
-  CodeBlock,
-  HorizontalRule,
-  Bold,
-  Italic,
-  Underline,
-  Strike,
-  Code as CodeMark,
-  WavyUnderline,
-  Link,
+  placeholders,
 } from '@clutter/editor';
-import { placeholders } from '@clutter/editor';
-import { CustomHighlight } from '@clutter/editor';
-import { TextColor } from '@clutter/editor';
-import { Callout } from '@clutter/editor';
 
-// HardBreak for line breaks (Shift+Enter)
-import HardBreak from '@tiptap/extension-hard-break';
+// Shared extensions for schema consistency
+import { BASE_EXTENSIONS } from '@clutter/editor';
 
 interface TipTapWrapperProps {
   value?: string;
@@ -68,28 +50,9 @@ export interface TipTapWrapperHandle {
   scrollToBlock: (_blockId: string, _highlight?: boolean) => void;
 }
 
-// Extensions needed for HTML parsing/generation (must match EditorCore)
-const htmlExtensions = [
-  Document,
-  Text,
-  Paragraph,
-  Heading,
-  ListBlock,
-  Blockquote,
-  CodeBlock,
-  HorizontalRule,
-  HardBreak,
-  Link,
-  Callout,
-  Bold,
-  Italic,
-  Underline,
-  Strike,
-  CodeMark,
-  WavyUnderline,
-  CustomHighlight,
-  TextColor,
-];
+// ⚠️ CRITICAL: Use BASE_EXTENSIONS for schema consistency
+// generateJSON() creates its own schema - it MUST match EditorCore's schema
+// Using a partial or different extension list will cause schema mismatches
 
 // Helper function to extract all tags from document content
 function extractTagsFromContent(content: any): string[] {
@@ -226,7 +189,8 @@ export const TipTapWrapper = forwardRef<
       } catch (jsonError) {
         try {
           // Fallback to HTML parsing (legacy format)
-          return generateJSON(value, htmlExtensions);
+          // ⚠️ CRITICAL: Use BASE_EXTENSIONS to ensure schema consistency
+          return generateJSON(value, BASE_EXTENSIONS as any);
         } catch (htmlError) {
           console.error(
             '❌ TipTapWrapper: Failed to parse document, using EMPTY_DOC',

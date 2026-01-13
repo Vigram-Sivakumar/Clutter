@@ -26,6 +26,12 @@ export type {
 export { EditorCore } from './core/EditorCore';
 export type { EditorCoreHandle } from './core/EditorCore';
 
+// Shared extensions for schema consistency
+export {
+  BASE_EXTENSIONS,
+  createEditorExtensions,
+} from './core/editorExtensions';
+
 // Editor engine - block tree state machine
 export { EditorEngine, getEngine, getResolver } from './core/engine';
 

@@ -58,51 +58,11 @@ export interface EditorCoreHandle {
   scrollToBlock: (_blockId: string, _highlight?: boolean) => void;
 }
 
-// Extensions
-import { Document } from '../extensions/nodes/Document';
-import { Text } from '../extensions/nodes/Text';
-import { Paragraph } from '../extensions/nodes/Paragraph';
-import { Heading } from '../extensions/nodes/Heading';
-import { ListBlock } from '../extensions/nodes/ListBlock';
-import { Blockquote } from '../extensions/nodes/Blockquote';
-import { CodeBlock } from '../extensions/nodes/CodeBlock';
-import { HorizontalRule } from '../extensions/nodes/HorizontalRule';
-import { Link } from '../extensions/marks/Link';
-import { Callout } from '../extensions/nodes/Callout';
+// Shared extensions
+import { createEditorExtensions } from './editorExtensions';
 
-// Marks
-import { Bold } from '../extensions/marks/Bold';
-import { Italic } from '../extensions/marks/Italic';
-import { Underline } from '../extensions/marks/Underline';
-import { Strike } from '../extensions/marks/Strike';
-import { Code } from '../extensions/marks/Code';
-import { WavyUnderline } from '../extensions/marks/WavyUnderline';
-import { CustomHighlight } from '../extensions/marks/Highlight';
-import { TextColor } from '../extensions/marks/TextColor';
-import { DateMention as DateMentionNode } from '../extensions/nodes/DateMention';
-import { NoteLink } from '../extensions/nodes/NoteLink';
-
-// TipTap built-in extensions
-import Gapcursor from '@tiptap/extension-gapcursor';
-import History from '@tiptap/extension-history';
-
-// Plugins
-import { MarkdownShortcuts } from '../plugins/MarkdownShortcuts';
-import { SlashCommands } from '../plugins/SlashCommands';
-import { TaskPriority } from '../plugins/TaskPriority';
-import { BackspaceHandler } from '../plugins/BackspaceHandler';
-import { TabHandler } from '../plugins/TabHandler';
-import { KeyboardShortcuts } from '../plugins/KeyboardShortcuts';
-import { EscapeMarks } from '../plugins/EscapeMarks';
+// Plugins (not in shared list)
 import { CollapsePlugin } from '../plugins/CollapsePlugin';
-import { DoubleSpaceEscape } from '../plugins/DoubleSpaceEscape';
-import { HashtagDetection } from '../plugins/HashtagDetection';
-import { HashtagAutocomplete } from '../plugins/HashtagAutocomplete';
-import { AtMention } from '../plugins/AtMention';
-import { BlockIdGenerator } from '../extensions/BlockIdGenerator';
-import { SelectAll } from '../plugins/SelectAll';
-import { BlockDeletion } from '../plugins/BlockDeletion';
-import { UndoRedo } from '../plugins/UndoRedo';
 // import { FocusFade } from '../plugins/FocusFade'; // Disabled for now
 
 // Components
@@ -121,9 +81,6 @@ import { useEditorContext } from '../context/EditorContext';
 
 // Editor Engine
 import { useEditorEngine, getEngine } from './engine';
-
-// HardBreak extension for line breaks (Shift+Enter)
-import HardBreak from '@tiptap/extension-hard-break';
 
 interface EditorCoreProps {
   content?: object | null;
@@ -207,76 +164,15 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
     // Extensions must be stable for the lifetime of the editor
     const extensions = useMemo(
       () =>
-        [
-          // Core nodes
-          Document,
-          Text,
-          Paragraph,
-          Heading,
-          ListBlock,
-          Blockquote,
-          CodeBlock,
-          HorizontalRule,
-          HardBreak.configure({
-            // Don't bind Shift+Enter - we handle it in individual node extensions
-            keepMarks: true,
-          }),
-          Link, // Standard link mark (browser default behavior)
-          Callout, // Info/warning/error/success callout boxes
-          DateMentionNode, // Date mentions (@Today, @Yesterday, etc.) - atomic inline node
-          NoteLink.configure({
-            onNavigate: (_linkType, _targetId) => {
-              onNavigateRef.current?.(_linkType, _targetId);
-            },
-          }), // Note/folder links (no @) - atomic inline node
-          Gapcursor, // Shows cursor when navigating around atomic nodes
-          History, // Undo/redo support - REQUIRED for tr.setMeta('addToHistory') to work
-
-          // Marks
-          Bold,
-          Italic,
-          Underline,
-          Strike,
-          Code,
-          WavyUnderline,
-          TextColor, // Text foreground color
-          CustomHighlight, // Highlight with bg color
-
-          // Plugins
-          BlockIdGenerator, // Auto-generate blockId for all blocks
-          MarkdownShortcuts,
-          SlashCommands,
-          TaskPriority, // Highlight priority indicators (!, !!, !!!) in tasks
-          BackspaceHandler,
-          KeyboardShortcuts, // Centralized Tab/Shift+Tab → indent/outdent intents
-          TabHandler, // Fallback Tab handler - prevents focus navigation
-          EscapeMarks,
-          DoubleSpaceEscape,
-          SelectAll, // Progressive Cmd+A: block text → block node → all blocks
-          BlockDeletion, // Handle DELETE/Backspace for node-selected blocks
-          UndoRedo, // Cmd+Z / Cmd+Shift+Z → EditorEngine.undoController
-          HashtagDetection, // Simple #tag detection (moves to metadata)
-          HashtagAutocomplete.configure({
-            getColors: () => colors,
-            getTags: () => availableTags,
-          }),
-          AtMention.configure({
-            getColors: () => colors,
-          }),
-          // FocusFade, // Fade text before cursor for better focus - Disabled for now
-
-          // DISABLED: TipTap History - We use UndoController for emotional undo
-          // History and UndoBoundaries have been removed in favor of:
-          // - EditorEngine.undoController (handles grouping per UNDO_GROUPING_LAW.md)
-          // - Full state restoration (cursor + selection)
-          // - Time-based and intent-based grouping
-
-          // DISABLED: TipTap Placeholder uses CSS ::before which shows placeholder BEFORE markers
-          // We use React-based placeholders in each component instead
-          // Placeholder.configure({...}),
-        ] as any[],
-      []
-    ); // 🔒 EMPTY DEPS: Extensions frozen for editor lifetime
+        createEditorExtensions({
+          colors,
+          availableTags,
+          onNavigate: (linkType, targetId) => {
+            onNavigateRef.current?.(linkType, targetId);
+          },
+        }),
+      [] // 🔒 EMPTY DEPS: Extensions frozen for editor lifetime
+    );
 
     // 🔒 Stabilize editorProps to prevent recreation
     const editorProps = useMemo(
