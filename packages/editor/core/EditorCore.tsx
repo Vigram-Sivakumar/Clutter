@@ -107,12 +107,12 @@ import { BlockDeletion } from '../plugins/BlockDeletion';
 import { UndoRedo } from '../plugins/UndoRedo';
 // import { FocusFade } from '../plugins/FocusFade'; // Disabled for now
 
-// Components
-import { SlashCommandMenu } from '../components/SlashCommandMenu';
-import { AtMentionMenu } from '../components/AtMentionMenu';
+// Components (disabled for minimal schema test)
+// import { SlashCommandMenu } from '../components/SlashCommandMenu';
+// import { AtMentionMenu } from '../components/AtMentionMenu';
 
 // Shared Components for inline styling
-import { FloatingToolbar } from '@clutter/ui';
+// import { FloatingToolbar } from '@clutter/ui';
 
 // HardBreak extension for line breaks (Shift+Enter)
 import HardBreak from '@tiptap/extension-hard-break';
@@ -919,14 +919,10 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
         {/* Editor content */}
         <EditorContent editor={editor} />
 
-        {/* Slash command menu */}
-        <SlashCommandMenu editor={editor as any} />
-
-        {/* @ mention menu (dates + links) */}
-        <AtMentionMenu editor={editor as any} />
-
-        {/* Floating toolbar for text formatting (shows on selection) */}
-        <FloatingToolbar editor={editor} />
+        {/* UI Components disabled for minimal schema test */}
+        {/* <SlashCommandMenu editor={editor as any} /> */}
+        {/* <AtMentionMenu editor={editor as any} /> */}
+        {/* <FloatingToolbar editor={editor} /> */}
       </div>
     );
   }
