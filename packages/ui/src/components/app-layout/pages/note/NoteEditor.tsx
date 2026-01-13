@@ -144,6 +144,29 @@ export const NoteEditor = ({
     createDailyNote,
   } = useNotesStore();
 
+  // 🔒 CRITICAL: Debounce content updates to prevent render feedback loop
+  // Without this: typing → onChange → Zustand set() → NoteEditor re-renders → EditorCore re-renders → log spam
+  // With this: typing → debounced onChange → Zustand set() every 300ms → stable
+  const updateNoteContentRef = useRef(updateNoteContent);
+
+  useEffect(() => {
+    updateNoteContentRef.current = updateNoteContent;
+  }, [updateNoteContent]);
+
+  const [debouncedUpdateContent, cancelDebouncedContent] = useDebounce(
+    (id: string, content: string) => {
+      updateNoteContentRef.current(id, content);
+    },
+    300
+  );
+
+  // 🛡️ Cleanup: Cancel pending content updates on unmount
+  useEffect(() => {
+    return () => {
+      cancelDebouncedContent();
+    };
+  }, [cancelDebouncedContent]);
+
   // Folders store
   const {
     folders,
@@ -444,6 +467,7 @@ export const NoteEditor = ({
 
     // 🛡️ CRITICAL: Cancel any pending debounced saves from previous note
     cancelDebouncedSave();
+    cancelDebouncedContent(); // Cancel content updates too
 
     // Wait for React + ProseMirror to fully settle before mounting editor
     requestAnimationFrame(() => {
@@ -1837,8 +1861,9 @@ export const NoteEditor = ({
                   value={currentNote?.content || undefined}
                   autoFocus={false}
                   onChange={(value) => {
-                    // Update note content directly
-                    updateNoteContent(currentNoteId, value);
+                    // ✅ Debounced update (300ms) - prevents render feedback loop
+                    // Typing → debounced write to Zustand → stable (no immediate re-renders)
+                    debouncedUpdateContent(currentNoteId, value);
                   }}
                   onTagClick={handleShowTagFilter}
                   onNavigate={handleNavigate}
