@@ -44,7 +44,9 @@ export const BlockDeletion = Extension.create({
         key: blockDeletionPluginKey,
         props: {
           handleKeyDown(view, event) {
-            const editor = (this as any).editor;
+            // 🔒 CRITICAL: Always read canonical editor at execution time
+            // NEVER use (this as any).editor - it captures stale references
+            const editor = (window as any).__editor;
 
             if (!editor) return false;
 
