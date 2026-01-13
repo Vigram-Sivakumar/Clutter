@@ -58,7 +58,8 @@ export interface EditorCoreHandle {
   scrollToBlock: (_blockId: string, _highlight?: boolean) => void;
 }
 
-// Extensions
+// Extensions - DIRECT imports to avoid module identity issues
+// Importing through barrel exports can cause TipTap to see different Document instances
 import { Document } from '../extensions/nodes/Document';
 import { Text } from '../extensions/nodes/Text';
 import { Paragraph } from '../extensions/nodes/Paragraph';
@@ -166,8 +167,26 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
       );
     }, []);
 
+    // 🔍 DIAGNOSTIC: Verify Document identity before useEditor
+    console.log('[EditorCore] DOC IDENTITY', {
+      Document,
+      name: Document?.name,
+      topNode: Document?.config?.topNode,
+    });
+
     const { colors } = useTheme();
     const { availableTags } = useEditorContext();
+
+    // 🔍 DIAGNOSTIC: Log all extension groups to verify schema composition
+    console.log('[EditorCore] PRE-MEMO extensions snapshot:');
+    console.log('Document:', Document?.name, 'group:', Document?.config?.group);
+    console.log(
+      'Paragraph:',
+      Paragraph?.name,
+      'group:',
+      Paragraph?.config?.group
+    );
+    console.log('Text:', Text?.name, 'group:', Text?.config?.group);
 
     // 🔒 CRITICAL: Store editor instance for StrictMode reuse
     // React StrictMode mounts twice in dev - we reuse the same editor instance
@@ -205,78 +224,87 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
 
     // 🔒 CRITICAL: Freeze extensions array to prevent editor recreation
     // Extensions must be stable for the lifetime of the editor
-    const extensions = useMemo(
-      () =>
-        [
-          // Core nodes
-          Document,
-          Text,
-          Paragraph,
-          Heading,
-          ListBlock,
-          Blockquote,
-          CodeBlock,
-          HorizontalRule,
-          HardBreak.configure({
-            // Don't bind Shift+Enter - we handle it in individual node extensions
-            keepMarks: true,
-          }),
-          Link, // Standard link mark (browser default behavior)
-          Callout, // Info/warning/error/success callout boxes
-          DateMentionNode, // Date mentions (@Today, @Yesterday, etc.) - atomic inline node
-          NoteLink.configure({
-            onNavigate: (_linkType, _targetId) => {
-              onNavigateRef.current?.(_linkType, _targetId);
-            },
-          }), // Note/folder links (no @) - atomic inline node
-          Gapcursor, // Shows cursor when navigating around atomic nodes
-          History, // Undo/redo support - REQUIRED for tr.setMeta('addToHistory') to work
+    const extensions = useMemo(() => {
+      console.log('[EditorCore] useMemo EXECUTING - building extensions array');
+      return [
+        // Core nodes
+        Document,
+        Text,
+        Paragraph,
+        Heading,
+        ListBlock,
+        Blockquote,
+        CodeBlock,
+        HorizontalRule,
+        HardBreak.configure({
+          // Don't bind Shift+Enter - we handle it in individual node extensions
+          keepMarks: true,
+        }),
+        Link, // Standard link mark (browser default behavior)
+        Callout, // Info/warning/error/success callout boxes
+        DateMentionNode, // Date mentions (@Today, @Yesterday, etc.) - atomic inline node
+        NoteLink.configure({
+          onNavigate: (_linkType, _targetId) => {
+            onNavigateRef.current?.(_linkType, _targetId);
+          },
+        }), // Note/folder links (no @) - atomic inline node
+        Gapcursor, // Shows cursor when navigating around atomic nodes
+        History, // Undo/redo support - REQUIRED for tr.setMeta('addToHistory') to work
 
-          // Marks
-          Bold,
-          Italic,
-          Underline,
-          Strike,
-          Code,
-          WavyUnderline,
-          TextColor, // Text foreground color
-          CustomHighlight, // Highlight with bg color
+        // Marks
+        Bold,
+        Italic,
+        Underline,
+        Strike,
+        Code,
+        WavyUnderline,
+        TextColor, // Text foreground color
+        CustomHighlight, // Highlight with bg color
 
-          // Plugins
-          BlockIdGenerator, // Auto-generate blockId for all blocks
-          MarkdownShortcuts,
-          SlashCommands,
-          TaskPriority, // Highlight priority indicators (!, !!, !!!) in tasks
-          BackspaceHandler,
-          KeyboardShortcuts, // Centralized Tab/Shift+Tab → indent/outdent intents
-          TabHandler, // Fallback Tab handler - prevents focus navigation
-          EscapeMarks,
-          DoubleSpaceEscape,
-          SelectAll, // Progressive Cmd+A: block text → block node → all blocks
-          BlockDeletion, // Handle DELETE/Backspace for node-selected blocks
-          UndoRedo, // Cmd+Z / Cmd+Shift+Z → EditorEngine.undoController
-          HashtagDetection, // Simple #tag detection (moves to metadata)
-          HashtagAutocomplete.configure({
-            getColors: () => colors,
-            getTags: () => availableTags,
-          }),
-          AtMention.configure({
-            getColors: () => colors,
-          }),
-          // FocusFade, // Fade text before cursor for better focus - Disabled for now
+        // Plugins
+        BlockIdGenerator, // Auto-generate blockId for all blocks
+        MarkdownShortcuts,
+        SlashCommands,
+        TaskPriority, // Highlight priority indicators (!, !!, !!!) in tasks
+        BackspaceHandler,
+        KeyboardShortcuts, // Centralized Tab/Shift+Tab → indent/outdent intents
+        TabHandler, // Fallback Tab handler - prevents focus navigation
+        EscapeMarks,
+        DoubleSpaceEscape,
+        SelectAll, // Progressive Cmd+A: block text → block node → all blocks
+        BlockDeletion, // Handle DELETE/Backspace for node-selected blocks
+        UndoRedo, // Cmd+Z / Cmd+Shift+Z → EditorEngine.undoController
+        HashtagDetection, // Simple #tag detection (moves to metadata)
+        HashtagAutocomplete.configure({
+          getColors: () => colors,
+          getTags: () => availableTags,
+        }),
+        AtMention.configure({
+          getColors: () => colors,
+        }),
+        // FocusFade, // Fade text before cursor for better focus - Disabled for now
 
-          // DISABLED: TipTap History - We use UndoController for emotional undo
-          // History and UndoBoundaries have been removed in favor of:
-          // - EditorEngine.undoController (handles grouping per UNDO_GROUPING_LAW.md)
-          // - Full state restoration (cursor + selection)
-          // - Time-based and intent-based grouping
+        // DISABLED: TipTap History - We use UndoController for emotional undo
+        // History and UndoBoundaries have been removed in favor of:
+        // - EditorEngine.undoController (handles grouping per UNDO_GROUPING_LAW.md)
+        // - Full state restoration (cursor + selection)
+        // - Time-based and intent-based grouping
 
-          // DISABLED: TipTap Placeholder uses CSS ::before which shows placeholder BEFORE markers
-          // We use React-based placeholders in each component instead
-          // Placeholder.configure({...}),
-        ] as any[],
-      []
-    ); // 🔒 EMPTY DEPS: Extensions frozen for editor lifetime
+        // DISABLED: TipTap Placeholder uses CSS ::before which shows placeholder BEFORE markers
+        // We use React-based placeholders in each component instead
+        // Placeholder.configure({...}),
+      ] as any[];
+    }, []); // 🔒 EMPTY DEPS: Extensions frozen for editor lifetime
+
+    // 🔍 DIAGNOSTIC: Log extensions after useMemo
+    console.log(
+      '[EditorCore] POST-MEMO extensions length:',
+      extensions?.length
+    );
+    console.log(
+      '[EditorCore] POST-MEMO first 3:',
+      extensions?.slice(0, 3).map((e) => e?.name)
+    );
 
     // 🔒 Stabilize editorProps to prevent recreation
     const editorProps = useMemo(
@@ -355,6 +383,15 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
           console.log('[EditorCore] Reusing editor instance (StrictMode)');
           return editorInstanceRef.current;
         }
+
+        // 🔍 DIAGNOSTIC: Verify extensions array at runtime
+        console.log(
+          '[EditorCore] EXTENSIONS CHECK',
+          extensions.map((e) => ({
+            name: e?.name,
+            topNode: e?.config?.topNode,
+          }))
+        );
 
         // Create new instance on first mount
         console.log('[EditorCore] Creating new editor instance');

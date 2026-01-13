@@ -38,5 +38,10 @@
     "node": ">=18.0.0",
     "npm": ">=9.0.0"
   },
-  "packageManager": "npm@9.9.0"
+  "packageManager": "npm@9.9.0",
+  "overrides": {
+    "@tiptap/core": "^2.10.5",
+    "@tiptap/pm": "^2.10.5",
+    "@tiptap/react": "^2.10.5"
+  }
 }
