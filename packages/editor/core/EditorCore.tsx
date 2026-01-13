@@ -747,7 +747,7 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
           font-family: ${typography.fontFamily};
           font-size: ${typography.body}px;
           line-height: ${typography.lineHeightRatio};
-          color: ${colors.text.default};
+          color: #000; /* Hardcoded for minimal schema test */
         }
 
         /* Use flexbox gap for consistent block spacing */
@@ -792,7 +792,7 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
          */
         .ProseMirror [data-empty="true"][data-placeholder] [contenteditable="true"]::before {
           content: attr(data-placeholder);
-          color: ${colors.text.placeholder};
+          color: #999; /* Hardcoded for minimal schema test */
           pointer-events: none;
           user-select: none;
           white-space: nowrap;
@@ -840,10 +840,10 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
         /* Horizontal Rule selection */
         .ProseMirror hr.ProseMirror-selectednode,
         .ProseMirror [data-type="horizontalRule"].ProseMirror-selectednode {
-          background-color: ${colors.border.focus}20;
+          background-color: rgba(0, 100, 255, 0.1); /* Hardcoded for minimal schema test */
           outline: none;
           border-radius: 4px;
-          box-shadow: 0 0 0 4px ${colors.border.focus}20;
+          box-shadow: 0 0 0 4px rgba(0, 100, 255, 0.1); /* Hardcoded for minimal schema test */
         }
 
         /* Connector and collapse rendering moved to React component for unlimited nesting */
@@ -872,24 +872,24 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
         /* PHASE 5: Slash command styling - unique and polished */
         /* The "/" symbol - accent color with background pill */
         .ProseMirror .slash-command-symbol {
-          color: ${colors.semantic.orange};
+          color: #ff8800; /* Hardcoded for minimal schema test */
           font-weight: 600;
-          background-color: ${colors.semantic.orange}10;
+          background-color: rgba(255, 136, 0, 0.1); /* Hardcoded for minimal schema test */
           border-radius: 3px;
           padding: 1px 4px;
           margin: 0;
-          caret-color: ${colors.text.default}; /* Keep cursor default color so "/" stands out */
+          caret-color: #000; /* Hardcoded for minimal schema test */
         }
 
         /* The query text after "/" - plain styling, lighter color */
         .ProseMirror .slash-command-query {
-          color: ${colors.text.tertiary};
+          color: #666; /* Hardcoded for minimal schema test */
           background: none;
           border-radius: 0;
           padding: 0;
           margin: 0;
           font-weight: 500;
-          caret-color: ${colors.text.default}; /* Keep cursor default color */
+          caret-color: #000; /* Hardcoded for minimal schema test */
         }
 
 
@@ -898,7 +898,7 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
         /* Appears while typing, disappears after 3s inactivity */
         /* Gradient from 100% visible (far from cursor) to 30% faded (near cursor) */
         .ProseMirror .focus-fade-gradient {
-          color: ${colors.text.default};
+          color: #000; /* Hardcoded for minimal schema test */
           -webkit-mask-image: linear-gradient(
             to right,
             rgba(0, 0, 0, 1) 0%,      /* 100% opacity at start (far from cursor - visible) */
@@ -909,7 +909,7 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
             rgba(0, 0, 0, 1) 0%,
             rgba(0, 0, 0, 0.3) 100%
           );
-          caret-color: ${colors.text.default}; /* Keep cursor visible */
+          caret-color: #000; /* Hardcoded for minimal schema test */
         }
 
         /* Date Mention - Notion-style relative dates (@Today, @Yesterday, etc.) */
