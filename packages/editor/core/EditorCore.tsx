@@ -156,6 +156,16 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
     },
     ref
   ) => {
+    // 🔍 BUILD FINGERPRINT: Proves fresh code is running (not stale cache)
+    // If this timestamp doesn't change after rebuild → Vite cache issue
+    useEffect(() => {
+      console.log(
+        '[EditorCore] BUILD',
+        new Date().toISOString(),
+        'v2.0.0-strictmode-safe'
+      );
+    }, []);
+
     const { colors } = useTheme();
     const { availableTags } = useEditorContext();
 

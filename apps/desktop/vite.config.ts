@@ -11,6 +11,13 @@ export default defineConfig({
       '@clutter/ui': path.resolve(__dirname, '../../packages/ui/src'),
     },
   },
+  // 🔥 Force Vite to invalidate deps when packages change
+  // Prevents stale cache issues in monorepo with prebuilt packages
+  optimizeDeps: {
+    force: process.env.VITE_FORCE === 'true',
+    // During deep editor work, set VITE_FORCE=true to disable caching entirely
+    disabled: process.env.VITE_FORCE === 'true',
+  },
   // Reduce console noise
   clearScreen: false,
   logLevel: 'warn',
@@ -28,4 +35,3 @@ export default defineConfig({
     sourcemap: true,
   },
 });
-
