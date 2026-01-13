@@ -461,11 +461,12 @@ export const NoteEditor = ({
       requestAnimationFrame(() => {
         setIsHydrated(true);
 
-        // 🎯 Focus restoration: Only restore focus if editor had it before note switch
-        // This prevents cursor jumps and unexpected caret flashes
-        if (editorHadFocusRef.current) {
-          editorRef.current?.focus();
-        }
+        // 🎯 Focus restoration DISABLED during minimal schema testing
+        // Imperative focus() calls during transactions cause position errors
+        // TODO: Re-enable with proper guards after schema is stable
+        // if (editorHadFocusRef.current) {
+        //   editorRef.current?.focus();
+        // }
 
         // 🎨 Update previous note ID for transition tracking
         previousNoteIdRef.current = currentNote.id;
