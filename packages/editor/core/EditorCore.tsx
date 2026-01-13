@@ -56,6 +56,7 @@ import { NodeSelection } from '@tiptap/pm/state';
 export interface EditorCoreHandle {
   focus: () => void;
   scrollToBlock: (_blockId: string, _highlight?: boolean) => void;
+  setContent: (_content: object) => void; // ✅ Imperative content setter
 }
 
 // Extensions - DIRECT imports to avoid module identity issues
@@ -123,13 +124,13 @@ import { spacing, typography, placeholders } from '../tokens';
 // import { useTheme } from '@clutter/ui';
 
 // Editor Context
-import { useEditorContext } from '../context/EditorContext';
+// import { useEditorContext } from '../context/EditorContext'; // Unused in minimal schema
 
 // Editor Engine
 import { useEditorEngine, getEngine } from './engine';
 
 interface EditorCoreProps {
-  content?: object | null;
+  content?: object | null; // ❌ Deprecated: Use ref.current.setContent() instead
   onChange?: (_content: object) => void;
   onTagClick?: (_tag: string) => void; // Callback when a tag is clicked for navigation
   onNavigate?: (_linkType: 'note' | 'folder', _targetId: string) => void; // Callback when a note/folder link is clicked
@@ -144,7 +145,7 @@ interface EditorCoreProps {
 export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
   (
     {
-      content,
+      content: _content, // ❌ Ignored: Use ref.current.setContent() instead
       onChange,
       onTagClick,
       onNavigate,
@@ -233,16 +234,12 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
     // Extensions must be stable for the lifetime of the editor
     const extensions = useMemo(() => {
       console.log('[EditorCore] useMemo EXECUTING - building extensions array');
-      
+
       // 🧪 MINIMAL SAFE SCHEMA - Testing for extension poisoning
       // If this works → one of the removed extensions is broken
       // If this fails → core schema issue (very unlikely now)
-      return [
-        Document,
-        Paragraph,
-        Text,
-      ] as any[];
-      
+      return [Document, Paragraph, Text] as any[];
+
       /* FULL SCHEMA (temporarily disabled for diagnosis)
       return [
         // 1️⃣ Top node
@@ -440,18 +437,18 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
       }
     }, [editor, editable]);
 
-    // 🔒 CRITICAL: Set content imperatively when prop changes
-    // Content prop should ONLY change when NOTE changes, not on every keystroke
-    // This prevents editor recreation while still allowing note switching
-    useEffect(() => {
-      if (!editor) return;
-      if (isInternalUpdate.current) return;
-
-      if (content) {
-        console.log('[EditorCore] Setting content imperatively');
-        editor.commands.setContent(content, false);
-      }
-    }, [editor, content]);
+    // ❌ DISABLED: Content should NEVER be passed as a prop
+    // This causes unmount/remount cycles when notes switch
+    // Content is now set imperatively via ref.current.setContent()
+    // useEffect(() => {
+    //   if (!editor) return;
+    //   if (isInternalUpdate.current) return;
+    //
+    //   if (content) {
+    //     console.log('[EditorCore] Setting content imperatively');
+    //     editor.commands.setContent(content, false);
+    //   }
+    // }, [editor, content]);
 
     // Store onTagClick callback in editor instance so node views can access it
     useEffect(() => {
@@ -651,37 +648,53 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
             // Selection persists until user manually clicks elsewhere
           }
         },
+        setContent: (newContent: object) => {
+          if (!editor) return;
+
+          // Set flag to prevent onChange from firing during content load
+          isInternalUpdate.current = true;
+
+          console.log('[EditorCore] setContent called imperatively');
+          editor.commands.setContent(newContent, false);
+
+          // Reset flag after content is set
+          queueMicrotask(() => {
+            isInternalUpdate.current = false;
+          });
+        },
       }),
       [editor]
     );
 
-    // Update content when prop changes
-    useEffect(() => {
-      // Skip if this update is from the editor itself (internal)
-      // This prevents clearing history on every keystroke
-      if (isInternalUpdate.current) {
-        console.log(
-          '🛡️ [EditorCore] Skipping content update (internal update flag set)'
-        );
-        // Clear the flag after a short delay to allow for any pending renders
-        const timeoutId = setTimeout(() => {
-          isInternalUpdate.current = false;
-        }, 100);
-        return () => clearTimeout(timeoutId);
-      }
-
-      if (editor && content) {
-        // Only update if content is different (semantic comparison)
-        const currentContent = JSON.stringify(editor.getJSON());
-        const newContent = JSON.stringify(content);
-
-        if (currentContent !== newContent) {
-          // Note: setContent clears history, so only call when content truly changed externally
-          // (e.g., loading a different note or external sync)
-          editor.commands.setContent(content, false);
-        }
-      }
-    }, [content, editor]);
+    // ❌ DISABLED: Content should NEVER be passed as a prop
+    // This causes unmount/remount cycles when notes switch
+    // Content is now set imperatively via ref.current.setContent()
+    // useEffect(() => {
+    //   // Skip if this update is from the editor itself (internal)
+    //   // This prevents clearing history on every keystroke
+    //   if (isInternalUpdate.current) {
+    //     console.log(
+    //       '🛡️ [EditorCore] Skipping content update (internal update flag set)'
+    //     );
+    //     // Clear the flag after a short delay to allow for any pending renders
+    //     const timeoutId = setTimeout(() => {
+    //       isInternalUpdate.current = false;
+    //     }, 100);
+    //     return () => clearTimeout(timeoutId);
+    //   }
+    //
+    //   if (editor && content) {
+    //     // Only update if content is different (semantic comparison)
+    //     const currentContent = JSON.stringify(editor.getJSON());
+    //     const newContent = JSON.stringify(content);
+    //
+    //     if (currentContent !== newContent) {
+    //       // Note: setContent clears history, so only call when content truly changed externally
+    //       // (e.g., loading a different note or external sync)
+    //       editor.commands.setContent(content, false);
+    //     }
+    //   }
+    // }, [content, editor]);
 
     // Update editable state
     useEffect(() => {

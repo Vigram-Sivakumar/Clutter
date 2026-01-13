@@ -14,6 +14,7 @@ import {
   useRef,
   forwardRef,
   useImperativeHandle,
+  useEffect,
 } from 'react';
 
 // Editor imports from @clutter/editor package
@@ -153,6 +154,9 @@ export const TipTapWrapper = forwardRef<
     const editorCoreRef = useRef<EditorCoreHandle>(null);
     const isUpdatingFromEditor = useRef(false);
 
+    // 🔒 Keep stable reference to content for imperative setting
+    const contentRef = useRef(content);
+
     // Expose methods to parent
     useImperativeHandle(ref, () => ({
       focus: () => {
@@ -162,6 +166,23 @@ export const TipTapWrapper = forwardRef<
         editorCoreRef.current?.scrollToBlock(blockId, highlight);
       },
     }));
+
+    // 🔒 Update content ref whenever it changes
+    useEffect(() => {
+      contentRef.current = content;
+    }, [content]);
+
+    // 🔒 CRITICAL: Set content imperatively when NOTE changes (not on every keystroke)
+    // This prevents EditorCore from unmounting/remounting
+    useEffect(() => {
+      if (!editorCoreRef.current || !content) return;
+
+      console.log(
+        '[TipTapWrapper] Setting content imperatively for noteId:',
+        noteId
+      );
+      editorCoreRef.current.setContent(content);
+    }, [noteId]); // ✅ Only when noteId changes, not content
 
     // 🔒 CRITICAL: Parse content ONLY when NOTE changes, not on every keystroke
     // Dependency on noteId (NOT value) ensures content only updates when loading a different note
@@ -236,9 +257,10 @@ export const TipTapWrapper = forwardRef<
 
     return (
       <EditorProvider value={editorContext}>
+        {/* ❌ REMOVED: content prop causes unmount/remount on note switch */}
+        {/* ✅ Content is now set imperatively via ref.current.setContent() */}
         <EditorCore
           ref={editorCoreRef}
-          content={content}
           onChange={handleChange}
           onTagClick={onTagClick}
           onNavigate={onNavigate}
