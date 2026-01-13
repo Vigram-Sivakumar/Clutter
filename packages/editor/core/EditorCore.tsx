@@ -254,9 +254,21 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
         HorizontalRule,
         Callout, // Info/warning/error/success callout boxes
 
-        // 3️⃣ Inline nodes (MUST come after block nodes)
+        // 3️⃣ Text node (MUST come immediately after blocks, before marks/plugins)
         Text,
 
+        // 4️⃣ Marks (MUST come after Text, before other nodes/plugins)
+        Bold,
+        Italic,
+        Underline,
+        Strike,
+        Code,
+        WavyUnderline,
+        Link, // Standard link mark (browser default behavior)
+        TextColor, // Text foreground color
+        CustomHighlight, // Highlight with bg color
+
+        // 5️⃣ Other nodes (atomic, inline extensions)
         HardBreak.configure({
           // Don't bind Shift+Enter - we handle it in individual node extensions
           keepMarks: true,
@@ -267,21 +279,12 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
             onNavigateRef.current?.(_linkType, _targetId);
           },
         }), // Note/folder links (no @) - atomic inline node
+
+        // 6️⃣ ProseMirror built-in utilities
         Gapcursor, // Shows cursor when navigating around atomic nodes
         History, // Undo/redo support - REQUIRED for tr.setMeta('addToHistory') to work
 
-        // 4️⃣ Marks
-        Link, // Standard link mark (browser default behavior)
-        Bold,
-        Italic,
-        Underline,
-        Strike,
-        Code,
-        WavyUnderline,
-        TextColor, // Text foreground color
-        CustomHighlight, // Highlight with bg color
-
-        // Plugins
+        // 7️⃣ Custom plugins
         BlockIdGenerator, // Auto-generate blockId for all blocks
         MarkdownShortcuts,
         SlashCommands,
