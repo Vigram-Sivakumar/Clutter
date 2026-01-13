@@ -471,12 +471,46 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
         canonicalEditor.emit('selectionUpdate', { editor: canonicalEditor });
       };
 
+      const handleSelectBlock = (e: Event) => {
+        const canonicalEditor = (window as any).__editor;
+        if (!canonicalEditor) return;
+
+        const engine = getEngine(canonicalEditor);
+        if (!engine) {
+          console.warn(
+            '[EditorCore] Engine not yet attached, skipping block selection'
+          );
+          return;
+        }
+
+        const { blockId } = (e as CustomEvent).detail;
+        if (!blockId) return;
+
+        // Safely mutate engine (guaranteed to exist in React context)
+        engine.selection = {
+          kind: 'block',
+          blockIds: [blockId],
+        };
+
+        // Notify observers
+        canonicalEditor.emit('selectionUpdate', { editor: canonicalEditor });
+
+        console.log('[EditorCore] Block selection applied:', {
+          blockId: blockId.slice(0, 8),
+          engineSelection: engine.selection,
+        });
+      };
+
       window.addEventListener('editor:deselect-blocks', handleDeselectBlocks);
-      return () =>
+      window.addEventListener('editor:select-block', handleSelectBlock);
+
+      return () => {
         window.removeEventListener(
           'editor:deselect-blocks',
           handleDeselectBlocks
         );
+        window.removeEventListener('editor:select-block', handleSelectBlock);
+      };
     }, []); // 🔒 EMPTY DEPS: listener never recreated
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

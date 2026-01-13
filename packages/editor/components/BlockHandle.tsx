@@ -750,15 +750,6 @@ export function BlockHandle({ editor, getPos, indent = 0 }: BlockHandleProps) {
             return;
           }
 
-          // 🔒 Validate engine attachment
-          const engine = getEngine(canonicalEditor);
-          if (!engine) {
-            console.error(
-              '[BlockHandle] Engine not attached to canonical editor'
-            );
-            return;
-          }
-
           const pos = getPos();
           if (pos === undefined) return;
 
@@ -777,19 +768,17 @@ export function BlockHandle({ editor, getPos, indent = 0 }: BlockHandleProps) {
           );
           canonicalEditor.view.dispatch(tr);
 
-          // 🔒 Sync engine selection
-          engine.selection = {
-            kind: 'block',
-            blockIds: [blockId],
-          };
+          // 🔒 DOM → Signal → React → Engine (SAFE PATTERN)
+          // Emit intent signal, let React effect handle engine mutation
+          window.dispatchEvent(
+            new CustomEvent('editor:select-block', {
+              detail: { blockId },
+            })
+          );
 
-          // 🔔 Notify observers (useBlockSelection, menus)
-          canonicalEditor.emit('selectionUpdate', { editor: canonicalEditor });
-
-          console.log('[BlockHandle] Selection set:', {
+          console.log('[BlockHandle] Block selection intent emitted:', {
             blockId: blockId.slice(0, 8),
             pmSelectionType: canonicalEditor.state.selection.constructor.name,
-            engineSelection: engine.selection,
           });
         }}
         onClick={(e) => {
