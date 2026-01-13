@@ -156,10 +156,10 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
     },
     ref
   ) => {
-    // 🚨 DIAGNOSTIC: Detect double mount (REMOVE AFTER DEBUGGING)
+    // 🚨 GUARD: Prevent double mount (React StrictMode in dev)
     if ((window as any).__EDITORCORE_MOUNTED__) {
-      console.error('❌ EditorCore mounted twice — INVALID');
-      // debugger; // Pause execution to see stack trace
+      console.warn('[EditorCore] Already mounted, skipping (StrictMode)');
+      return null; // ← Prevent second editor instance creation
     }
     (window as any).__EDITORCORE_MOUNTED__ = true;
 

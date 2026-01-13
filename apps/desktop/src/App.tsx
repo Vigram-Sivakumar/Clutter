@@ -386,9 +386,7 @@ function App() {
               <NotesContainer
                 isInitialized={isInitialized}
                 onHydrationChange={setIsEditorHydrated}
-              >
-                <></>
-              </NotesContainer>
+              />
             }
           />
         </Routes>
