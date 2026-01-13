@@ -15,7 +15,6 @@ import {
   forwardRef,
   useImperativeHandle,
 } from 'react';
-import { generateJSON } from '@tiptap/core';
 
 // Editor imports from @clutter/editor package
 import {
@@ -23,11 +22,8 @@ import {
   EditorCoreHandle,
   EditorProvider,
   EditorContextValue,
-  placeholders,
 } from '@clutter/editor';
-
-// Shared extensions for schema consistency
-import { BASE_EXTENSIONS } from '@clutter/editor';
+import { placeholders } from '@clutter/editor';
 
 interface TipTapWrapperProps {
   value?: string;
@@ -50,9 +46,9 @@ export interface TipTapWrapperHandle {
   scrollToBlock: (_blockId: string, _highlight?: boolean) => void;
 }
 
-// ⚠️ CRITICAL: Use BASE_EXTENSIONS for schema consistency
-// generateJSON() creates its own schema - it MUST match EditorCore's schema
-// Using a partial or different extension list will cause schema mismatches
+// 🚫 REMOVED: htmlExtensions + generateJSON()
+// These were creating a duplicate schema that crashed before EditorCore mounted.
+// ProseMirror JSON is already the canonical format - no parsing needed.
 
 // Helper function to extract all tags from document content
 function extractTagsFromContent(content: any): string[] {
@@ -176,28 +172,22 @@ export const TipTapWrapper = forwardRef<
         return undefined; // undefined = "keep current content"
       }
 
-      console.log('[TipTapWrapper] Parsing content for noteId:', noteId);
+      console.log('[TipTapWrapper] Loading content for noteId:', noteId);
 
-      // Parse the incoming value
+      // Use the incoming value directly (already ProseMirror JSON)
       if (!value) {
         return EMPTY_DOC;
       }
 
       try {
-        // Try to parse as JSON first (new format)
+        // Parse JSON string to object
         return JSON.parse(value);
-      } catch (jsonError) {
-        try {
-          // Fallback to HTML parsing (legacy format)
-          // ⚠️ CRITICAL: Use BASE_EXTENSIONS to ensure schema consistency
-          return generateJSON(value, BASE_EXTENSIONS as any);
-        } catch (htmlError) {
-          console.error(
-            '❌ TipTapWrapper: Failed to parse document, using EMPTY_DOC',
-            htmlError
-          );
-          return EMPTY_DOC;
-        }
+      } catch (error) {
+        console.error(
+          '❌ TipTapWrapper: Invalid JSON content, using EMPTY_DOC',
+          error
+        );
+        return EMPTY_DOC;
       }
     }, [noteId]); // 🔒 Changes ONLY when noteId changes, NOT on every keystroke
 
