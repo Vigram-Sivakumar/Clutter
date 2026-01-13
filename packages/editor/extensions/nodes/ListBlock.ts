@@ -18,24 +18,24 @@
 
 import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer } from '@tiptap/react';
-import { TextSelection } from '@tiptap/pm/state';
 import { spacing } from '../../tokens';
 import type { ListType, ListBlockAttrs } from '../../types';
 import { ListBlock as ListBlockComponent } from '../../components/ListBlock';
 import { createShiftEnterHandler } from '../../utils/keyboardHelpers';
-import { BackspaceRules } from '../../utils/keyboardRules';
 import { handleEnter } from '../../plugins/keyboard';
 // NOTE: Arrow navigation removed - now centralized in KeyboardShortcuts.ts
 import { EditorEngine } from '../../core/engine/EditorEngine';
-import { DeleteBlockCommand } from '../../core/engine/command';
 
 // NOTE: indentBlock/outdentBlock removed - now handled via keyboard rules
 
 /**
- * Get EditorEngine from TipTap editor instance
+ * Get EditorEngine from CANONICAL TipTap editor instance
+ *
+ * 🔒 CRITICAL: Always read from window.__editor to avoid stale references
  */
-function getEngine(editor: any): EditorEngine | null {
-  return editor._engine || null;
+function _getEngine(_editor: any): EditorEngine | null {
+  const canonicalEditor = (window as any).__editor;
+  return canonicalEditor?._engine || null;
 }
 
 declare module '@tiptap/core' {
@@ -74,8 +74,7 @@ export const ListBlock = Node.create({
     return {
       blockId: {
         default: null,
-        parseHTML: (element) =>
-          element.getAttribute('data-block-id') || null,
+        parseHTML: (element) => element.getAttribute('data-block-id') || null,
         renderHTML: (attributes) => {
           if (attributes.blockId) {
             return { 'data-block-id': attributes.blockId };
@@ -224,7 +223,7 @@ export const ListBlock = Node.create({
         return false;
       },
 
-      Backspace: ({ editor }) => {
+      Backspace: () => {
         // 🔥 FLAT MODEL: ALL structural deletion handled by KeyboardShortcuts → FlatIntentResolver
         // This node-level handler must NOT handle structural operations
         // Return false → pass through to high-priority KeyboardShortcuts plugin

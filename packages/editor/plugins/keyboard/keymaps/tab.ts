@@ -29,12 +29,12 @@ const tabEngine = createKeyboardEngine(tabRules);
  * 🔒 INTENT BOUNDARY SYNC (Phase 2)
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  * INVARIANT: Engine must be synced from PM before resolving structural intents
- * 
+ *
  * Why this is needed:
  * - PM transactions complete before keyboard shortcuts fire
  * - Editor lifecycle hooks (on('update')) fire too late for intent resolution
  * - Structural intents (Tab, delete, etc.) need fresh Engine state
- * 
+ *
  * This is NOT a rebuild - it's an idempotent sync using the flat model.
  * This is the standard "intent boundary sync" pattern used by Notion/Craft/Tana.
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -55,9 +55,12 @@ export function handleTab(
 ): KeyHandlingResult {
   console.log('📋 [handleTab] Called, isShift:', isShift);
 
-  // Get resolver and engine from editor instance (attached by EditorCore)
-  const resolver = (editor as any)._resolver as IntentResolver | undefined;
-  const engine = (editor as any)._engine;
+  // 🔒 CRITICAL: Get resolver and engine from CANONICAL editor (avoid stale references)
+  const canonicalEditor = (window as any).__editor;
+  const resolver = (canonicalEditor as any)?._resolver as
+    | IntentResolver
+    | undefined;
+  const engine = (canonicalEditor as any)?._engine;
 
   console.log('📋 [handleTab] Resolver:', resolver ? 'found' : 'NOT FOUND');
 
@@ -91,7 +94,7 @@ export function handleTab(
       console.error('  PM blocks:', pmBlockCount);
       console.error('  Engine blocks:', engineBlockCount);
       console.error('  This should NEVER happen after ensureFreshEngine()');
-      
+
       return {
         handled: true,
         reason: 'ENGINE_DESYNC_AFTER_SYNC',
@@ -118,17 +121,16 @@ function countPMBlocks(pmDoc: any): number {
 
 /**
  * @deprecated DELETED - No longer needed (Phase 2 complete)
- * 
+ *
  * This function was a hack that rebuilt Engine from PM during user input.
  * It violated the flat model and caused selection corruption.
- * 
+ *
  * Replaced by: ensureFreshEngine() + syncTipTapToEngine()
  * Which properly syncs at the intent boundary using the flat model.
- * 
+ *
  * Kept as a tombstone to prevent regression.
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function rebuildEngineFromPMDoc_DELETED(_pmDoc: any, _engine: any): void {
+function _rebuildEngineFromPMDoc_DELETED(_pmDoc: any, _engine: any): void {
   // This function is intentionally empty (dead code tombstone)
   // See ensureFreshEngine() for the correct implementation
 }

@@ -39,7 +39,7 @@ interface UseBlockSelectionProps {
 }
 
 export function useBlockSelection({
-  editor,
+  editor: _editor,
   getPos,
   nodeSize,
 }: UseBlockSelectionProps): boolean {
@@ -47,26 +47,40 @@ export function useBlockSelection({
 
   useEffect(() => {
     const checkSelection = () => {
+      // 🔒 CRITICAL: Read canonical editor at execution time
+      const canonicalEditor = (window as any).__editor;
+      if (!canonicalEditor) {
+        setIsSelected(false);
+        return;
+      }
+
       const pos = getPos();
       if (pos === undefined) {
         setIsSelected(false);
         return;
       }
 
-      // Get Engine from editor (attached by EditorCore)
-      const engine = (editor as any)._engine;
+      // Get Engine from canonical editor (attached by EditorCore)
+      const engine = (canonicalEditor as any)._engine;
       if (!engine) {
         setIsSelected(false);
         return;
       }
 
       // Get current block's blockId
-      const currentNode = editor.state.doc.nodeAt(pos);
+      const currentNode = canonicalEditor.state.doc.nodeAt(pos);
       const blockId = currentNode?.attrs?.blockId;
       if (!blockId) {
         setIsSelected(false);
         return;
       }
+
+      console.log(
+        '[useBlockSelection]',
+        blockId.slice(0, 8),
+        'engine selection =',
+        engine.selection
+      );
 
       // 🔒 Read from ENGINE selection ONLY (never PM selection)
       // This prevents the observer feedback loop that resurrects NodeSelection
@@ -74,7 +88,7 @@ export function useBlockSelection({
       // Case 1: Engine block selection (halo click) → show halo
       if (engine.selection.kind === 'block') {
         const selected = engine.selection.blockIds.includes(blockId);
-        
+
         // 🛡️ DEV INVARIANT: Warn if halo mutation during structural delete
         if (selected !== isSelected) {
           warnIfNodeViewMutates('useBlockSelection/engine-block', {
@@ -83,7 +97,7 @@ export function useBlockSelection({
             nowSelected: selected,
           });
         }
-        
+
         setIsSelected(selected);
         return;
       }
@@ -91,9 +105,9 @@ export function useBlockSelection({
       // Case 2: Multi-block TextSelection (Shift+Click, Cmd+A) → show halo
       // This is the only case where we check PM selection, because
       // multi-block text selection is still represented as TextSelection in PM
-      const isMultiBlock = isMultiBlockSelection(editor);
+      const isMultiBlock = isMultiBlockSelection(canonicalEditor);
       if (isMultiBlock) {
-        const { selection } = editor.state;
+        const { selection } = canonicalEditor.state;
         const blockStart = pos;
         const blockEnd = pos + nodeSize;
         const { from, to } = selection;
@@ -103,7 +117,7 @@ export function useBlockSelection({
         // Check if this block is covered by the selection
         const isFullyCovered = from <= contentStart && to >= contentEnd;
         const finalSelected = isFullyCovered && from !== to;
-        
+
         // 🛡️ DEV INVARIANT: Warn if halo mutation during structural delete
         if (finalSelected !== isSelected) {
           warnIfNodeViewMutates('useBlockSelection/multi-block', {
@@ -112,7 +126,7 @@ export function useBlockSelection({
             nowSelected: finalSelected,
           });
         }
-        
+
         setIsSelected(finalSelected);
         return;
       }
@@ -121,20 +135,23 @@ export function useBlockSelection({
       setIsSelected(false);
     };
 
-    // Listen to both editor events and engine changes
-    editor.on('selectionUpdate', checkSelection);
-    editor.on('focus', checkSelection);
-    editor.on('update', checkSelection); // Also check on document updates
+    // Subscribe to canonical editor, but use prop for cleanup
+    const canonicalEditor = (window as any).__editor;
+    if (canonicalEditor) {
+      canonicalEditor.on('selectionUpdate', checkSelection);
+      canonicalEditor.on('focus', checkSelection);
+      canonicalEditor.on('update', checkSelection);
 
-    // Initial check
-    checkSelection();
+      // Initial check
+      checkSelection();
 
-    return () => {
-      editor.off('selectionUpdate', checkSelection);
-      editor.off('focus', checkSelection);
-      editor.off('update', checkSelection);
-    };
-  }, [editor, getPos, nodeSize]);
+      return () => {
+        canonicalEditor.off('selectionUpdate', checkSelection);
+        canonicalEditor.off('focus', checkSelection);
+        canonicalEditor.off('update', checkSelection);
+      };
+    }
+  }, [getPos, nodeSize]); // 🔒 Removed 'editor' from deps
 
   return isSelected;
 }

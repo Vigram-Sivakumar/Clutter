@@ -8,7 +8,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Editor } from '@tiptap/react';
-import { NodeSelection, TextSelection } from '@tiptap/pm/state';
+import { TextSelection, NodeSelection } from '@tiptap/pm/state';
 import {
   DragHandle,
   Trash2,
@@ -173,25 +173,50 @@ export function BlockHandle({ editor, getPos, indent = 0 }: BlockHandleProps) {
   // Close menu when this block is no longer selected
   useEffect(() => {
     const handleSelectionUpdate = () => {
+      // 🔒 CRITICAL: Read canonical editor at execution time
+      const canonicalEditor = (window as any).__editor;
+      if (!canonicalEditor) return;
+
+      const engine = (canonicalEditor as any)._engine;
+      if (!engine) return;
+
       const pos = getPos();
       if (pos === undefined) return;
 
-      const { selection } = editor.state;
+      const node = canonicalEditor.state.doc.nodeAt(pos);
+      if (!node) return;
 
-      // If selection is a NodeSelection but not on this block, close menu
-      if (selection instanceof NodeSelection) {
-        if (selection.$from.pos !== pos) {
-          setShowMenu(false);
-        }
-      } else {
-        // If selection is not a NodeSelection at all, close menu
+      const blockId = node.attrs?.blockId;
+      if (!blockId) return;
+
+      const sel = engine.selection;
+
+      console.log('[Menu] selectionUpdate fired', {
+        blockId: blockId.slice(0, 8),
+        engineSelection: sel,
+        showMenu,
+      });
+
+      // Close menu if:
+      // - no block selection
+      // - or a different block is selected
+      if (sel.kind !== 'block' || !sel.blockIds.includes(blockId)) {
         setShowMenu(false);
       }
     };
 
-    editor.on('selectionUpdate', handleSelectionUpdate);
-    return () => editor.off('selectionUpdate', handleSelectionUpdate);
-  }, [editor, getPos]);
+    // Subscribe to canonical editor, but use the prop for cleanup
+    const _editorForCleanup = editor;
+    const canonicalEditor = (window as any).__editor;
+    if (canonicalEditor) {
+      canonicalEditor.on('selectionUpdate', handleSelectionUpdate);
+    }
+    return () => {
+      if (canonicalEditor) {
+        canonicalEditor.off('selectionUpdate', handleSelectionUpdate);
+      }
+    };
+  }, [editor, getPos, showMenu]);
 
   // Calculate menu position to ensure it stays within viewport
   useEffect(() => {
@@ -221,14 +246,46 @@ export function BlockHandle({ editor, getPos, indent = 0 }: BlockHandleProps) {
       }
     }
   }, [showMenu]);
+
+  // 🔍 TEMPORARY DIAGNOSTIC: Verify engine selection vs menu state
+  useEffect(() => {
+    const canonicalEditor = (window as any).__editor;
+    if (!canonicalEditor) return;
+
+    const engine = (canonicalEditor as any)._engine;
+    if (!engine) return;
+
+    const pos = getPos();
+    if (pos === undefined) return;
+
+    const node = canonicalEditor.state.doc.nodeAt(pos);
+    if (!node) return;
+
+    const blockId = node.attrs?.blockId;
+    if (!blockId) return;
+
+    console.log('[BlockHandle observe]', {
+      blockId: blockId.slice(0, 8),
+      engineSelection: engine.selection,
+      showMenu,
+    });
+  }, [showMenu, getPos]);
+
   // Select the block when clicking the handle
   const handleClick = (e?: React.MouseEvent) => {
+    // 🔒 CRITICAL: Read canonical editor at execution time
+    const canonicalEditor = (window as any).__editor;
+    if (!canonicalEditor) {
+      console.error('[BlockHandle] Canonical editor not found');
+      return;
+    }
+
     const pos = getPos();
     if (pos === undefined) return;
 
     // Shift+Click: Range selection (Finder-style)
     if (e?.shiftKey && anchorBlockPos !== null && anchorBlockPos !== pos) {
-      const doc = editor.state.doc;
+      const doc = canonicalEditor.state.doc;
 
       // Get the anchor and target block nodes
       const anchorNode = doc.nodeAt(anchorBlockPos);
@@ -250,11 +307,11 @@ export function BlockHandle({ editor, getPos, indent = 0 }: BlockHandleProps) {
           const to = lastBlockPos + toNode.nodeSize - 1; // Inside last block
 
           // Create a TextSelection spanning the content of all blocks
-          const tr = editor.state.tr.setSelection(
+          const tr = canonicalEditor.state.tr.setSelection(
             TextSelection.create(doc, from, to)
           );
-          editor.view.dispatch(tr);
-          editor.view.focus();
+          canonicalEditor.view.dispatch(tr);
+          canonicalEditor.view.focus();
 
           // Don't update anchor - keep it for further Shift+Clicks
           return;
@@ -269,7 +326,7 @@ export function BlockHandle({ editor, getPos, indent = 0 }: BlockHandleProps) {
     if (isInMultiSelection && isFirstInMultiSelection) {
       // Clicking the first block's handle in a multi-selection: keep the selection
       // (user wants to perform bulk action on all selected blocks)
-      editor.view.focus();
+      canonicalEditor.view.focus();
       return; // Don't reset anchor, don't change selection
     }
 
@@ -293,7 +350,7 @@ export function BlockHandle({ editor, getPos, indent = 0 }: BlockHandleProps) {
     //
     // ═══════════════════════════════════════════════════════════════════════════
 
-    const node = editor.state.doc.nodeAt(pos);
+    const node = canonicalEditor.state.doc.nodeAt(pos);
     if (!node) return;
 
     const blockId = node.attrs?.blockId;
@@ -303,7 +360,7 @@ export function BlockHandle({ editor, getPos, indent = 0 }: BlockHandleProps) {
     }
 
     // Get engine from editor (attached by EditorCore)
-    const engine = (editor as any)._engine;
+    const engine = (canonicalEditor as any)._engine;
     if (!engine) {
       console.warn('[BlockHandle] Engine not found on editor instance');
       return;
@@ -315,14 +372,17 @@ export function BlockHandle({ editor, getPos, indent = 0 }: BlockHandleProps) {
       blockIds: [blockId],
     };
 
+    // 🔔 Notify observers (useBlockSelection, menus)
+    canonicalEditor.emit('selectionUpdate', { editor: canonicalEditor });
+
     // Ensure editor has focus (but don't move cursor)
-    if (!editor.view.hasFocus()) {
-      editor.view.focus();
+    if (!canonicalEditor.view.hasFocus()) {
+      canonicalEditor.view.focus();
     }
 
     console.log('[BlockHandle] Engine selection updated:', {
       blockId: blockId.slice(0, 8),
-      pmSelectionType: editor.state.selection.constructor.name,
+      pmSelectionType: canonicalEditor.state.selection.constructor.name,
     });
 
     // 🎯 EXCEPTION: For empty text blocks with explicit EDIT intent,
@@ -333,7 +393,7 @@ export function BlockHandle({ editor, getPos, indent = 0 }: BlockHandleProps) {
     // placement is implemented. For now, it's a contained UX improvement.
     if (node.isTextblock && node.content.size === 0) {
       // Empty block: place cursor inside for editing
-      editor
+      canonicalEditor
         .chain()
         .setTextSelection(pos + 1)
         .run();
@@ -342,12 +402,19 @@ export function BlockHandle({ editor, getPos, indent = 0 }: BlockHandleProps) {
   };
 
   const handleDelete = () => {
-    if (isMultiBlockSelection(editor)) {
+    // 🔒 CRITICAL: Read canonical editor at execution time
+    const canonicalEditor = (window as any).__editor;
+    if (!canonicalEditor) {
+      console.error('[BlockHandle] Canonical editor not found');
+      return;
+    }
+
+    if (isMultiBlockSelection(canonicalEditor)) {
       // Bulk delete all selected blocks
-      const blocks = getSelectedBlocks(editor);
+      const blocks = getSelectedBlocks(canonicalEditor);
 
       // Delete in reverse order to preserve positions
-      let tr = editor.state.tr;
+      let tr = canonicalEditor.state.tr;
       for (let i = blocks.length - 1; i >= 0; i--) {
         const block = blocks[i];
         // Delete the entire block including its wrapper
@@ -361,8 +428,8 @@ export function BlockHandle({ editor, getPos, indent = 0 }: BlockHandleProps) {
         tr.setSelection(TextSelection.create(tr.doc, pos));
       }
 
-      editor.view.dispatch(tr);
-      editor.view.focus();
+      canonicalEditor.view.dispatch(tr);
+      canonicalEditor.view.focus();
       setShowMenu(false);
       return;
     }
@@ -371,11 +438,11 @@ export function BlockHandle({ editor, getPos, indent = 0 }: BlockHandleProps) {
     const pos = getPos();
     if (pos === undefined) return;
 
-    const node = editor.state.doc.nodeAt(pos);
+    const node = canonicalEditor.state.doc.nodeAt(pos);
     if (!node) return;
 
     // Delete the block
-    const tr = editor.state.tr.deleteRange(pos, pos + node.nodeSize);
+    const tr = canonicalEditor.state.tr.deleteRange(pos, pos + node.nodeSize);
 
     // After deletion, place cursor inside the remaining content
     // This prevents "sticky halo" and allows immediate typing
@@ -384,8 +451,8 @@ export function BlockHandle({ editor, getPos, indent = 0 }: BlockHandleProps) {
       tr.setSelection(TextSelection.create(tr.doc, cursorPos));
     }
 
-    editor.view.dispatch(tr);
-    editor.view.focus();
+    canonicalEditor.view.dispatch(tr);
+    canonicalEditor.view.focus();
     setShowMenu(false);
   };
 
@@ -648,6 +715,7 @@ export function BlockHandle({ editor, getPos, indent = 0 }: BlockHandleProps) {
     <div
       ref={handleRef}
       contentEditable={false}
+      data-block-handle
       data-menu-open={showMenu}
       data-is-typing={isHandleDisabled ? 'true' : undefined}
       data-in-multi-selection={
@@ -669,27 +737,59 @@ export function BlockHandle({ editor, getPos, indent = 0 }: BlockHandleProps) {
       }}
     >
       <div
-        onMouseDown={(e) => {
+        onPointerDown={(e) => {
           e.preventDefault(); // 🔒 CRITICAL: Prevents cursor jump & text selection
+          e.stopPropagation();
+          e.stopImmediatePropagation(); // 🔒 CRITICAL: Prevents PM from running its own mousedown
+
+          // 🔒 CRITICAL: Read canonical editor at execution time, not capture time
+          const canonicalEditor = (window as any).__editor;
+          if (!canonicalEditor) {
+            console.error('[BlockHandle] Canonical editor not found');
+            return;
+          }
+
+          // 🔒 Validate engine attachment
+          const engine = (canonicalEditor as any)._engine;
+          if (!engine) {
+            console.error(
+              '[BlockHandle] Engine not attached to canonical editor'
+            );
+            return;
+          }
 
           const pos = getPos();
           if (pos === undefined) return;
 
-          const node = editor.state.doc.nodeAt(pos);
+          const node = canonicalEditor.state.doc.nodeAt(pos);
           if (!node) return;
 
           const blockId = node.attrs?.blockId;
           if (!blockId) return;
 
-          // Get engine from editor (attached by EditorCore)
-          const engine = (editor as any)._engine;
-          if (!engine) return;
+          // 🎯 CRITICAL: Dispatch NodeSelection transaction directly
+          // Using editor.commands.setNodeSelection is NOT enough - PM will override it
+          // We MUST dispatch the transaction ourselves to prevent PM from resetting to TextSelection
+          const { state } = canonicalEditor;
+          const tr = state.tr.setSelection(
+            NodeSelection.create(state.doc, pos)
+          );
+          canonicalEditor.view.dispatch(tr);
 
-          // Update ENGINE selection (not ProseMirror)
+          // 🔒 Sync engine selection
           engine.selection = {
             kind: 'block',
             blockIds: [blockId],
           };
+
+          // 🔔 Notify observers (useBlockSelection, menus)
+          canonicalEditor.emit('selectionUpdate', { editor: canonicalEditor });
+
+          console.log('[BlockHandle] Selection set:', {
+            blockId: blockId.slice(0, 8),
+            pmSelectionType: canonicalEditor.state.selection.constructor.name,
+            engineSelection: engine.selection,
+          });
         }}
         onClick={(e) => {
           e.stopPropagation();
@@ -718,6 +818,7 @@ export function BlockHandle({ editor, getPos, indent = 0 }: BlockHandleProps) {
       {showMenu && (
         <div
           ref={menuRef}
+          data-block-menu
           style={{
             position: 'absolute',
             left: 32, // To the right of the handle (24px width + 8px gap)

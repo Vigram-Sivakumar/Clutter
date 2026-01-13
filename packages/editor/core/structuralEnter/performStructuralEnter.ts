@@ -30,7 +30,9 @@ export function performStructuralEnter({
     console.log('[Keyboard] Editor identity:', editor);
   }
 
-  const engine = (editor as any)._engine;
+  // 🔒 CRITICAL: Always read from canonical editor to avoid stale references
+  const canonicalEditor = (window as any).__editor;
+  const engine = (canonicalEditor as any)?._engine;
 
   if (!engine) {
     if (process.env.NODE_ENV !== 'production') {
@@ -304,7 +306,9 @@ export function performStructuralEnter({
     // 🛡️ DEV INVARIANT: Check for duplicate blockIds
     // If this fires, Enter created a duplicate identity (should never happen)
     requestAnimationFrame(() => {
-      const engine = (editor as any)._engine;
+      // 🔒 CRITICAL: Read from canonical editor
+      const canonicalEditor = (window as any).__editor;
+      const engine = (canonicalEditor as any)?._engine;
       if (engine && engine.tree && engine.tree.nodes) {
         const ids = Object.keys(engine.tree.nodes).filter(
           (id) => id !== 'root'

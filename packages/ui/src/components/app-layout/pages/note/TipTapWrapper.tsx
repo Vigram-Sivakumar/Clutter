@@ -49,6 +49,7 @@ import HardBreak from '@tiptap/extension-hard-break';
 
 interface TipTapWrapperProps {
   value?: string;
+  noteId?: string | null; // 🔒 Track note ID to detect note changes (not content changes)
   onChange?: (_value: string) => void;
   onTagsChange?: (_tags: string[]) => void; // NEW: Callback when tags in content change
   onTagClick?: (_tag: string) => void; // Callback when a tag is clicked for navigation
@@ -174,6 +175,7 @@ export const TipTapWrapper = forwardRef<
   (
     {
       value,
+      noteId,
       onChange,
       onTagsChange,
       onTagClick,
@@ -202,18 +204,20 @@ export const TipTapWrapper = forwardRef<
       },
     }));
 
-    // Parse value into content object (simple, deterministic)
-    // Editor mounts once - documents flow through it
+    // 🔒 CRITICAL: Parse content ONLY when NOTE changes, not on every keystroke
+    // Dependency on noteId (NOT value) ensures content only updates when loading a different note
     const content = useMemo(() => {
-      // 🎯 FIX: NEVER return null - TipTap must always receive valid document
-      if (!value) {
-        return EMPTY_DOC;
-      }
-
-      // Don't re-parse if this came from our own onChange
+      // Skip if this is our own onChange firing back
       if (isUpdatingFromEditor.current) {
         isUpdatingFromEditor.current = false;
-        return null; // Keep current editor content (don't re-initialize)
+        return undefined; // undefined = "keep current content"
+      }
+
+      console.log('[TipTapWrapper] Parsing content for noteId:', noteId);
+
+      // Parse the incoming value
+      if (!value) {
+        return EMPTY_DOC;
       }
 
       try {
@@ -231,7 +235,7 @@ export const TipTapWrapper = forwardRef<
           return EMPTY_DOC;
         }
       }
-    }, [value]);
+    }, [noteId]); // 🔒 Changes ONLY when noteId changes, NOT on every keystroke
 
     // Handle content changes - save as JSON string (not HTML)
     const handleChange = useCallback(

@@ -26,10 +26,13 @@ import type { EditorEngine } from '../../core/engine/EditorEngine';
 import { DeleteBlockCommand } from '../../core/engine/command';
 
 /**
- * Get EditorEngine from TipTap editor instance
+ * Get EditorEngine from CANONICAL TipTap editor instance
+ *
+ * 🔒 CRITICAL: Always read from window.__editor to avoid stale references
  */
-function getEngine(editor: any): EditorEngine | null {
-  return editor._engine || null;
+function getEngine(_editor: any): EditorEngine | null {
+  const canonicalEditor = (window as any).__editor;
+  return canonicalEditor?._engine || null;
 }
 
 declare module '@tiptap/core' {

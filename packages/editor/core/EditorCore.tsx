@@ -46,6 +46,7 @@ import React, {
   useCallback,
   forwardRef,
   useImperativeHandle,
+  useMemo,
   useRef,
 } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
@@ -155,86 +156,131 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
     },
     ref
   ) => {
+    // 🚨 DIAGNOSTIC: Detect double mount (REMOVE AFTER DEBUGGING)
+    if ((window as any).__EDITORCORE_MOUNTED__) {
+      console.error('❌ EditorCore mounted twice — INVALID');
+      // debugger; // Pause execution to see stack trace
+    }
+    (window as any).__EDITORCORE_MOUNTED__ = true;
+
     const { colors } = useTheme();
     const { availableTags } = useEditorContext();
 
     // Track if we're updating from the editor (to prevent clearing history)
     const isInternalUpdate = useRef(false);
 
-    // Create editor instance
-    const editor = useEditor({
-      extensions: [
-        // Core nodes
-        Document,
-        Text,
-        Paragraph,
-        Heading,
-        ListBlock,
-        Blockquote,
-        CodeBlock,
-        HorizontalRule,
-        HardBreak.configure({
-          // Don't bind Shift+Enter - we handle it in individual node extensions
-          keepMarks: true,
-        }),
-        Link, // Standard link mark (browser default behavior)
-        Callout, // Info/warning/error/success callout boxes
-        DateMentionNode, // Date mentions (@Today, @Yesterday, etc.) - atomic inline node
-        NoteLink.configure({
-          onNavigate, // Pass navigation callback to NoteLink extension
-        }), // Note/folder links (no @) - atomic inline node
-        Gapcursor, // Shows cursor when navigating around atomic nodes
-        History, // Undo/redo support - REQUIRED for tr.setMeta('addToHistory') to work
+    // 🔒 Stabilize callbacks with refs (prevents editor recreation)
+    const onChangeRef = useRef(onChange);
+    const onFocusRef = useRef(onFocus);
+    const onBlurRef = useRef(onBlur);
+    const onNavigateRef = useRef(onNavigate);
+    const onTagClickRef = useRef(onTagClick);
 
-        // Marks
-        Bold,
-        Italic,
-        Underline,
-        Strike,
-        Code,
-        WavyUnderline,
-        TextColor, // Text foreground color
-        CustomHighlight, // Highlight with bg color
+    useEffect(() => {
+      onChangeRef.current = onChange;
+    }, [onChange]);
 
-        // Plugins
-        BlockIdGenerator, // Auto-generate blockId for all blocks
-        MarkdownShortcuts,
-        SlashCommands,
-        TaskPriority, // Highlight priority indicators (!, !!, !!!) in tasks
-        BackspaceHandler,
-        KeyboardShortcuts, // Centralized Tab/Shift+Tab → indent/outdent intents
-        TabHandler, // Fallback Tab handler - prevents focus navigation
-        EscapeMarks,
-        DoubleSpaceEscape,
-        SelectAll, // Progressive Cmd+A: block text → block node → all blocks
-        BlockDeletion, // Handle DELETE/Backspace for node-selected blocks
-        UndoRedo, // Cmd+Z / Cmd+Shift+Z → EditorEngine.undoController
-        HashtagDetection, // Simple #tag detection (moves to metadata)
-        HashtagAutocomplete.configure({
-          getColors: () => colors,
-          getTags: () => availableTags,
-        }),
-        AtMention.configure({
-          getColors: () => colors,
-        }),
-        // FocusFade, // Fade text before cursor for better focus - Disabled for now
+    useEffect(() => {
+      onFocusRef.current = onFocus;
+    }, [onFocus]);
 
-        // DISABLED: TipTap History - We use UndoController for emotional undo
-        // History and UndoBoundaries have been removed in favor of:
-        // - EditorEngine.undoController (handles grouping per UNDO_GROUPING_LAW.md)
-        // - Full state restoration (cursor + selection)
-        // - Time-based and intent-based grouping
+    useEffect(() => {
+      onBlurRef.current = onBlur;
+    }, [onBlur]);
 
-        // DISABLED: TipTap Placeholder uses CSS ::before which shows placeholder BEFORE markers
-        // We use React-based placeholders in each component instead
-        // Placeholder.configure({...}),
-      ] as any[],
-      content: content || {
-        type: 'doc',
-        content: [{ type: 'paragraph' }],
-      },
-      editable,
-      editorProps: {
+    useEffect(() => {
+      onNavigateRef.current = onNavigate;
+    }, [onNavigate]);
+
+    useEffect(() => {
+      onTagClickRef.current = onTagClick;
+    }, [onTagClick]);
+
+    // 🚨 DIAGNOSTIC: Cleanup mount guard on unmount (REMOVE AFTER DEBUGGING)
+    useEffect(() => {
+      return () => {
+        delete (window as any).__EDITORCORE_MOUNTED__;
+      };
+    }, []);
+
+    // 🔒 CRITICAL: Freeze extensions array to prevent editor recreation
+    // Extensions must be stable for the lifetime of the editor
+    const extensions = useMemo(
+      () =>
+        [
+          // Core nodes
+          Document,
+          Text,
+          Paragraph,
+          Heading,
+          ListBlock,
+          Blockquote,
+          CodeBlock,
+          HorizontalRule,
+          HardBreak.configure({
+            // Don't bind Shift+Enter - we handle it in individual node extensions
+            keepMarks: true,
+          }),
+          Link, // Standard link mark (browser default behavior)
+          Callout, // Info/warning/error/success callout boxes
+          DateMentionNode, // Date mentions (@Today, @Yesterday, etc.) - atomic inline node
+          NoteLink.configure({
+            onNavigate: (_linkType, _targetId) => {
+              onNavigateRef.current?.(_linkType, _targetId);
+            },
+          }), // Note/folder links (no @) - atomic inline node
+          Gapcursor, // Shows cursor when navigating around atomic nodes
+          History, // Undo/redo support - REQUIRED for tr.setMeta('addToHistory') to work
+
+          // Marks
+          Bold,
+          Italic,
+          Underline,
+          Strike,
+          Code,
+          WavyUnderline,
+          TextColor, // Text foreground color
+          CustomHighlight, // Highlight with bg color
+
+          // Plugins
+          BlockIdGenerator, // Auto-generate blockId for all blocks
+          MarkdownShortcuts,
+          SlashCommands,
+          TaskPriority, // Highlight priority indicators (!, !!, !!!) in tasks
+          BackspaceHandler,
+          KeyboardShortcuts, // Centralized Tab/Shift+Tab → indent/outdent intents
+          TabHandler, // Fallback Tab handler - prevents focus navigation
+          EscapeMarks,
+          DoubleSpaceEscape,
+          SelectAll, // Progressive Cmd+A: block text → block node → all blocks
+          BlockDeletion, // Handle DELETE/Backspace for node-selected blocks
+          UndoRedo, // Cmd+Z / Cmd+Shift+Z → EditorEngine.undoController
+          HashtagDetection, // Simple #tag detection (moves to metadata)
+          HashtagAutocomplete.configure({
+            getColors: () => colors,
+            getTags: () => availableTags,
+          }),
+          AtMention.configure({
+            getColors: () => colors,
+          }),
+          // FocusFade, // Fade text before cursor for better focus - Disabled for now
+
+          // DISABLED: TipTap History - We use UndoController for emotional undo
+          // History and UndoBoundaries have been removed in favor of:
+          // - EditorEngine.undoController (handles grouping per UNDO_GROUPING_LAW.md)
+          // - Full state restoration (cursor + selection)
+          // - Time-based and intent-based grouping
+
+          // DISABLED: TipTap Placeholder uses CSS ::before which shows placeholder BEFORE markers
+          // We use React-based placeholders in each component instead
+          // Placeholder.configure({...}),
+        ] as any[],
+      []
+    ); // 🔒 EMPTY DEPS: Extensions frozen for editor lifetime
+
+    // 🔒 Stabilize editorProps to prevent recreation
+    const editorProps = useMemo(
+      () => ({
         attributes: {
           class: 'editor-content',
         },
@@ -261,58 +307,198 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
           return false; // Let TipTap extensions handle all keys
         },
         handleDOMEvents: {
-          // ❌ REMOVED mousedown preventDefault - it prevented clicking into empty blocks
-          // ProseMirror handles its own selection and mousedown behavior
-          // We don't need to prevent default browser behavior
+          // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          // 🔒 PHASE 4.5: Block Deselection Policy (PURE SIGNAL ONLY)
+          // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          //
+          // 🔥 CRITICAL: This handler must be PURE (no engine/editor access)
+          // ProseMirror caches these closures and they can survive EditorView recreation
+          //
+          // Block handle clicks are intercepted at capture phase (main.tsx)
+          // This handler only sees non-handle clicks
+          //
+          // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          mousedown(_view, event) {
+            const target = event.target as HTMLElement;
+
+            // ⛔ Block handles are already intercepted at capture phase
+            // These checks are defensive only
+            if (target.closest('[data-block-handle]')) return false;
+            if (target.closest('[data-block-menu]')) return false;
+
+            // 🔔 Emit pure DOM signal (no editor/engine access)
+            // React effect will handle actual engine mutation
+            window.dispatchEvent(new CustomEvent('editor:deselect-blocks'));
+
+            return false; // never block native behavior
+          },
           focus: () => {
-            onFocus?.();
+            onFocusRef.current?.();
             return false; // Allow default focus behavior
           },
           blur: () => {
-            onBlur?.();
+            onBlurRef.current?.();
             return false; // Allow default blur behavior
           },
         },
-      },
-      onUpdate: ({ editor, transaction }) => {
-        // Only fire onChange if document actually changed (not just selection)
-        if (onChange && transaction.docChanged) {
-          // Mark that this update is coming from the editor (internal)
-          isInternalUpdate.current = true;
-          onChange(editor.getJSON());
-          // Reset flag after a short delay to allow parent to update prop
-          setTimeout(() => {
-            isInternalUpdate.current = false;
-          }, 0);
-        }
-      },
-      onSelectionUpdate: ({ editor: _editor, transaction: _transaction }) => {
-        // Selection update callback (can be used for future selection tracking)
-      },
-    });
+      }),
+      []
+    ); // 🔒 EMPTY DEPS: editorProps frozen for editor lifetime
+
+    // 🔒 CRITICAL: Create editor instance ONCE with factory function
+    // EMPTY dependency array = editor created once and NEVER recreated
+    // This prevents the "split editor authority" bug where multiple editor instances exist
+    const editor = useEditor(
+      () => ({
+        extensions,
+        content: {
+          type: 'doc',
+          content: [{ type: 'paragraph' }],
+        }, // Static initial content only
+        editable: true, // Start editable (will be updated via effect)
+        editorProps,
+        onUpdate: ({ editor, transaction }) => {
+          // Only fire onChange if document actually changed (not just selection)
+          if (transaction.docChanged && onChangeRef.current) {
+            // Mark that this update is coming from the editor (internal)
+            isInternalUpdate.current = true;
+            onChangeRef.current(editor.getJSON());
+            // Reset flag after a short delay to allow parent to update prop
+            setTimeout(() => {
+              isInternalUpdate.current = false;
+            }, 0);
+          }
+        },
+        onSelectionUpdate: ({ editor: _editor, transaction: _transaction }) => {
+          // Selection update callback (can be used for future selection tracking)
+        },
+      }),
+      [] // 🔒 EMPTY DEPS: Editor created once, never recreated
+    );
+
+    // 🔍 DIAGNOSTIC: Log editor creation (should appear ONCE per mount)
+    useEffect(() => {
+      if (editor) {
+        console.log(
+          '[Editor INIT]',
+          Math.random(),
+          'isInitialized:',
+          editor.isInitialized
+        );
+      }
+    }, [editor]);
 
     // Initialize EditorEngine bridge
     const { engine, resolver } = useEditorEngine(editor);
 
+    // 🔒 Sync editable state when prop changes (without recreating editor)
+    useEffect(() => {
+      if (editor) {
+        editor.setEditable(editable);
+      }
+    }, [editor, editable]);
+
+    // 🔒 CRITICAL: Set content imperatively when prop changes
+    // Content prop should ONLY change when NOTE changes, not on every keystroke
+    // This prevents editor recreation while still allowing note switching
+    useEffect(() => {
+      if (!editor) return;
+      if (isInternalUpdate.current) return;
+
+      if (content) {
+        console.log('[EditorCore] Setting content imperatively');
+        editor.commands.setContent(content, false);
+      }
+    }, [editor, content]);
+
     // Store onTagClick callback in editor instance so node views can access it
     useEffect(() => {
       if (editor) {
-        (editor as any).onTagClick = onTagClick;
+        (editor as any).onTagClick = onTagClickRef.current;
       }
-    }, [editor, onTagClick]);
+    }, [editor]);
 
-    // Attach engine and resolver to editor instance
+    // 🔒 Attach engine and resolver to editor instance ONCE
     // Used by structural commands, keyboard handlers, and block logic
+    // 🧨 DIAGNOSTIC: Detect if EditorCore is being unmounted/remounted
     useEffect(() => {
-      if (editor && engine && resolver) {
-        (editor as any)._engine = engine;
-        (editor as any)._resolver = resolver;
-        console.log('[EditorCore] Engine and resolver attached to editor', {
-          mode: engine.getMode(),
-          blockCount: engine.getChildren(engine.tree.rootId).length,
-        });
+      console.log('🧨 EditorCore MOUNTED');
+      return () => {
+        console.log('💀 EditorCore UNMOUNTED — THIS SHOULD NEVER HAPPEN');
+      };
+    }, []);
+
+    // NEVER reattach unless unmounting
+    useEffect(() => {
+      if (!editor || !engine || !resolver) return;
+
+      // 🔒 CRITICAL: Only attach if not already attached (prevents double attachment)
+      if ((editor as any)._engine) {
+        console.warn('[EditorCore] Engine already attached, skipping');
+        return;
       }
+
+      (editor as any)._engine = engine;
+      (editor as any)._resolver = resolver;
+
+      // 🔍 DIAGNOSTIC: Set canonical editor reference
+      console.log('🔥🔥🔥 EDITORCORE CANONICAL SETUP START 🔥🔥🔥');
+      (window as any).__editor = editor;
+      console.log('[EditorCore] Canonical editor id', editor);
+      console.log('[EditorCore] Engine and resolver attached', {
+        mode: engine.getMode(),
+        blockCount: engine.getChildren(engine.tree.rootId).length,
+      });
+      console.log('🔥🔥🔥 EDITORCORE CANONICAL SETUP END 🔥🔥🔥');
     }, [editor, engine, resolver]);
+
+    // 🔒 CRITICAL: Safe engine mutation in React space (not PM handlers)
+    // Listens to pure DOM signals from PM handlers and safely mutates engine
+    // This avoids ProseMirror closure caching issues that cause "editor2._engine" crashes
+    useEffect(() => {
+      const handleDeselectBlocks = () => {
+        const canonicalEditor = (window as any).__editor;
+        if (!canonicalEditor) return;
+
+        const engine = (canonicalEditor as any)._engine;
+        if (!engine) return;
+
+        // Only clear if there's currently a block selection
+        if (engine.selection?.kind !== 'block') return;
+
+        console.log('[EditorCore] Clearing block selection (DOM signal)');
+        engine.selection = { kind: 'none' };
+        canonicalEditor.emit('selectionUpdate', { editor: canonicalEditor });
+      };
+
+      window.addEventListener('editor:deselect-blocks', handleDeselectBlocks);
+      return () =>
+        window.removeEventListener(
+          'editor:deselect-blocks',
+          handleDeselectBlocks
+        );
+    }, []); // 🔒 EMPTY DEPS: listener never recreated
+
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // ❌ REMOVED: Document-level mousedown handler (STALE CLOSURE CRASH)
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    //
+    // PROBLEM:
+    // This handler accessed editor._engine in a closure, which becomes undefined
+    // when the bridge is recreated. Even reading from window.__editor doesn't
+    // prevent the crash - ANY access to _engine in a document listener is fatal.
+    //
+    // Stack trace:
+    //   TypeError: undefined is not an object (evaluating 'editor2._engine')
+    //   mousedown (index.mjs:13834)
+    //
+    // REPLACEMENT:
+    // Deselection is fully handled by:
+    // - Capture-phase gate in main.tsx (blocks PM on handle clicks)
+    // - handleDOMEvents.mousedown below (emits signal for content clicks)
+    // - useEffect listener below (safely mutates engine via window.__editor)
+    //
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
     // Expose methods to parent via ref
     useImperativeHandle(

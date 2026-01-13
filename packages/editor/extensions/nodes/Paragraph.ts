@@ -10,23 +10,20 @@ import { Node } from '@tiptap/core';
 import { ReactNodeViewRenderer } from '@tiptap/react';
 import { TextSelection } from '@tiptap/pm/state';
 import { ParagraphBlock } from '../../components/ParagraphBlock';
-import {
-  findAncestorNode,
-} from '../../utils/keyboardHelpers';
-import { HASHTAG_REGEX, insertTag } from '@clutter/ui';
-import { BackspaceRules } from '../../utils/keyboardRules';
 import type { EditorEngine } from '../../core/engine/EditorEngine';
-import { DeleteBlockCommand } from '../../core/engine/command';
 
 // NOTE: indentBlock/outdentBlock removed - now handled via keyboard rules
 // NOTE: Arrow navigation removed - now centralized in KeyboardShortcuts.ts
 
 /**
- * Get EditorEngine from TipTap editor instance
+ * Get EditorEngine from CANONICAL TipTap editor instance
  * Engine is attached by EditorCore during initialization
+ *
+ * 🔒 CRITICAL: Always read from window.__editor to avoid stale references
  */
-function getEngine(editor: any): EditorEngine | null {
-  return editor._engine || null;
+function _getEngine(_editor: any): EditorEngine | null {
+  const canonicalEditor = (window as any).__editor;
+  return canonicalEditor?._engine || null;
 }
 
 declare module '@tiptap/core' {
@@ -63,8 +60,7 @@ export const Paragraph = Node.create({
         // 3. parseHTML (loading saved content)
         // NEVER by PM schema defaults (prevents regeneration during transactions)
         default: null,
-        parseHTML: (element) =>
-          element.getAttribute('data-block-id') || null,
+        parseHTML: (element) => element.getAttribute('data-block-id') || null,
         renderHTML: (attributes) => {
           if (attributes.blockId) {
             return { 'data-block-id': attributes.blockId };

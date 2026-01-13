@@ -1,7 +1,9 @@
 // packages/editor/core/structuralDelete/performStructuralDelete.ts
 
-import { beginStructuralDelete, endStructuralDelete } from '../structuralDeleteState';
-import { resolveDeletionCursor } from './cursorLaw';
+import {
+  beginStructuralDelete,
+  endStructuralDelete,
+} from '../structuralDeleteState';
 import type { StructuralDeleteParams } from './types';
 
 /**
@@ -11,7 +13,7 @@ import type { StructuralDeleteParams } from './types';
  * - Place the cursor after delete
  *
  * Everything else must delegate here.
- * 
+ *
  * CRITICAL: Operates on explicit engineSnapshot (no hidden dependencies).
  * This makes the function:
  * - Stateless
@@ -29,8 +31,10 @@ export function performStructuralDelete({
     return false;
   }
 
-  const engine = editor._engine;
-  const resolver = editor._resolver;
+  // 🔒 CRITICAL: Always read from canonical editor to avoid stale references
+  const canonicalEditor = (window as any).__editor;
+  const engine = canonicalEditor?._engine;
+  const resolver = canonicalEditor?._resolver;
 
   if (!engine || !resolver) {
     if (process.env.NODE_ENV !== 'production') {
@@ -53,7 +57,7 @@ export function performStructuralDelete({
     /**
      * 2. Use explicit snapshot (NO engine lifecycle dependency)
      */
-    const blocks = engineSnapshot.blocks;
+    const _blocks = engineSnapshot.blocks;
 
     /**
      * 3. Resolve subtree + structural delete via resolver
@@ -87,7 +91,9 @@ export function performStructuralDelete({
     const cursorTarget = lastResult.cursorTarget;
 
     if (!cursorTarget) {
-      console.warn('[StructuralDelete] No cursor target returned from resolver');
+      console.warn(
+        '[StructuralDelete] No cursor target returned from resolver'
+      );
       return true; // Delete succeeded, but no cursor to place
     }
 
@@ -106,13 +112,13 @@ export function performStructuralDelete({
 /**
  * Cursor application is intentionally isolated.
  * This prevents PM "helpfulness" from leaking back in.
- * 
+ *
  * Accepts cursor target from resolver:
  * - { blockId, placement: 'start'|'end'|'safe' }
  */
 function applyDeletionCursor(
   editor: any,
-  target: { blockId: string; placement: 'start' | 'end' | 'safe' },
+  target: { blockId: string; placement: 'start' | 'end' | 'safe' }
 ) {
   const { state, view } = editor;
 
@@ -122,13 +128,13 @@ function applyDeletionCursor(
 
   // Find the target block position
   const pos = findBlockPosition(state, target.blockId, target.placement);
-  
+
   if (pos != null) {
     try {
       const selection = state.selection.constructor.create(state.doc, pos);
       tr.setSelection(selection);
       view.dispatch(tr);
-      
+
       console.log('[StructuralDelete] Cursor placed:', {
         blockId: target.blockId.slice(0, 8),
         placement: target.placement,
@@ -138,7 +144,10 @@ function applyDeletionCursor(
       console.warn('[StructuralDelete] Failed to place cursor:', e);
     }
   } else {
-    console.warn('[StructuralDelete] Could not find position for block:', target.blockId);
+    console.warn(
+      '[StructuralDelete] Could not find position for block:',
+      target.blockId
+    );
   }
 }
 
@@ -149,7 +158,7 @@ function applyDeletionCursor(
 function findBlockPosition(
   state: any,
   blockId: string,
-  placement: 'start' | 'end' | 'safe',
+  placement: 'start' | 'end' | 'safe'
 ): number | null {
   let foundPos: number | null = null;
 

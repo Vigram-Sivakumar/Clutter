@@ -1822,6 +1822,141 @@ export const NoteEditor = ({
           />
         }
       >
+        {/* 🔒 EDITOR: Always rendered, hidden with CSS to prevent unmounting */}
+        <div style={{ display: mainView.type === 'editor' ? 'block' : 'none' }}>
+          <>
+            {/* Page Title Section */}
+            <PageTitleSection
+              ref={titleInputRef}
+              variant="note"
+              title={title}
+              onTitleChange={(value) => {
+                if (isDailyNote) return; // Prevent title changes for daily notes
+                setTitle(value);
+                debouncedSave({ title: value });
+              }}
+              onTitleEnter={() => editorRef.current?.focus()}
+              dailyNoteDate={currentNote?.dailyNoteDate}
+              readOnlyTitle={isDailyNote}
+              selectedEmoji={selectedEmoji}
+              isEmojiTrayOpen={isEmojiTrayOpen}
+              onEmojiClick={() => openEmojiTray(emojiButtonRef)}
+              onRemoveEmoji={handleRemoveEmoji}
+              emojiButtonRef={emojiButtonRef}
+              hasContent={
+                editorState.status === 'ready' &&
+                !isContentEmpty(editorState.document)
+              }
+              isFavorite={isFavorite}
+              contextMenuItems={noteContextMenuItems}
+              description={description}
+              showDescriptionInput={showDescriptionInput}
+              descriptionVisible={descriptionVisible}
+              onDescriptionChange={handleDescriptionChange}
+              onDescriptionBlur={handleDescriptionBlur}
+              onShowDescriptionInput={handleShowDescriptionInput}
+              onToggleDescriptionVisibility={handleToggleDescriptionVisibility}
+              tags={tags}
+              showTagInput={showTagInput}
+              tagsVisible={tagsVisible}
+              onAddTag={handleAddTag}
+              onRemoveTag={handleRemoveTag}
+              onEditTag={handleEditTag}
+              onColorChange={handleColorChange}
+              onShowTagInput={handleShowTagInput}
+              onCancelTagInput={handleCancelTagInput}
+              onToggleTagsVisibility={handleToggleTagsVisibility}
+              onTagClick={handleShowTagFilter}
+              onAddEmoji={() =>
+                openEmojiTray(addEmojiButtonRef as React.RefObject<HTMLElement>)
+              }
+              addEmojiButtonRef={
+                addEmojiButtonRef as React.RefObject<HTMLDivElement>
+              }
+              onMoodClick={handleMoodClick}
+              backgroundColor={noteBackgroundColor}
+            />
+
+            {/* Editor */}
+            <PageContent>
+              {/* 🎯 Apple Notes UX: Editor never disappears, only content changes */}
+              <div
+                className="editor-shell"
+                style={{
+                  position: 'relative',
+                  minHeight: '200px',
+                  transition:
+                    'opacity 120ms ease, transform 120ms ease, filter 120ms ease',
+                  opacity: isSwitchingNote ? 0.94 : 1,
+                  transform: isSwitchingNote
+                    ? 'translateY(1px)'
+                    : 'translateY(0)',
+                  filter: isSwitchingNote ? 'blur(0.2px)' : 'none',
+                }}
+              >
+                <TipTapWrapper
+                  ref={editorRef}
+                  noteId={currentNoteId}
+                  value={currentNote?.content || undefined}
+                  autoFocus={false}
+                  onChange={(value) => {
+                    editorEngine.applyEdit(value, currentNoteId);
+                  }}
+                  onTagClick={handleShowTagFilter}
+                  onNavigate={handleNavigate}
+                  onFocus={() => {
+                    editorHadFocusRef.current = true;
+                  }}
+                  onBlur={() => {
+                    editorHadFocusRef.current = false;
+                  }}
+                  onTagsChange={(extractedTags) => {
+                    // Merge extracted tags from editor with existing metadata tags
+                    setTags((prevTags) => {
+                      // Create a map of extracted tags (from editor) - case insensitive
+                      const extractedLowerMap = new Map(
+                        extractedTags.map((tag) => [tag.toLowerCase(), tag])
+                      );
+
+                      // Find tags that were added via "+ Add tag" button (not in editor)
+                      const metadataOnlyTags = prevTags.filter(
+                        (tag) => !extractedLowerMap.has(tag.toLowerCase())
+                      );
+
+                      // Merge: extracted tags from editor + metadata-only tags
+                      const mergedTags = [
+                        ...extractedTags,
+                        ...metadataOnlyTags,
+                      ];
+
+                      // Deduplicate (case-insensitive) - keep first occurrence
+                      const deduped: string[] = [];
+                      const seenLower = new Set<string>();
+                      for (const tag of mergedTags) {
+                        const lowerTag = tag.toLowerCase();
+                        if (!seenLower.has(lowerTag)) {
+                          seenLower.add(lowerTag);
+                          deduped.push(tag);
+                        }
+                      }
+
+                      // Update store immediately so sidebar updates instantly
+                      if (currentNoteId) {
+                        updateNoteMeta(currentNoteId, { tags: deduped });
+                      }
+
+                      return deduped;
+                    });
+                  }}
+                  isFrozen={isSwitchingNote}
+                  editorContext={editorContext}
+                />
+              </div>
+            </PageContent>
+          </>
+        </div>
+
+        {/* 🔒 OTHER VIEWS: Conditionally rendered (OK to unmount) */}
         {mainView.type === 'tagFilter' ? (
           <TagFilteredNotesView
             tag={mainView.tag}
@@ -1919,141 +2054,7 @@ export const NoteEditor = ({
             onNoteClick={handleNoteClickFromTagView}
             onTagClick={handleShowTagFilter}
           />
-        ) : (
-          <>
-            {/* Page Title Section */}
-            <PageTitleSection
-              ref={titleInputRef}
-              variant="note"
-              title={title}
-              onTitleChange={(value) => {
-                if (isDailyNote) return; // Prevent title changes for daily notes
-                setTitle(value);
-                debouncedSave({ title: value });
-              }}
-              onTitleEnter={() => editorRef.current?.focus()}
-              dailyNoteDate={currentNote?.dailyNoteDate}
-              readOnlyTitle={isDailyNote}
-              selectedEmoji={selectedEmoji}
-              isEmojiTrayOpen={isEmojiTrayOpen}
-              onEmojiClick={() => openEmojiTray(emojiButtonRef)}
-              onRemoveEmoji={handleRemoveEmoji}
-              emojiButtonRef={emojiButtonRef}
-              hasContent={
-                editorState.status === 'ready' &&
-                !isContentEmpty(editorState.document)
-              }
-              isFavorite={isFavorite}
-              contextMenuItems={noteContextMenuItems}
-              description={description}
-              showDescriptionInput={showDescriptionInput}
-              descriptionVisible={descriptionVisible}
-              onDescriptionChange={handleDescriptionChange}
-              onDescriptionBlur={handleDescriptionBlur}
-              onShowDescriptionInput={handleShowDescriptionInput}
-              onToggleDescriptionVisibility={handleToggleDescriptionVisibility}
-              tags={tags}
-              showTagInput={showTagInput}
-              tagsVisible={tagsVisible}
-              onAddTag={handleAddTag}
-              onRemoveTag={handleRemoveTag}
-              onEditTag={handleEditTag}
-              onColorChange={handleColorChange}
-              onShowTagInput={handleShowTagInput}
-              onCancelTagInput={handleCancelTagInput}
-              onToggleTagsVisibility={handleToggleTagsVisibility}
-              onTagClick={handleShowTagFilter}
-              onAddEmoji={() =>
-                openEmojiTray(addEmojiButtonRef as React.RefObject<HTMLElement>)
-              }
-              addEmojiButtonRef={
-                addEmojiButtonRef as React.RefObject<HTMLDivElement>
-              }
-              onMoodClick={handleMoodClick}
-              backgroundColor={noteBackgroundColor}
-            />
-
-            {/* Editor */}
-            <PageContent>
-              {/* 🎯 Apple Notes UX: Editor never disappears, only content changes */}
-              <div
-                className="editor-shell"
-                style={{
-                  position: 'relative',
-                  minHeight: '200px',
-                  transition:
-                    'opacity 120ms ease, transform 120ms ease, filter 120ms ease',
-                  opacity: isSwitchingNote ? 0.94 : 1,
-                  transform: isSwitchingNote
-                    ? 'translateY(1px)'
-                    : 'translateY(0)',
-                  filter: isSwitchingNote ? 'blur(0.2px)' : 'none',
-                }}
-              >
-                <TipTapWrapper
-                  ref={editorRef}
-                  value={
-                    editorState.status === 'ready'
-                      ? editorState.document
-                      : undefined
-                  }
-                  autoFocus={false}
-                  onChange={(value) => {
-                    editorEngine.applyEdit(value, currentNoteId);
-                  }}
-                  onTagClick={handleShowTagFilter}
-                  onNavigate={handleNavigate}
-                  onFocus={() => {
-                    editorHadFocusRef.current = true;
-                  }}
-                  onBlur={() => {
-                    editorHadFocusRef.current = false;
-                  }}
-                  onTagsChange={(extractedTags) => {
-                    // Merge extracted tags from editor with existing metadata tags
-                    setTags((prevTags) => {
-                      // Create a map of extracted tags (from editor) - case insensitive
-                      const extractedLowerMap = new Map(
-                        extractedTags.map((tag) => [tag.toLowerCase(), tag])
-                      );
-
-                      // Find tags that were added via "+ Add tag" button (not in editor)
-                      const metadataOnlyTags = prevTags.filter(
-                        (tag) => !extractedLowerMap.has(tag.toLowerCase())
-                      );
-
-                      // Merge: extracted tags from editor + metadata-only tags
-                      const mergedTags = [
-                        ...extractedTags,
-                        ...metadataOnlyTags,
-                      ];
-
-                      // Deduplicate (case-insensitive) - keep first occurrence
-                      const deduped: string[] = [];
-                      const seenLower = new Set<string>();
-                      for (const tag of mergedTags) {
-                        const lowerTag = tag.toLowerCase();
-                        if (!seenLower.has(lowerTag)) {
-                          seenLower.add(lowerTag);
-                          deduped.push(tag);
-                        }
-                      }
-
-                      // Update store immediately so sidebar updates instantly
-                      if (currentNoteId) {
-                        updateNoteMeta(currentNoteId, { tags: deduped });
-                      }
-
-                      return deduped;
-                    });
-                  }}
-                  isFrozen={isSwitchingNote}
-                  editorContext={editorContext}
-                />
-              </div>
-            </PageContent>
-          </>
-        )}
+        ) : null}
 
         {/* Floating Action Bar for deleted items - inside AppShell */}
         {((mainView.type === 'editor' && currentNote?.deletedAt) ||

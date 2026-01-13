@@ -596,7 +596,7 @@ export function ListBlock({
     // 🔥 FLAT MODEL: Show caret for ANY block with children (task or toggle)
     // In flat model, collapse is universal - any block can collapse its visual children
     const shouldShow =
-      (listType === 'task' || listType === 'toggle') && hasChildrenFlag;
+      listType === 'toggle' || (listType === 'task' && hasChildrenFlag);
 
     if (!shouldShow) return null;
 
@@ -653,7 +653,7 @@ export function ListBlock({
           </span>
         )}
         {/* Hidden children counter (toggles only, shown when collapsed) */}
-        {listType === 'toggle' && collapsed && hiddenCount > 0 && (
+        {listType === 'toggle' && collapsed && (
           <span
             style={{
               fontSize: 11,
@@ -662,7 +662,9 @@ export function ListBlock({
               pointerEvents: 'none',
             }}
           >
-            {hiddenCount} hidden {hiddenCount === 1 ? 'item' : 'items'}
+            {hiddenCount > 0
+              ? `${hiddenCount} hidden ${hiddenCount === 1 ? 'item' : 'items'}`
+              : 'Empty toggle'}
           </span>
         )}
       </div>

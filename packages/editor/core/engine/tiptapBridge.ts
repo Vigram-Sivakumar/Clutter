@@ -27,7 +27,7 @@
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  */
 
-import { useEffect, useRef, useMemo } from 'react';
+// No React hooks needed anymore - bridge is module-level singleton
 import type { Editor } from '@tiptap/core';
 // NodeSelection preserved for future re-enablement of block selection sync
 import { NodeSelection as _NodeSelection } from '@tiptap/pm/state';
@@ -665,9 +665,14 @@ function syncSelectionToTipTap(
 }
 
 /**
- * Create and manage the bridge between engine and TipTap
+ * @deprecated - DO NOT USE
+ *
+ * Bridge creation moved to bridgeSingleton.ts module-level singleton.
+ * This function is preserved only to avoid breaking imports during transition.
+ *
+ * Use ensureBridge() from bridgeSingleton.ts instead.
  */
-function createBridge(editor: Editor): BridgeState {
+function _createBridge(editor: Editor): BridgeState {
   console.log('[Bridge] Creating TipTap ↔ Engine bridge');
   console.log('[Bridge] Editor identity:', editor);
 
@@ -747,7 +752,7 @@ function createBridge(editor: Editor): BridgeState {
   editor.on('selectionUpdate', handleSelectionUpdate);
 
   // Engine → TipTap sync (on engine changes)
-  const unsubscribeEngine = engine.onChange(() => {
+  const _unsubscribeEngine = engine.onChange(() => {
     syncEngineToTipTap(editor, engine, updateSource);
     syncSelectionToTipTap(editor, engine, updateSource);
   });
@@ -762,16 +767,12 @@ function createBridge(editor: Editor): BridgeState {
     mode: engine.getMode(),
   });
 
-  // Cleanup function
-  const cleanup = () => {
-    console.log('[Bridge] Cleaning up bridge');
-    editor.off('update', handleUpdate);
-    editor.off('selectionUpdate', handleSelectionUpdate);
-    unsubscribeEngine();
-  };
-
-  // Store cleanup for later
-  (engine as any)._bridgeCleanup = cleanup;
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // 🔥 NO CLEANUP FUNCTION - BRIDGE IS IMMORTAL
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // Event listeners remain attached for the life of the editor.
+  // This prevents "editor._engine is undefined" crashes from stale handlers.
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   return {
     engine,
@@ -783,6 +784,13 @@ function createBridge(editor: Editor): BridgeState {
 /**
  * React hook to get EditorEngine + FlatIntentResolver for a TipTap editor
  *
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * 🔥 USES MODULE-LEVEL SINGLETON - NO CLEANUP, EVER
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ *
+ * This hook is now just a React-friendly accessor to the singleton bridge.
+ * The bridge itself lives at module level and is never destroyed.
+ *
  * Usage:
  * ```tsx
  * const editor = useEditor({ ... });
@@ -793,52 +801,22 @@ export function useEditorEngine(editor: Editor | null): {
   engine: EditorEngine | null;
   resolver: FlatIntentResolver | null;
 } {
-  // Store bridge state in ref (survives rerenders)
-  const bridgeRef = useRef<BridgeState | null>(null);
+  // Import the singleton bridge
+  const { ensureBridge } = require('./bridgeSingleton');
 
-  // Create bridge once when editor becomes available
-  const bridge = useMemo(() => {
-    if (!editor) {
-      return null;
-    }
-
-    // Clean up previous bridge if it exists
-    if (bridgeRef.current) {
-      const prevEngine = bridgeRef.current.engine as any;
-      if (prevEngine._bridgeCleanup) {
-        prevEngine._bridgeCleanup();
-      }
-    }
-
-    // Create new bridge
-    const newBridge = createBridge(editor);
-    bridgeRef.current = newBridge;
-
-    return newBridge;
-  }, [editor]); // Only recreate if editor instance changes
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (bridgeRef.current) {
-        const engine = bridgeRef.current.engine as any;
-        if (engine._bridgeCleanup) {
-          engine._bridgeCleanup();
-        }
-      }
-    };
-  }, []);
-
-  if (!bridge) {
+  // If editor is ready, ensure singleton bridge exists
+  if (editor) {
+    const bridge = ensureBridge(editor);
     return {
-      engine: null,
-      resolver: null,
+      engine: bridge.engine,
+      resolver: bridge.resolver,
     };
   }
 
+  // Editor not ready yet
   return {
-    engine: bridge.engine,
-    resolver: bridge.resolver,
+    engine: null,
+    resolver: null,
   };
 }
 

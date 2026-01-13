@@ -32,11 +32,14 @@ import { performStructuralDelete } from '../core/structuralDelete/performStructu
 import type { EditorEngine } from '../core/engine/EditorEngine';
 
 /**
- * Get EditorEngine from TipTap editor instance
+ * Get EditorEngine from CANONICAL TipTap editor instance
  * Engine is attached by EditorCore during initialization
+ *
+ * 🔒 CRITICAL: Always read from window.__editor to avoid stale references
  */
-function getEngine(editor: any): EditorEngine | null {
-  return editor._engine || null;
+function getEngine(_editor: any): EditorEngine | null {
+  const canonicalEditor = (window as any).__editor;
+  return canonicalEditor?._engine || null;
 }
 
 const blockDeletionPluginKey = new PluginKey('blockDeletion');
@@ -50,8 +53,6 @@ export const BlockDeletion = Extension.create({
         key: blockDeletionPluginKey,
         props: {
           handleKeyDown(view, event) {
-            const { state } = view;
-            const { selection } = state;
             const editor = (this as any).editor;
 
             if (!editor) return false;
@@ -82,7 +83,9 @@ export const BlockDeletion = Extension.create({
 
                 // Create explicit snapshot
                 if (!engine || !engine.blocks) {
-                  console.warn('[BlockDeletion] Engine or blocks not available');
+                  console.warn(
+                    '[BlockDeletion] Engine or blocks not available'
+                  );
                   return false;
                 }
 
