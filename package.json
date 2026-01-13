@@ -21,6 +21,18 @@
     "clean": "turbo run clean && rm -rf node_modules",
     "prepare": "husky install"
   },
+  "dependencies": {
+    "@tiptap/core": "^2.10.5",
+    "@tiptap/extension-bullet-list": "^2.10.5",
+    "@tiptap/extension-gapcursor": "^2.10.5",
+    "@tiptap/extension-hard-break": "^2.10.5",
+    "@tiptap/extension-highlight": "^2.10.5",
+    "@tiptap/extension-history": "^2.10.5",
+    "@tiptap/extension-link": "^2.10.5",
+    "@tiptap/pm": "^2.10.5",
+    "@tiptap/react": "^2.10.5",
+    "@tiptap/suggestion": "^2.10.5"
+  },
   "devDependencies": {
     "@turbo/gen": "^1.11.2",
     "@typescript-eslint/parser": "^6.21.0",

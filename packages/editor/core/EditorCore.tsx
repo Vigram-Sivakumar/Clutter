@@ -50,7 +50,7 @@ import React, {
   useRef,
 } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
-import { Editor } from '@tiptap/core';
+import { Editor, Node as TiptapNode } from '@tiptap/core';
 import { NodeSelection } from '@tiptap/pm/state';
 
 export interface EditorCoreHandle {
@@ -173,6 +173,15 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
       name: Document?.name,
       topNode: Document?.config?.topNode,
     });
+
+    // 🔍 CRITICAL: TipTap Singleton Check - MUST be true or schema will fail
+    const isSingletonTiptap = Document instanceof TiptapNode;
+    console.log('[TIPTAP SINGLETON CHECK]', isSingletonTiptap);
+    if (!isSingletonTiptap) {
+      console.error(
+        '❌ DUPLICATE TIPTAP DETECTED: Document was created with a different @tiptap/core instance!'
+      );
+    }
 
     const { colors } = useTheme();
     const { availableTags } = useEditorContext();
