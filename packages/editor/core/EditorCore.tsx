@@ -236,21 +236,31 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
     const extensions = useMemo(() => {
       console.log('[EditorCore] useMemo EXECUTING - building extensions array');
       return [
-        // Core nodes
+        // 🔒 CRITICAL: Extension order matters for schema compilation
+        // 1. Top node (doc)
+        // 2. Block nodes (paragraph, heading, etc.)
+        // 3. Inline nodes (text) - MUST come after blocks
+        // 4. Marks and plugins
+
+        // 1️⃣ Top node
         Document,
-        Text,
+
+        // 2️⃣ Block nodes (structural content)
         Paragraph,
         Heading,
         ListBlock,
         Blockquote,
         CodeBlock,
         HorizontalRule,
+        Callout, // Info/warning/error/success callout boxes
+
+        // 3️⃣ Inline nodes (MUST come after block nodes)
+        Text,
+
         HardBreak.configure({
           // Don't bind Shift+Enter - we handle it in individual node extensions
           keepMarks: true,
         }),
-        Link, // Standard link mark (browser default behavior)
-        Callout, // Info/warning/error/success callout boxes
         DateMentionNode, // Date mentions (@Today, @Yesterday, etc.) - atomic inline node
         NoteLink.configure({
           onNavigate: (_linkType, _targetId) => {
@@ -260,7 +270,8 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
         Gapcursor, // Shows cursor when navigating around atomic nodes
         History, // Undo/redo support - REQUIRED for tr.setMeta('addToHistory') to work
 
-        // Marks
+        // 4️⃣ Marks
+        Link, // Standard link mark (browser default behavior)
         Bold,
         Italic,
         Underline,
