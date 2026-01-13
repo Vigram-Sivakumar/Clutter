@@ -37,43 +37,46 @@ export function ParagraphBlock({
   // Canonical emptiness check (ProseMirror source of truth)
   const isEmpty = node.content.size === 0;
 
-  // Placeholder text (includes focus detection via usePlaceholder)
-  const placeholderText = usePlaceholder({
-    node,
-    editor,
-    getPos,
-    customText: hasTags ? 'Start typing...' : undefined,
-  });
+  // ❌ DISABLED: All hooks that call getPos() during transactions
+  // These cause "Position X outside of fragment" on ENTER
+  
+  // const placeholderText = usePlaceholder({
+  //   node,
+  //   editor,
+  //   getPos,
+  //   customText: hasTags ? 'Start typing...' : undefined,
+  // });
+  const placeholderText = null; // Hardcoded for minimal schema test
 
-  // Check if this block is selected
-  const isSelected = useBlockSelection({
-    editor,
-    getPos,
-    nodeSize: node.nodeSize,
-  });
+  // const isSelected = useBlockSelection({
+  //   editor,
+  //   getPos,
+  //   nodeSize: node.nodeSize,
+  // });
+  const isSelected = false; // Hardcoded for minimal schema test
 
-  // 🔥 COLLAPSE PROPAGATION: Check if we're hidden by a collapsed ancestor
-  const isHidden = useBlockHidden(editor, getPos);
+  // const isHidden = useBlockHidden(editor, getPos);
+  const isHidden = false; // Hardcoded for minimal schema test
 
-  // Force re-render when document updates (to react to parent toggle collapse and selection changes)
-  const [, forceUpdate] = useState(0);
-
-  useEffect(() => {
-    const handleUpdate = () => {
-      forceUpdate((prev) => prev + 1);
-    };
-
-    editor.on('update', handleUpdate);
-    editor.on('selectionUpdate', handleUpdate); // Re-render on selection change for placeholder focus detection
-    editor.on('focus', handleUpdate); // Re-render when editor gains focus
-    editor.on('blur', handleUpdate); // Re-render when editor loses focus
-    return () => {
-      editor.off('update', handleUpdate);
-      editor.off('selectionUpdate', handleUpdate);
-      editor.off('focus', handleUpdate);
-      editor.off('blur', handleUpdate);
-    };
-  }, [editor]);
+  // ❌ DISABLED: Force re-render on update - fires during ENTER
+  // const [, forceUpdate] = useState(0);
+  //
+  // useEffect(() => {
+  //   const handleUpdate = () => {
+  //     forceUpdate((prev) => prev + 1);
+  //   };
+  //
+  //   editor.on('update', handleUpdate);
+  //   editor.on('selectionUpdate', handleUpdate);
+  //   editor.on('focus', handleUpdate);
+  //   editor.on('blur', handleUpdate);
+  //   return () => {
+  //     editor.off('update', handleUpdate);
+  //     editor.off('selectionUpdate', handleUpdate);
+  //     editor.off('focus', handleUpdate);
+  //     editor.off('blur', handleUpdate);
+  //   };
+  // }, [editor]);
 
   const handleUpdateTags = useCallback(
     (newTags: string[]) => {
