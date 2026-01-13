@@ -63,6 +63,7 @@ export interface EditorCoreHandle {
 import { Document } from '../extensions/nodes/Document';
 import { Text } from '../extensions/nodes/Text';
 import { Paragraph } from '../extensions/nodes/Paragraph';
+/* TEMPORARILY DISABLED FOR MINIMAL SCHEMA TEST
 import { Heading } from '../extensions/nodes/Heading';
 import { ListBlock } from '../extensions/nodes/ListBlock';
 import { Blockquote } from '../extensions/nodes/Blockquote';
@@ -113,18 +114,19 @@ import { AtMentionMenu } from '../components/AtMentionMenu';
 // Shared Components for inline styling
 import { FloatingToolbar } from '@clutter/ui';
 
+// HardBreak extension for line breaks (Shift+Enter)
+import HardBreak from '@tiptap/extension-hard-break';
+*/
+
 // Tokens
 import { spacing, typography, placeholders } from '../tokens';
-import { useTheme } from '@clutter/ui';
+// import { useTheme } from '@clutter/ui';
 
 // Editor Context
 import { useEditorContext } from '../context/EditorContext';
 
 // Editor Engine
 import { useEditorEngine, getEngine } from './engine';
-
-// HardBreak extension for line breaks (Shift+Enter)
-import HardBreak from '@tiptap/extension-hard-break';
 
 interface EditorCoreProps {
   content?: object | null;
@@ -183,8 +185,8 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
       );
     }
 
-    const { colors } = useTheme();
-    const { availableTags } = useEditorContext();
+    // const { colors } = useTheme();
+    // const { availableTags } = useEditorContext();
 
     // 🔍 DIAGNOSTIC: Log all extension groups to verify schema composition
     console.log('[EditorCore] PRE-MEMO extensions snapshot:');
@@ -196,10 +198,6 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
       Paragraph?.config?.group
     );
     console.log('Text:', Text?.name, 'group:', Text?.config?.group);
-
-    // 🔒 CRITICAL: Store editor instance for StrictMode reuse
-    // React StrictMode mounts twice in dev - we reuse the same editor instance
-    const editorInstanceRef = useRef<Editor | null>(null);
 
     // Track if we're updating from the editor (to prevent clearing history)
     const isInternalUpdate = useRef(false);
@@ -235,13 +233,18 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
     // Extensions must be stable for the lifetime of the editor
     const extensions = useMemo(() => {
       console.log('[EditorCore] useMemo EXECUTING - building extensions array');
+      
+      // 🧪 MINIMAL SAFE SCHEMA - Testing for extension poisoning
+      // If this works → one of the removed extensions is broken
+      // If this fails → core schema issue (very unlikely now)
       return [
-        // 🔒 CRITICAL: Extension order matters for schema compilation
-        // 1. Top node (doc)
-        // 2. Block nodes (paragraph, heading, etc.)
-        // 3. Inline nodes (text) - MUST come after blocks
-        // 4. Marks and plugins
-
+        Document,
+        Paragraph,
+        Text,
+      ] as any[];
+      
+      /* FULL SCHEMA (temporarily disabled for diagnosis)
+      return [
         // 1️⃣ Top node
         Document,
 
@@ -252,52 +255,51 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
         Blockquote,
         CodeBlock,
         HorizontalRule,
-        Callout, // Info/warning/error/success callout boxes
+        Callout,
 
-        // 3️⃣ Text node (MUST come immediately after blocks, before marks/plugins)
+        // 3️⃣ Text node (MUST come immediately after blocks)
         Text,
 
-        // 4️⃣ Marks (MUST come after Text, before other nodes/plugins)
+        // 4️⃣ Marks
         Bold,
         Italic,
         Underline,
         Strike,
         Code,
         WavyUnderline,
-        Link, // Standard link mark (browser default behavior)
-        TextColor, // Text foreground color
-        CustomHighlight, // Highlight with bg color
+        Link,
+        TextColor,
+        CustomHighlight,
 
-        // 5️⃣ Other nodes (atomic, inline extensions)
+        // 5️⃣ Other nodes
         HardBreak.configure({
-          // Don't bind Shift+Enter - we handle it in individual node extensions
           keepMarks: true,
         }),
-        DateMentionNode, // Date mentions (@Today, @Yesterday, etc.) - atomic inline node
+        DateMentionNode,
         NoteLink.configure({
           onNavigate: (_linkType, _targetId) => {
             onNavigateRef.current?.(_linkType, _targetId);
           },
-        }), // Note/folder links (no @) - atomic inline node
+        }),
 
-        // 6️⃣ ProseMirror built-in utilities
-        Gapcursor, // Shows cursor when navigating around atomic nodes
-        History, // Undo/redo support - REQUIRED for tr.setMeta('addToHistory') to work
+        // 6️⃣ ProseMirror utilities
+        Gapcursor,
+        History,
 
         // 7️⃣ Custom plugins
-        BlockIdGenerator, // Auto-generate blockId for all blocks
+        BlockIdGenerator,
         MarkdownShortcuts,
         SlashCommands,
-        TaskPriority, // Highlight priority indicators (!, !!, !!!) in tasks
+        TaskPriority,
         BackspaceHandler,
-        KeyboardShortcuts, // Centralized Tab/Shift+Tab → indent/outdent intents
-        TabHandler, // Fallback Tab handler - prevents focus navigation
+        KeyboardShortcuts,
+        TabHandler,
         EscapeMarks,
         DoubleSpaceEscape,
-        SelectAll, // Progressive Cmd+A: block text → block node → all blocks
-        BlockDeletion, // Handle DELETE/Backspace for node-selected blocks
-        UndoRedo, // Cmd+Z / Cmd+Shift+Z → EditorEngine.undoController
-        HashtagDetection, // Simple #tag detection (moves to metadata)
+        SelectAll,
+        BlockDeletion,
+        UndoRedo,
+        HashtagDetection,
         HashtagAutocomplete.configure({
           getColors: () => colors,
           getTags: () => availableTags,
@@ -305,18 +307,8 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
         AtMention.configure({
           getColors: () => colors,
         }),
-        // FocusFade, // Fade text before cursor for better focus - Disabled for now
-
-        // DISABLED: TipTap History - We use UndoController for emotional undo
-        // History and UndoBoundaries have been removed in favor of:
-        // - EditorEngine.undoController (handles grouping per UNDO_GROUPING_LAW.md)
-        // - Full state restoration (cursor + selection)
-        // - Time-based and intent-based grouping
-
-        // DISABLED: TipTap Placeholder uses CSS ::before which shows placeholder BEFORE markers
-        // We use React-based placeholders in each component instead
-        // Placeholder.configure({...}),
       ] as any[];
+      */
     }, []); // 🔒 EMPTY DEPS: Extensions frozen for editor lifetime
 
     // 🔍 DIAGNOSTIC: Log extensions after useMemo
@@ -397,55 +389,31 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
     ); // 🔒 EMPTY DEPS: editorProps frozen for editor lifetime
 
     // 🔒 CRITICAL: Create editor instance ONCE (StrictMode-safe)
-    // Factory pattern with ref ensures same instance is reused across StrictMode double-mount
-    // This prevents schema errors and maintains stable editor authority
+    // Direct object form - React owns lifecycle, no closure capture issues
     const editor = useEditor(
-      () => {
-        // Reuse existing instance on second mount (StrictMode)
-        if (editorInstanceRef.current) {
-          console.log('[EditorCore] Reusing editor instance (StrictMode)');
-          return editorInstanceRef.current;
-        }
-
-        // 🔍 DIAGNOSTIC: Verify extensions array at runtime
-        console.log(
-          '[EditorCore] EXTENSIONS CHECK',
-          extensions.map((e) => ({
-            name: e?.name,
-            topNode: e?.config?.topNode,
-          }))
-        );
-
-        // Create new instance on first mount
-        console.log('[EditorCore] Creating new editor instance');
-        const instance = new Editor({
-          extensions,
-          content: {
-            type: 'doc',
-            content: [{ type: 'paragraph' }],
-          },
-          editable: true,
-          editorProps,
-          onUpdate: ({ editor, transaction }) => {
-            // Only fire onChange if document actually changed (not just selection)
-            if (transaction.docChanged && onChangeRef.current) {
-              // Mark that this update is coming from the editor (internal)
-              isInternalUpdate.current = true;
-              onChangeRef.current(editor.getJSON());
-              // Reset flag after a short delay to allow parent to update prop
-              queueMicrotask(() => {
-                isInternalUpdate.current = false;
-              });
-            }
-          },
-          onSelectionUpdate: () => {
-            // Selection update callback (can be used for future selection tracking)
-          },
-        });
-
-        // Store instance for reuse
-        editorInstanceRef.current = instance;
-        return instance;
+      {
+        extensions,
+        content: {
+          type: 'doc',
+          content: [{ type: 'paragraph' }],
+        },
+        editable: true,
+        editorProps,
+        onUpdate: ({ editor, transaction }) => {
+          // Only fire onChange if document actually changed (not just selection)
+          if (transaction.docChanged && onChangeRef.current) {
+            // Mark that this update is coming from the editor (internal)
+            isInternalUpdate.current = true;
+            onChangeRef.current(editor.getJSON());
+            // Reset flag after a short delay to allow parent to update prop
+            queueMicrotask(() => {
+              isInternalUpdate.current = false;
+            });
+          }
+        },
+        onSelectionUpdate: () => {
+          // Selection update callback (can be used for future selection tracking)
+        },
       },
       [] // 🔒 EMPTY DEPS: Editor created once, never recreated
     );
