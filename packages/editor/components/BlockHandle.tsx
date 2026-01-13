@@ -142,97 +142,94 @@ export function BlockHandle({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showMenu]);
 
-  // Detect multi-block selection and determine if this is the first block
-  useEffect(() => {
-    const ed = getEditor();
-    if (!ed) return;
+  // ❌ DISABLED: Multi-selection check - calls getPos() during transactions
+  // This causes "Position X outside of fragment" on ENTER
+  // Multi-selection logic must be moved to user-initiated events only
+  // useEffect(() => {
+  //   const ed = getEditor();
+  //   if (!ed) return;
+  //
+  //   const checkMultiSelection = () => {
+  //     const pos = getPos();
+  //     if (pos === undefined) return;
+  //
+  //     const { selection } = ed.state;
+  //     const { from, to } = selection;
+  //
+  //     if (from === to) {
+  //       setIsFirstInMultiSelection(false);
+  //       setIsInMultiSelection(false);
+  //       return;
+  //     }
+  //
+  //     const multiSelected = isMultiBlockSelection(ed);
+  //     setIsInMultiSelection(multiSelected);
+  //
+  //     if (multiSelected) {
+  //       const blocks = getSelectedBlocks(ed);
+  //       if (blocks.length > 0) {
+  //         const firstBlockPos = blocks[0].pos;
+  //         setIsFirstInMultiSelection(pos === firstBlockPos);
+  //       } else {
+  //         setIsFirstInMultiSelection(false);
+  //       }
+  //     } else {
+  //       setIsFirstInMultiSelection(false);
+  //     }
+  //   };
+  //
+  //   checkMultiSelection();
+  //   ed.on('selectionUpdate', checkMultiSelection);
+  //   ed.on('update', checkMultiSelection);
+  //   return () => {
+  //     ed.off('selectionUpdate', checkMultiSelection);
+  //     ed.off('update', checkMultiSelection);
+  //   };
+  // }, [getPos]);
 
-    const checkMultiSelection = () => {
-      const pos = getPos();
-      if (pos === undefined) return;
-
-      const { selection } = ed.state;
-      const { from, to } = selection;
-
-      // Reset flags when selection is empty (just a cursor) - no multi-selection
-      if (from === to) {
-        setIsFirstInMultiSelection(false);
-        setIsInMultiSelection(false);
-        return;
-      }
-
-      // Use the reliable isMultiBlockSelection utility
-      const multiSelected = isMultiBlockSelection(ed);
-      setIsInMultiSelection(multiSelected);
-
-      if (multiSelected) {
-        // Get all selected blocks and check if this is the first one
-        const blocks = getSelectedBlocks(ed);
-        if (blocks.length > 0) {
-          const firstBlockPos = blocks[0].pos;
-          setIsFirstInMultiSelection(pos === firstBlockPos);
-        } else {
-          setIsFirstInMultiSelection(false);
-        }
-      } else {
-        setIsFirstInMultiSelection(false);
-      }
-    };
-
-    checkMultiSelection();
-    ed.on('selectionUpdate', checkMultiSelection);
-    ed.on('update', checkMultiSelection); // Also check on general updates
-    return () => {
-      ed.off('selectionUpdate', checkMultiSelection);
-      ed.off('update', checkMultiSelection);
-    };
-  }, [getPos]);
-
-  // Close menu when this block is no longer selected
-  useEffect(() => {
-    const handleSelectionUpdate = () => {
-      // 🔒 CRITICAL: Read canonical editor at execution time
-      const canonicalEditor = (window as any).__editor;
-      if (!canonicalEditor) return;
-
-      const engine = getEngine(canonicalEditor);
-      if (!engine) return;
-
-      const pos = getPos();
-      if (pos === undefined) return;
-
-      const node = canonicalEditor.state.doc.nodeAt(pos);
-      if (!node) return;
-
-      const blockId = node.attrs?.blockId;
-      if (!blockId) return;
-
-      const sel = engine.selection;
-
-      console.log('[Menu] selectionUpdate fired', {
-        blockId: blockId.slice(0, 8),
-        engineSelection: sel,
-        showMenu,
-      });
-
-      // Close menu if:
-      // - no block selection
-      // - or a different block is selected
-      if (sel.kind !== 'block' || !sel.blockIds.includes(blockId)) {
-        setShowMenu(false);
-      }
-    };
-
-    const canonicalEditor = (window as any).__editor;
-    if (canonicalEditor) {
-      canonicalEditor.on('selectionUpdate', handleSelectionUpdate);
-    }
-    return () => {
-      if (canonicalEditor) {
-        canonicalEditor.off('selectionUpdate', handleSelectionUpdate);
-      }
-    };
-  }, [getPos, showMenu]);
+  // ❌ DISABLED: Menu close logic - calls getPos() during transactions
+  // This causes "Position X outside of fragment" on ENTER
+  // Menu close logic must be moved to user-initiated events only
+  // useEffect(() => {
+  //   const handleSelectionUpdate = () => {
+  //     const canonicalEditor = (window as any).__editor;
+  //     if (!canonicalEditor) return;
+  //
+  //     const engine = getEngine(canonicalEditor);
+  //     if (!engine) return;
+  //
+  //     const pos = getPos();
+  //     if (pos === undefined) return;
+  //
+  //     const node = canonicalEditor.state.doc.nodeAt(pos);
+  //     if (!node) return;
+  //
+  //     const blockId = node.attrs?.blockId;
+  //     if (!blockId) return;
+  //
+  //     const sel = engine.selection;
+  //
+  //     console.log('[Menu] selectionUpdate fired', {
+  //       blockId: blockId.slice(0, 8),
+  //       engineSelection: sel,
+  //       showMenu,
+  //     });
+  //
+  //     if (sel.kind !== 'block' || !sel.blockIds.includes(blockId)) {
+  //       setShowMenu(false);
+  //     }
+  //   };
+  //
+  //   const canonicalEditor = (window as any).__editor;
+  //   if (canonicalEditor) {
+  //     canonicalEditor.on('selectionUpdate', handleSelectionUpdate);
+  //   }
+  //   return () => {
+  //     if (canonicalEditor) {
+  //       canonicalEditor.off('selectionUpdate', handleSelectionUpdate);
+  //     }
+  //   };
+  // }, [getPos, showMenu]);
 
   // Calculate menu position to ensure it stays within viewport
   useEffect(() => {
@@ -263,29 +260,31 @@ export function BlockHandle({
     }
   }, [showMenu]);
 
-  // 🔍 TEMPORARY DIAGNOSTIC: Verify engine selection vs menu state
-  useEffect(() => {
-    const canonicalEditor = (window as any).__editor;
-    if (!canonicalEditor) return;
-
-    const engine = getEngine(canonicalEditor);
-    if (!engine) return;
-
-    const pos = getPos();
-    if (pos === undefined) return;
-
-    const node = canonicalEditor.state.doc.nodeAt(pos);
-    if (!node) return;
-
-    const blockId = node.attrs?.blockId;
-    if (!blockId) return;
-
-    console.log('[BlockHandle observe]', {
-      blockId: blockId.slice(0, 8),
-      engineSelection: engine.selection,
-      showMenu,
-    });
-  }, [showMenu, getPos]);
+  // ❌ DISABLED: Diagnostic logging - calls getPos() during transactions
+  // This causes "Position X outside of fragment" on ENTER
+  // Diagnostic logic must not touch positions during render/effects
+  // useEffect(() => {
+  //   const canonicalEditor = (window as any).__editor;
+  //   if (!canonicalEditor) return;
+  //
+  //   const engine = getEngine(canonicalEditor);
+  //   if (!engine) return;
+  //
+  //   const pos = getPos();
+  //   if (pos === undefined) return;
+  //
+  //   const node = canonicalEditor.state.doc.nodeAt(pos);
+  //   if (!node) return;
+  //
+  //   const blockId = node.attrs?.blockId;
+  //   if (!blockId) return;
+  //
+  //   console.log('[BlockHandle observe]', {
+  //     blockId: blockId.slice(0, 8),
+  //     engineSelection: engine.selection,
+  //     showMenu,
+  //   });
+  // }, [showMenu, getPos]);
 
   // Select the block when clicking the handle
   const handleClick = (e?: React.MouseEvent) => {
