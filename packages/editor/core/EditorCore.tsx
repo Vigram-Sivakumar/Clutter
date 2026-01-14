@@ -170,38 +170,49 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
       );
     }, []);
 
-    // 🔍 DIAGNOSTIC: Verify Document identity before useEditor
-    console.log('[EditorCore] DOC IDENTITY', {
-      Document,
-      name: Document?.name,
-      topNode: Document?.config?.topNode,
-    });
-
-    // 🔍 CRITICAL: TipTap Singleton Check - MUST be true or schema will fail
-    const isSingletonTiptap = Document instanceof TiptapNode;
-    console.log('[TIPTAP SINGLETON CHECK]', isSingletonTiptap);
-    if (!isSingletonTiptap) {
-      console.error(
-        '❌ DUPLICATE TIPTAP DETECTED: Document was created with a different @tiptap/core instance!'
-      );
-    }
+    // ❌ REMOVED: Render-time diagnostic logs moved to mount-only effect
+    // These logs were causing spam on every re-render
 
     // const { colors } = useTheme();
     // const { availableTags } = useEditorContext();
 
-    // 🔍 DIAGNOSTIC: Log all extension groups to verify schema composition
-    console.log('[EditorCore] PRE-MEMO extensions snapshot:');
-    console.log('Document:', Document?.name, 'group:', Document?.config?.group);
-    console.log(
-      'Paragraph:',
-      Paragraph?.name,
-      'group:',
-      Paragraph?.config?.group
-    );
-    console.log('Text:', Text?.name, 'group:', Text?.config?.group);
-
     // Track if we're updating from the editor (to prevent clearing history)
     const isInternalUpdate = useRef(false);
+
+    // 🔍 DIAGNOSTIC: Mount-only logs (fires once, not on every render)
+    useEffect(() => {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[EditorCore] MOUNTED');
+        console.log(
+          '  Document:',
+          Document?.name,
+          'topNode:',
+          Document?.config?.topNode
+        );
+        console.log(
+          '  Paragraph:',
+          Paragraph?.name,
+          'group:',
+          Paragraph?.config?.group
+        );
+        console.log('  Text:', Text?.name, 'group:', Text?.config?.group);
+
+        // Verify singleton
+        const isSingletonTiptap = Document instanceof TiptapNode;
+        console.log('  TipTap Singleton:', isSingletonTiptap);
+        if (!isSingletonTiptap) {
+          console.error(
+            '❌ DUPLICATE TIPTAP DETECTED: Document was created with a different @tiptap/core instance!'
+          );
+        }
+      }
+
+      return () => {
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[EditorCore] UNMOUNTED');
+        }
+      };
+    }, []); // ✅ Empty deps = runs once on mount
 
     // 🔒 Stabilize callbacks with refs (prevents editor recreation)
     const onChangeRef = useRef(onChange);
@@ -233,8 +244,6 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
     // 🔒 CRITICAL: Freeze extensions array to prevent editor recreation
     // Extensions must be stable for the lifetime of the editor
     const extensions = useMemo(() => {
-      console.log('[EditorCore] useMemo EXECUTING - building extensions array');
-
       // 🧪 MINIMAL SAFE SCHEMA - Testing for extension poisoning
       // If this works → one of the removed extensions is broken
       // If this fails → core schema issue (very unlikely now)
@@ -308,15 +317,7 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
       */
     }, []); // 🔒 EMPTY DEPS: Extensions frozen for editor lifetime
 
-    // 🔍 DIAGNOSTIC: Log extensions after useMemo
-    console.log(
-      '[EditorCore] POST-MEMO extensions length:',
-      extensions?.length
-    );
-    console.log(
-      '[EditorCore] POST-MEMO first 3:',
-      extensions?.slice(0, 3).map((e) => e?.name)
-    );
+    // ❌ REMOVED: POST-MEMO diagnostic logs (were firing on every render)
 
     // 🔒 Stabilize editorProps to prevent recreation
     const editorProps = useMemo(
