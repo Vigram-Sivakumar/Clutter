@@ -29,7 +29,7 @@ import { placeholders } from '@clutter/editor';
 import type { Editor } from '@tiptap/core';
 
 // 🎯 Phase 3 - Step 2: Slash menu UI
-import { SlashMenu } from '../../../../editor/slash/SlashMenu';
+import { SlashMenu } from '../../../editor/slash/SlashMenu';
 
 interface TipTapWrapperProps {
   value?: string;
