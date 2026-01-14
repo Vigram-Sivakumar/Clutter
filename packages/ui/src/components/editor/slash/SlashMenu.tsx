@@ -53,6 +53,7 @@ export function SlashMenu({
           fontSize: 14,
           color: 'var(--text-secondary)',
           pointerEvents: 'auto', // 🔥 CRITICAL: Override any parent pointer-events: none
+          overscrollBehavior: 'contain', // 🔒 CRITICAL: Prevents scroll bleed to page
         }}
       >
         No commands found for "{query}"
@@ -70,6 +71,7 @@ export function SlashMenu({
         minWidth: 240,
         maxHeight: 320,
         overflowY: 'auto',
+        overscrollBehavior: 'contain', // 🔒 CRITICAL: Prevents scroll bleed to page underneath
         padding: 4,
         borderRadius: 8,
         background: 'var(--background)',
