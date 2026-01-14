@@ -47,7 +47,7 @@ export function SlashMenu({
           position: 'absolute',
           top: coords.top + 8,
           left: coords.left,
-          zIndex: 1000,
+          zIndex: 9999,
           minWidth: 220,
           padding: 12,
           borderRadius: 8,
@@ -56,8 +56,8 @@ export function SlashMenu({
           boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
           fontSize: 14,
           color: 'var(--text-secondary)',
-          pointerEvents: 'auto', // 🔥 CRITICAL: Override any parent pointer-events: none
-          overscrollBehavior: 'contain', // 🔒 CRITICAL: Prevents scroll bleed to page
+          pointerEvents: 'auto',
+          overscrollBehavior: 'contain',
         }}
       >
         No commands found for "{query}"
@@ -73,20 +73,20 @@ export function SlashMenu({
         e.stopPropagation();
       }}
       style={{
-        position: 'absolute', // ✅ CRITICAL: Coordinates are editor-relative (normalized from viewport)
+        position: 'absolute', // ✅ Coordinates are editor-relative (normalized from viewport)
         top: coords.top + 8, // Small offset below cursor
         left: coords.left,
-        zIndex: 1000,
+        zIndex: 9999, // ✅ Above everything (BlockSelectionHalo is 81)
         minWidth: 240,
         maxHeight: 320,
         overflowY: 'auto',
-        overscrollBehavior: 'contain', // 🔒 CRITICAL: Prevents scroll bleed to page underneath
+        overscrollBehavior: 'contain',
         padding: 4,
         borderRadius: 8,
         background: 'var(--background)',
         border: '1px solid var(--border)',
         boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
-        pointerEvents: 'auto', // 🔥 CRITICAL: Override any parent pointer-events: none
+        pointerEvents: 'auto',
       }}
     >
       {filteredCommands.map((cmd, index) => (
