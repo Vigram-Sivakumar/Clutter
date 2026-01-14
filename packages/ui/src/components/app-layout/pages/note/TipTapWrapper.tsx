@@ -28,9 +28,10 @@ import {
 import { placeholders } from '@clutter/editor';
 import type { Editor } from '@tiptap/core';
 
-// 🎯 Phase 3 - Step 2: Slash menu UI
+// 🎯 Phase 3 - Step 2/3D: Slash menu UI + scroll lock
 import { SlashMenu } from '../../../editor/slash/SlashMenu';
 import { filterCommands } from '../../../editor/slash/commands';
+import { useMenuState } from '../../layout/MenuContext';
 
 interface TipTapWrapperProps {
   value?: string;
@@ -183,6 +184,9 @@ export const TipTapWrapper = forwardRef<
 
     // 🎯 PHASE 3 - STEP 3B: Keyboard navigation state
     const [selectedIndex, setSelectedIndex] = useState(0);
+
+    // 🎯 PHASE 3 - STEP 3D: Register slash menu with global menu manager (for scroll lock)
+    useMenuState(slash.open);
 
     // 2️⃣ Derive content FIRST (before any usage)
     // 🔒 CRITICAL: Parse content ONLY when NOTE changes, not on every keystroke
