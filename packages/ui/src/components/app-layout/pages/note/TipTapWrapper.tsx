@@ -320,29 +320,52 @@ export const TipTapWrapper = forwardRef<
     // 🎯 PHASE 3 - STEP 3C: Command execution helper
     const executeSlashCommand = useCallback(
       (commandAction: string) => {
-        if (!editorCoreRef.current) return;
+        console.log('[executeSlashCommand] Called with:', commandAction);
+
+        if (!editorCoreRef.current) {
+          console.log('[executeSlashCommand] No editorCoreRef');
+          return;
+        }
 
         // Get the editor instance via the handle
         // We need access to the raw editor to run transactions
         const editor = (editorCoreRef.current as any).editor as Editor;
-        if (!editor) return;
+        if (!editor) {
+          console.log('[executeSlashCommand] No editor instance');
+          return;
+        }
 
         const { from } = slash;
         const to = editor.state.selection.from;
+
+        console.log('[executeSlashCommand] Range:', {
+          from,
+          to,
+          slashState: slash,
+        });
 
         // Build transaction to:
         // 1. Delete the /query text
         // 2. Insert the new node type
         // 3. Commit atomically (undo-able)
         try {
+          // ✅ CRITICAL: Ensure editor has focus before running commands
+          editor.chain().focus();
+
           switch (commandAction) {
             case 'paragraph':
-              editor.chain().deleteRange({ from, to }).setParagraph().run();
+              editor
+                .chain()
+                .focus()
+                .deleteRange({ from, to })
+                .setParagraph()
+                .run();
               break;
 
             case 'heading1':
               editor
                 .chain()
+                .focus()
                 .deleteRange({ from, to })
                 .setHeading({ level: 1 })
                 .run();
@@ -351,6 +374,7 @@ export const TipTapWrapper = forwardRef<
             case 'heading2':
               editor
                 .chain()
+                .focus()
                 .deleteRange({ from, to })
                 .setHeading({ level: 2 })
                 .run();
@@ -359,18 +383,25 @@ export const TipTapWrapper = forwardRef<
             case 'heading3':
               editor
                 .chain()
+                .focus()
                 .deleteRange({ from, to })
                 .setHeading({ level: 3 })
                 .run();
               break;
 
             case 'bulletList':
-              editor.chain().deleteRange({ from, to }).toggleBulletList().run();
+              editor
+                .chain()
+                .focus()
+                .deleteRange({ from, to })
+                .toggleBulletList()
+                .run();
               break;
 
             case 'orderedList':
               editor
                 .chain()
+                .focus()
                 .deleteRange({ from, to })
                 .toggleOrderedList()
                 .run();
@@ -378,9 +409,11 @@ export const TipTapWrapper = forwardRef<
 
             default:
               // Unknown command, just delete the slash text
-              editor.chain().deleteRange({ from, to }).run();
+              editor.chain().focus().deleteRange({ from, to }).run();
               break;
           }
+
+          console.log('[executeSlashCommand] Command executed successfully');
 
           // Close menu after execution + reset anchor
           setSlash({ open: false, query: '', from: -1 });
@@ -568,6 +601,7 @@ export const TipTapWrapper = forwardRef<
           }
           selectedIndex={selectedIndex}
           onSelect={executeSlashCommand}
+          onHover={setSelectedIndex}
         />
       </>
     );

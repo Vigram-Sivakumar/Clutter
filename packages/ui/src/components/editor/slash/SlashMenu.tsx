@@ -21,6 +21,7 @@ export type SlashMenuProps = {
   coords: { top: number; left: number } | null;
   selectedIndex?: number; // For keyboard navigation (Step 3B)
   onSelect?: (_commandAction: string) => void; // For click execution (Step 3.1.2)
+  onHover?: (_index: number) => void; // For mouse hover (updates selectedIndex)
 };
 
 export function SlashMenu({
@@ -29,6 +30,7 @@ export function SlashMenu({
   coords,
   selectedIndex = 0,
   onSelect,
+  onHover,
 }: SlashMenuProps) {
   if (!open || !coords) return null;
 
@@ -97,8 +99,10 @@ export function SlashMenu({
         <SlashMenuItem
           key={cmd.id}
           command={cmd}
+          index={index}
           isSelected={index === selectedIndex}
           onSelect={onSelect}
+          onHover={onHover}
         />
       ))}
     </div>
@@ -110,12 +114,16 @@ export function SlashMenu({
  */
 function SlashMenuItem({
   command,
+  index,
   isSelected,
   onSelect,
+  onHover,
 }: {
   command: SlashCommand;
+  index: number;
   isSelected: boolean;
   onSelect?: (_commandAction: string) => void;
+  onHover?: (_index: number) => void;
 }) {
   return (
     <div
@@ -126,6 +134,9 @@ function SlashMenuItem({
       onMouseDown={(e) => {
         console.log('[SlashMenuItem] onMouseDown', command.label);
         e.preventDefault();
+      }}
+      onMouseEnter={() => {
+        onHover?.(index);
       }}
       style={{
         display: 'flex',
