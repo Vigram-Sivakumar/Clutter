@@ -41,6 +41,14 @@ export function SlashMenu({
   if (filteredCommands.length === 0) {
     return (
       <div
+        onMouseDownCapture={(e) => {
+          // 🔒 CRITICAL: Stop propagation to prevent global handlers from tearing down editor
+          e.stopPropagation();
+        }}
+        onClickCapture={(e) => {
+          // 🔒 CRITICAL: Stop propagation to prevent global handlers from tearing down editor
+          e.stopPropagation();
+        }}
         onWheel={(e) => {
           // 🎯 CRITICAL: Stop wheel event propagation
           e.stopPropagation();
@@ -69,6 +77,22 @@ export function SlashMenu({
 
   return (
     <div
+      onMouseDownCapture={(e) => {
+        // 🔒 CRITICAL: Stop propagation FIRST to prevent global handlers from tearing down editor
+        console.log(
+          '[SlashMenu] onMouseDownCapture - BLOCKING PROPAGATION',
+          e.target
+        );
+        e.stopPropagation();
+      }}
+      onClickCapture={(e) => {
+        // 🔒 CRITICAL: Stop propagation FIRST to prevent global handlers from tearing down editor
+        console.log(
+          '[SlashMenu] onClickCapture - BLOCKING PROPAGATION',
+          e.target
+        );
+        e.stopPropagation();
+      }}
       onMouseDown={(e) => {
         console.log('[SlashMenu] onMouseDown', e.target);
       }}
