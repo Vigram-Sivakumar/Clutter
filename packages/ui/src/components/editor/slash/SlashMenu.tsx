@@ -39,6 +39,10 @@ export function SlashMenu({
   if (filteredCommands.length === 0) {
     return (
       <div
+        onWheel={(e) => {
+          // 🎯 CRITICAL: Stop wheel event propagation
+          e.stopPropagation();
+        }}
         style={{
           position: 'absolute',
           top: coords.top + 8,
@@ -63,6 +67,11 @@ export function SlashMenu({
 
   return (
     <div
+      onWheel={(e) => {
+        // 🎯 CRITICAL: Stop wheel event propagation to allow menu to scroll
+        // Without this, parent .scroll-wrapper (overflow: hidden) captures wheel events
+        e.stopPropagation();
+      }}
       style={{
         position: 'absolute', // ✅ CRITICAL: Coordinates are editor-relative (normalized from viewport)
         top: coords.top + 8, // Small offset below cursor
