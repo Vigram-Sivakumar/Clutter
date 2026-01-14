@@ -413,12 +413,14 @@ export const TipTapWrapper = forwardRef<
           case 'Enter': {
             e.preventDefault();
             e.stopPropagation();
-            // 🎯 STEP 3C: Execute selected command
-            const selectedCommand = filteredCommands[selectedIndex];
-            if (selectedCommand) {
-              executeSlashCommand(selectedCommand.action);
-            } else {
-              // No command selected, just close + reset anchor
+            // 🎯 STEP 3.1.2: Execute selected command with guaranteed cleanup
+            try {
+              const selectedCommand = filteredCommands[selectedIndex];
+              if (selectedCommand) {
+                executeSlashCommand(selectedCommand.action);
+              }
+            } finally {
+              // ✅ ALWAYS close menu, even if execution fails
               setSlash({ open: false, query: '', from: -1 });
               setSlashAnchor(null);
             }
@@ -534,7 +536,7 @@ export const TipTapWrapper = forwardRef<
           />
         </EditorProvider>
 
-        {/* 🎯 PHASE 3 - STEP 3.1.1: Slash menu UI with frozen anchor positioning */}
+        {/* 🎯 PHASE 3 - STEP 3.1.2: Slash menu UI with click + keyboard execution */}
         <SlashMenu
           open={slash.open}
           query={slash.query}
@@ -544,6 +546,7 @@ export const TipTapWrapper = forwardRef<
               : null
           }
           selectedIndex={selectedIndex}
+          onSelect={executeSlashCommand}
         />
       </>
     );

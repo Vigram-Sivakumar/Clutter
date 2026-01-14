@@ -12,7 +12,7 @@
  * - No execution yet (Step 3C)
  */
 
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import { filterCommands, type SlashCommand } from './commands';
 
 export type SlashMenuProps = {
@@ -20,6 +20,7 @@ export type SlashMenuProps = {
   query: string;
   coords: { top: number; left: number } | null;
   selectedIndex?: number; // For keyboard navigation (Step 3B)
+  onSelect?: (_commandAction: string) => void; // For click execution (Step 3.1.2)
 };
 
 export function SlashMenu({
@@ -27,6 +28,7 @@ export function SlashMenu({
   query,
   coords,
   selectedIndex = 0,
+  onSelect,
 }: SlashMenuProps) {
   if (!open || !coords) return null;
 
@@ -50,6 +52,7 @@ export function SlashMenu({
           boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
           fontSize: 14,
           color: 'var(--text-secondary)',
+          pointerEvents: 'auto', // 🔥 CRITICAL: Override any parent pointer-events: none
         }}
       >
         No commands found for "{query}"
@@ -72,6 +75,7 @@ export function SlashMenu({
         background: 'var(--background)',
         border: '1px solid var(--border)',
         boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+        pointerEvents: 'auto', // 🔥 CRITICAL: Override any parent pointer-events: none
       }}
     >
       {filteredCommands.map((cmd, index) => (
@@ -79,6 +83,7 @@ export function SlashMenu({
           key={cmd.id}
           command={cmd}
           isSelected={index === selectedIndex}
+          onSelect={onSelect}
         />
       ))}
     </div>
@@ -91,12 +96,19 @@ export function SlashMenu({
 function SlashMenuItem({
   command,
   isSelected,
+  onSelect,
 }: {
   command: SlashCommand;
   isSelected: boolean;
+  onSelect?: (_commandAction: string) => void;
 }) {
   return (
     <div
+      onClick={() => onSelect?.(command.action)}
+      onMouseDown={(e) => {
+        // Prevent editor from losing focus
+        e.preventDefault();
+      }}
       style={{
         display: 'flex',
         alignItems: 'center',
