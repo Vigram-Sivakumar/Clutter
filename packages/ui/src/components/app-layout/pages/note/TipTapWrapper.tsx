@@ -15,6 +15,7 @@ import {
   forwardRef,
   useImperativeHandle,
   useEffect,
+  useState,
 } from 'react';
 
 // Editor imports from @clutter/editor package
@@ -25,6 +26,7 @@ import {
   EditorContextValue,
 } from '@clutter/editor';
 import { placeholders } from '@clutter/editor';
+import type { Editor } from '@tiptap/core';
 
 interface TipTapWrapperProps {
   value?: string;
@@ -46,6 +48,13 @@ export interface TipTapWrapperHandle {
   focus: () => void;
   scrollToBlock: (_blockId: string, _highlight?: boolean) => void;
 }
+
+// 🎯 PHASE 3: Slash command state (isolated & minimal)
+type SlashState = {
+  open: boolean;
+  query: string;
+  from: number;
+};
 
 // 🚫 REMOVED: htmlExtensions + generateJSON()
 // These were creating a duplicate schema that crashed before EditorCore mounted.
@@ -155,6 +164,13 @@ export const TipTapWrapper = forwardRef<
     const editorCoreRef = useRef<EditorCoreHandle>(null);
     const isUpdatingFromEditor = useRef(false);
 
+    // 🎯 PHASE 3 - STEP 1: Slash command state (detection only, no UI)
+    const [slash, setSlash] = useState<SlashState>({
+      open: false,
+      query: '',
+      from: -1,
+    });
+
     // 2️⃣ Derive content FIRST (before any usage)
     // 🔒 CRITICAL: Parse content ONLY when NOTE changes, not on every keystroke
     // Dependency on noteId (NOT value) ensures content only updates when loading a different note
@@ -260,6 +276,50 @@ export const TipTapWrapper = forwardRef<
       [onChange, onTagsChange, isHydrating]
     );
 
+    // 🎯 PHASE 3 - STEP 1: Slash detection handler (NO UI rendering yet)
+    const handleEditorUpdate = useCallback(
+      (editor: Editor) => {
+        const { state } = editor;
+        const { selection } = state;
+
+        // Guard: only collapsed cursor (no text selection)
+        if (!selection.empty) {
+          if (slash.open) setSlash({ open: false, query: '', from: -1 });
+          return;
+        }
+
+        const { $from } = selection;
+        const textBefore = $from.parent.textBetween(
+          0,
+          $from.parentOffset,
+          undefined,
+          '\ufffc'
+        );
+
+        const match = textBefore.match(/\/([a-zA-Z]*)$/);
+
+        if (!match) {
+          if (slash.open) setSlash({ open: false, query: '', from: -1 });
+          return;
+        }
+
+        const query = match[1];
+        const from = $from.pos - query.length - 1;
+
+        setSlash({
+          open: true,
+          query,
+          from,
+        });
+
+        // 🧪 DEBUG: Temporary log to verify detection (remove after testing)
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[Slash]', { open: true, query, from });
+        }
+      },
+      [slash.open]
+    );
+
     return (
       <EditorProvider value={editorContext}>
         {/* ❌ REMOVED: content prop causes unmount/remount on note switch */}
@@ -267,6 +327,7 @@ export const TipTapWrapper = forwardRef<
         <EditorCore
           ref={editorCoreRef}
           onChange={handleChange}
+          onEditorUpdate={handleEditorUpdate}
           onTagClick={onTagClick}
           onNavigate={onNavigate}
           onFocus={onFocus}

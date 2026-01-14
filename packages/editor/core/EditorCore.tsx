@@ -135,6 +135,7 @@ import { useEditorEngine, getEngine } from './engine';
 interface EditorCoreProps {
   content?: object | null; // ❌ Deprecated: Use ref.current.setContent() instead
   onChange?: (_content: object) => void;
+  onEditorUpdate?: (_editor: Editor) => void; // 🎯 Phase 3: Full editor instance for slash detection
   onTagClick?: (_tag: string) => void; // Callback when a tag is clicked for navigation
   onNavigate?: (_linkType: 'note' | 'folder', _targetId: string) => void; // Callback when a note/folder link is clicked
   onFocus?: () => void;
@@ -150,6 +151,7 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
     {
       content: _content, // ❌ Ignored: Use ref.current.setContent() instead
       onChange,
+      onEditorUpdate,
       onTagClick,
       onNavigate,
       onFocus,
@@ -223,6 +225,7 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
 
     // 🔒 Stabilize callbacks with refs (prevents editor recreation)
     const onChangeRef = useRef(onChange);
+    const onEditorUpdateRef = useRef(onEditorUpdate); // 🎯 Phase 3: Slash detection
     const onFocusRef = useRef(onFocus);
     const onBlurRef = useRef(onBlur);
     const onNavigateRef = useRef(onNavigate);
@@ -231,6 +234,10 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
     useEffect(() => {
       onChangeRef.current = onChange;
     }, [onChange]);
+
+    useEffect(() => {
+      onEditorUpdateRef.current = onEditorUpdate;
+    }, [onEditorUpdate]);
 
     useEffect(() => {
       onFocusRef.current = onFocus;
@@ -418,6 +425,11 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
         editable: true,
         editorProps,
         onUpdate: ({ editor, transaction }) => {
+          // 🎯 Phase 3: Fire onEditorUpdate for slash detection (every update)
+          if (onEditorUpdateRef.current) {
+            onEditorUpdateRef.current(editor);
+          }
+
           // Only fire onChange if document actually changed (not just selection)
           if (transaction.docChanged && onChangeRef.current) {
             // Mark that this update is coming from the editor (internal)
