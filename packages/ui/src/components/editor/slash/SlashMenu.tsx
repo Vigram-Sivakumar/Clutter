@@ -42,11 +42,8 @@ export function SlashMenu({
     return (
       <div
         onMouseDownCapture={(e) => {
-          // 🔒 CRITICAL: Stop propagation to prevent global handlers from tearing down editor
-          e.stopPropagation();
-        }}
-        onClickCapture={(e) => {
-          // 🔒 CRITICAL: Stop propagation to prevent global handlers from tearing down editor
+          // 🔒 CRITICAL: Block mousedown in capture phase to prevent global teardown
+          // ✅ DO NOT block click - it must reach React's onClick handlers
           e.stopPropagation();
         }}
         onWheel={(e) => {
@@ -78,17 +75,10 @@ export function SlashMenu({
   return (
     <div
       onMouseDownCapture={(e) => {
-        // 🔒 CRITICAL: Stop propagation FIRST to prevent global handlers from tearing down editor
+        // 🔒 CRITICAL: Block mousedown in capture phase to prevent global teardown
+        // ✅ DO NOT block click - it must reach React's onClick handlers in children
         console.log(
           '[SlashMenu] onMouseDownCapture - BLOCKING PROPAGATION',
-          e.target
-        );
-        e.stopPropagation();
-      }}
-      onClickCapture={(e) => {
-        // 🔒 CRITICAL: Stop propagation FIRST to prevent global handlers from tearing down editor
-        console.log(
-          '[SlashMenu] onClickCapture - BLOCKING PROPAGATION',
           e.target
         );
         e.stopPropagation();
