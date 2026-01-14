@@ -176,10 +176,13 @@ export const TipTapWrapper = forwardRef<
       from: -1,
     });
 
-    // 🎯 PHASE 3 - STEP 2: Slash menu coordinates (for positioning UI)
-    const [slashCoords, setSlashCoords] = useState<{
-      top: number;
-      left: number;
+    // 🎯 PHASE 3 - STEP 3.1.1: Slash anchor position (IMMUTABLE while menu is open)
+    // This is computed ONCE when the menu opens and never moves horizontally.
+    // Anchors menu to the "/" character, not the moving cursor.
+    const [slashAnchor, setSlashAnchor] = useState<{
+      pos: number; // Document position of "/"
+      top: number; // Editor-relative top
+      left: number; // Editor-relative left (FROZEN)
     } | null>(null);
 
     // 🎯 PHASE 3 - STEP 3B: Keyboard navigation state
@@ -358,14 +361,14 @@ export const TipTapWrapper = forwardRef<
               break;
           }
 
-          // Close menu after execution
+          // Close menu after execution + reset anchor
           setSlash({ open: false, query: '', from: -1 });
-          setSlashCoords(null);
+          setSlashAnchor(null);
         } catch (error) {
           console.error('[Slash] Command execution failed:', error);
-          // Close menu even on error
+          // Close menu even on error + reset anchor
           setSlash({ open: false, query: '', from: -1 });
-          setSlashCoords(null);
+          setSlashAnchor(null);
         }
       },
       [slash]
@@ -375,6 +378,7 @@ export const TipTapWrapper = forwardRef<
     useEffect(() => {
       if (!slash.open) {
         setSelectedIndex(0); // Reset selection when menu closes
+        setSlashAnchor(null); // Reset anchor when menu closes
         return;
       }
 
@@ -401,9 +405,9 @@ export const TipTapWrapper = forwardRef<
           case 'Escape':
             e.preventDefault();
             e.stopPropagation();
-            // Close the menu
+            // Close the menu + reset anchor
             setSlash({ open: false, query: '', from: -1 });
-            setSlashCoords(null);
+            setSlashAnchor(null);
             break;
 
           case 'Enter': {
@@ -414,9 +418,9 @@ export const TipTapWrapper = forwardRef<
             if (selectedCommand) {
               executeSlashCommand(selectedCommand.action);
             } else {
-              // No command selected, just close
+              // No command selected, just close + reset anchor
               setSlash({ open: false, query: '', from: -1 });
-              setSlashCoords(null);
+              setSlashAnchor(null);
             }
             break;
           }
@@ -436,7 +440,7 @@ export const TipTapWrapper = forwardRef<
       };
     }, [slash.open, slash.query, selectedIndex, executeSlashCommand]); // Re-run when menu opens/closes or query changes
 
-    // 🎯 PHASE 3 - STEP 2: Slash detection + coordinate computation
+    // 🎯 PHASE 3 - STEP 3.1.1: Slash detection + anchor-based positioning
     const handleEditorUpdate = useCallback(
       (editor: Editor) => {
         const { state, view } = editor;
@@ -446,7 +450,7 @@ export const TipTapWrapper = forwardRef<
         if (!selection.empty) {
           if (slash.open) {
             setSlash({ open: false, query: '', from: -1 });
-            setSlashCoords(null);
+            setSlashAnchor(null); // Reset anchor
           }
           return;
         }
@@ -459,7 +463,7 @@ export const TipTapWrapper = forwardRef<
         if (!parent.isTextblock) {
           if (slash.open) {
             setSlash({ open: false, query: '', from: -1 });
-            setSlashCoords(null);
+            setSlashAnchor(null); // Reset anchor
           }
           return;
         }
@@ -470,32 +474,43 @@ export const TipTapWrapper = forwardRef<
         if (!match) {
           if (slash.open) {
             setSlash({ open: false, query: '', from: -1 });
-            setSlashCoords(null);
+            setSlashAnchor(null); // Reset anchor
           }
           return;
         }
 
-        // 🎯 COORDINATE SPACE NORMALIZATION
-        // coordsAtPos() returns viewport (window) coordinates
-        // But we render inside .editor-shell with position: relative
-        // So we normalize: viewport coords → editor-relative coords
-        const viewportCoords = view.coordsAtPos(from);
-        const editorRect = view.dom.getBoundingClientRect();
+        // 🎯 ANCHOR COMPUTATION: Only when menu first opens
+        // This ensures the menu position is FROZEN at the "/" location
+        const wasOpen = slash.open;
+        const query = match[1];
+        const slashPos = from - query.length - 1; // Position of "/"
 
+        if (!wasOpen) {
+          // 🔒 FIRST OPEN: Compute anchor position (IMMUTABLE for this session)
+          const viewportCoords = view.coordsAtPos(slashPos);
+          const editorRect = view.dom.getBoundingClientRect();
+
+          setSlashAnchor({
+            pos: slashPos,
+            top: viewportCoords.bottom - editorRect.top,
+            left: viewportCoords.left - editorRect.left,
+          });
+
+          if (process.env.NODE_ENV === 'development') {
+            console.log('[Slash] Anchor set at pos:', slashPos);
+          }
+        }
+
+        // ✅ ALWAYS: Update query and from position (for filtering + insertion)
         setSlash({
           open: true,
-          query: match[1],
-          from,
+          query,
+          from: slashPos,
         });
 
-        setSlashCoords({
-          top: viewportCoords.bottom - editorRect.top,
-          left: viewportCoords.left - editorRect.left,
-        });
-
-        // 🧪 DEBUG: Temporary log to verify detection (remove after testing)
+        // 🧪 DEBUG: Log query updates
         if (process.env.NODE_ENV === 'development') {
-          console.log('[Slash]', { open: true, query: match[1], from });
+          console.log('[Slash]', { open: true, query, from: slashPos });
         }
       },
       [slash.open]
@@ -519,11 +534,15 @@ export const TipTapWrapper = forwardRef<
           />
         </EditorProvider>
 
-        {/* 🎯 PHASE 3 - STEP 3B: Slash menu UI with keyboard navigation */}
+        {/* 🎯 PHASE 3 - STEP 3.1.1: Slash menu UI with frozen anchor positioning */}
         <SlashMenu
           open={slash.open}
           query={slash.query}
-          coords={slashCoords}
+          coords={
+            slashAnchor
+              ? { top: slashAnchor.top, left: slashAnchor.left }
+              : null
+          }
           selectedIndex={selectedIndex}
         />
       </>
