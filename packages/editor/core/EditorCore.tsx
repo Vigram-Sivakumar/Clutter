@@ -84,11 +84,17 @@ import { CustomHighlight } from '../extensions/marks/Highlight';
 import { TextColor } from '../extensions/marks/TextColor';
 import { DateMention as DateMentionNode } from '../extensions/nodes/DateMention';
 import { NoteLink } from '../extensions/nodes/NoteLink';
+*/
 
-// TipTap built-in extensions
+// ✅ PHASE 2: Core editing extensions (enabled)
+import BulletList from '@tiptap/extension-bullet-list';
+import OrderedList from '@tiptap/extension-ordered-list';
+import ListItem from '@tiptap/extension-list-item';
+import HardBreak from '@tiptap/extension-hard-break';
 import Gapcursor from '@tiptap/extension-gapcursor';
 import History from '@tiptap/extension-history';
 
+/* TEMPORARILY DISABLED FOR MINIMAL SCHEMA TEST (continued)
 // Plugins
 import { MarkdownShortcuts } from '../plugins/MarkdownShortcuts';
 import { SlashCommands } from '../plugins/SlashCommands';
@@ -114,9 +120,6 @@ import { UndoRedo } from '../plugins/UndoRedo';
 
 // Shared Components for inline styling
 // import { FloatingToolbar } from '@clutter/ui';
-
-// HardBreak extension for line breaks (Shift+Enter)
-import HardBreak from '@tiptap/extension-hard-break';
 */
 
 // Tokens
@@ -182,7 +185,7 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
     // 🔍 DIAGNOSTIC: Mount-only logs (fires once, not on every render)
     useEffect(() => {
       if (process.env.NODE_ENV === 'development') {
-        console.log('[EditorCore] MOUNTED');
+        console.log('[EditorCore] MOUNTED - Phase 2: Core Editing');
         console.log(
           '  Document:',
           Document?.name,
@@ -196,6 +199,10 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
           Paragraph?.config?.group
         );
         console.log('  Text:', Text?.name, 'group:', Text?.config?.group);
+        console.log(
+          '  Core Extensions:',
+          'History, HardBreak, BulletList, OrderedList, ListItem, Gapcursor'
+        );
 
         // Verify singleton
         const isSingletonTiptap = Document instanceof TiptapNode;
@@ -244,10 +251,23 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
     // 🔒 CRITICAL: Freeze extensions array to prevent editor recreation
     // Extensions must be stable for the lifetime of the editor
     const extensions = useMemo(() => {
-      // 🧪 MINIMAL SAFE SCHEMA - Testing for extension poisoning
-      // If this works → one of the removed extensions is broken
-      // If this fails → core schema issue (very unlikely now)
-      return [Document, Paragraph, Text] as any[];
+      // 🎯 PHASE 2: Core Editing (StarterKit-like configuration)
+      // We own Document, Paragraph, Text
+      // TipTap provides keymaps, input rules, history, lists
+      return [
+        // 1️⃣ Our canonical nodes (top node + structural)
+        Document,
+        Paragraph,
+        Text,
+
+        // 2️⃣ Core editing (StarterKit components)
+        History, // Undo/redo
+        HardBreak.configure({ keepMarks: true }), // Shift+Enter
+        BulletList, // Unordered lists
+        OrderedList, // Numbered lists
+        ListItem, // List items (required for both)
+        Gapcursor, // Cursor in empty blocks
+      ] as any[];
 
       /* FULL SCHEMA (temporarily disabled for diagnosis)
       return [
