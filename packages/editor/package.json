@@ -33,6 +33,7 @@
   "dependencies": {
     "@clutter/shared": "*",
     "@clutter/ui": "*",
+    "@tiptap/extension-heading": "^2.27.2",
     "tippy.js": "^6.3.7"
   },
   "peerDependencies": {

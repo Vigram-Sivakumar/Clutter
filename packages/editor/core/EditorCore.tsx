@@ -93,6 +93,7 @@ import ListItem from '@tiptap/extension-list-item';
 import HardBreak from '@tiptap/extension-hard-break';
 import Gapcursor from '@tiptap/extension-gapcursor';
 import History from '@tiptap/extension-history';
+import Heading from '@tiptap/extension-heading';
 
 /* TEMPORARILY DISABLED FOR MINIMAL SCHEMA TEST (continued)
 // Plugins
@@ -274,6 +275,11 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
         OrderedList, // Numbered lists
         ListItem, // List items (required for both)
         Gapcursor, // Cursor in empty blocks
+
+        // 3️⃣ PHASE 3 - STEP 3C: Heading support for slash commands
+        Heading.configure({
+          levels: [1, 2, 3], // H1, H2, H3
+        }),
       ] as any[];
 
       /* FULL SCHEMA (temporarily disabled for diagnosis)

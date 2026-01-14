@@ -289,7 +289,85 @@ export const TipTapWrapper = forwardRef<
       [onChange, onTagsChange, isHydrating]
     );
 
-    // 🎯 PHASE 3 - STEP 3B: Keyboard navigation for slash menu
+    // 🎯 PHASE 3 - STEP 3C: Command execution helper
+    const executeSlashCommand = useCallback(
+      (commandAction: string) => {
+        if (!editorCoreRef.current) return;
+
+        // Get the editor instance via the handle
+        // We need access to the raw editor to run transactions
+        const editor = (editorCoreRef.current as any).editor as Editor;
+        if (!editor) return;
+
+        const { from } = slash;
+        const to = editor.state.selection.from;
+
+        // Build transaction to:
+        // 1. Delete the /query text
+        // 2. Insert the new node type
+        // 3. Commit atomically (undo-able)
+        try {
+          switch (commandAction) {
+            case 'paragraph':
+              editor.chain().deleteRange({ from, to }).setParagraph().run();
+              break;
+
+            case 'heading1':
+              editor
+                .chain()
+                .deleteRange({ from, to })
+                .setHeading({ level: 1 })
+                .run();
+              break;
+
+            case 'heading2':
+              editor
+                .chain()
+                .deleteRange({ from, to })
+                .setHeading({ level: 2 })
+                .run();
+              break;
+
+            case 'heading3':
+              editor
+                .chain()
+                .deleteRange({ from, to })
+                .setHeading({ level: 3 })
+                .run();
+              break;
+
+            case 'bulletList':
+              editor.chain().deleteRange({ from, to }).toggleBulletList().run();
+              break;
+
+            case 'orderedList':
+              editor
+                .chain()
+                .deleteRange({ from, to })
+                .toggleOrderedList()
+                .run();
+              break;
+
+            default:
+              // Unknown command, just delete the slash text
+              editor.chain().deleteRange({ from, to }).run();
+              break;
+          }
+
+          // Close menu after execution
+          setSlash({ open: false, query: '', from: -1 });
+          setSlashCoords(null);
+        } catch (error) {
+          console.error('[Slash] Command execution failed:', error);
+          // Close menu even on error
+          setSlash({ open: false, query: '', from: -1 });
+          setSlashCoords(null);
+        }
+      },
+      [slash]
+    );
+
+    // 🎯 PHASE 3 - STEP 3B/3C: Keyboard navigation + command execution
     useEffect(() => {
       if (!slash.open) {
         setSelectedIndex(0); // Reset selection when menu closes
@@ -324,14 +402,20 @@ export const TipTapWrapper = forwardRef<
             setSlashCoords(null);
             break;
 
-          case 'Enter':
+          case 'Enter': {
             e.preventDefault();
             e.stopPropagation();
-            // TODO: Execute command (Step 3C)
-            // For now, just close the menu
-            setSlash({ open: false, query: '', from: -1 });
-            setSlashCoords(null);
+            // 🎯 STEP 3C: Execute selected command
+            const selectedCommand = filteredCommands[selectedIndex];
+            if (selectedCommand) {
+              executeSlashCommand(selectedCommand.action);
+            } else {
+              // No command selected, just close
+              setSlash({ open: false, query: '', from: -1 });
+              setSlashCoords(null);
+            }
             break;
+          }
 
           default:
             // Let other keys pass through to editor
@@ -346,7 +430,7 @@ export const TipTapWrapper = forwardRef<
         // Cleanup
         document.removeEventListener('keydown', handleKeyDown, true);
       };
-    }, [slash.open, slash.query]); // Re-run when menu opens/closes or query changes
+    }, [slash.open, slash.query, selectedIndex, executeSlashCommand]); // Re-run when menu opens/closes or query changes
 
     // 🎯 PHASE 3 - STEP 2: Slash detection + coordinate computation
     const handleEditorUpdate = useCallback(
