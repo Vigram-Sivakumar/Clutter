@@ -30,6 +30,7 @@ import type { Editor } from '@tiptap/core';
 
 // 🎯 Phase 3 - Step 2: Slash menu UI
 import { SlashMenu } from '../../../editor/slash/SlashMenu';
+import { filterCommands } from '../../../editor/slash/commands';
 
 interface TipTapWrapperProps {
   value?: string;
@@ -180,6 +181,9 @@ export const TipTapWrapper = forwardRef<
       left: number;
     } | null>(null);
 
+    // 🎯 PHASE 3 - STEP 3B: Keyboard navigation state
+    const [selectedIndex, setSelectedIndex] = useState(0);
+
     // 2️⃣ Derive content FIRST (before any usage)
     // 🔒 CRITICAL: Parse content ONLY when NOTE changes, not on every keystroke
     // Dependency on noteId (NOT value) ensures content only updates when loading a different note
@@ -285,6 +289,65 @@ export const TipTapWrapper = forwardRef<
       [onChange, onTagsChange, isHydrating]
     );
 
+    // 🎯 PHASE 3 - STEP 3B: Keyboard navigation for slash menu
+    useEffect(() => {
+      if (!slash.open) {
+        setSelectedIndex(0); // Reset selection when menu closes
+        return;
+      }
+
+      const filteredCommands = filterCommands(slash.query);
+      const maxIndex = filteredCommands.length - 1;
+
+      const handleKeyDown = (e: KeyboardEvent) => {
+        // Only handle keys when slash menu is open
+        if (!slash.open) return;
+
+        switch (e.key) {
+          case 'ArrowDown':
+            e.preventDefault();
+            e.stopPropagation();
+            setSelectedIndex((prev) => Math.min(prev + 1, maxIndex));
+            break;
+
+          case 'ArrowUp':
+            e.preventDefault();
+            e.stopPropagation();
+            setSelectedIndex((prev) => Math.max(prev - 1, 0));
+            break;
+
+          case 'Escape':
+            e.preventDefault();
+            e.stopPropagation();
+            // Close the menu
+            setSlash({ open: false, query: '', from: -1 });
+            setSlashCoords(null);
+            break;
+
+          case 'Enter':
+            e.preventDefault();
+            e.stopPropagation();
+            // TODO: Execute command (Step 3C)
+            // For now, just close the menu
+            setSlash({ open: false, query: '', from: -1 });
+            setSlashCoords(null);
+            break;
+
+          default:
+            // Let other keys pass through to editor
+            break;
+        }
+      };
+
+      // Add listener
+      document.addEventListener('keydown', handleKeyDown, true); // Use capture phase
+
+      return () => {
+        // Cleanup
+        document.removeEventListener('keydown', handleKeyDown, true);
+      };
+    }, [slash.open, slash.query]); // Re-run when menu opens/closes or query changes
+
     // 🎯 PHASE 3 - STEP 2: Slash detection + coordinate computation
     const handleEditorUpdate = useCallback(
       (editor: Editor) => {
@@ -368,8 +431,13 @@ export const TipTapWrapper = forwardRef<
           />
         </EditorProvider>
 
-        {/* 🎯 PHASE 3 - STEP 2: Slash menu UI (sibling, NOT inside editor) */}
-        <SlashMenu open={slash.open} query={slash.query} coords={slashCoords} />
+        {/* 🎯 PHASE 3 - STEP 3B: Slash menu UI with keyboard navigation */}
+        <SlashMenu
+          open={slash.open}
+          query={slash.query}
+          coords={slashCoords}
+          selectedIndex={selectedIndex}
+        />
       </>
     );
   }
