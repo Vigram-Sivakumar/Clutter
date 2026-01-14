@@ -28,6 +28,9 @@ import {
 import { placeholders } from '@clutter/editor';
 import type { Editor } from '@tiptap/core';
 
+// 🎯 Phase 3 - Step 2: Slash menu UI
+import { SlashMenu } from '../../editor/slash/SlashMenu';
+
 interface TipTapWrapperProps {
   value?: string;
   noteId?: string | null; // 🔒 Track note ID to detect note changes (not content changes)
@@ -171,6 +174,12 @@ export const TipTapWrapper = forwardRef<
       from: -1,
     });
 
+    // 🎯 PHASE 3 - STEP 2: Slash menu coordinates (for positioning UI)
+    const [slashCoords, setSlashCoords] = useState<{
+      top: number;
+      left: number;
+    } | null>(null);
+
     // 2️⃣ Derive content FIRST (before any usage)
     // 🔒 CRITICAL: Parse content ONLY when NOTE changes, not on every keystroke
     // Dependency on noteId (NOT value) ensures content only updates when loading a different note
@@ -276,66 +285,88 @@ export const TipTapWrapper = forwardRef<
       [onChange, onTagsChange, isHydrating]
     );
 
-    // 🎯 PHASE 3 - STEP 1: Slash detection handler (NO UI rendering yet)
+    // 🎯 PHASE 3 - STEP 2: Slash detection + coordinate computation
     const handleEditorUpdate = useCallback(
       (editor: Editor) => {
-        const { state } = editor;
+        const { state, view } = editor;
         const { selection } = state;
 
         // Guard: only collapsed cursor (no text selection)
         if (!selection.empty) {
-          if (slash.open) setSlash({ open: false, query: '', from: -1 });
+          if (slash.open) {
+            setSlash({ open: false, query: '', from: -1 });
+            setSlashCoords(null);
+          }
           return;
         }
 
-        const { $from } = selection;
-        const textBefore = $from.parent.textBetween(
-          0,
-          $from.parentOffset,
-          undefined,
-          '\ufffc'
-        );
+        const { from } = selection;
+        const $pos = state.doc.resolve(from);
+        const parent = $pos.parent;
 
+        // Guard: only in text blocks
+        if (!parent.isTextblock) {
+          if (slash.open) {
+            setSlash({ open: false, query: '', from: -1 });
+            setSlashCoords(null);
+          }
+          return;
+        }
+
+        const textBefore = parent.textBetween(0, $pos.parentOffset, '\n', '\n');
         const match = textBefore.match(/\/([a-zA-Z]*)$/);
 
         if (!match) {
-          if (slash.open) setSlash({ open: false, query: '', from: -1 });
+          if (slash.open) {
+            setSlash({ open: false, query: '', from: -1 });
+            setSlashCoords(null);
+          }
           return;
         }
 
-        const query = match[1];
-        const from = $from.pos - query.length - 1;
+        // Compute cursor coordinates for menu positioning
+        const coords = view.coordsAtPos(from);
 
         setSlash({
           open: true,
-          query,
+          query: match[1],
           from,
+        });
+
+        setSlashCoords({
+          top: coords.bottom,
+          left: coords.left,
         });
 
         // 🧪 DEBUG: Temporary log to verify detection (remove after testing)
         if (process.env.NODE_ENV === 'development') {
-          console.log('[Slash]', { open: true, query, from });
+          console.log('[Slash]', { open: true, query: match[1], from });
         }
       },
       [slash.open]
     );
 
     return (
-      <EditorProvider value={editorContext}>
-        {/* ❌ REMOVED: content prop causes unmount/remount on note switch */}
-        {/* ✅ Content is now set imperatively via ref.current.setContent() */}
-        <EditorCore
-          ref={editorCoreRef}
-          onChange={handleChange}
-          onEditorUpdate={handleEditorUpdate}
-          onTagClick={onTagClick}
-          onNavigate={onNavigate}
-          onFocus={onFocus}
-          onBlur={onBlur}
-          placeholder={placeholders.default}
-          editable={!isFrozen}
-        />
-      </EditorProvider>
+      <>
+        <EditorProvider value={editorContext}>
+          {/* ❌ REMOVED: content prop causes unmount/remount on note switch */}
+          {/* ✅ Content is now set imperatively via ref.current.setContent() */}
+          <EditorCore
+            ref={editorCoreRef}
+            onChange={handleChange}
+            onEditorUpdate={handleEditorUpdate}
+            onTagClick={onTagClick}
+            onNavigate={onNavigate}
+            onFocus={onFocus}
+            onBlur={onBlur}
+            placeholder={placeholders.default}
+            editable={!isFrozen}
+          />
+        </EditorProvider>
+
+        {/* 🎯 PHASE 3 - STEP 2: Slash menu UI (sibling, NOT inside editor) */}
+        <SlashMenu open={slash.open} query={slash.query} coords={slashCoords} />
+      </>
     );
   }
 );
