@@ -67,9 +67,13 @@ export function SlashMenu({
 
   return (
     <div
+      onMouseDown={(e) => {
+        console.log('[SlashMenu] onMouseDown', e.target);
+      }}
+      onClick={(e) => {
+        console.log('[SlashMenu] onClick', e.target);
+      }}
       onWheel={(e) => {
-        // 🎯 CRITICAL: Stop wheel event propagation to allow menu to scroll
-        // Without this, parent .scroll-wrapper (overflow: hidden) captures wheel events
         e.stopPropagation();
       }}
       style={{
@@ -115,9 +119,12 @@ function SlashMenuItem({
 }) {
   return (
     <div
-      onClick={() => onSelect?.(command.action)}
+      onClick={() => {
+        console.log('[SlashMenuItem] onClick', command.label);
+        onSelect?.(command.action);
+      }}
       onMouseDown={(e) => {
-        // Prevent editor from losing focus
+        console.log('[SlashMenuItem] onMouseDown', command.label);
         e.preventDefault();
       }}
       style={{

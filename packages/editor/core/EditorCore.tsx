@@ -395,6 +395,9 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
           mousedown(_view, event) {
             const target = event.target as HTMLElement;
 
+            // 🔬 DEBUG: Log ProseMirror handleDOMEvents
+            console.log('[EditorCore] handleDOMEvents.mousedown', target);
+
             // ⛔ Block handles are already intercepted at capture phase
             // These checks are defensive only
             if (target.closest('[data-block-handle]')) return false;

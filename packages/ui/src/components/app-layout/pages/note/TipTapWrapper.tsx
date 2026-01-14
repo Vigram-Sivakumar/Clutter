@@ -191,6 +191,27 @@ export const TipTapWrapper = forwardRef<
     // 🎯 PHASE 3 - STEP 3D: Register slash menu with global menu manager (for scroll lock)
     useMenuState(slash.open);
 
+    // 🔬 DEBUG: Global capture phase listener to detect click interception
+    useEffect(() => {
+      if (!slash.open) return;
+
+      const handleGlobalMouseDown = (e: MouseEvent) => {
+        console.log('[GLOBAL] mousedown (capture phase)', e.target);
+      };
+
+      const handleGlobalClick = (e: MouseEvent) => {
+        console.log('[GLOBAL] click (capture phase)', e.target);
+      };
+
+      document.addEventListener('mousedown', handleGlobalMouseDown, true);
+      document.addEventListener('click', handleGlobalClick, true);
+
+      return () => {
+        document.removeEventListener('mousedown', handleGlobalMouseDown, true);
+        document.removeEventListener('click', handleGlobalClick, true);
+      };
+    }, [slash.open]);
+
     // 2️⃣ Derive content FIRST (before any usage)
     // 🔒 CRITICAL: Parse content ONLY when NOTE changes, not on every keystroke
     // Dependency on noteId (NOT value) ensures content only updates when loading a different note
