@@ -324,8 +324,12 @@ export const TipTapWrapper = forwardRef<
           return;
         }
 
-        // Compute cursor coordinates for menu positioning
-        const coords = view.coordsAtPos(from);
+        // 🎯 COORDINATE SPACE NORMALIZATION
+        // coordsAtPos() returns viewport (window) coordinates
+        // But we render inside .editor-shell with position: relative
+        // So we normalize: viewport coords → editor-relative coords
+        const viewportCoords = view.coordsAtPos(from);
+        const editorRect = view.dom.getBoundingClientRect();
 
         setSlash({
           open: true,
@@ -334,8 +338,8 @@ export const TipTapWrapper = forwardRef<
         });
 
         setSlashCoords({
-          top: coords.bottom,
-          left: coords.left,
+          top: viewportCoords.bottom - editorRect.top,
+          left: viewportCoords.left - editorRect.left,
         });
 
         // 🧪 DEBUG: Temporary log to verify detection (remove after testing)

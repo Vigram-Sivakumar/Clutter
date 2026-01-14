@@ -26,8 +26,8 @@ export function SlashMenu({ open, query, coords }: SlashMenuProps) {
   return (
     <div
       style={{
-        position: 'fixed', // ✅ CRITICAL: coordsAtPos() returns viewport coords, so we need fixed positioning
-        top: coords.top + 8,
+        position: 'absolute', // ✅ CRITICAL: Coordinates are editor-relative (normalized from viewport)
+        top: coords.top + 8, // Small offset below cursor
         left: coords.left,
         zIndex: 1000,
         minWidth: 220,
