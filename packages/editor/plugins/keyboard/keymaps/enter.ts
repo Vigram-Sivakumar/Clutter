@@ -33,8 +33,10 @@ import type { KeyHandlingResult } from '../types/KeyHandlingResult';
 // 🔒 STRUCTURAL ENTER: All Enter operations delegate to performStructuralEnter
 import {
   enterOnSelectedBlocks, // Priority 1000 - HIGHEST: ANY halo-selected blocks (single or multi) 🔒
+  enterAtEndOfParent, // Priority 125 - FLAT-INDENT INVARIANT: blocks with descendants are closed boundaries
   enterToggleCreatesChild, // Priority 120 - toggle creates child (not split)
   exitEmptyBlockInToggle, // Priority 115 - outdent empty indented blocks
+  enterSkipHiddenBlocks, // Priority 95 - SAFETY NET: position divergence guard
   outdentEmptyList, // Priority 90 - outdent empty nested lists
   exitEmptyList, // Priority 85 - convert empty root lists to paragraph
   enterEmptyBlockFallback, // Priority -1000 - GLOBAL FALLBACK (delegates to authority)
@@ -44,8 +46,10 @@ import {
 // 🔒 STRUCTURAL ENTER: All rules delegate to performStructuralEnter authority
 const enterRules = [
   enterOnSelectedBlocks, // Priority 1000 - HIGHEST: ANY halo-selected blocks (single or multi) 🔒
+  enterAtEndOfParent, // Priority 125 - FLAT-INDENT INVARIANT ✅
   enterToggleCreatesChild, // Priority 120 - toggle creates child before split
   exitEmptyBlockInToggle, // Priority 115 - outdent empty indented blocks
+  enterSkipHiddenBlocks, // Priority 95 - SAFETY NET (position divergence)
   outdentEmptyList, // Priority 90 - outdent empty nested lists
   exitEmptyList, // Priority 85 - convert empty root lists to paragraph
   enterEmptyBlockFallback, // Priority -1000 - GLOBAL FALLBACK (delegates to authority) 🔒

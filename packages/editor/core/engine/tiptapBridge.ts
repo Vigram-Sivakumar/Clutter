@@ -362,17 +362,50 @@ export function syncTipTapToEngine(
 
   // Now collect full block data for sync
   // 🔒 CRITICAL: Only collect BLOCK nodes, not inline/text/mark nodes
+  // #region agent log
+  let collapsedBlocksFound = 0;
+  let hiddenBlocksSkipped = 0;
+  // #endregion
   pmDoc.descendants((node: any) => {
     if (node.isBlock && node.attrs?.blockId) {
+      // #region agent log
+      if (node.attrs.collapsed) collapsedBlocksFound++;
+      // #endregion
       blocks.push({
         id: node.attrs.blockId,
         type: node.type.name,
         indent: node.attrs.indent ?? 0,
         content: node.toJSON(),
       });
+    } else if (node.attrs?.blockId) {
+      // #region agent log
+      hiddenBlocksSkipped++;
+      // #endregion
     }
     return false; // Do not descend into block children
   });
+
+  // #region agent log
+  // H5: Log Bridge sync - does it see collapsed blocks?
+  fetch('http://127.0.0.1:7244/ingest/a7f9fa0e-3f72-4ff3-8c3a-792215d634cd', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      location: 'tiptapBridge.ts:syncTipTapToEngine',
+      message: 'Bridge collecting blocks from PM',
+      data: {
+        totalBlocks: blocks.length,
+        collapsedBlocksFound: collapsedBlocksFound,
+        hiddenBlocksSkipped: hiddenBlocksSkipped,
+        blockIds: blocks.map((b) => b.id.substring(0, 8)),
+        blockTypes: blocks.map((b) => b.type),
+      },
+      timestamp: Date.now(),
+      sessionId: 'debug-session',
+      hypothesisId: 'H5',
+    }),
+  }).catch(() => {});
+  // #endregion
 
   // Mark as TipTap update
   updateSource.current = 'tiptap';
@@ -416,6 +449,29 @@ export function syncTipTapToEngine(
       blockCount: blocks.length,
       blocks: blocks.map((b) => `${b.type}:${b.id.slice(0, 8)}`),
     });
+
+    // #region agent log
+    // H5: Confirm Engine received blocks
+    fetch('http://127.0.0.1:7244/ingest/a7f9fa0e-3f72-4ff3-8c3a-792215d634cd', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        location: 'tiptapBridge.ts:syncTipTapToEngine',
+        message: 'Engine tree updated',
+        data: {
+          engineBlockCount: Object.keys(nodes).filter((id) => id !== 'root')
+            .length,
+          pmBlockCount: blocks.length,
+          match:
+            Object.keys(nodes).filter((id) => id !== 'root').length ===
+            blocks.length,
+        },
+        timestamp: Date.now(),
+        sessionId: 'debug-session',
+        hypothesisId: 'H5',
+      }),
+    }).catch(() => {});
+    // #endregion
 
     // 🔒 INVARIANT CHECK: PM blockIds should match Engine blockIds after sync
     if (process.env.NODE_ENV !== 'production') {

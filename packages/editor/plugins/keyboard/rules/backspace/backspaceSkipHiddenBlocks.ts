@@ -1,12 +1,14 @@
 /**
  * Backspace Skip Hidden Blocks Rule
  *
- * STEP 3: Ensure BACKSPACE never deletes or merges with collapsed subtrees
+ * Ensures BACKSPACE never deletes or merges with collapsed subtrees.
  *
- * When: At start of block AND previous block is hidden
- * Do: Skip hidden siblings, move to previous visible block
+ * PRINCIPLE: Detect position divergence, not visibility.
+ * - If previous logical block != previous physical block, we're skipping hidden content.
+ * - Delegate to getPreviousBlock() (collapse-aware, battle-tested).
  *
- * CRITICAL: Hidden blocks behave as if they do not exist.
+ * CRITICAL: CollapsePlugin is the single authority for visibility.
+ * This rule only detects and respects that authority.
  */
 
 import { defineRule } from '../../types/KeyboardRule';
@@ -15,38 +17,6 @@ import {
   isAtStartOfBlock,
   getPreviousBlock,
 } from '../../types/KeyboardContext';
-
-/**
- * Check if a block is hidden by a collapsed parent
- *
- * Reuses the same logic from Steps 1 & 2.
- * This ensures consistency across all keyboard operations.
- */
-function isBlockHidden(ctx: KeyboardContext, blockNode: any): boolean {
-  const { state } = ctx;
-  const { doc } = state;
-  const parentBlockId = blockNode.attrs?.parentBlockId;
-
-  if (!parentBlockId) {
-    return false; // Root-level blocks are never hidden
-  }
-
-  // Find if any ancestor is collapsed
-  let isHidden = false;
-
-  doc.descendants((node) => {
-    if (
-      node.attrs?.blockId === parentBlockId &&
-      node.attrs?.collapsed === true
-    ) {
-      isHidden = true;
-      return false; // Stop traversal
-    }
-    return true;
-  });
-
-  return isHidden;
-}
 
 export const backspaceSkipHiddenBlocks = defineRule({
   id: 'backspace:skipHiddenBlocks',
@@ -60,25 +30,46 @@ export const backspaceSkipHiddenBlocks = defineRule({
       return false;
     }
 
-    // Check if previous block exists and is hidden
-    const prevBlock = getPreviousBlock(ctx);
+    // Get the previous LOGICAL block (collapse-aware)
+    const prevLogical = getPreviousBlock(ctx);
 
-    if (!prevBlock) {
-      return false; // No previous block
+    // Get the previous PHYSICAL sibling
+    const { $from } = ctx;
+    const parentDepth = $from.depth - 1;
+    if (parentDepth < 0) return false;
+
+    const parent = $from.node(parentDepth);
+    const currentIndex = $from.index(parentDepth);
+
+    // If there's no physical previous sibling, no skip needed
+    if (currentIndex === 0) {
+      return false;
     }
 
-    // If previous block is hidden, we need to skip it
-    return isBlockHidden(ctx, prevBlock.node);
+    // Calculate physical previous block position
+    const currentBlockPos = $from.before($from.depth);
+    const physicalPrevNode = parent.child(currentIndex - 1);
+    const physicalPrevPos = currentBlockPos - physicalPrevNode.nodeSize;
+
+    // POSITION DIVERGENCE TEST:
+    // If logical and physical positions differ, there's a collapsed range between them
+    if (!prevLogical) {
+      // No logical previous block, but physical sibling exists
+      // This means everything before current block is hidden
+      return true;
+    }
+
+    // If positions differ, we're skipping hidden content
+    return prevLogical.pos !== physicalPrevPos;
   },
 
   execute(ctx: KeyboardContext): boolean {
     const { editor } = ctx;
 
-    // getPreviousBlock already skips hidden blocks (Step 1)
-    // So this will give us the first visible previous block
-    const prevBlock = getPreviousBlock(ctx);
+    // Get previous visible block (collapse-aware helper)
+    const prevVisible = getPreviousBlock(ctx);
 
-    if (!prevBlock) {
+    if (!prevVisible) {
       // At document start - nothing to do
       return false;
     }
@@ -86,7 +77,7 @@ export const backspaceSkipHiddenBlocks = defineRule({
     // Move cursor to end of previous visible block
     // This positions the cursor correctly, and any subsequent
     // deletion/merge will happen on visible blocks only
-    const targetPos = prevBlock.pos + prevBlock.node.nodeSize - 1;
+    const targetPos = prevVisible.pos + prevVisible.node.nodeSize - 1;
 
     return editor.commands.setTextSelection(targetPos);
   },

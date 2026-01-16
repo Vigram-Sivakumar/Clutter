@@ -3,12 +3,13 @@
  *
  * All rules for Enter key behavior.
  * Exported in priority order (highest first).
- * 
+ *
  * 🔒 STRUCTURAL ENTER LAW:
  * All Enter operations delegate to performStructuralEnter() - single authority.
  */
 
 export * from './enterOnSelectedBlock'; // Priority 1000 - halo-selected blocks (single or multi)
+export * from './enterAtEndOfParent'; // Priority 125 - FLAT-INDENT INVARIANT: blocks with descendants are closed boundaries
 export * from './enterToggleCreatesChild'; // Priority 120 - toggle creates child
 export * from './exitEmptyBlockInToggle'; // Priority 115 - exit nested/toggle blocks first
 export * from './exitEmptyListInWrapper'; // Priority 100

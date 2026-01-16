@@ -14,7 +14,6 @@ import { PageContent } from '../../shared/page-content';
 import { TitleInputHandle } from '../../shared/content-header/title';
 import { TipTapWrapper, TipTapWrapperHandle } from './TipTapWrapper';
 import { useEditorContext } from './useEditorContext';
-import { EditorEngine } from '@clutter/editor';
 import { EmojiTray } from '../../shared/emoji';
 import { MarkdownShortcuts } from '../../../ui-modals';
 import {
@@ -222,44 +221,12 @@ export const NoteEditor = ({
   const [isHydrated, setIsHydrated] = useState(false);
   const lastHydratedNoteIdRef = useRef<string | null>(null); // Track which note was last hydrated
 
-  // 🎯 EditorEngine - Single source of truth for editor state
-  // Instantiated once, survives note switches
-  const editorEngineRef = useRef<InstanceType<typeof EditorEngine> | null>(
-    null
-  );
-  if (!editorEngineRef.current) {
-    editorEngineRef.current = new EditorEngine();
-  }
-  const editorEngine = editorEngineRef.current;
-
   // Report hydration state to parent (for auto-save gating)
   useEffect(() => {
     if (onHydrationChange) {
       onHydrationChange(isHydrated);
     }
   }, [isHydrated, onHydrationChange]);
-
-  // 🎯 Subscribe UI to EditorEngine (React becomes passive viewer)
-  useEffect(() => {
-    return editorEngine.onChange(
-      (event: {
-        document: string;
-        noteId: string;
-        source: 'user' | 'programmatic';
-      }) => {
-        // Update React state (UI mirror)
-        setEditorState({
-          status: 'ready',
-          document: event.document,
-        });
-
-        // Persist user edits to database
-        if (event.source === 'user') {
-          updateNoteContent(event.noteId, event.document);
-        }
-      }
-    );
-  }, [editorEngine, updateNoteContent]);
 
   // Main view state
   const [mainView, setMainView] = useState<MainView>({ type: 'editor' });
@@ -477,13 +444,17 @@ export const NoteEditor = ({
     // 🛡️ CRITICAL: Cancel any pending debounced saves from previous note
     cancelDebouncedSave();
 
-    // ⬇️ DB → Editor: Load content into engine
+    // ⬇️ DB → Editor: Load content into React state
     const document =
       currentNote.content && currentNote.content.trim() !== ''
         ? currentNote.content
         : EMPTY_DOC;
 
-    editorEngine.setDocument(document, currentNote.id);
+    // Update editor state (TipTapWrapper will handle loading via content prop)
+    setEditorState({
+      status: 'ready',
+      document,
+    });
 
     // Wait for React + ProseMirror to fully settle before mounting editor
     requestAnimationFrame(() => {
@@ -538,21 +509,25 @@ export const NoteEditor = ({
       return;
     }
 
-    // Get current content from store and editor
+    // Get current content from store and editor state
     const storeContent =
       currentNote.content && currentNote.content.trim() !== ''
         ? currentNote.content
         : EMPTY_DOC;
-    const editorContent = editorEngine.getDocument();
+    const editorContent =
+      editorState.status === 'ready' ? editorState.document : EMPTY_DOC;
 
-    // If content differs and editor is not hydrating, it's an external change
-    if (storeContent !== editorContent && !editorEngine.isHydratingDocument()) {
+    // If content differs, it's an external change - update editor state
+    if (storeContent !== editorContent) {
       console.log(
         '[NoteEditor] Detected external content change, updating editor'
       );
-      editorEngine.setDocument(storeContent, currentNote.id);
+      setEditorState({
+        status: 'ready',
+        document: storeContent,
+      });
     }
-  }, [currentNote?.content, currentNoteId, isHydrated]); // Watch for content changes
+  }, [currentNote?.content, currentNoteId, isHydrated, editorState]); // Watch for content changes
 
   // Update view context when current note is deleted
   useEffect(() => {
@@ -1999,7 +1974,13 @@ export const NoteEditor = ({
                   }
                   autoFocus={false}
                   onChange={(value) => {
-                    editorEngine.applyEdit(value, currentNoteId);
+                    // Update editor state
+                    setEditorState({
+                      status: 'ready',
+                      document: value,
+                    });
+                    // Persist to database
+                    updateNoteContent(currentNoteId, value);
                   }}
                   onTagClick={handleShowTagFilter}
                   onNavigate={handleNavigate}

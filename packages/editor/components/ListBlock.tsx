@@ -414,8 +414,35 @@ export function ListBlock({
 
   // Handle collapse toggle
   const handleToggleCollapse = useCallback(() => {
+    // #region agent log
+    // H4: Log when collapse state changes
+    fetch('http://127.0.0.1:7244/ingest/a7f9fa0e-3f72-4ff3-8c3a-792215d634cd', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        location: 'ListBlock.tsx:handleToggleCollapse',
+        message: 'User toggled collapse',
+        data: {
+          blockId: node.attrs.blockId?.substring(0, 8),
+          wasCollapsed: collapsed,
+          willBeCollapsed: !collapsed,
+          hasChildren: hasChildrenFlag,
+          indent: node.attrs.indent,
+        },
+        timestamp: Date.now(),
+        sessionId: 'debug-session',
+        hypothesisId: 'H4',
+      }),
+    }).catch(() => {});
+    // #endregion
     updateAttributes({ collapsed: !collapsed });
-  }, [collapsed, updateAttributes]);
+  }, [
+    collapsed,
+    updateAttributes,
+    node.attrs.blockId,
+    node.attrs.indent,
+    hasChildrenFlag,
+  ]);
 
   // Keyboard handler for checkbox (Space/Enter)
   const handleCheckboxKeyDown = useCallback(

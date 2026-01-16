@@ -18,6 +18,7 @@ import { Extension } from '@tiptap/core';
 import {
   handleTab,
   handleBackspace,
+  handleEnter,
   handleArrowLeft,
   handleArrowRight,
   handleArrowUp,
@@ -95,6 +96,44 @@ export const KeyboardShortcuts = Extension.create({
         return false;
       },
 
+      // ✅ ENTER: Structural enter with collapse boundary awareness
+      Enter: ({ editor }) => {
+        // #region agent log
+        const { state } = editor;
+        const { $from } = state.selection;
+        const node = $from.parent;
+        const engine = (editor as any)._engine;
+
+        // H1: Capture structural state at Enter time
+        fetch(
+          'http://127.0.0.1:7244/ingest/a7f9fa0e-3f72-4ff3-8c3a-792215d634cd',
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              location: 'KeyboardShortcuts.ts:Enter',
+              message: 'Enter pressed - structural state',
+              data: {
+                nodeType: node.type.name,
+                attrs: node.attrs,
+                atEnd: $from.parentOffset === node.content.size,
+                hasEngine: !!engine,
+                engineHasBlock: engine
+                  ? !!engine.tree?.nodes[node.attrs?.blockId]
+                  : false,
+              },
+              timestamp: Date.now(),
+              sessionId: 'debug-session',
+              hypothesisId: 'H1',
+            }),
+          }
+        ).catch(() => {});
+        // #endregion
+
+        const result = handleEnter(editor);
+        return result.handled === true;
+      },
+
       // ✅ ARROW KEYS: Centralized cross-block navigation
       // Previously scattered across Paragraph, ListBlock, Heading
       // Now in ONE place to prevent TipTap handler collision
@@ -119,24 +158,24 @@ export const KeyboardShortcuts = Extension.create({
       // ✂️ COPY: Serialize selected blocks to internal clipboard
       'Mod-c': (props: any) => {
         const { editor, event } = props;
-        
+
         // 🔒 PHYSICAL SEAL: Block native clipboard + PM clipboard at DOM level
         // Returning true is NOT enough - must explicitly prevent default
         event?.preventDefault();
         event?.stopPropagation();
-        
+
         console.log('[Clipboard] Cmd/Ctrl+C pressed (event sealed)');
-        
+
         const { state } = editor;
-        
+
         // 🛡️ GUARD: Don't copy empty selection
         if (state.selection.empty) {
           console.log('[Clipboard] Empty selection, no-op');
           return true; // Consume event, don't delegate to PM
         }
-        
+
         copyToClipboard(state);
-        
+
         // 🔒 CRITICAL: clipboardManager.ts is now sole authority
         // Browser clipboard: ❌ blocked
         // ProseMirror clipboard: ❌ blocked
@@ -148,23 +187,23 @@ export const KeyboardShortcuts = Extension.create({
       // ✂️ CUT: Copy + delete selected blocks
       'Mod-x': (props: any) => {
         const { editor, event } = props;
-        
+
         // 🔒 PHYSICAL SEAL: Block native clipboard + PM clipboard at DOM level
         event?.preventDefault();
         event?.stopPropagation();
-        
+
         console.log('[Clipboard] Cmd/Ctrl+X pressed (event sealed)');
-        
+
         const { state, view } = editor;
-        
+
         // 🛡️ GUARD: Don't cut empty selection
         if (state.selection.empty) {
           console.log('[Clipboard] Empty selection, no-op');
           return true; // Consume event, don't delegate to PM
         }
-        
+
         cutToClipboard(state, view.dispatch.bind(view));
-        
+
         // 🔒 CRITICAL: clipboardManager.ts is now sole authority
         // Browser clipboard: ❌ blocked
         // ProseMirror clipboard: ❌ blocked
@@ -176,37 +215,44 @@ export const KeyboardShortcuts = Extension.create({
       // 📋 PASTE: Insert from internal or external clipboard
       'Mod-v': (props: any) => {
         const { editor, event } = props;
-        
+
         // 🔒 PHYSICAL SEAL: Block native clipboard + PM clipboard at DOM level
         event?.preventDefault();
         event?.stopPropagation();
-        
+
         console.log('[Clipboard] Cmd/Ctrl+V pressed (event sealed)');
-        
+
         const { state, view } = editor;
         const clipboardState = getClipboardState();
-        
+
         // 🔒 CRITICAL: NEVER fall back to PM default paste
         // PM default paste causes blockId duplication and structural corruption.
         // If internal clipboard is empty, do nothing (safe no-op).
-        
+
         // Detect source: internal vs external
-        if (clipboardState.payload && clipboardState.payload.blocks.length > 0) {
+        if (
+          clipboardState.payload &&
+          clipboardState.payload.blocks.length > 0
+        ) {
           // ✅ INTERNAL PASTE: Structured blocks with intent-based routing
-          console.log('[Clipboard] Internal clipboard detected, pasting blocks');
+          console.log(
+            '[Clipboard] Internal clipboard detected, pasting blocks'
+          );
           const success = pasteFromClipboard(state, view.dispatch.bind(view));
-          
+
           if (success) {
             console.log('[Clipboard] Paste succeeded');
           } else {
             console.error('[Clipboard] Paste failed (handler error)');
           }
-          
+
           return true; // Always consume paste event
         } else {
           // ⚠️ NO INTERNAL CLIPBOARD: Do nothing (safe no-op)
           // External clipboard support will be added in Step 3C
-          console.warn('[Clipboard] No internal clipboard, ignoring paste (event sealed)');
+          console.warn(
+            '[Clipboard] No internal clipboard, ignoring paste (event sealed)'
+          );
           return true; // Consume event (do not delegate to PM)
         }
       },

@@ -196,15 +196,48 @@ export function getNextBlock(
   const startIndex = $from.index(parentDepth);
   let currentPos = $from.after($from.depth);
 
+  // #region agent log
+  const currentNode = $from.parent;
+  const skippedBlocks: any[] = [];
+  // #endregion
+
   // Walk forward to find first visible block
   for (let index = startIndex + 1; index < parent.childCount; index++) {
     const nextNode = parent.child(index);
 
     // Skip if hidden by collapsed parent
     if (isBlockHidden(doc, nextNode)) {
+      // #region agent log
+      skippedBlocks.push({
+        indent: nextNode.attrs?.indent,
+        blockId: nextNode.attrs?.blockId?.substring(0, 8),
+      });
+      // #endregion
       currentPos += nextNode.nodeSize;
       continue;
     }
+
+    // #region agent log
+    // H2: Log what getNextBlock returns and what it skipped
+    fetch('http://127.0.0.1:7244/ingest/a7f9fa0e-3f72-4ff3-8c3a-792215d634cd', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        location: 'KeyboardContext.ts:getNextBlock',
+        message: 'Found next block',
+        data: {
+          currentIndent: currentNode.attrs?.indent,
+          nextIndent: nextNode.attrs?.indent,
+          skippedCount: skippedBlocks.length,
+          skippedBlocks: skippedBlocks,
+          positionDivergence: skippedBlocks.length > 0,
+        },
+        timestamp: Date.now(),
+        sessionId: 'debug-session',
+        hypothesisId: 'H2',
+      }),
+    }).catch(() => {});
+    // #endregion
 
     return { pos: currentPos, node: nextNode };
   }

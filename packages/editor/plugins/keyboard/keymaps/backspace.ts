@@ -35,6 +35,7 @@ import {
   normalizeEmptyBlock, // UNIVERSAL: empty non-paragraph → paragraph (priority 110)
   outdentEmptyList, // Converts empty list to paragraph (priority 105)
   deleteEmptyParagraph,
+  backspaceSkipHiddenBlocks, // Priority 95 - skip collapsed subtrees (BOUNDARY GUARD)
   // exitEmptyWrapper, // Still disabled
   mergeWithStructuralBlock,
 } from '../rules/backspace';
@@ -44,6 +45,7 @@ const backspaceRules = [
   normalizeEmptyBlock, // Priority 110 - UNIVERSAL empty block → paragraph (all types)
   outdentEmptyList, // Priority 105 - empty list → paragraph (list-specific, backup)
   deleteEmptyParagraph, // Priority 100 - delete empty paragraph
+  backspaceSkipHiddenBlocks, // Priority 95 - skip collapsed subtrees (BOUNDARY GUARD) ✅
   mergeWithStructuralBlock, // Safety guard for structural blocks
 ];
 
