@@ -92,12 +92,12 @@ export function initializeMidnightUpdater() {
     tomorrow.setHours(0, 0, 0, 0);
     const msUntilMidnight = tomorrow.getTime() - now.getTime();
 
-    console.log(
-      `⏰ Next date update scheduled in ${Math.round(msUntilMidnight / 1000 / 60)} minutes (at midnight)`
-    );
+    // console.log(
+    //   `⏰ Next date update scheduled in ${Math.round(msUntilMidnight / 1000 / 60)} minutes (at midnight)`
+    // );
 
     midnightTimerId = setTimeout(() => {
-      console.log('🌅 Midnight reached! Updating current date...');
+      // console.log('🌅 Midnight reached! Updating current date...');
 
       // Update the store
       useCurrentDateStore.getState()._updateCurrentDate();

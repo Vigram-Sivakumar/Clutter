@@ -116,13 +116,13 @@ export async function loadNoteFromDatabase(noteId: string): Promise<Note | null>
 export async function loadAllNotesFromDatabase(): Promise<Note[]> {
   try {
     const notes = await invoke<Note[]>('load_all_notes');
-    console.log('📂 Loaded notes from database:', notes.map(n => ({
-      id: n.id,
-      title: n.title,
-      hasContent: !!n.content,
-      contentLength: n.content?.length || 0,
-      contentPreview: n.content?.substring(0, 50)
-    })));
+    // console.log('📂 Loaded notes from database:', notes.map(n => ({
+    //   id: n.id,
+    //   title: n.title,
+    //   hasContent: !!n.content,
+    //   contentLength: n.content?.length || 0,
+    //   contentPreview: n.content?.substring(0, 50)
+    // })));
     return notes;
   } catch (error) {
     console.error('❌ SQLite load all error:', error);
@@ -295,7 +295,7 @@ export async function migrateOrphanedNotes(notes: Note[], existingFolders: Folde
   });
   
   if (orphanedNotes.length === 0) {
-    console.log('✅ No orphaned notes found');
+    // console.log('✅ No orphaned notes found');
     return 0;
   }
   
@@ -364,7 +364,7 @@ export async function verifyDatabaseIntegrity(): Promise<{
     });
     
     if (issues.length === 0) {
-      console.log('✅ Database integrity verified - no issues found');
+      // console.log('✅ Database integrity verified - no issues found');
       return { isValid: true, issues: [] };
     } else {
       console.warn(`⚠️ Found ${issues.length} integrity issues:`, issues);

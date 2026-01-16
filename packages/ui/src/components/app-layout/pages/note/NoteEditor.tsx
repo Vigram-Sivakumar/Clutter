@@ -519,9 +519,6 @@ export const NoteEditor = ({
 
     // If content differs, it's an external change - update editor state
     if (storeContent !== editorContent) {
-      console.log(
-        '[NoteEditor] Detected external content change, updating editor'
-      );
       setEditorState({
         status: 'ready',
         document: storeContent,
@@ -723,7 +720,6 @@ export const NoteEditor = ({
   const handleMoodClick = useCallback(() => {
     // Placeholder for mood selector
     // TODO: Implement mood selector UI
-    console.log('Mood button clicked');
   }, []);
 
   const handleShowTagInput = useCallback((e: React.MouseEvent) => {
@@ -851,8 +847,6 @@ export const NoteEditor = ({
   }, [notes, folders]);
 
   const handleClearClutter = useCallback(async () => {
-    console.log('🔵 Clear clutter button clicked');
-
     // Get deleted items from all stores
     const deletedNotes = notes.filter((n) => n.deletedAt);
     const deletedFolders = folders.filter((f) => f.deletedAt);
@@ -861,12 +855,7 @@ export const NoteEditor = ({
     const totalItems =
       deletedNotes.length + deletedFolders.length + deletedTags.length;
 
-    console.log(
-      `🔵 Found ${totalItems} items to delete (${deletedNotes.length} notes, ${deletedFolders.length} folders, ${deletedTags.length} tags)`
-    );
-
     if (totalItems === 0) {
-      console.log('🔵 No items to delete, returning');
       return;
     }
 
@@ -876,8 +865,6 @@ export const NoteEditor = ({
       'All items in Recently Deleted will be permanently removed.',
       true, // isDangerous
       async () => {
-        console.log('🔵 Starting deletion...');
-
         // Define deletion tasks for each type
         const deletionTasks = [
           {
@@ -903,19 +890,12 @@ export const NoteEditor = ({
         // Execute deletions for all types
         for (const task of deletionTasks) {
           if (task.items.length > 0) {
-            console.log(`🗑️ Deleting ${task.items.length} ${task.name}...`);
-
             for (const item of task.items) {
               const itemId = task.getId(item);
-              console.log(`🗑️ Deleting ${task.name}: ${itemId}`);
               await task.deleteFunc(itemId);
             }
-
-            console.log(`✅ Cleared ${task.items.length} ${task.name}`);
           }
         }
-
-        console.log(`✅ Successfully cleared all items from trash`);
       }
     );
   }, [
@@ -1096,11 +1076,6 @@ export const NoteEditor = ({
   const handleDeleteTag = useCallback(() => {
     if (mainView.type === 'tagFilter') {
       const tagToDelete = mainView.tag;
-
-      console.log(
-        '🗑️ [DEBUG] handleDeleteTag called from tag filtered view:',
-        tagToDelete
-      );
 
       // Soft delete the tag using the store's deleteTag function
       deleteTag(tagToDelete);

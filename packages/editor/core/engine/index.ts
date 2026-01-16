@@ -41,6 +41,3 @@ export { FlatIntentResolver } from './flatIntentResolver';
 
 // Undo controller
 export { UndoController } from './undoController';
-
-// TipTap bridge
-export { useEditorEngine, getResolverForEditor } from './tiptapBridge';

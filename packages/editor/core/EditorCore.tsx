@@ -109,9 +109,6 @@ import { useTheme } from '@clutter/ui';
 // Editor Context
 import { useEditorContext } from '../context/EditorContext';
 
-// Editor Engine
-import { useEditorEngine } from './engine';
-
 // HardBreak extension for line breaks (Shift+Enter)
 import HardBreak from '@tiptap/extension-hard-break';
 
@@ -151,63 +148,69 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
 
     // Track if we're updating from the editor (to prevent clearing history)
     const isInternalUpdate = useRef(false);
+    
+    // Track if editor has been hydrated (Apple Notes rule: hydrate once, ignore after)
+    const hasHydratedRef = useRef(false);
 
     // Create editor instance
     const editor = useEditor({
       extensions: [
-        // Core nodes
+        // 🧨 TEMPORARY: MINIMAL EXTENSIONS TO EXPOSE HIDDEN BRIDGE
+        // Core nodes only - all custom plugins disabled to find bridge source
         Document,
         Text,
         Paragraph,
-        Heading,
-        ListBlock,
-        Blockquote,
-        CodeBlock,
-        HorizontalRule,
-        HardBreak.configure({
-          // Don't bind Shift+Enter - we handle it in individual node extensions
-          keepMarks: true,
-        }),
-        Link, // Standard link mark (browser default behavior)
-        Callout, // Info/warning/error/success callout boxes
-        DateMentionNode, // Date mentions (@Today, @Yesterday, etc.) - atomic inline node
-        NoteLink.configure({
-          onNavigate, // Pass navigation callback to NoteLink extension
-        }), // Note/folder links (no @) - atomic inline node
-        Gapcursor, // Shows cursor when navigating around atomic nodes
-        History, // Undo/redo support - REQUIRED for tr.setMeta('addToHistory') to work
+        
+        // ❌ TEMPORARILY DISABLED - Testing for hidden bridge
+        // Heading,
+        // ListBlock,
+        // Blockquote,
+        // CodeBlock,
+        // HorizontalRule,
+        // HardBreak.configure({
+        //   // Don't bind Shift+Enter - we handle it in individual node extensions
+        //   keepMarks: true,
+        // }),
+        // Link, // Standard link mark (browser default behavior)
+        // Callout, // Info/warning/error/success callout boxes
+        // DateMentionNode, // Date mentions (@Today, @Yesterday, etc.) - atomic inline node
+        // NoteLink.configure({
+        //   onNavigate, // Pass navigation callback to NoteLink extension
+        // }), // Note/folder links (no @) - atomic inline node
+        // Gapcursor, // Shows cursor when navigating around atomic nodes
+        // History, // Undo/redo support - REQUIRED for tr.setMeta('addToHistory') to work
 
-        // Marks
-        Bold,
-        Italic,
-        Underline,
-        Strike,
-        Code,
-        WavyUnderline,
-        TextColor, // Text foreground color
-        CustomHighlight, // Highlight with bg color
+        // // Marks
+        // Bold,
+        // Italic,
+        // Underline,
+        // Strike,
+        // Code,
+        // WavyUnderline,
+        // TextColor, // Text foreground color
+        // CustomHighlight, // Highlight with bg color
 
-        // Plugins
-        BlockIdGenerator, // Auto-generate blockId for all blocks
-        MarkdownShortcuts,
-        SlashCommands,
-        TaskPriority, // Highlight priority indicators (!, !!, !!!) in tasks
-        BackspaceHandler,
-        KeyboardShortcuts, // Centralized Tab/Shift+Tab → indent/outdent intents
-        TabHandler, // Fallback Tab handler - prevents focus navigation
-        EscapeMarks,
-        DoubleSpaceEscape,
-        SelectAll, // Progressive Cmd+A: block text → block node → all blocks
-        BlockDeletion, // Handle DELETE/Backspace for node-selected blocks
-        UndoRedo, // Cmd+Z / Cmd+Shift+Z → EditorEngine.undoController
-        HashtagDetection, // Simple #tag detection (moves to metadata)
-        HashtagAutocomplete.configure({
-          getColors: () => colors,
-          getTags: () => availableTags,
-        }),
-        AtMention.configure({
-          getColors: () => colors,
-        }),
+        // // Plugins
+        // BlockIdGenerator, // Auto-generate blockId for all blocks
+        // MarkdownShortcuts,
+        // SlashCommands,
+        // TaskPriority, // Highlight priority indicators (!, !!, !!!) in tasks
+        // BackspaceHandler,
+        // KeyboardShortcuts, // Centralized Tab/Shift+Tab → indent/outdent intents
+        // TabHandler, // Fallback Tab handler - prevents focus navigation
+        // EscapeMarks,
+        // DoubleSpaceEscape,
+        // SelectAll, // Progressive Cmd+A: block text → block node → all blocks
+        // BlockDeletion, // Handle DELETE/Backspace for node-selected blocks
+        // UndoRedo, // Cmd+Z / Cmd+Shift+Z → EditorEngine.undoController
+        // HashtagDetection, // Simple #tag detection (moves to metadata)
+        // HashtagAutocomplete.configure({
+        //   getColors: () => colors,
+        //   getTags: () => availableTags,
+        // }),
+        // AtMention.configure({
+        //   getColors: () => colors,
+        // }),
         // FocusFade, // Fade text before cursor for better focus - Disabled for now
 
         // DISABLED: TipTap History - We use UndoController for emotional undo
@@ -282,21 +285,46 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
       },
     });
 
-    // Initialize EditorEngine bridge
-    const { engine, resolver } = useEditorEngine(editor);
-
-    // Attach engine to editor instance for UndoRedo plugin
+    // 🧨 TEMPORARY TRAP: Catch illegal engine attachment
     useEffect(() => {
-      if (editor && engine) {
-        (editor as any).engine = engine;
-        (editor as any).resolver = resolver;
+      if (editor) {
+        Object.defineProperty(editor as any, 'engine', {
+          set() {
+            throw new Error('❌ Illegal engine attachment detected');
+          },
+          get() {
+            return undefined;
+          },
+        });
 
-        console.log('[EditorCore] Engine and resolver attached to editor', {
-          engine,
-          resolver,
+        Object.defineProperty(editor as any, '_engine', {
+          set() {
+            throw new Error('❌ Illegal _engine attachment detected');
+          },
+          get() {
+            return undefined;
+          },
+        });
+
+        Object.defineProperty(editor as any, 'resolver', {
+          set() {
+            throw new Error('❌ Illegal resolver attachment detected');
+          },
+          get() {
+            return undefined;
+          },
+        });
+
+        Object.defineProperty(editor as any, '_resolver', {
+          set() {
+            throw new Error('❌ Illegal _resolver attachment detected');
+          },
+          get() {
+            return undefined;
+          },
         });
       }
-    }, [editor, engine, resolver]);
+    }, [editor]);
 
     // Store onTagClick callback in editor instance so node views can access it
     useEffect(() => {
@@ -304,18 +332,6 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
         (editor as any).onTagClick = onTagClick;
       }
     }, [editor, onTagClick]);
-
-    // Store engine and resolver in editor instance for access by plugins
-    useEffect(() => {
-      if (editor && engine && resolver) {
-        (editor as any)._engine = engine;
-        (editor as any)._resolver = resolver;
-        console.log('[EditorCore] Engine and resolver attached to editor', {
-          mode: engine.getMode(),
-          blockCount: engine.getChildren(engine.tree.rootId).length,
-        });
-      }
-    }, [editor, engine, resolver]);
 
     // Expose methods to parent via ref
     useImperativeHandle(
@@ -393,33 +409,17 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
       [editor]
     );
 
-    // Update content when prop changes
+    // Hydrate editor once (Apple Notes rule: ignore silently after first hydration)
     useEffect(() => {
-      // Skip if this update is from the editor itself (internal)
-      // This prevents clearing history on every keystroke
-      if (isInternalUpdate.current) {
-        console.log(
-          '🛡️ [EditorCore] Skipping content update (internal update flag set)'
-        );
-        // Clear the flag after a short delay to allow for any pending renders
-        const timeoutId = setTimeout(() => {
-          isInternalUpdate.current = false;
-        }, 100);
-        return () => clearTimeout(timeoutId);
+      if (!editor || !content) return;
+
+      if (hasHydratedRef.current) {
+        return; // Apple Notes rule: ignore silently
       }
 
-      if (editor && content) {
-        // Only update if content is different (semantic comparison)
-        const currentContent = JSON.stringify(editor.getJSON());
-        const newContent = JSON.stringify(content);
-
-        if (currentContent !== newContent) {
-          // Note: setContent clears history, so only call when content truly changed externally
-          // (e.g., loading a different note or external sync)
-          editor.commands.setContent(content, false);
-        }
-      }
-    }, [content, editor]);
+      hasHydratedRef.current = true;
+      editor.commands.setContent(content, false);
+    }, [editor]);
 
     // Update editable state
     useEffect(() => {

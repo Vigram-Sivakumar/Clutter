@@ -191,6 +191,32 @@ export const TipTapWrapper = forwardRef<
     const previousTags = useRef<string[]>([]);
     const editorCoreRef = useRef<EditorCoreHandle>(null);
     const isUpdatingFromEditor = useRef(false);
+    
+    // Lock initial content permanently (Apple Notes rule: never sync editor from React)
+    const initialContentRef = useRef<object | null>(null);
+    
+    if (initialContentRef.current === null) {
+      // Parse initial content once
+      if (!value) {
+        initialContentRef.current = EMPTY_DOC;
+      } else {
+        try {
+          // Try to parse as JSON first (new format)
+          initialContentRef.current = JSON.parse(value);
+        } catch (jsonError) {
+          try {
+            // Fallback to HTML parsing (legacy format)
+            initialContentRef.current = generateJSON(value, htmlExtensions);
+          } catch (htmlError) {
+            console.error(
+              '❌ TipTapWrapper: Failed to parse document, using EMPTY_DOC',
+              htmlError
+            );
+            initialContentRef.current = EMPTY_DOC;
+          }
+        }
+      }
+    }
 
     // Expose methods to parent
     useImperativeHandle(ref, () => ({
@@ -201,37 +227,6 @@ export const TipTapWrapper = forwardRef<
         editorCoreRef.current?.scrollToBlock(blockId, highlight);
       },
     }));
-
-    // Parse value into content object (simple, deterministic)
-    // Editor mounts once - documents flow through it
-    const content = useMemo(() => {
-      // 🎯 FIX: NEVER return null - TipTap must always receive valid document
-      if (!value) {
-        return EMPTY_DOC;
-      }
-
-      // Don't re-parse if this came from our own onChange
-      if (isUpdatingFromEditor.current) {
-        isUpdatingFromEditor.current = false;
-        return null; // Keep current editor content (don't re-initialize)
-      }
-
-      try {
-        // Try to parse as JSON first (new format)
-        return JSON.parse(value);
-      } catch (jsonError) {
-        try {
-          // Fallback to HTML parsing (legacy format)
-          return generateJSON(value, htmlExtensions);
-        } catch (htmlError) {
-          console.error(
-            '❌ TipTapWrapper: Failed to parse document, using EMPTY_DOC',
-            htmlError
-          );
-          return EMPTY_DOC;
-        }
-      }
-    }, [value]);
 
     // Handle content changes - save as JSON string (not HTML)
     const handleChange = useCallback(
@@ -280,7 +275,7 @@ export const TipTapWrapper = forwardRef<
       <EditorProvider value={editorContext}>
         <EditorCore
           ref={editorCoreRef}
-          content={content}
+          content={initialContentRef.current}
           onChange={handleChange}
           onTagClick={onTagClick}
           onNavigate={onNavigate}

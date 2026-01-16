@@ -501,7 +501,7 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
     
     if (dailyNotes.length === 0) return;
     
-    console.log(`🗓️ Updating ${dailyNotes.length} daily note titles...`);
+    // console.log(`🗓️ Updating ${dailyNotes.length} daily note titles...`);
     
     dailyNotes.forEach(note => {
       // Parse the date from dailyNoteDate (YYYY-MM-DD format)
@@ -519,7 +519,7 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
       }
     });
     
-    console.log('✅ Daily note titles updated');
+    // console.log('✅ Daily note titles updated');
   },
   
   // Storage integration
