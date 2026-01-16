@@ -1,75 +1,48 @@
 /**
- * Backspace Keymap
+ * Backspace Keymap - Pure ProseMirror backspace behavior
  *
- * Aggregates all Backspace rules into a single handler.
- * This is the new way to handle Backspace behavior.
- *
- * Usage in TipTap extension:
- * ```ts
- * addKeyboardShortcuts() {
- *   return {
- *     Backspace: () => handleBackspace(this.editor),
- *   };
- * }
- * ```
- *
- * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * 🔒 KEYBOARD INVARIANT (DO NOT VIOLATE)
- * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- *
- * - Enter & Backspace are GLOBAL behaviors
- * - Block-specific rules may only run when block is NON-EMPTY
- * - Empty blocks MUST fall through to global rules
- * - One keypress = ONE history group
- * - Emptiness beats structure (always)
- *
- * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * Apple Notes Architecture:
+ * - No intents, no resolver, no engine
+ * - Direct ProseMirror transaction dispatch
+ * - Backspace at start of indented block reduces indent
+ * - Otherwise, fallback to default ProseMirror behavior
  */
 
 import type { Editor } from '@tiptap/core';
-import { createKeyboardEngine } from '../engine/KeyboardEngine';
-import type { IntentResolver } from '../../../core/engine';
-import type { KeyHandlingResult } from '../types/KeyHandlingResult';
-// FLAT MODEL: Re-enable rules for proper empty list → paragraph flow
-import {
-  normalizeEmptyBlock, // UNIVERSAL: empty non-paragraph → paragraph (priority 110)
-  outdentEmptyList, // Converts empty list to paragraph (priority 105)
-  deleteEmptyParagraph,
-  backspaceSkipHiddenBlocks, // Priority 95 - skip collapsed subtrees (BOUNDARY GUARD)
-  // exitEmptyWrapper, // Still disabled
-  mergeWithStructuralBlock,
-} from '../rules/backspace';
-
-// Rules for Backspace key (sorted by priority internally by KeyboardEngine)
-const backspaceRules = [
-  normalizeEmptyBlock, // Priority 110 - UNIVERSAL empty block → paragraph (all types)
-  outdentEmptyList, // Priority 105 - empty list → paragraph (list-specific, backup)
-  deleteEmptyParagraph, // Priority 100 - delete empty paragraph
-  backspaceSkipHiddenBlocks, // Priority 95 - skip collapsed subtrees (BOUNDARY GUARD) ✅
-  mergeWithStructuralBlock, // Safety guard for structural blocks
-];
-
-// Create engine (will be initialized with resolver per-editor)
-const backspaceEngine = createKeyboardEngine(backspaceRules);
 
 /**
- * Handle Backspace key press
- *
- * OWNERSHIP CONTRACT:
- * - Returns KeyHandlingResult with explicit handled status
- * - Caller must check result.handled and prevent default if true
- *
+ * Handle Backspace key - outdent if at start of indented block
+ * 
  * @param editor - TipTap editor instance
- * @returns KeyHandlingResult indicating whether key was handled
+ * @returns true if handled (key consumed), false if should fallback to default behavior
  */
-export function handleBackspace(editor: Editor): KeyHandlingResult {
-  // Get resolver from editor instance (attached by EditorCore)
-  const resolver = (editor as any)._resolver as IntentResolver | undefined;
-
-  if (resolver) {
-    // Set resolver if available
-    backspaceEngine.setResolver(resolver);
+export function handleBackspace(editor: Editor): boolean {
+  const { state, view } = editor;
+  const { $from, empty } = state.selection;
+  
+  // Only handle if selection is empty (cursor) and at start of block
+  if (!empty || $from.parentOffset !== 0) return false;
+  
+  // Get the parent block node
+  const node = $from.parent;
+  if (!node || !node.attrs) return false;
+  
+  // If block has indent, reduce it
+  const currentIndent = node.attrs.indent ?? 0;
+  if (currentIndent > 0) {
+    const tr = state.tr.setNodeMarkup(
+      $from.before(),
+      undefined,
+      {
+        ...node.attrs,
+        indent: currentIndent - 1,
+      }
+    );
+    
+    view.dispatch(tr);
+    return true; // Consumed - don't delete
   }
-
-  return backspaceEngine.handle(editor, 'Backspace');
+  
+  // Not at start or no indent - let default backspace behavior handle it
+  return false;
 }

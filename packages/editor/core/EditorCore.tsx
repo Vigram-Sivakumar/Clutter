@@ -48,19 +48,17 @@ export interface EditorCoreHandle {
   scrollToBlock: (_blockId: string, _highlight?: boolean) => void;
 }
 
-// Extensions
+// Extensions - all block types enabled
 import { Document } from '../extensions/nodes/Document';
 import { Text } from '../extensions/nodes/Text';
 import { Paragraph } from '../extensions/nodes/Paragraph';
 import { Heading } from '../extensions/nodes/Heading';
-import { ListBlock } from '../extensions/nodes/ListBlock';
 import { Blockquote } from '../extensions/nodes/Blockquote';
+import { ListBlock } from '../extensions/nodes/ListBlock';
 import { CodeBlock } from '../extensions/nodes/CodeBlock';
 import { HorizontalRule } from '../extensions/nodes/HorizontalRule';
 import { Link } from '../extensions/marks/Link';
 import { Callout } from '../extensions/nodes/Callout';
-
-// Marks
 import { Bold } from '../extensions/marks/Bold';
 import { Italic } from '../extensions/marks/Italic';
 import { Underline } from '../extensions/marks/Underline';
@@ -71,35 +69,34 @@ import { CustomHighlight } from '../extensions/marks/Highlight';
 import { TextColor } from '../extensions/marks/TextColor';
 import { DateMention as DateMentionNode } from '../extensions/nodes/DateMention';
 import { NoteLink } from '../extensions/nodes/NoteLink';
-
-// TipTap built-in extensions
 import Gapcursor from '@tiptap/extension-gapcursor';
 import History from '@tiptap/extension-history';
-
-// Plugins
 import { MarkdownShortcuts } from '../plugins/MarkdownShortcuts';
-import { SlashCommands } from '../plugins/SlashCommands';
-import { TaskPriority } from '../plugins/TaskPriority';
+
+// Keyboard plugins (enabled for Apple Notes architecture)
 import { BackspaceHandler } from '../plugins/BackspaceHandler';
 import { TabHandler } from '../plugins/TabHandler';
 import { KeyboardShortcuts } from '../plugins/KeyboardShortcuts';
+import { BlockIdGenerator } from '../extensions/BlockIdGenerator';
+
+// All plugins enabled (except UndoRedo - using TipTap History instead)
+import { SlashCommands } from '../plugins/SlashCommands';
+import { TaskPriority } from '../plugins/TaskPriority';
 import { EscapeMarks } from '../plugins/EscapeMarks';
-import { CollapsePlugin } from '../plugins/CollapsePlugin';
 import { DoubleSpaceEscape } from '../plugins/DoubleSpaceEscape';
 import { HashtagDetection } from '../plugins/HashtagDetection';
 import { HashtagAutocomplete } from '../plugins/HashtagAutocomplete';
 import { AtMention } from '../plugins/AtMention';
-import { BlockIdGenerator } from '../extensions/BlockIdGenerator';
 import { SelectAll } from '../plugins/SelectAll';
 import { BlockDeletion } from '../plugins/BlockDeletion';
-import { UndoRedo } from '../plugins/UndoRedo';
-// import { FocusFade } from '../plugins/FocusFade'; // Disabled for now
+// import { FocusFade } from '../plugins/FocusFade'; // ❌ Module not found
+// import { UndoRedo } from '../plugins/UndoRedo'; // ❌ Disabled - using TipTap History
 
-// Components
+import { CollapseExtension } from '../extensions/CollapseExtension';
+
+// UI Components
 import { SlashCommandMenu } from '../components/SlashCommandMenu';
 import { AtMentionMenu } from '../components/AtMentionMenu';
-
-// Shared Components for inline styling
 import { FloatingToolbar } from '@clutter/ui';
 
 // Tokens
@@ -155,73 +152,67 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
     // Create editor instance
     const editor = useEditor({
       extensions: [
-        // 🧨 TEMPORARY: MINIMAL EXTENSIONS TO EXPOSE HIDDEN BRIDGE
-        // Core nodes only - all custom plugins disabled to find bridge source
+        // Core nodes
         Document,
         Text,
         Paragraph,
+        Heading,
+        ListBlock,
+        Blockquote,
+        CodeBlock,
+        HorizontalRule,
+        Callout,
+        DateMentionNode,
+        NoteLink.configure({
+          onNavigate,
+        }),
         
-        // ❌ TEMPORARILY DISABLED - Testing for hidden bridge
-        // Heading,
-        // ListBlock,
-        // Blockquote,
-        // CodeBlock,
-        // HorizontalRule,
-        // HardBreak.configure({
-        //   // Don't bind Shift+Enter - we handle it in individual node extensions
-        //   keepMarks: true,
-        // }),
-        // Link, // Standard link mark (browser default behavior)
-        // Callout, // Info/warning/error/success callout boxes
-        // DateMentionNode, // Date mentions (@Today, @Yesterday, etc.) - atomic inline node
-        // NoteLink.configure({
-        //   onNavigate, // Pass navigation callback to NoteLink extension
-        // }), // Note/folder links (no @) - atomic inline node
-        // Gapcursor, // Shows cursor when navigating around atomic nodes
-        // History, // Undo/redo support - REQUIRED for tr.setMeta('addToHistory') to work
+        // Built-in TipTap extensions
+        HardBreak.configure({
+          keepMarks: true,
+        }),
+        Gapcursor,
+        History,
 
-        // // Marks
-        // Bold,
-        // Italic,
-        // Underline,
-        // Strike,
-        // Code,
-        // WavyUnderline,
-        // TextColor, // Text foreground color
-        // CustomHighlight, // Highlight with bg color
-
-        // // Plugins
-        // BlockIdGenerator, // Auto-generate blockId for all blocks
-        // MarkdownShortcuts,
-        // SlashCommands,
-        // TaskPriority, // Highlight priority indicators (!, !!, !!!) in tasks
-        // BackspaceHandler,
-        // KeyboardShortcuts, // Centralized Tab/Shift+Tab → indent/outdent intents
-        // TabHandler, // Fallback Tab handler - prevents focus navigation
-        // EscapeMarks,
-        // DoubleSpaceEscape,
-        // SelectAll, // Progressive Cmd+A: block text → block node → all blocks
-        // BlockDeletion, // Handle DELETE/Backspace for node-selected blocks
-        // UndoRedo, // Cmd+Z / Cmd+Shift+Z → EditorEngine.undoController
-        // HashtagDetection, // Simple #tag detection (moves to metadata)
-        // HashtagAutocomplete.configure({
-        //   getColors: () => colors,
-        //   getTags: () => availableTags,
-        // }),
-        // AtMention.configure({
-        //   getColors: () => colors,
-        // }),
-        // FocusFade, // Fade text before cursor for better focus - Disabled for now
-
-        // DISABLED: TipTap History - We use UndoController for emotional undo
-        // History and UndoBoundaries have been removed in favor of:
-        // - EditorEngine.undoController (handles grouping per UNDO_GROUPING_LAW.md)
-        // - Full state restoration (cursor + selection)
-        // - Time-based and intent-based grouping
-
-        // DISABLED: TipTap Placeholder uses CSS ::before which shows placeholder BEFORE markers
-        // We use React-based placeholders in each component instead
-        // Placeholder.configure({...}),
+        // Marks
+        Bold,
+        Italic,
+        Underline,
+        Strike,
+        Code,
+        Link,
+        WavyUnderline,
+        TextColor,
+        CustomHighlight,
+        
+        // Input rules
+        MarkdownShortcuts,
+        
+        // Keyboard plugins
+        BlockIdGenerator, // Auto-generate blockId for all blocks
+        KeyboardShortcuts, // Centralized Tab/Shift+Tab → indent/outdent intents
+        TabHandler, // Fallback Tab handler - prevents focus navigation
+        BackspaceHandler, // Handle backspace behavior
+        
+        // All other plugins
+        SlashCommands,
+        TaskPriority, // Highlight priority indicators (!, !!, !!!) in tasks
+        EscapeMarks,
+        DoubleSpaceEscape,
+        SelectAll, // Progressive Cmd+A: block text → block node → all blocks
+        BlockDeletion, // Handle DELETE/Backspace for node-selected blocks
+        HashtagDetection, // Simple #tag detection (moves to metadata)
+        HashtagAutocomplete.configure({
+          getColors: () => colors,
+          getTags: () => availableTags,
+        }),
+        AtMention.configure({
+          getColors: () => colors,
+        }),
+        // FocusFade, // ❌ Module not found
+        
+        // Collapse plugin (wrapped as TipTap extension)
+        CollapseExtension,
       ] as any[],
       content: content || {
         type: 'doc',
@@ -232,8 +223,6 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
         attributes: {
           class: 'editor-content',
         },
-        // ProseMirror plugins (not TipTap extensions)
-        plugins: [CollapsePlugin],
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         // 🔑 Tab handling is done by TipTap extensions (KeyboardShortcuts)
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -285,46 +274,8 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
       },
     });
 
-    // 🧨 TEMPORARY TRAP: Catch illegal engine attachment
-    useEffect(() => {
-      if (editor) {
-        Object.defineProperty(editor as any, 'engine', {
-          set() {
-            throw new Error('❌ Illegal engine attachment detected');
-          },
-          get() {
-            return undefined;
-          },
-        });
-
-        Object.defineProperty(editor as any, '_engine', {
-          set() {
-            throw new Error('❌ Illegal _engine attachment detected');
-          },
-          get() {
-            return undefined;
-          },
-        });
-
-        Object.defineProperty(editor as any, 'resolver', {
-          set() {
-            throw new Error('❌ Illegal resolver attachment detected');
-          },
-          get() {
-            return undefined;
-          },
-        });
-
-        Object.defineProperty(editor as any, '_resolver', {
-          set() {
-            throw new Error('❌ Illegal _resolver attachment detected');
-          },
-          get() {
-            return undefined;
-          },
-        });
-      }
-    }, [editor]);
+    // Apple Notes Architecture: No engine/resolver needed
+    // Keyboard shortcuts use direct ProseMirror transactions
 
     // Store onTagClick callback in editor instance so node views can access it
     useEffect(() => {
@@ -657,13 +608,9 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
         {/* Editor content */}
         <EditorContent editor={editor} />
 
-        {/* Slash command menu */}
+        {/* UI Components */}
         <SlashCommandMenu editor={editor as any} />
-
-        {/* @ mention menu (dates + links) */}
         <AtMentionMenu editor={editor as any} />
-
-        {/* Floating toolbar for text formatting (shows on selection) */}
         <FloatingToolbar editor={editor} />
       </div>
     );

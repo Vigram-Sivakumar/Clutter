@@ -9,7 +9,6 @@
  */
 
 import {
-  useMemo,
   useCallback,
   useRef,
   forwardRef,

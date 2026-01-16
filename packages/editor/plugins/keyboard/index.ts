@@ -36,8 +36,5 @@ export {
   handleArrowDown,
 } from './keymaps';
 
-// Rules (for advanced usage / testing)
-export * from './rules/enter';
-export * from './rules/backspace';
-export * from './rules/tab';
+// Navigation rules (still using rule system for simple boolean logic)
 export * from './rules/navigation';

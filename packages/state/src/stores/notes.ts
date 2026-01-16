@@ -220,12 +220,6 @@ export const useNotesStore = create<NotesStore>()((set, get) => ({
     }
     
     // Allow saves with structure even if empty (intentional deletions)
-    console.log('💫 updateNoteContent:', {
-      id,
-      contentLength: content.length,
-      contentPreview: content.substring(0, 100)
-    });
-    
     const now = new Date().toISOString();
     set((state) => ({
       notes: state.notes.map((note) =>

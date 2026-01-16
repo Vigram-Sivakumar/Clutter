@@ -1,70 +1,180 @@
 /**
- * Tab Keymap - Structural indentation control
+ * Tab Keymap - Pure ProseMirror structural indentation
  *
- * Tab changes structure, never content.
- *
- * 🔒 INTENT BOUNDARY SYNC (Phase 2):
- * Before resolving any structural intent, Engine must be synced from PM.
- * This ensures Engine is never stale at the moment of intent resolution.
- *
- * Canonical Decision Tables:
- * - Tab → indent-block intent
- * - Shift+Tab → outdent-block intent
- *
- * All logic lives in rules and resolver.
+ * Apple Notes Architecture:
+ * - No intents, no resolver, no engine
+ * - Direct ProseMirror transaction dispatch
+ * - Tab changes indent attribute on current block AND its visual subtree
+ * 
+ * Visual Subtree:
+ * - The selected block + all following blocks with indent > baseIndent
+ * - This maintains flat-list hierarchy semantics
+ * - Indent/outdent are perfect inverses
  */
 
 import type { Editor } from '@tiptap/core';
-import { createKeyboardEngine } from '../engine/KeyboardEngine';
-import type { IntentResolver } from '../../../core/engine';
-import { indentBlock, outdentBlock } from '../rules/tab';
-import type { KeyHandlingResult } from '../types/KeyHandlingResult';
 
-const tabRules = [indentBlock, outdentBlock];
+const MAX_INDENT = 8;
 
-const tabEngine = createKeyboardEngine(tabRules);
-
+/**
+ * Handle Tab key - indent or outdent current block and its visual subtree
+ * 
+ * @param editor - TipTap editor instance
+ * @param isShift - true for Shift+Tab (outdent), false for Tab (indent)
+ * @returns true if handled (key consumed), false if should fallback
+ */
 export function handleTab(
   editor: Editor,
   isShift: boolean = false
-): KeyHandlingResult {
-  console.log('📋 [handleTab] Called, isShift:', isShift);
-
-  // Get resolver and engine from editor instance (attached by EditorCore)
-  const resolver = (editor as any)._resolver as IntentResolver | undefined;
-  const engine = (editor as any)._engine;
-
-  console.log('📋 [handleTab] Resolver:', resolver ? 'found' : 'NOT FOUND');
-
-  // 🧭 TAB FLOW TRACE
-  console.log('🧭 TAB FLOW', {
-    isShift,
-    selectedBlock: engine?.cursor?.blockId,
+): boolean {
+  const { state, view } = editor;
+  const { $from } = state.selection;
+  
+  // Get the parent block node
+  const node = $from.parent;
+  if (!node || !node.attrs) return false;
+  
+  const doc = state.doc;
+  const tr = state.tr;
+  
+  // Collect all blocks in document order with positions
+  const blocks: Array<{ pos: number; node: any; indent: number }> = [];
+  doc.descendants((n: any, pos: number) => {
+    if (n.attrs?.blockId) {
+      blocks.push({
+        pos,
+        node: n,
+        indent: n.attrs.indent ?? 0,
+      });
+    }
+    return true;
   });
-
-  if (resolver) {
-    tabEngine.setResolver(resolver);
+  
+  // Find the selected block index
+  const selectedIndex = blocks.findIndex(
+    (b) => b.pos === $from.before()
+  );
+  
+  if (selectedIndex === -1) return false;
+  
+  const selectedBlock = blocks[selectedIndex];
+  const baseIndent = selectedBlock.indent;
+  
+  // Calculate new indent level
+  const delta = isShift ? -1 : 1;
+  const newIndent = baseIndent + delta;
+  
+  // INDENT VALIDATION: Check constraints
+  if (!isShift) {
+    // For indent: can only indent to prevBlock.indent + 1
+    // This prevents indent jumps and maintains flat list invariant
+    const prevBlock = selectedIndex > 0 ? blocks[selectedIndex - 1] : null;
+    const maxAllowedIndent = prevBlock ? prevBlock.indent + 1 : 0;
+    
+    if (newIndent > maxAllowedIndent) {
+      console.log('[Tab] Indent blocked - cannot skip levels', {
+        current: baseIndent,
+        attempted: newIndent,
+        maxAllowed: maxAllowedIndent,
+      });
+      return true; // Consume key but don't change anything
+    }
+    
+    // Hard cap at MAX_INDENT
+    if (newIndent > MAX_INDENT) {
+      console.log('[Tab] Indent blocked - max level reached', {
+        current: baseIndent,
+        max: MAX_INDENT,
+      });
+      return true; // Consume key
+    }
+  } else {
+    // For outdent: minimum is 0
+    if (newIndent < 0) {
+      return true; // Already at minimum, consume key
+    }
   }
-
-  // Pass modifier info through the context by storing it on the editor
-  (editor as any)._shiftPressed = isShift;
-
-  const result = tabEngine.handle(editor, 'Tab');
-  console.log('📋 [handleTab] Result:', result);
-  return result;
-}
-
-/**
- * @deprecated DELETED - No longer needed
- * 
- * This function was a hack that rebuilt Engine from PM during user input.
- * It violated the flat model and caused selection corruption.
- * 
- * Apple Notes architecture: ProseMirror is authoritative, no engine sync needed.
- * 
- * Kept as a tombstone to prevent regression.
- */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function rebuildEngineFromPMDoc_DELETED(_pmDoc: any, _engine: any): void {
-  // This function is intentionally empty (dead code tombstone)
+  
+  // RANGE DETECTION: Find visual subtree
+  // Collect the selected block + all following blocks with indent > baseIndent
+  // This is the "visual subtree" that moves with the selected block
+  const affectedRange = [selectedIndex];
+  
+  for (let i = selectedIndex + 1; i < blocks.length; i++) {
+    if (blocks[i].indent > baseIndent) {
+      affectedRange.push(i);
+    } else {
+      break; // Stop at first block not deeper than base
+    }
+  }
+  
+  console.log('[Tab] Range operation', {
+    direction: isShift ? 'outdent' : 'indent',
+    baseIndent,
+    newIndent,
+    affectedCount: affectedRange.length,
+    affectedBlocks: affectedRange.map((i) => ({
+      indent: blocks[i].indent,
+      newIndent: blocks[i].indent + delta,
+    })),
+  });
+  
+  // RANGE MUTATION: Apply indent delta to all affected blocks
+  for (const index of affectedRange) {
+    const block = blocks[index];
+    const blockNewIndent = block.indent + delta;
+    
+    // Clamp to valid range [0, MAX_INDENT]
+    const clampedIndent = Math.max(0, Math.min(MAX_INDENT, blockNewIndent));
+    
+    tr.setNodeMarkup(block.pos, undefined, {
+      ...block.node.attrs,
+      indent: clampedIndent,
+    });
+  }
+  
+  // AUTO-EXPAND COLLAPSED PARENT: When indenting creates a new parent-child relationship
+  if (!isShift && newIndent === baseIndent + 1) {
+    // Find the parent block (nearest previous block with indent === newIndent - 1)
+    let parentIndex = -1;
+    for (let i = selectedIndex - 1; i >= 0; i--) {
+      if (blocks[i].indent === newIndent - 1) {
+        parentIndex = i;
+        break;
+      }
+    }
+    
+    if (parentIndex !== -1) {
+      const parentBlock = blocks[parentIndex];
+      const isCollapsed = parentBlock.node.attrs?.collapsed === true;
+      const isToggleOrTask = 
+        parentBlock.node.type.name === 'listBlock' &&
+        (
+          parentBlock.node.attrs.listType === 'toggle' ||
+          parentBlock.node.attrs.listType === 'task'
+        );
+      
+      // If parent is collapsed toggle/task, expand it
+      if (isCollapsed && isToggleOrTask) {
+        tr.setNodeMarkup(parentBlock.pos, undefined, {
+          ...parentBlock.node.attrs,
+          collapsed: false,
+        });
+        
+        console.log('[Tab] Auto-expanded collapsed parent', {
+          parentType: parentBlock.node.type.name,
+          parentIndent: parentBlock.indent,
+          childIndent: newIndent,
+        });
+      }
+    }
+  }
+  
+  // HISTORY GROUPING: Mark as single undo step
+  tr.setMeta('addToHistory', true);
+  tr.setMeta('historyGroup', isShift ? 'outdent-block' : 'indent-block');
+  
+  // Apply transaction
+  view.dispatch(tr);
+  return true; // Key consumed
 }

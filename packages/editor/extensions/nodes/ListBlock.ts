@@ -213,10 +213,10 @@ export const ListBlock = Node.create({
         // - outdentEmptyList (priority 90)
         // All other exit/split behaviors
         //
-        // OWNERSHIP CONTRACT: Check result.handled and return boolean to TipTap
+        // OWNERSHIP CONTRACT: handleEnter returns boolean directly
         const result = handleEnter(editor);
 
-        if (result.handled) {
+        if (result) {
           return true; // Prevent default TipTap behavior
         }
 

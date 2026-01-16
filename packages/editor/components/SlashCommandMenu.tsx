@@ -222,9 +222,9 @@ export function SlashCommandMenu({ editor }: SlashCommandMenuProps) {
       ref={menuRef}
         className="slash-command-menu"
       style={{
-        position: 'fixed',
-        top: position.top,
-        left: position.left,
+        position: 'absolute',
+        top: '24px',
+        left: 0,
         backgroundColor: colors.background.default,
         border: `1px solid ${colors.border.default}`,
         borderRadius: sizing.radius.lg,
