@@ -622,8 +622,10 @@ export function ListBlock({
   const renderToggleRow = () => {
     // 🔥 FLAT MODEL: Show caret for ANY block with children (task or toggle)
     // In flat model, collapse is universal - any block can collapse its visual children
+    // ALSO show message for empty toggles
     const shouldShow =
-      (listType === 'task' || listType === 'toggle') && hasChildrenFlag;
+      (listType === 'task' && childrenInfo.hasChildren) ||
+      listType === 'toggle'; // Show for all toggles (with or without children)
 
     if (!shouldShow) return null;
 
@@ -690,6 +692,19 @@ export function ListBlock({
             }}
           >
             {hiddenCount} hidden {hiddenCount === 1 ? 'item' : 'items'}
+          </span>
+        )}
+        {/* Empty toggle message (toggles only, shown when no children) */}
+        {listType === 'toggle' && !hasChildrenFlag && (
+          <span
+            style={{
+              fontSize: 11,
+              color: colors.text.tertiary,
+              userSelect: 'none',
+              pointerEvents: 'none',
+            }}
+          >
+            Empty toggle
           </span>
         )}
       </div>
