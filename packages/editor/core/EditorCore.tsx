@@ -89,7 +89,6 @@ import { HashtagAutocomplete } from '../plugins/HashtagAutocomplete';
 import { AtMention } from '../plugins/AtMention';
 import { SelectAll } from '../plugins/SelectAll';
 import { BlockDeletion } from '../plugins/BlockDeletion';
-// import { FocusFade } from '../plugins/FocusFade'; // ❌ Module not found
 // import { UndoRedo } from '../plugins/UndoRedo'; // ❌ Disabled - using TipTap History
 
 import { CollapseExtension } from '../extensions/CollapseExtension';
@@ -145,7 +144,7 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
 
     // Track if we're updating from the editor (to prevent clearing history)
     const isInternalUpdate = useRef(false);
-    
+
     // Track if editor has been hydrated (Apple Notes rule: hydrate once, ignore after)
     const hasHydratedRef = useRef(false);
 
@@ -166,7 +165,7 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
         NoteLink.configure({
           onNavigate,
         }),
-        
+
         // Built-in TipTap extensions
         HardBreak.configure({
           keepMarks: true,
@@ -184,16 +183,16 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
         WavyUnderline,
         TextColor,
         CustomHighlight,
-        
+
         // Input rules
         MarkdownShortcuts,
-        
+
         // Keyboard plugins
         BlockIdGenerator, // Auto-generate blockId for all blocks
         KeyboardShortcuts, // Centralized Tab/Shift+Tab → indent/outdent intents
         TabHandler, // Fallback Tab handler - prevents focus navigation
         BackspaceHandler, // Handle backspace behavior
-        
+
         // All other plugins
         SlashCommands,
         TaskPriority, // Highlight priority indicators (!, !!, !!!) in tasks
@@ -209,8 +208,7 @@ export const EditorCore = forwardRef<EditorCoreHandle, EditorCoreProps>(
         AtMention.configure({
           getColors: () => colors,
         }),
-        // FocusFade, // ❌ Module not found
-        
+
         // Collapse plugin (wrapped as TipTap extension)
         CollapseExtension,
       ] as any[],

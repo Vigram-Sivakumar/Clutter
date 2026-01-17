@@ -5,7 +5,7 @@
  * - No intents, no resolver, no engine
  * - Direct ProseMirror transaction dispatch
  * - Tab changes indent attribute on current block AND its visual subtree
- * 
+ *
  * Visual Subtree:
  * - The selected block + all following blocks with indent > baseIndent
  * - This maintains flat-list hierarchy semantics
@@ -16,27 +16,51 @@ import type { Editor } from '@tiptap/core';
 
 const MAX_INDENT = 8;
 
+// ═══════════════════════════════════════════════════════════════════════════
+// STRUCTURAL INVARIANTS (DO NOT VIOLATE)
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// 1. INDENT HIERARCHY: Can only indent to prevBlock.indent + 1
+//    - Prevents level skipping (ensures flat list is traversable)
+//    - Example: indent 0 can become indent 1, but NOT indent 2
+//
+// 2. VISUAL SUBTREE: Selected block + all deeper-indented following blocks move together
+//    - If parent indents, all children indent with it
+//    - Maintains relative hierarchy within subtree
+//    - Example: If block at indent 1 indents to 2, its indent-2 child becomes indent 3
+//
+// 3. AUTO-EXPAND PARENT: If Tab creates a child under collapsed parent → expand parent
+//    - Applies to toggles and tasks with collapsed attribute
+//    - Only triggers when newIndent === parentIndent + 1 (creating first child)
+//    - Prevents invisible children (UX safety)
+//
+// 4. BOUNDS: Indent capped at MAX_INDENT (8), minimum is 0
+//    - Hard limits prevent layout overflow and stack depth issues
+//
+// 5. HISTORY GROUPING: All indent/outdent operations in one transaction
+//    - Undo/Redo affects entire subtree as single unit
+//    - Meta: 'historyGroup' = 'indent-block' or 'outdent-block'
+//
+// ═══════════════════════════════════════════════════════════════════════════
+
 /**
  * Handle Tab key - indent or outdent current block and its visual subtree
- * 
+ *
  * @param editor - TipTap editor instance
  * @param isShift - true for Shift+Tab (outdent), false for Tab (indent)
  * @returns true if handled (key consumed), false if should fallback
  */
-export function handleTab(
-  editor: Editor,
-  isShift: boolean = false
-): boolean {
+export function handleTab(editor: Editor, isShift: boolean = false): boolean {
   const { state, view } = editor;
   const { $from } = state.selection;
-  
+
   // Get the parent block node
   const node = $from.parent;
   if (!node || !node.attrs) return false;
-  
+
   const doc = state.doc;
   const tr = state.tr;
-  
+
   // Collect all blocks in document order with positions
   const blocks: Array<{ pos: number; node: any; indent: number }> = [];
   doc.descendants((n: any, pos: number) => {
@@ -49,28 +73,26 @@ export function handleTab(
     }
     return true;
   });
-  
+
   // Find the selected block index
-  const selectedIndex = blocks.findIndex(
-    (b) => b.pos === $from.before()
-  );
-  
+  const selectedIndex = blocks.findIndex((b) => b.pos === $from.before());
+
   if (selectedIndex === -1) return false;
-  
+
   const selectedBlock = blocks[selectedIndex];
   const baseIndent = selectedBlock.indent;
-  
+
   // Calculate new indent level
   const delta = isShift ? -1 : 1;
   const newIndent = baseIndent + delta;
-  
+
   // INDENT VALIDATION: Check constraints
   if (!isShift) {
     // For indent: can only indent to prevBlock.indent + 1
     // This prevents indent jumps and maintains flat list invariant
     const prevBlock = selectedIndex > 0 ? blocks[selectedIndex - 1] : null;
     const maxAllowedIndent = prevBlock ? prevBlock.indent + 1 : 0;
-    
+
     if (newIndent > maxAllowedIndent) {
       console.log('[Tab] Indent blocked - cannot skip levels', {
         current: baseIndent,
@@ -79,7 +101,7 @@ export function handleTab(
       });
       return true; // Consume key but don't change anything
     }
-    
+
     // Hard cap at MAX_INDENT
     if (newIndent > MAX_INDENT) {
       console.log('[Tab] Indent blocked - max level reached', {
@@ -94,12 +116,12 @@ export function handleTab(
       return true; // Already at minimum, consume key
     }
   }
-  
+
   // RANGE DETECTION: Find visual subtree
   // Collect the selected block + all following blocks with indent > baseIndent
   // This is the "visual subtree" that moves with the selected block
   const affectedRange = [selectedIndex];
-  
+
   for (let i = selectedIndex + 1; i < blocks.length; i++) {
     if (blocks[i].indent > baseIndent) {
       affectedRange.push(i);
@@ -107,7 +129,7 @@ export function handleTab(
       break; // Stop at first block not deeper than base
     }
   }
-  
+
   console.log('[Tab] Range operation', {
     direction: isShift ? 'outdent' : 'indent',
     baseIndent,
@@ -118,21 +140,21 @@ export function handleTab(
       newIndent: blocks[i].indent + delta,
     })),
   });
-  
+
   // RANGE MUTATION: Apply indent delta to all affected blocks
   for (const index of affectedRange) {
     const block = blocks[index];
     const blockNewIndent = block.indent + delta;
-    
+
     // Clamp to valid range [0, MAX_INDENT]
     const clampedIndent = Math.max(0, Math.min(MAX_INDENT, blockNewIndent));
-    
+
     tr.setNodeMarkup(block.pos, undefined, {
       ...block.node.attrs,
       indent: clampedIndent,
     });
   }
-  
+
   // AUTO-EXPAND COLLAPSED PARENT: When indenting creates a new parent-child relationship
   if (!isShift && newIndent === baseIndent + 1) {
     // Find the parent block (nearest previous block with indent === newIndent - 1)
@@ -143,24 +165,22 @@ export function handleTab(
         break;
       }
     }
-    
+
     if (parentIndex !== -1) {
       const parentBlock = blocks[parentIndex];
       const isCollapsed = parentBlock.node.attrs?.collapsed === true;
-      const isToggleOrTask = 
+      const isToggleOrTask =
         parentBlock.node.type.name === 'listBlock' &&
-        (
-          parentBlock.node.attrs.listType === 'toggle' ||
-          parentBlock.node.attrs.listType === 'task'
-        );
-      
+        (parentBlock.node.attrs.listType === 'toggle' ||
+          parentBlock.node.attrs.listType === 'task');
+
       // If parent is collapsed toggle/task, expand it
       if (isCollapsed && isToggleOrTask) {
         tr.setNodeMarkup(parentBlock.pos, undefined, {
           ...parentBlock.node.attrs,
           collapsed: false,
         });
-        
+
         console.log('[Tab] Auto-expanded collapsed parent', {
           parentType: parentBlock.node.type.name,
           parentIndent: parentBlock.indent,
@@ -169,11 +189,11 @@ export function handleTab(
       }
     }
   }
-  
+
   // HISTORY GROUPING: Mark as single undo step
   tr.setMeta('addToHistory', true);
   tr.setMeta('historyGroup', isShift ? 'outdent-block' : 'indent-block');
-  
+
   // Apply transaction
   view.dispatch(tr);
   return true; // Key consumed

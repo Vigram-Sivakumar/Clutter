@@ -19,6 +19,43 @@
 import { Editor } from '@tiptap/core';
 import { TextSelection } from 'prosemirror-state';
 
+// ═══════════════════════════════════════════════════════════════════════════
+// STRUCTURAL INVARIANTS (DO NOT VIOLATE)
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// 1. END OF BLOCK RULE (Universal, applies to ALL block types):
+//    - If block has children (next block indent > current) → create CHILD
+//    - If block has no children → create SIBLING
+//    - This is STRUCTURE-BASED, not type-based
+//    - Indent defines hierarchy, not node type
+//
+// 2. TOGGLE EXCEPTION (Localized to insertFirstChild):
+//    - Toggles always create PARAGRAPH children, not toggle children
+//    - This prevents infinite toggle nesting
+//    - Applied only in insertFirstChild helper, not in main logic
+//
+// 3. EMPTY BLOCK SEQUENCE (Two-step process):
+//    - First Enter: Outdent (if indent > 0)
+//    - Second Enter: Convert to paragraph (if indent === 0 and not paragraph)
+//    - Outdent and type conversion require separate key presses
+//
+// 4. CONTAINER DETECTION (Type-based, not attribute-based):
+//    - Container = listBlock with listType 'toggle' or 'task'
+//    - NOT based on presence of 'collapsed' attribute
+//    - Prevents paragraphs from being misclassified as containers
+//
+// 5. ATTRIBUTE LEAKAGE PREVENTION:
+//    - Use createCleanBlockAttrs for ALL new block creation
+//    - Whitelist only: blockId, indent, listType, calloutType
+//    - Never copy: collapsed, or any state attributes
+//
+// 6. CURSOR POSITION SEMANTICS:
+//    - START (offset === 0): Insert sibling ABOVE
+//    - END (offset === content.size): Check children, then insert child/sibling
+//    - MIDDLE (0 < offset < size): Split block, preserve indent
+//
+// ═══════════════════════════════════════════════════════════════════════════
+
 // ═══════════════════════════════════════════════════
 // HELPERS
 // ═══════════════════════════════════════════════════
@@ -26,15 +63,12 @@ import { TextSelection } from 'prosemirror-state';
 /**
  * Create clean block attributes for new blocks
  * Whitelists only essential attributes, preventing attr leakage (e.g., collapsed)
- * 
+ *
  * @param node - Source node to copy attrs from
  * @param indent - Indent level for the new block
  * @returns Clean attrs object with only whitelisted properties
  */
-function createCleanBlockAttrs(
-  node: any,
-  indent: number
-): Record<string, any> {
+function createCleanBlockAttrs(node: any, indent: number): Record<string, any> {
   const attrs: Record<string, any> = {
     blockId: crypto.randomUUID(),
     indent,
@@ -44,7 +78,7 @@ function createCleanBlockAttrs(
   if (node.attrs.listType !== undefined) {
     attrs.listType = node.attrs.listType;
   }
-  
+
   if (node.attrs.calloutType !== undefined) {
     attrs.calloutType = node.attrs.calloutType;
   }
@@ -55,7 +89,7 @@ function createCleanBlockAttrs(
 /**
  * Find the position after the entire subtree of a block
  * (including all children, visible or hidden)
- * 
+ *
  * @param state - ProseMirror state
  * @param blockPos - Position before the parent block
  * @param blockIndent - Indent level of the parent block
@@ -82,7 +116,7 @@ function getSubtreeEndPosition(
     if (!nextNode) break;
 
     const nextIndent = nextNode.attrs?.indent ?? 0;
-    
+
     // Stop if next block is at same level or lower (not a child)
     if (nextIndent <= blockIndent) break;
 
@@ -130,10 +164,7 @@ function insertSiblingBelow(editor: Editor, indent: number): boolean {
   const blockPos = $from.before();
   const insertPos = getSubtreeEndPosition(state, blockPos, indent);
 
-  tr.insert(
-    insertPos,
-    node.type.create(createCleanBlockAttrs(node, indent))
-  );
+  tr.insert(insertPos, node.type.create(createCleanBlockAttrs(node, indent)));
 
   tr.setSelection(TextSelection.create(tr.doc, insertPos + 1));
   view.dispatch(tr);
@@ -143,6 +174,8 @@ function insertSiblingBelow(editor: Editor, indent: number): boolean {
 /**
  * Insert a first child block (indent + 1)
  * Inserts immediately after parent, before any existing children
+ *
+ * TOGGLE EXCEPTION: Toggles always create paragraph children, not toggle children
  */
 function insertFirstChild(editor: Editor, parentIndent: number): boolean {
   const { state, view } = editor;
@@ -153,10 +186,26 @@ function insertFirstChild(editor: Editor, parentIndent: number): boolean {
   // Explicit: insert after parent node, before subtree
   const insertPos = $from.before() + node.nodeSize;
 
-  tr.insert(
-    insertPos,
-    node.type.create(createCleanBlockAttrs(node, parentIndent + 1))
-  );
+  // Check if parent is a toggle
+  const isToggle =
+    node.type.name === 'listBlock' && node.attrs.listType === 'toggle';
+
+  if (isToggle) {
+    // TOGGLE EXCEPTION: Always create paragraph child
+    tr.insert(
+      insertPos,
+      state.schema.nodes.paragraph!.create({
+        blockId: crypto.randomUUID(),
+        indent: parentIndent + 1,
+      })
+    );
+  } else {
+    // All other blocks: clone parent type
+    tr.insert(
+      insertPos,
+      node.type.create(createCleanBlockAttrs(node, parentIndent + 1))
+    );
+  }
 
   tr.setSelection(TextSelection.create(tr.doc, insertPos + 1));
   view.dispatch(tr);
@@ -257,11 +306,7 @@ export function handleEnter(editor: Editor): boolean {
         hasCollapsedAfter: 'collapsed' in cleanAttrs,
       });
 
-      tr.setNodeMarkup(
-        $from.before(),
-        undefined,
-        cleanAttrs
-      );
+      tr.setNodeMarkup($from.before(), undefined, cleanAttrs);
 
       view.dispatch(tr);
       return true;
@@ -276,7 +321,7 @@ export function handleEnter(editor: Editor): boolean {
       tr.replaceWith(
         pos,
         pos + node.nodeSize,
-        state.schema.nodes.paragraph.create({
+        state.schema.nodes.paragraph!.create({
           blockId: crypto.randomUUID(),
           indent,
         })
@@ -352,7 +397,7 @@ export function handleEnter(editor: Editor): boolean {
     const insertPos = $from.after();
     tr.insert(
       insertPos,
-      state.schema.nodes.paragraph.create(
+      state.schema.nodes.paragraph!.create(
         {
           blockId: crypto.randomUUID(),
           indent: indent + 1,
@@ -376,36 +421,26 @@ export function handleEnter(editor: Editor): boolean {
   }
 
   // ─────────────────────────────────────────────
-  // 9️⃣ END OF BLOCK (non-empty or after empty checks)
+  // 9️⃣ END OF BLOCK
   // ─────────────────────────────────────────────
   if (atEnd) {
-    // EXPANDED TOGGLE → ALWAYS CREATE PARAGRAPH CHILD
-    // Toggles always create paragraph children at END, even without existing children
+    const isToggle =
+      node.type.name === 'listBlock' && node.attrs.listType === 'toggle';
+
+    // ✅ TOGGLE RULE:
+    // Expanded toggles ALWAYS create a child
     if (isToggle && isExpandedContainer) {
-      const tr = state.tr;
-      const insertPos = $from.before() + node.nodeSize;
-
-      tr.insert(
-        insertPos,
-        state.schema.nodes.paragraph.create({
-          blockId: crypto.randomUUID(),
-          indent: indent + 1,
-        })
-      );
-
-      tr.setSelection(TextSelection.create(tr.doc, insertPos + 1));
-      view.dispatch(tr);
-      return true;
-    }
-
-    // EXPANDED CONTAINER WITH CHILDREN → CREATE CHILD
-    // Only create child if children already exist
-    if (isExpandedContainer && hasChildren) {
       return insertFirstChild(editor, indent);
     }
 
-    // DEFAULT → CREATE SIBLING BELOW
-    // Applies to: collapsed containers, expanded containers without children, all other blocks
+    // ✅ UNIVERSAL STRUCTURAL RULE:
+    // Any block that already has children → create child
+    if (hasChildren) {
+      return insertFirstChild(editor, indent);
+    }
+
+    // ✅ DEFAULT:
+    // No children → create sibling
     return insertSiblingBelow(editor, indent);
   }
 
@@ -418,7 +453,7 @@ export function handleEnter(editor: Editor): boolean {
     updateWith: { indent },
     atMiddle: !atStart && !atEnd,
   });
-  
+
   editor
     .chain()
     .splitBlock()
