@@ -242,35 +242,21 @@ export function handleEnter(editor: Editor): boolean {
     (node.attrs.listType === 'toggle' || node.attrs.listType === 'task');
   const isExpandedContainer = isContainer && node.attrs.collapsed === false;
 
-  // 🔍 DEBUG: Log ALL Enter presses to see what's happening
-  console.log('[ENTER DEBUG]', {
-    nodeType,
-    isEmpty,
-    atStart,
-    atEnd,
-    parentOffset: $from.parentOffset,
-    contentSize: node.content.size,
-    textContent: node.textContent,
-    indent,
-  });
-
-  // 🔍 CONTEXT LEAK CHECK: Does paragraph inherit container attrs?
-  console.log('[ENTER CONTEXT CHECK]', {
-    currentNodeType: node.type.name,
-    listType: node.attrs?.listType,
-    indent: node.attrs?.indent,
-    isEmpty: node.content.size === 0,
-    hasCollapsedAttr: 'collapsed' in node.attrs,
-    collapsedValue: node.attrs?.collapsed,
-    calloutType: node.attrs?.calloutType,
-    allAttrs: Object.keys(node.attrs),
-  });
-
   // Check if this block has children (next block has higher indent)
+  // Uses document traversal for safety (handles decorations, atom blocks, future schema changes)
   const hasChildren = (() => {
-    const nextPos = $from.after();
-    const nextNode = state.doc.nodeAt(nextPos);
-    return nextNode && (nextNode.attrs?.indent ?? 0) > indent;
+    const currentPos = $from.before();
+    let nextBlockIndent: number | null = null;
+
+    state.doc.descendants((n, pos) => {
+      if (n.attrs?.blockId && pos > currentPos) {
+        nextBlockIndent = n.attrs.indent ?? 0;
+        return false; // Stop after first block found
+      }
+      return true;
+    });
+
+    return nextBlockIndent !== null && nextBlockIndent > indent;
   })();
 
   // ─────────────────────────────────────────────
@@ -280,13 +266,6 @@ export function handleEnter(editor: Editor): boolean {
   if (isEmpty) {
     // 3️⃣ EMPTY CONTAINER → COLLAPSE
     if (isExpandedContainer) {
-      console.log('[UPDATE ATTRIBUTES DEBUG] COLLAPSE CONTAINER', {
-        targetType: nodeType,
-        currentAttrs: node.attrs,
-        updateWith: { collapsed: true },
-        isContainer,
-        isExpandedContainer,
-      });
       editor.commands.updateAttributes(nodeType, { collapsed: true });
       return true;
     }
@@ -295,16 +274,6 @@ export function handleEnter(editor: Editor): boolean {
     if (indent > 0) {
       const tr = state.tr;
       const cleanAttrs = createCleanBlockAttrs(node, indent - 1);
-
-      console.log('[SET NODE MARKUP DEBUG] OUTDENT', {
-        targetType: node.type.name,
-        currentIndent: indent,
-        nextIndent: indent - 1,
-        attrsBefore: node.attrs,
-        attrsAfter: cleanAttrs,
-        hasCollapsedBefore: 'collapsed' in node.attrs,
-        hasCollapsedAfter: 'collapsed' in cleanAttrs,
-      });
 
       tr.setNodeMarkup($from.before(), undefined, cleanAttrs);
 
@@ -338,16 +307,6 @@ export function handleEnter(editor: Editor): boolean {
       const tr = state.tr;
       const cleanAttrs = createCleanBlockAttrs(node, 0);
 
-      console.log('[SET NODE MARKUP DEBUG] CONVERT TO PARAGRAPH', {
-        targetType: node.type.name,
-        convertingTo: 'paragraph',
-        currentIndent: indent,
-        attrsBefore: node.attrs,
-        attrsAfter: cleanAttrs,
-        hasCollapsedBefore: 'collapsed' in node.attrs,
-        hasCollapsedAfter: 'collapsed' in cleanAttrs,
-      });
-
       tr.setNodeMarkup(
         $from.before(),
         state.schema.nodes.paragraph,
@@ -365,22 +324,6 @@ export function handleEnter(editor: Editor): boolean {
   const isListBlock = nodeType === 'listBlock';
   const isToggle = isListBlock && node.attrs.listType === 'toggle';
   const inMiddle = !atStart && !atEnd;
-
-  // 🔍 DEBUG: Now this will actually trigger for toggles!
-  if (isToggle) {
-    console.log('[TOGGLE ENTER DEBUG]', {
-      nodeType,
-      listType: node.attrs.listType,
-      parentOffset: $from.parentOffset,
-      contentSize: node.content.size,
-      textContent: node.textContent,
-      atStart,
-      atEnd,
-      inMiddle,
-      textOffset: $from.textOffset,
-      '✅ Toggle detected': 'Fix applied!',
-    });
-  }
 
   if (isToggle && inMiddle) {
     const tr = state.tr;
@@ -447,13 +390,6 @@ export function handleEnter(editor: Editor): boolean {
   // ─────────────────────────────────────────────
   // 1️⃣1️⃣ MIDDLE OF BLOCK → SPLIT (generic fallback)
   // ─────────────────────────────────────────────
-  console.log('[UPDATE ATTRIBUTES DEBUG] SPLIT BLOCK', {
-    targetType: node.type.name,
-    currentAttrs: node.attrs,
-    updateWith: { indent },
-    atMiddle: !atStart && !atEnd,
-  });
-
   editor
     .chain()
     .splitBlock()
