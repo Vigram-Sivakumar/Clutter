@@ -13,6 +13,7 @@
  */
 
 import type { Editor } from '@tiptap/core';
+import { NodeSelection, TextSelection } from 'prosemirror-state';
 
 const MAX_INDENT = 8;
 
@@ -52,11 +53,29 @@ const MAX_INDENT = 8;
  */
 export function handleTab(editor: Editor, isShift: boolean = false): boolean {
   const { state, view } = editor;
-  const { $from } = state.selection;
+  const selection = state.selection;
 
-  // Get the parent block node
-  const node = $from.parent;
-  if (!node || !node.attrs) return false;
+  let blockPos: number;
+  let node: any;
+
+  // ✅ CASE 1: Block / ruler selected
+  if (selection instanceof NodeSelection) {
+    blockPos = selection.$from.before();
+    node = selection.node;
+  }
+
+  // ✅ CASE 2: Cursor inside text (existing behavior)
+  else if (selection instanceof TextSelection) {
+    blockPos = selection.$from.before();
+    node = selection.$from.parent;
+  }
+
+  // ❌ Anything else → ignore
+  else {
+    return false;
+  }
+
+  if (!node || !node.attrs?.blockId) return false;
 
   const doc = state.doc;
   const tr = state.tr;
@@ -75,7 +94,7 @@ export function handleTab(editor: Editor, isShift: boolean = false): boolean {
   });
 
   // Find the selected block index
-  const selectedIndex = blocks.findIndex((b) => b.pos === $from.before());
+  const selectedIndex = blocks.findIndex((b) => b.pos === blockPos);
 
   if (selectedIndex === -1) return false;
 
