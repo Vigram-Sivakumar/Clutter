@@ -1746,6 +1746,7 @@ body.cm-pdf-resizing-nesw * {
 .cm-image-container--broken .cm-image-controls {
   top: var(--space-4);
   right: var(--space-4);
+  color: var(--foreground-secondary);
 }
 
 .cm-editor .cm-image-broken {

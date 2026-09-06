@@ -190,7 +190,7 @@ function getPdfEmbed(view: EditorView): HTMLElement | null {
   return view.dom.querySelector('.cm-pdf-embed');
 }
 
-/** The working-state Edit source control is one of the floating controls (`.cm-pdf-controls`/`.cm-pdf-control` — the exact same floating-control system `ImageWidget.ts`'s own controls use), distinct from the broken-card's `.cm-pdf-control` variant only in which container it sits inside. */
+/** The working-state Edit source control is one of the floating `.cm-pdf-controls`/`.cm-pdf-control` controls; the broken card's own Edit source uses the shared `.cm-image-controls`/`.cm-image-control` component instead (`brokenMediaCard.ts`) — this selector matches either. */
 function getEditButton(view: EditorView): HTMLButtonElement {
   const button = view.dom.querySelector<HTMLButtonElement>(
     '.cm-pdf-embed button[aria-label="Edit source"], .cm-pdf-embed button[aria-label="Hide source"]'
@@ -284,8 +284,12 @@ describe('embedLivePreview — PDF embeds, rendering (at rest)', () => {
     expect(iconSvg?.outerHTML).toContain('M2 13.3571H3.11111');
 
     // Still exactly the shared invalid-media card shape — Delete + Edit
-    // source only, no working-state controls.
-    const controls = broken?.querySelector('.cm-pdf-controls');
+    // source only, no working-state controls. Uses the shared
+    // `.cm-image-controls`/`.cm-image-control` component (`brokenMediaCard.ts`)
+    // — never `.cm-pdf-controls`, whose buttons only ever reveal via the
+    // working-state hover mechanism `renderBroken` never wires up.
+    expect(broken?.querySelector('.cm-pdf-controls')).toBeNull();
+    const controls = broken?.querySelector('.cm-image-controls');
     expect(controls?.querySelectorAll('button').length).toBe(2);
     expect(controls?.querySelector('button[aria-label="Delete embed"]')).not.toBeNull();
     expect(
@@ -360,7 +364,11 @@ describe('embedLivePreview — PDF embeds, rendering (at rest)', () => {
       expect(broken?.querySelector('.cm-image-broken__text .cm-image-broken__hint')?.textContent).toBe(
         'document.pdf'
       );
-      const controls = broken?.querySelector('.cm-pdf-controls');
+      // The shared `.cm-image-controls` component (`brokenMediaCard.ts`)
+      // — never `.cm-pdf-controls`, whose buttons only ever reveal via
+      // the working-state hover mechanism `renderBroken` never wires up.
+      expect(broken?.querySelector('.cm-pdf-controls')).toBeNull();
+      const controls = broken?.querySelector('.cm-image-controls');
       expect(controls?.querySelectorAll('button').length).toBe(2);
       expect(controls?.querySelector('button[aria-label="Delete embed"]')).not.toBeNull();
       expect(

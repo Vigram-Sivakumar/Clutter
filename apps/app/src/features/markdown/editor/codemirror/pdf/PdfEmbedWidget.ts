@@ -22,7 +22,7 @@ import { computeFitScale } from '@features/pdf/pdfZoom';
 
 import { computeImageDeletionRange } from '../image/imageDeletion';
 import { setImageUiState, type ImageUiState } from '../image/imageUiState';
-import { renderInvalidMediaCard } from '../image/brokenMediaCard';
+import { EDIT_ICON, renderInvalidMediaCard } from '../image/brokenMediaCard';
 import type { PdfDocumentCache } from './pdfDocumentCache';
 import { applyMediaAlignment, applyMediaWidth, disconnectMediaWidthObserver, type ResizeObserverHolder } from '../mediaPresentation/mediaLayoutStyle';
 import type { PdfPresentation } from '../mediaPresentation/mediaPresentationModel';
@@ -32,7 +32,7 @@ import './PdfEmbedWidget.css';
 
 // Hand-copied inline SVGs, same raw-DOM-widget convention ImageWidget.ts
 // already establishes (no React tree is available inside a CM6 WidgetType,
-// so the app's real AppIcon component system can't mount here). EDIT_ICON/
+// so the app's real AppIcon component system can't mount here).
 // MORE_ICON/EXPAND_ICON/ARROW_LEFT_ICON/ARROW_RIGHT_ICON are the exact
 // same paths ImageWidget.ts/iconRegistry.ts already use (`more-horizontal.
 // svg`/`expand-diagonal.svg`, the same glyph `iconRegistry.ts` registers
@@ -41,13 +41,9 @@ import './PdfEmbedWidget.css';
 // own `pdf` entry (`shared/icon/svg/pdf.svg`) — deliberately not
 // `broken-image.svg` (ImageWidget.ts's own `BROKEN_IMAGE_ICON`): a failed
 // PDF embed is still a PDF, not an image, so its broken-state icon stays
-// a PDF glyph rather than borrowing the image family's. The Delete icon
-// itself now lives in `../image/brokenMediaCard.ts`, shared with
-// `ImageWidget.ts`'s own broken-state Delete button — deleting is never
-// media-specific.
-
-const EDIT_ICON =
-  '<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8.625 4L3.64738 9.30947C3.22603 9.7589 2.95326 10.3272 2.86614 10.937L2.64142 12.5101C2.57071 13.005 2.99497 13.4293 3.48995 13.3586L4.95655 13.1491C5.63195 13.0526 6.25428 12.7288 6.7209 12.231L11.625 7M8.625 4L9.79364 2.75345C10.18 2.34132 10.831 2.33098 11.2304 2.73044C11.7865 3.28654 12.2541 3.75413 12.8152 4.31518C13.1968 4.69683 13.2069 5.31263 12.8378 5.70638L11.625 7M8.625 4L11.625 7" stroke="currentColor" stroke-linecap="round"/><path d="M8 13.5H13.5" stroke="currentColor" stroke-linecap="round"/></svg>';
+// a PDF glyph rather than borrowing the image family's. The Delete/Edit
+// icons themselves now live in `../image/brokenMediaCard.ts`, shared with
+// `ImageWidget.ts`'s own equivalents — neither is media-specific.
 
 // Same glyph `iconRegistry.ts` registers as `moreHorizontal` — hand-copied
 // verbatim (no React tree available here) for the More actions control.
@@ -256,22 +252,27 @@ export class PdfEmbedWidget extends WidgetType {
 
   private renderBroken(container: HTMLElement, view: EditorView): HTMLElement {
     // Reuses ImageWidget's own broken-card shape via the shared
-    // `renderInvalidMediaCard` builder (`brokenMediaCard.ts`) — no new
-    // broken-state styling for this widget; only the icon, delete label,
+    // `renderInvalidMediaCard` component (`brokenMediaCard.ts`) — no PDF
+    // controls, no pagination, no PDF shell: only the icon, delete label,
     // and hint text are PDF-specific.
-    container.classList.add('cm-image-container--broken');
-
     renderInvalidMediaCard(container, {
-      controlsClassName: 'cm-pdf-controls',
-      makeButton: (iconHtml, label, onActivate) => this.makeButton(iconHtml, label, onActivate),
+      icon: BROKEN_PDF_ICON,
+      source: this.path,
       deleteLabel: 'Delete embed',
       onDelete: () => {
         const { from, to } = computeImageDeletionRange(view.state, this.pos);
         view.dispatch({ changes: { from, to, insert: '' } });
       },
-      editButton: this.makeEditButton(view),
-      brokenIconHtml: BROKEN_PDF_ICON,
-      hintText: this.path,
+      editLabel: this.ui.revealed ? 'Hide source' : 'Edit source',
+      onEdit: () => {
+        const revealing = !this.ui.revealed;
+        const to = this.to;
+        view.dispatch({
+          effects: setImageUiState.of({ pos: this.pos, to, state: { ...this.ui, revealed: revealing } }),
+          selection: revealing ? EditorSelection.cursor(to) : undefined,
+          scrollIntoView: revealing,
+        });
+      },
     });
 
     return container;
@@ -552,7 +553,7 @@ export class PdfEmbedWidget extends WidgetType {
     (dom as HTMLElement & { [PDF_EMBED_DESTROY]?: () => void })[PDF_EMBED_DESTROY]?.();
   }
 
-  /** Shared dispatch behind every Edit/Hide source control — same reveal-toggle contract `ImageWidget.makeEditButton` establishes. `to` is read live (see `makeEditButton`'s own `getTo` parameter) rather than `this.to` directly — see `ImageWidget.ts`'s `makeEditButton` doc comment for why. */
+  /** Shared dispatch behind the working-state Edit/Hide source control — same reveal-toggle contract `ImageWidget.ts`'s own Edit source establishes (the broken card builds this itself, inline, via `brokenMediaCard.ts`'s plain `onEdit` callback — see `renderBroken`'s own call site). */
   private toggleRevealed(view: EditorView, getTo: () => number): void {
     const revealing = !this.ui.revealed;
     const to = getTo();
@@ -568,15 +569,13 @@ export class PdfEmbedWidget extends WidgetType {
   }
 
   /**
-   * Shared by both the broken card's controls and the working state's
-   * floating controls — see the class doc comment for why Edit source
-   * must behave identically in both. `getTo` (default `() => this.to`)
-   * mirrors `ImageWidget.ts`'s own `makeEditButton` parameter — the
-   * broken card never goes through `updateDOM` (always a full rebuild),
-   * so it keeps the simple default; `renderWorking` passes its own live
-   * `container.dataset.nodeTo` reader instead.
+   * The working-state floating Edit source control — `renderWorking`'s
+   * own live `container.dataset.nodeTo` reader is always passed as
+   * `getTo`, since the node's own `to` can shift under a presentation-
+   * only `updateDOM` patch (see `ImageWidget.ts`'s equivalent doc comment
+   * for the full account of why a captured `this.to` isn't safe there).
    */
-  private makeEditButton(view: EditorView, getTo: () => number = () => this.to): HTMLButtonElement {
+  private makeEditButton(view: EditorView, getTo: () => number): HTMLButtonElement {
     return this.makeButton(EDIT_ICON, this.ui.revealed ? 'Hide source' : 'Edit source', () =>
       this.toggleRevealed(view, getTo)
     );

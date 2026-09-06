@@ -2,7 +2,7 @@ import { EditorSelection, type EditorState } from '@codemirror/state';
 import { WidgetType, type EditorView } from '@codemirror/view';
 
 import { computeImageDeletionRange } from './imageDeletion';
-import { renderInvalidMediaCard } from './brokenMediaCard';
+import { EDIT_ICON, renderInvalidMediaCard } from './brokenMediaCard';
 import {
   findEnclosingImageNode,
   getImageUiState,
@@ -40,12 +40,11 @@ import { attachImageResizeHandle } from './imageResizeHandle';
 // same path as `shared/icon/svg/broken-image.svg` (this project's own
 // existing dedicated icon for exactly this state, not borrowed from an
 // unrelated construct the way the earlier link-icon placeholder was),
-// hand-copied for the same raw-DOM reason. TRASH_ICON now lives in
-// `brokenMediaCard.ts` — shared with `PdfEmbedWidget.ts`'s own Delete
-// button, since deleting is never media-specific.
-
-const EDIT_ICON =
-  '<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8.625 4L3.64738 9.30947C3.22603 9.7589 2.95326 10.3272 2.86614 10.937L2.64142 12.5101C2.57071 13.005 2.99497 13.4293 3.48995 13.3586L4.95655 13.1491C5.63195 13.0526 6.25428 12.7288 6.7209 12.231L11.625 7M8.625 4L9.79364 2.75345C10.18 2.34132 10.831 2.33098 11.2304 2.73044C11.7865 3.28654 12.2541 3.75413 12.8152 4.31518C13.1968 4.69683 13.2069 5.31263 12.8378 5.70638L11.625 7M8.625 4L11.625 7" stroke="currentColor" stroke-linecap="round"/><path d="M8 13.5H13.5" stroke="currentColor" stroke-linecap="round"/></svg>';
+// hand-copied for the same raw-DOM reason. TRASH_ICON/EDIT_ICON now live
+// in `brokenMediaCard.ts` — TRASH_ICON shared with `PdfEmbedWidget.ts`'s
+// own Delete button (deleting is never media-specific); EDIT_ICON shared
+// with this file's own working-state Edit source button (`makeEditButton`,
+// below) and `PdfEmbedWidget.ts`'s equivalent — same glyph either way.
 
 const SIZE_ICON =
   '<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="3.5" cy="8" r="1.25" fill="currentColor"/><circle cx="8" cy="8" r="1.25" fill="currentColor"/><circle cx="12.5" cy="8" r="1.25" fill="currentColor"/></svg>';
@@ -148,16 +147,19 @@ export function currentImageSource(state: EditorState, pos: number): CurrentImag
  * widget class here, not two.
  *
  * **Edit source (2026-09-02 UX baseline, items 3–4)**: revealing the
- * source (`makeEditButton` below) also places a plain caret — never a
- * range selection — at the Image node's own `to` (the end of its raw
- * Markdown), via the same `dispatch` call that flips `revealed` on, so the
- * two never visibly happen out of order. Auto-hide when the caret later
- * leaves the image's own line is `imageUiStateField.update`'s own
- * responsibility (`imageUiState.ts`), not this widget's — this file only
- * ever turns `revealed` on/off in direct response to the edit button's own
- * click. Identical in both the working and broken states — `makeEditButton`
- * is one shared method precisely so this never needs a second
- * implementation.
+ * source also places a plain caret — never a range selection — at the
+ * Image node's own `to` (the end of its raw Markdown), via the same
+ * `dispatch` call that flips `revealed` on, so the two never visibly
+ * happen out of order. Auto-hide when the caret later leaves the image's
+ * own line is `imageUiStateField.update`'s own responsibility
+ * (`imageUiState.ts`), not this widget's — this file only ever turns
+ * `revealed` on/off in direct response to the edit button's own click.
+ * The working state's own floating control is `makeEditButton` (below);
+ * the broken card builds the same toggle inline via `brokenMediaCard.ts`'s
+ * plain `onEdit` callback (`renderBroken`'s own call site) — two small,
+ * identical dispatch bodies rather than one shared private method, since
+ * the shared card component takes plain callbacks, not this widget's own
+ * button-building internals.
  *
  * **Broken/invalid image (2026-09-02 UX baseline, "Broken / Invalid Image
  * UX")**: `toDOM` renders one of two entirely different subtrees depending
@@ -777,24 +779,30 @@ export class ImageWidget extends WidgetType {
   }
 
   private renderBroken(container: HTMLElement, view: EditorView): HTMLElement {
-    container.classList.add('cm-image-container--broken');
-
     // No size button here at all — this UX's explicit requirement is that
     // a broken image never offers Large/Fill/Fit/Copy link/Set as cover
     // image/etc., not merely that those items are hidden/disabled once a
     // menu is somehow open. See `brokenMediaCard.ts`'s own doc comment for
-    // the shared shape this and `PdfEmbedWidget.renderBroken` both use.
+    // the shared shape/controls this and `PdfEmbedWidget.renderBroken`
+    // both use.
     renderInvalidMediaCard(container, {
-      controlsClassName: 'cm-image-controls',
-      makeButton: (iconHtml, label, onActivate) => this.makeButton(iconHtml, label, onActivate),
+      icon: BROKEN_IMAGE_ICON,
+      source: this.copyUrl ?? this.url,
       deleteLabel: 'Delete image',
       onDelete: () => {
         const { from, to } = computeImageDeletionRange(view.state, this.pos);
         view.dispatch({ changes: { from, to, insert: '' } });
       },
-      editButton: this.makeEditButton(view),
-      brokenIconHtml: BROKEN_IMAGE_ICON,
-      hintText: this.copyUrl ?? this.url,
+      editLabel: this.ui.revealed ? 'Hide source' : 'Edit source',
+      onEdit: () => {
+        const revealing = !this.ui.revealed;
+        const to = this.to;
+        view.dispatch({
+          effects: setImageUiState.of({ pos: this.pos, to, state: { ...this.ui, revealed: revealing } }),
+          selection: revealing ? EditorSelection.cursor(to) : undefined,
+          scrollIntoView: revealing,
+        });
+      },
     });
 
     this.probeForRecovery(view);
@@ -857,25 +865,21 @@ export class ImageWidget extends WidgetType {
   }
 
   /**
-   * Shared by both `renderWorking`/`renderBroken` — see the class doc
-   * comment for why Edit source must behave identically in both states,
-   * which this single implementation is what actually guarantees rather
-   * than merely documents.
+   * The working-state floating Edit source control (the broken card
+   * builds its own inline, via `brokenMediaCard.ts`'s plain `onEdit`
+   * callback — see `renderBroken`'s own call site).
    *
-   * `getTo` (default `() => this.to`) exists for `updateDOM`'s own sake:
-   * `renderWorking` passes a live reader off the container's own
-   * `data-node-to` attribute instead, since the button element itself
-   * (and its closure, permanently bound to whichever widget instance
-   * created it) survives a presentation-only `updateDOM` patch — the
-   * *node's* own `to` genuinely shifts whenever the pipe segment's own
-   * text length changes (`{6}` vs `{620}` vs no segment at all are
-   * different lengths), so a closure that captured `this.to` once at
-   * construction time would silently dispatch against a stale position
-   * after such a patch. `renderBroken` never goes through `updateDOM`
-   * (broken transitions always get a full rebuild — see that method's
-   * own doc comment), so it keeps the simpler default unchanged.
+   * `getTo` is always `renderWorking`'s own live reader off the
+   * container's own `data-node-to` attribute, never a captured `this.to`
+   * — the button element itself (and its closure, permanently bound to
+   * whichever widget instance created it) survives a presentation-only
+   * `updateDOM` patch, but the *node's* own `to` genuinely shifts
+   * whenever the pipe segment's own text length changes (`{6}` vs `{620}`
+   * vs no segment at all are different lengths), so a closure that
+   * captured `this.to` once at construction time would silently dispatch
+   * against a stale position after such a patch.
    */
-  private makeEditButton(view: EditorView, getTo: () => number = () => this.to): HTMLButtonElement {
+  private makeEditButton(view: EditorView, getTo: () => number): HTMLButtonElement {
     return this.makeButton(
       EDIT_ICON,
       this.ui.revealed ? 'Hide source' : 'Edit source',
