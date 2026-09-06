@@ -66,7 +66,7 @@ describe('getImagePresentation / getPdfPresentation — native Image', () => {
 
   it('resolves a fully-specified pipe segment', () => {
     const state = stateFor('![Photo|620,center,fit](photo.jpg)');
-    expect(getImagePresentation(state, nodeTo(state, 'Image'))).toEqual({ width: 620, alignment: 'center', mode: 'fit' });
+    expect(getImagePresentation(state, nodeTo(state, 'Image'))).toEqual({ width: 620, height: null, alignment: 'center', mode: 'fit' });
   });
 
   it('arbitrary token order resolves identically', () => {
@@ -77,17 +77,22 @@ describe('getImagePresentation / getPdfPresentation — native Image', () => {
 
   it('unknown tokens are ignored', () => {
     const state = stateFor('![Photo|620,center,banana,fit](photo.jpg)');
-    expect(getImagePresentation(state, nodeTo(state, 'Image'))).toEqual({ width: 620, alignment: 'center', mode: 'fit' });
+    expect(getImagePresentation(state, nodeTo(state, 'Image'))).toEqual({ width: 620, height: null, alignment: 'center', mode: 'fit' });
   });
 
-  it('duplicate recognized values: last one wins', () => {
+  it('duplicate recognized alignment/mode values: last one wins; the two numeric tokens are positional (width, then height), not "last wins"', () => {
     const state = stateFor('![Photo|620,400,center,right,fit,fill](photo.jpg)');
-    expect(getImagePresentation(state, nodeTo(state, 'Image'))).toEqual({ width: 400, alignment: 'right', mode: 'fill' });
+    expect(getImagePresentation(state, nodeTo(state, 'Image'))).toEqual({
+      width: 620,
+      height: 400,
+      alignment: 'right',
+      mode: 'fill',
+    });
   });
 
   it('an unrecognized "large" token is ignored — Large was removed as a mode', () => {
     const state = stateFor('![Photo|6,large](photo.jpg)');
-    expect(getImagePresentation(state, nodeTo(state, 'Image'))).toEqual({ width: 6, alignment: 'left', mode: 'fill' });
+    expect(getImagePresentation(state, nodeTo(state, 'Image'))).toEqual({ width: 6, height: null, alignment: 'left', mode: 'fill' });
   });
 
   it.each([
@@ -112,7 +117,7 @@ describe('getImagePresentation — Embed (local asset image), width + mode order
 
   it('320,fit resolves to width 320px + Fit mode for an asset embed', () => {
     const state = stateFor('![[image.png|fit,320]]');
-    expect(getImagePresentation(state, nodeTo(state, 'Embed'))).toEqual({ width: 320, alignment: 'left', mode: 'fit' });
+    expect(getImagePresentation(state, nodeTo(state, 'Embed'))).toEqual({ width: 320, height: null, alignment: 'left', mode: 'fit' });
   });
 });
 
@@ -137,7 +142,7 @@ describe('computeImagePresentationUpdate — preserves alt/url/title/surrounding
   it('inserts a pipe segment, preserving alt text and URL', () => {
     const state = stateFor('![Photo](photo.jpg)');
     const to = nodeTo(state, 'Image');
-    const change = computeImagePresentationUpdate(state, to, { width: 6, alignment: 'left', mode: 'fill' });
+    const change = computeImagePresentationUpdate(state, to, { width: 6, height: null, alignment: 'left', mode: 'fill' });
     const next = state.update({ changes: change }).state;
     expect(next.doc.toString()).toBe('![Photo|6](photo.jpg)');
   });
@@ -162,7 +167,7 @@ describe('computeImagePresentationUpdate — preserves alt/url/title/surrounding
   it('preserves a Markdown image title', () => {
     const state = stateFor('![Photo](photo.jpg "A title")');
     const to = nodeTo(state, 'Image');
-    const change = computeImagePresentationUpdate(state, to, { width: 9, alignment: 'left', mode: 'fill' });
+    const change = computeImagePresentationUpdate(state, to, { width: 9, height: null, alignment: 'left', mode: 'fill' });
     const next = state.update({ changes: change }).state;
     expect(next.doc.toString()).toBe('![Photo|9](photo.jpg "A title")');
   });
@@ -170,7 +175,7 @@ describe('computeImagePresentationUpdate — preserves alt/url/title/surrounding
   it('preserves surrounding document content before and after the image', () => {
     const state = stateFor('Before text.\n\n![Photo](photo.jpg)\n\nAfter text.');
     const to = nodeTo(state, 'Image');
-    const change = computeImagePresentationUpdate(state, to, { width: 6, alignment: 'center', mode: 'fill' });
+    const change = computeImagePresentationUpdate(state, to, { width: 6, height: null, alignment: 'center', mode: 'fill' });
     const next = state.update({ changes: change }).state;
     expect(next.doc.toString()).toBe('Before text.\n\n![Photo|6,center](photo.jpg)\n\nAfter text.');
   });
@@ -191,7 +196,7 @@ describe('computeImagePresentationUpdate — Embed (local asset image, e.g. ![[i
   it('inserts a pipe segment, preserving the path', () => {
     const state = stateFor('![[image.png]]');
     const to = nodeTo(state, 'Embed');
-    const change = computeImagePresentationUpdate(state, to, { width: 6, alignment: 'left', mode: 'fill' });
+    const change = computeImagePresentationUpdate(state, to, { width: 6, height: null, alignment: 'left', mode: 'fill' });
     const next = state.update({ changes: change }).state;
     expect(next.doc.toString()).toBe('![[image.png|6]]');
   });
@@ -208,7 +213,7 @@ describe('computeImagePresentationUpdate — Embed (local asset image, e.g. ![[i
   it('overwrites an existing real alias with metadata (documented tradeoff — one pipe slot, same as a PDF embed)', () => {
     const state = stateFor('![[image.png|My Photo]]');
     const to = nodeTo(state, 'Embed');
-    const change = computeImagePresentationUpdate(state, to, { width: 6, alignment: 'left', mode: 'fill' });
+    const change = computeImagePresentationUpdate(state, to, { width: 6, height: null, alignment: 'left', mode: 'fill' });
     const next = state.update({ changes: change }).state;
     expect(next.doc.toString()).toBe('![[image.png|6]]');
   });
@@ -224,7 +229,7 @@ describe('computeImagePresentationUpdate — Embed (local asset image, e.g. ![[i
   it('preserves surrounding document content before and after the embed', () => {
     const state = stateFor('Before text.\n\n![[image.png]]\n\nAfter text.');
     const to = nodeTo(state, 'Embed');
-    const change = computeImagePresentationUpdate(state, to, { width: 6, alignment: 'center', mode: 'fill' });
+    const change = computeImagePresentationUpdate(state, to, { width: 6, height: null, alignment: 'center', mode: 'fill' });
     const next = state.update({ changes: change }).state;
     expect(next.doc.toString()).toBe('Before text.\n\n![[image.png|6,center]]\n\nAfter text.');
   });
@@ -342,45 +347,115 @@ describe('Fill ↔ Fit persistence parity between a native Image and an image-as
   it('URL image: existing width/alignment survive a full Fill → Fit → Fill round trip', () => {
     let state = stateFor('![Photo|6,center](https://example.com/a.jpg)');
     let to = nodeTo(state, 'Image');
-    expect(getImagePresentation(state, to)).toEqual({ width: 6, alignment: 'center', mode: 'fill' });
+    expect(getImagePresentation(state, to)).toEqual({ width: 6, height: null, alignment: 'center', mode: 'fill' });
 
     state = state.update({
       changes: computeImagePresentationUpdate(state, to, { ...getImagePresentation(state, to), mode: 'fit' }),
     }).state;
     to = nodeTo(state, 'Image');
     expect(state.doc.toString()).toBe('![Photo|6,center,fit](https://example.com/a.jpg)');
-    expect(getImagePresentation(state, to)).toEqual({ width: 6, alignment: 'center', mode: 'fit' });
+    expect(getImagePresentation(state, to)).toEqual({ width: 6, height: null, alignment: 'center', mode: 'fit' });
 
     state = state.update({
       changes: computeImagePresentationUpdate(state, to, { ...getImagePresentation(state, to), mode: 'fill' }),
     }).state;
     to = nodeTo(state, 'Image');
     expect(state.doc.toString()).toBe('![Photo|6,center](https://example.com/a.jpg)');
-    expect(getImagePresentation(state, to)).toEqual({ width: 6, alignment: 'center', mode: 'fill' });
+    expect(getImagePresentation(state, to)).toEqual({ width: 6, height: null, alignment: 'center', mode: 'fill' });
   });
 
   it('asset embed: existing width/alignment survive a full Fill → Fit → Fill round trip', () => {
     let state = stateFor('![[image.png|6,center]]');
     let to = nodeTo(state, 'Embed');
-    expect(getImagePresentation(state, to)).toEqual({ width: 6, alignment: 'center', mode: 'fill' });
+    expect(getImagePresentation(state, to)).toEqual({ width: 6, height: null, alignment: 'center', mode: 'fill' });
 
     state = state.update({
       changes: computeImagePresentationUpdate(state, to, { ...getImagePresentation(state, to), mode: 'fit' }),
     }).state;
     to = nodeTo(state, 'Embed');
     expect(state.doc.toString()).toBe('![[image.png|6,center,fit]]');
-    expect(getImagePresentation(state, to)).toEqual({ width: 6, alignment: 'center', mode: 'fit' });
+    expect(getImagePresentation(state, to)).toEqual({ width: 6, height: null, alignment: 'center', mode: 'fit' });
 
     state = state.update({
       changes: computeImagePresentationUpdate(state, to, { ...getImagePresentation(state, to), mode: 'fill' }),
     }).state;
     to = nodeTo(state, 'Embed');
     expect(state.doc.toString()).toBe('![[image.png|6,center]]');
-    expect(getImagePresentation(state, to)).toEqual({ width: 6, alignment: 'center', mode: 'fill' });
+    expect(getImagePresentation(state, to)).toEqual({ width: 6, height: null, alignment: 'center', mode: 'fill' });
   });
 
   it('WikiLink alias semantics are unaffected: a real alias round-trips through resolveEmbedAliasFields exactly as before this fix', () => {
     expect(resolveEmbedAliasFields('My Photo')).toEqual({ displayAlias: 'My Photo', tokens: [] });
+  });
+});
+
+describe('resize commit (height, resize milestone) — computeImagePresentationUpdate', () => {
+  it('Fill resize: persists width + height together', () => {
+    const state = stateFor('![Photo](photo.jpg)');
+    const to = nodeTo(state, 'Image');
+    const current = getImagePresentation(state, to);
+    const change = computeImagePresentationUpdate(state, to, { ...current, width: 320, height: 500 });
+    const next = state.update({ changes: change }).state;
+    expect(next.doc.toString()).toBe('![Photo|320,500](photo.jpg)');
+    expect(getImagePresentation(next, nodeTo(next, 'Image'))).toEqual({
+      width: 320,
+      height: 500,
+      alignment: 'left',
+      mode: 'fill',
+    });
+  });
+
+  it('Fit resize: persists width only, never writing a height', () => {
+    const state = stateFor('![Photo|fit](photo.jpg)');
+    const to = nodeTo(state, 'Image');
+    const current = getImagePresentation(state, to);
+    expect(current.height).toBeNull();
+    const change = computeImagePresentationUpdate(state, to, { ...current, width: 320 });
+    const next = state.update({ changes: change }).state;
+    expect(next.doc.toString()).toBe('![Photo|320,fit](photo.jpg)');
+    expect(getImagePresentation(next, nodeTo(next, 'Image')).height).toBeNull();
+  });
+
+  it('Fit width-only resize preserves an existing dormant height untouched', () => {
+    const state = stateFor('![Photo|320,500,fit](photo.jpg)');
+    const to = nodeTo(state, 'Image');
+    const current = getImagePresentation(state, to);
+    expect(current).toEqual({ width: 320, height: 500, alignment: 'left', mode: 'fit' });
+
+    const change = computeImagePresentationUpdate(state, to, { ...current, width: 400 });
+    const next = state.update({ changes: change }).state;
+    expect(next.doc.toString()).toBe('![Photo|400,500,fit](photo.jpg)');
+    expect(getImagePresentation(next, nodeTo(next, 'Image'))).toEqual({
+      width: 400,
+      height: 500,
+      alignment: 'left',
+      mode: 'fit',
+    });
+  });
+
+  it('switching Fit → Fill activates a dormant height persisted by an earlier Fit resize', () => {
+    const state = stateFor('![Photo|320,500,fit](photo.jpg)');
+    const to = nodeTo(state, 'Image');
+    const current = getImagePresentation(state, to);
+
+    const change = computeImagePresentationUpdate(state, to, { ...current, mode: 'fill' });
+    const next = state.update({ changes: change }).state;
+    expect(next.doc.toString()).toBe('![Photo|320,500](photo.jpg)');
+    expect(getImagePresentation(next, nodeTo(next, 'Image'))).toEqual({
+      width: 320,
+      height: 500,
+      alignment: 'left',
+      mode: 'fill',
+    });
+  });
+
+  it('a local asset embed resizes exactly like a native Image (Fill width + height)', () => {
+    const state = stateFor('![[image.png]]');
+    const to = nodeTo(state, 'Embed');
+    const current = getImagePresentation(state, to);
+    const change = computeImagePresentationUpdate(state, to, { ...current, width: 320, height: 500 });
+    const next = state.update({ changes: change }).state;
+    expect(next.doc.toString()).toBe('![[image.png|320,500]]');
   });
 });
 
@@ -392,7 +467,7 @@ describe('undo/redo of a presentation-metadata transaction', () => {
     const view = new EditorView({ state: stateFor(doc), parent });
 
     const to = nodeTo(view.state, 'Image');
-    const change = computeImagePresentationUpdate(view.state, to, { width: 620, alignment: 'right', mode: 'fit' });
+    const change = computeImagePresentationUpdate(view.state, to, { width: 620, height: null, alignment: 'right', mode: 'fit' });
     view.dispatch({ changes: change });
     expect(view.state.doc.toString()).toBe('![Photo|620,right,fit](photo.jpg)');
 

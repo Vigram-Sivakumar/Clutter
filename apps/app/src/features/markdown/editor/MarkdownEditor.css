@@ -1305,7 +1305,6 @@ put it there. */
   edges instead of being cropped. */
   overflow: hidden;
   /* Do not use transition for height and width because it causes resizing issues and the element doesn't follow the cursor */
-  resize: both;
 }
 
 /* No `height`/`overflow` here, unlike `--fill` above — Fit never crops.
@@ -1318,7 +1317,101 @@ put it there. */
   width: calc(100% - 1px);
   overflow: hidden;
   /* Do not use transition for height and width because it causes resizing issues and the element doesn't follow the cursor */
-  resize: horizontal;
+}
+
+/* Custom resize handle (replaces the browser's native `resize: both`/
+   `resize: horizontal`, previously declared on `--fill`/`--fit` above) —
+   the native mechanism has no reliable "resize finished" event to persist
+   against, so this milestone uses an explicit element instead
+   (`imageResizeHandle.ts` owns the pointer-drag mechanics; this file owns
+   only its geometry/visibility; `mediaPresentationUpdate.ts`'s existing
+   presentation-write path owns persistence on pointerup — no new write
+   path). Both handle variants share `.cm-image-resize-handle`'s own base
+   rule; which one is visible is driven entirely by the existing
+   `.cm-image-container--fill`/`--fit` modifier classes (already toggled
+   by `ImageWidget.ts`/`updateDOM`), not by any new JS branching — a
+   Fill/Fit mode switch swaps the visible handle for free. Hover/
+   focus-within reveal mirrors `.cm-image-controls`'s own existing
+   convention exactly (opacity 0 at rest, 1 on hover/focus-within), so
+   both controls appear/disappear together. */
+.cm-editor .cm-image-resize-handle {
+  position: absolute;
+  opacity: 0;
+  transition: opacity 150ms ease;
+  touch-action: none;
+  display: none;
+}
+
+.cm-editor .cm-image-container:hover .cm-image-resize-handle,
+.cm-editor .cm-image-container:focus-within .cm-image-resize-handle {
+  opacity: 1;
+}
+
+/* Both bottom corners, same visual affordance in both Fill and Fit
+   (2026-09, UX correction — supersedes an earlier revision that used a
+   full-height edge strip for Fit and a single bottom-right corner for
+   Fill only). Only the *behavior* differs by mode (Fit: width-only,
+   dragging from whichever corner; Fill: width+height, mirrored
+   horizontally by corner) — `imageResizeHandle.ts` reads the active mode
+   live at drag-start and decides that; this file's job is purely the two
+   handles' shared geometry/shape, kept mode-agnostic on purpose so a
+   Fill/Fit switch never has to swap which elements exist or are visible.
+   Shape mirrors Obsidian's own `.image-resize-corner` affordance
+   (Clutter's own naming/architecture, not its implementation): a small
+   bracket along the bottom edge plus the near side edge, rounded at the
+   outer corner. */
+.cm-editor .cm-image-resize-handle--corner-right {
+  right: var(--space-2);
+  bottom: var(--space-2);
+  width: 12px;
+  height: 12px;
+  border-inline-end: 2px solid #ffffff;
+  border-block-end: 2px solid #ffffff;
+  border-end-end-radius: var(--radius-sm);
+  display: block;
+}
+.cm-editor .cm-image-resize-handle--corner-left {
+  left: var(--space-2);
+  bottom: var(--space-2);
+  width: 12px;
+  height: 12px;
+  border-inline-start: 2px solid #ffffff;
+  border-block-end: 2px solid #ffffff;
+  border-end-start-radius: var(--radius-sm);
+  display: block;
+}
+
+/* Cursor is purely a function of which corner, never of Fill vs. Fit —
+   deliberately never `ew-resize`, even though Fit only ever changes
+   width: the handle is visually a corner in both modes, so it keeps a
+   corner-direction cursor regardless of which fields the drag actually
+   persists (`imageResizeHandle.ts`'s own doc comment has the full
+   rationale). Right mirrors bottom-right diagonal, left mirrors
+   bottom-left. */
+.cm-editor .cm-image-container .cm-image-resize-handle--corner-right {
+  cursor: nwse-resize;
+}
+
+.cm-editor .cm-image-container .cm-image-resize-handle--corner-left {
+  cursor: nesw-resize;
+}
+
+/* Global cursor lock during an active image resize drag (`imageResizeHandle.ts`).
+   Pointer capture keeps pointermove/pointerup events routed to the resize handle
+   even after the pointer leaves its small hit area, but without this lock the
+   visible cursor would change to match whichever element sits underneath the
+   pointer. The cursor always reflects the active corner's diagonal direction
+   (`nwse-resize`/`nesw-resize`), never `ew-resize`, regardless of mode — see the
+   rule above — applied to `<body>` only for the duration of the drag, then
+   removed on pointerup or pointercancel. */
+body.cm-image-resizing-nwse,
+body.cm-image-resizing-nwse * {
+  cursor: nwse-resize !important;
+}
+
+body.cm-image-resizing-nesw,
+body.cm-image-resizing-nesw * {
+  cursor: nesw-resize !important;
 }
 
 /* The intermediate `<button class="cm-image-button">` wrapping the `<img>`

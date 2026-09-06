@@ -19,19 +19,32 @@
  *
  *   `![Mountain view|6,center,fit](photo.jpg)` — native Markdown image
  *   `![[document.pdf|6,center]]` — local PDF embed
+ *   `![Mountain view|320,500,fill,center](photo.jpg)` — resized Image, Fill (width 320, height 500)
+ *   `![Mountain view|320,fit,center](photo.jpg)` — resized Image, Fit (width 320 only, no persisted height)
  *
  * Recognized tokens:
  * - width: an integer token. 1–11 = proportional (Nths of available
  *   content width, 11 = full width); 12+ = a literal pixel width. Only
  *   these two buckets exist — a token outside both (e.g. `0`) is
  *   unrecognized.
+ * - height (Image only, resize milestone): a second integer token — a
+ *   literal pixel value, no proportional bucket. Never valid for a PDF —
+ *   `resolvePdfPresentation` below simply never reads it. See
+ *   `ImagePresentation.height`'s own doc comment for why it stays
+ *   *dormant* (present in the Markdown, never applied to rendering)
+ *   while Fit is the active mode.
  * - alignment: `left` | `center` | `right`.
  * - mode (Image only): `fill` | `fit`. Never valid for a PDF —
  *   `resolvePdfPresentation` below simply never reads it.
  * Unknown tokens (e.g. `banana`) are ignored, never an error. Duplicate
  * recognized values: **last one wins** — `parseMediaPresentationTokens`
  * below implements this by simply overwriting on every match in source
- * order, never by special-casing "first vs. last."
+ * order, never by special-casing "first vs. last." Width/height are the
+ * one exception to "last wins": since both are bare integers with no
+ * distinguishing syntax, they're assigned *positionally* (first numeric
+ * token = width, second = height) rather than both trying to occupy one
+ * "last recognized number" slot — see `parseMediaPresentationTokens`'s
+ * own doc comment.
  *
  * This file only ever deals in plain token arrays — it has no opinion on
  * *where* those tokens came from (a native Image's alt-bracket pipe
@@ -53,14 +66,28 @@ export type MediaAlignment = 'left' | 'center' | 'right';
  */
 export type MediaPresentationMode = 'fill' | 'fit';
 
-/** Image capability: width + alignment + mode. */
+/**
+ * Image capability: width + height + alignment + mode. `height` (resize
+ * milestone) is a literal pixel value or `null` (never persisted/never
+ * resized) — unlike `width`, it has no proportional 1–10 bucket, since a
+ * container height was never independently settable before native/custom
+ * resize existed. **Dormant while Fit is active**: Fit's own rendered
+ * height is always CSS-derived `auto` (`mediaLayoutStyle.ts`'s
+ * `applyMediaHeight`) — a Fit image's `height` token, if present, is
+ * carried in the Markdown untouched (e.g. surviving a Fit-mode width-only
+ * resize) purely so a later Fit→Fill switch can reactivate it, exactly
+ * mirroring how `width`/`alignment` already survive a mode switch via
+ * plain object-spread at every existing write site
+ * (`MarkdownEditor.tsx`'s `handleSelectImageDisplayMode`).
+ */
 export interface ImagePresentation {
   readonly width: number;
+  readonly height: number | null;
   readonly alignment: MediaAlignment;
   readonly mode: MediaPresentationMode;
 }
 
-/** PDF capability: width + alignment only — no mode exists for a PDF embed. */
+/** PDF capability: width + alignment only — no mode, no height exists for a PDF embed (PDF resizing is out of scope for this milestone). */
 export interface PdfPresentation {
   readonly width: number;
   readonly alignment: MediaAlignment;
@@ -68,6 +95,7 @@ export interface PdfPresentation {
 
 export const DEFAULT_IMAGE_PRESENTATION: ImagePresentation = {
   width: 11,
+  height: null,
   alignment: 'left',
   mode: 'fill',
 };
@@ -99,27 +127,40 @@ function parseWidthToken(token: string): number | null {
 
 export interface ParsedMediaPresentationTokens {
   readonly width: number | null;
+  /** Second numeric token encountered, if any — `null` for a PDF (`resolvePdfPresentation` never reads it) or an Image with no persisted height. See `ImagePresentation.height`'s own doc comment for the dormant-while-Fit contract. */
+  readonly height: number | null;
   readonly alignment: MediaAlignment | null;
   readonly mode: MediaPresentationMode | null;
 }
 
 /**
  * Classifies raw suffix tokens (`mediaPresentationScanner.ts`'s own
- * unclassified `tokens` array) into width/alignment/mode, unknown tokens
- * ignored, last-recognized-value-wins for duplicates (see this file's own
- * doc comment for why). Kind-agnostic on purpose — `resolveImagePresentation`/
- * `resolvePdfPresentation` below decide which of these three fields their
- * own capability actually uses; a PDF's caller simply never reads `mode`.
+ * unclassified `tokens` array) into width/height/alignment/mode, unknown
+ * tokens ignored, last-recognized-value-wins for duplicates (see this
+ * file's own doc comment for why). Kind-agnostic on purpose —
+ * `resolveImagePresentation`/`resolvePdfPresentation` below decide which
+ * of these fields their own capability actually uses; a PDF's caller
+ * simply never reads `mode`/`height`.
+ *
+ * **Numeric tokens are positional, not both "last wins."** Width and
+ * height share no distinguishing syntax (both are bare positive
+ * integers), so the *first* numeric token found is `width` and the
+ * *second* is `height` — matching every example in this file's own top
+ * doc comment (`320,fit,center` = width only; `320,500,fill,center` =
+ * width then height) and requiring no new punctuation. A third numeric
+ * token, if one somehow appeared, is simply ignored (extending the
+ * existing "unknown/unrecognized value ignored" tolerance to this case,
+ * rather than inventing a third slot nothing needs).
  */
 export function parseMediaPresentationTokens(tokens: readonly string[]): ParsedMediaPresentationTokens {
-  let width: number | null = null;
+  const numbers: number[] = [];
   let alignment: MediaAlignment | null = null;
   let mode: MediaPresentationMode | null = null;
 
   for (const raw of tokens) {
-    const width_ = parseWidthToken(raw);
-    if (width_ !== null) {
-      width = width_;
+    const number_ = parseWidthToken(raw);
+    if (number_ !== null) {
+      numbers.push(number_);
       continue;
     }
     if (isMediaAlignment(raw)) {
@@ -133,7 +174,7 @@ export function parseMediaPresentationTokens(tokens: readonly string[]): ParsedM
     // Unknown token — ignored, never breaks the parse.
   }
 
-  return { width, alignment, mode };
+  return { width: numbers[0] ?? null, height: numbers[1] ?? null, alignment, mode };
 }
 
 /** Resolves raw suffix tokens into a complete `ImagePresentation`, filling in defaults for anything absent/unrecognized. */
@@ -141,6 +182,7 @@ export function resolveImagePresentation(tokens: readonly string[]): ImagePresen
   const parsed = parseMediaPresentationTokens(tokens);
   return {
     width: parsed.width ?? DEFAULT_IMAGE_PRESENTATION.width,
+    height: parsed.height ?? DEFAULT_IMAGE_PRESENTATION.height,
     alignment: parsed.alignment ?? DEFAULT_IMAGE_PRESENTATION.alignment,
     mode: parsed.mode ?? DEFAULT_IMAGE_PRESENTATION.mode,
   };
@@ -155,26 +197,35 @@ export function resolvePdfPresentation(tokens: readonly string[]): PdfPresentati
   };
 }
 
-/** A positive-integer guard for serialization — defensive against a caller-constructed `ImagePresentation`/`PdfPresentation` with a nonsensical `width` (never produced by `resolve*Presentation` itself, which only ever reads recognized 1+ integers). */
+/** A positive-integer guard for serialization — defensive against a caller-constructed `ImagePresentation`/`PdfPresentation` with a nonsensical `width`/`height` (never produced by `resolve*Presentation` itself, which only ever reads recognized 1+ integers). */
 function isValidWidth(width: number): boolean {
   return Number.isInteger(width) && width >= 1;
 }
 
 /**
- * Canonical order `width,alignment,mode`, defaults omitted — per the
- * locked spec. Returns `''` (no pipe segment at all) when every field is
- * already default, which is what makes "reset to defaults removes the
- * metadata, restoring the normal syntax" fall out of this function
- * directly, with no separate "is this all-default" branch needed at the
- * call site. The caller (`mediaPresentationUpdate.ts`) is responsible for
- * combining this bare token string with the display alt/alias and a `|`
- * — this function has no opinion on brackets or pipes, only on which
+ * Canonical order `width,height,alignment,mode`, defaults omitted — per
+ * the locked spec (`width` before `height` is load-bearing, not
+ * cosmetic: `parseMediaPresentationTokens` assigns the first numeric
+ * token to `width` and the second to `height`, so this order is what
+ * makes the two round-trip correctly). Returns `''` (no pipe segment at
+ * all) when every field is already default, which is what makes "reset
+ * to defaults removes the metadata, restoring the normal syntax" fall
+ * out of this function directly, with no separate "is this all-default"
+ * branch needed at the call site. **`height` is emitted whenever it's
+ * set, regardless of `mode`** — this is what makes a Fit-mode height
+ * dormant rather than discarded (see `ImagePresentation.height`'s own
+ * doc comment). The caller (`mediaPresentationUpdate.ts`) is responsible
+ * for combining this bare token string with the display alt/alias and a
+ * `|` — this function has no opinion on brackets or pipes, only on which
  * tokens the canonical form needs.
  */
 export function serializeImagePresentationTokens(presentation: ImagePresentation): string {
   const tokens: string[] = [];
   if (isValidWidth(presentation.width) && presentation.width !== DEFAULT_IMAGE_PRESENTATION.width) {
     tokens.push(String(presentation.width));
+  }
+  if (presentation.height !== null && isValidWidth(presentation.height)) {
+    tokens.push(String(presentation.height));
   }
   if (presentation.alignment !== DEFAULT_IMAGE_PRESENTATION.alignment) {
     tokens.push(presentation.alignment);

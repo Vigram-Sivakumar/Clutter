@@ -11,6 +11,7 @@ import {
 import { scanImage } from './imageScanner';
 import {
   applyMediaAlignment,
+  applyMediaHeight,
   applyMediaWidth,
   disconnectMediaWidthObserver,
   flipDimensionTransition,
@@ -18,6 +19,7 @@ import {
   type ResizeObserverHolder,
 } from '../mediaPresentation/mediaLayoutStyle';
 import type { ImagePresentation } from '../mediaPresentation/mediaPresentationModel';
+import { attachImageResizeHandle } from './imageResizeHandle';
 
 // Temporary icons only (per this change's own scope) — plain inline SVG
 // following TaskCheckboxWidget.ts's exact established convention for
@@ -226,7 +228,7 @@ export class ImageWidget extends WidgetType {
      * Defaulted so every pre-existing construction site (tests included)
      * keeps compiling unchanged.
      */
-    readonly presentation: ImagePresentation = { width: 11, alignment: 'left', mode: 'fill' }
+    readonly presentation: ImagePresentation = { width: 11, height: null, alignment: 'left', mode: 'fill' }
   ) {
     super();
     console.log(`[ImageWidget] constructor pos=${this.pos} displayMode=${this.ui.displayMode} presentation.mode=${this.presentation.mode} revealed=${this.ui.revealed}`);
@@ -259,6 +261,7 @@ export class ImageWidget extends WidgetType {
       this.ui.displayMode === other.ui.displayMode &&
       this.ui.broken === other.ui.broken &&
       this.presentation.width === other.presentation.width &&
+      this.presentation.height === other.presentation.height &&
       this.presentation.alignment === other.presentation.alignment
     );
   }
@@ -352,24 +355,25 @@ export class ImageWidget extends WidgetType {
     // because `applyMediaWidth` (below) unconditionally re-asserts the
     // correct width on every single call regardless of FLIP's own pin
     // state — width is self-healing every call; height had no equivalent,
-    // so a single missed cleanup event left it stuck forever: once
-    // `container.style.height` holds a stale value, it *is* the box's
-    // real rendered height (inline always wins over the class-driven
-    // rule, regardless of which class is active), so both this method's
-    // own `startContainer`/`endContainer` measurements read that same
-    // stale number — `flipDimensionTransition`'s `|from - to| > 0.5`
-    // check then sees no change at all and skips the property entirely,
-    // perpetuating the stuck value on every subsequent switch too.
-    // Removing it *first*, unconditionally, before either measurement,
-    // makes this self-correcting regardless of whether any given
-    // transition's own end/cancel event ever fires — the same
-    // "authoritative value re-applied every call" property `width`
-    // already has, now extended to `height`. Never removes a *width*
-    // pin (custom pixel widths are meant to stay inline permanently, not
-    // just during a transition — clearing it here would be wrong, not
-    // merely unnecessary), and never touches the `<img>`'s own height
-    // (already confirmed reliable — see above).
-    container.style.removeProperty('height');
+    // so a single missed cleanup event left it stuck forever.
+    //
+    // Reapplying `from`'s own authoritative height (`applyMediaHeight`,
+    // resize milestone — this used to be a blind
+    // `container.style.removeProperty('height')`) gives the same
+    // self-heal — any stale FLIP pin is unconditionally overwritten
+    // either way — while also correctly seeding the `startContainer`
+    // measurement below from the *actual* previous persisted Fill height
+    // rather than always the CSS default (400px): a blind clear would
+    // have measured "start" as 400px even when the image's real,
+    // just-rendered height was a different persisted value, corrupting
+    // the FLIP `from` for the `<img>`'s own real CSS `transition` (which,
+    // unlike the container, still animates — see `.tok-image`'s own
+    // `transition` rule, MarkdownEditor.css). Never removes a *width* pin
+    // (custom pixel widths are meant to stay inline permanently, not just
+    // during a transition — clearing it here would be wrong, not merely
+    // unnecessary), and never touches the `<img>`'s own height (already
+    // confirmed reliable — see above).
+    applyMediaHeight(container, from.ui.displayMode, from.presentation.height);
 
     // FLIP measurement — capture the *rendered* box before touching any
     // class/style, since that's the only reliable "from" a CSS transition
@@ -392,6 +396,7 @@ export class ImageWidget extends WidgetType {
     // width (`.cm-image-container--fill`'s own CSS). The measuring below
     // gives the genuine target box this produced, never hand-computed.
     applyMediaWidth(container, null, this.presentation.width, view, this.widthObserver);
+    applyMediaHeight(container, this.ui.displayMode, this.presentation.height);
 
     const endContainer = measureBox(container);
     const endImg = measureBox(img);
@@ -542,12 +547,42 @@ export class ImageWidget extends WidgetType {
     // any more; the container is the only element a numeric width ever
     // touches.
     applyMediaWidth(container, null, this.presentation.width, view, this.widthObserver);
+    applyMediaHeight(container, this.ui.displayMode, this.presentation.height);
 
     container.append(controls, imageButton);
+    this.attachResizeHandles(container, view, getCurrentTo);
 
     this.probeThenMount(imageButton, view);
 
     return container;
+  }
+
+  /**
+   * Custom drag-to-resize (resize milestone) — replaces the browser's
+   * native CSS `resize: both`/`resize: horizontal` (`MarkdownEditor.css`'s
+   * own doc comment on `.cm-image-resize-handle` has the full account of
+   * why). Both bottom-corner handles are always appended, identically for
+   * either mode (2026-09 UX correction — same visual affordance in Fill
+   * and Fit, only the drag *behavior* differs, decided live by
+   * `imageResizeHandle.ts` itself from the container's current
+   * `--fill`/`--fit` class) — a mode switch needs no rebuild here at all.
+   * `getCurrentTo` is the same live `container.dataset.nodeTo` reader
+   * every other control in this file already uses — see
+   * `makeEditButton`'s own doc comment for why a value captured once at
+   * construction time isn't safe here.
+   */
+  private attachResizeHandles(container: HTMLElement, view: EditorView, getCurrentTo: () => number): void {
+    const leftHandle = document.createElement('div');
+    leftHandle.classList.add('cm-image-resize-handle', 'cm-image-resize-handle--corner-left');
+    leftHandle.setAttribute('aria-hidden', 'true');
+    attachImageResizeHandle(leftHandle, container, 'left', view, getCurrentTo);
+
+    const rightHandle = document.createElement('div');
+    rightHandle.classList.add('cm-image-resize-handle', 'cm-image-resize-handle--corner-right');
+    rightHandle.setAttribute('aria-hidden', 'true');
+    attachImageResizeHandle(rightHandle, container, 'right', view, getCurrentTo);
+
+    container.append(leftHandle, rightHandle);
   }
 
   override destroy(): void {

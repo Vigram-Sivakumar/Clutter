@@ -14,7 +14,7 @@ import {
 
 describe('parseMediaPresentationTokens', () => {
   it('parses no tokens to all-null', () => {
-    expect(parseMediaPresentationTokens([])).toEqual({ width: null, alignment: null, mode: null });
+    expect(parseMediaPresentationTokens([])).toEqual({ width: null, height: null, alignment: null, mode: null });
   });
 
   it.each([1, 6, 11, 12, 620])('recognizes width %i', (width) => {
@@ -36,11 +36,13 @@ describe('parseMediaPresentationTokens', () => {
   it('recognizes all three in arbitrary order', () => {
     expect(parseMediaPresentationTokens(['fit', 'center', '620'])).toEqual({
       width: 620,
+      height: null,
       alignment: 'center',
       mode: 'fit',
     });
     expect(parseMediaPresentationTokens(['620', 'center', 'fit'])).toEqual({
       width: 620,
+      height: null,
       alignment: 'center',
       mode: 'fit',
     });
@@ -49,6 +51,7 @@ describe('parseMediaPresentationTokens', () => {
   it('ignores unknown tokens without disturbing recognized ones', () => {
     expect(parseMediaPresentationTokens(['620', 'center', 'banana', 'fit'])).toEqual({
       width: 620,
+      height: null,
       alignment: 'center',
       mode: 'fit',
     });
@@ -58,52 +61,144 @@ describe('parseMediaPresentationTokens', () => {
     expect(parseMediaPresentationTokens(['0']).width).toBeNull();
   });
 
-  it('duplicate recognized values: last one wins', () => {
+  it('duplicate recognized non-numeric values: last one wins', () => {
     expect(parseMediaPresentationTokens(['620', '400', 'center', 'right', 'fit', 'fill'])).toEqual({
-      width: 400,
+      width: 620,
+      height: 400,
       alignment: 'right',
       mode: 'fill',
     });
   });
 
   it('width + mode are independent and order never matters: 320,fit === fit,320', () => {
-    expect(parseMediaPresentationTokens(['320', 'fit'])).toEqual({ width: 320, alignment: null, mode: 'fit' });
-    expect(parseMediaPresentationTokens(['fit', '320'])).toEqual({ width: 320, alignment: null, mode: 'fit' });
+    expect(parseMediaPresentationTokens(['320', 'fit'])).toEqual({
+      width: 320,
+      height: null,
+      alignment: null,
+      mode: 'fit',
+    });
+    expect(parseMediaPresentationTokens(['fit', '320'])).toEqual({
+      width: 320,
+      height: null,
+      alignment: null,
+      mode: 'fit',
+    });
   });
 
   it('width + mode are independent and order never matters: 320,fill === fill,320', () => {
-    expect(parseMediaPresentationTokens(['320', 'fill'])).toEqual({ width: 320, alignment: null, mode: 'fill' });
-    expect(parseMediaPresentationTokens(['fill', '320'])).toEqual({ width: 320, alignment: null, mode: 'fill' });
+    expect(parseMediaPresentationTokens(['320', 'fill'])).toEqual({
+      width: 320,
+      height: null,
+      alignment: null,
+      mode: 'fill',
+    });
+    expect(parseMediaPresentationTokens(['fill', '320'])).toEqual({
+      width: 320,
+      height: null,
+      alignment: null,
+      mode: 'fill',
+    });
   });
 
-  it('a bare numeric token alone is width only, no mode implied', () => {
-    expect(parseMediaPresentationTokens(['320'])).toEqual({ width: 320, alignment: null, mode: null });
+  it('a bare numeric token alone is width only, no mode implied, no height', () => {
+    expect(parseMediaPresentationTokens(['320'])).toEqual({ width: 320, height: null, alignment: null, mode: null });
+  });
+
+  describe('height (resize milestone) — positional, not "last numeric wins"', () => {
+    it('the first numeric token is width, the second is height', () => {
+      expect(parseMediaPresentationTokens(['320', '500'])).toEqual({
+        width: 320,
+        height: 500,
+        alignment: null,
+        mode: null,
+      });
+    });
+
+    it('width/height positions hold regardless of where non-numeric tokens fall between them', () => {
+      expect(parseMediaPresentationTokens(['320', 'fill', 'center', '500'])).toEqual({
+        width: 320,
+        height: 500,
+        alignment: 'center',
+        mode: 'fill',
+      });
+    });
+
+    it('a single numeric token never populates height', () => {
+      expect(parseMediaPresentationTokens(['320', 'fit', 'center']).height).toBeNull();
+    });
+
+    it('a third numeric token is ignored — width/height stay at the first two', () => {
+      expect(parseMediaPresentationTokens(['320', '500', '9999'])).toEqual({
+        width: 320,
+        height: 500,
+        alignment: null,
+        mode: null,
+      });
+    });
   });
 });
 
 describe('resolveImagePresentation', () => {
-  it('defaults to width 11, alignment left, mode fill when given no tokens', () => {
+  it('defaults to width 11, height null, alignment left, mode fill when given no tokens', () => {
     expect(resolveImagePresentation([])).toEqual(DEFAULT_IMAGE_PRESENTATION);
   });
 
   it('fills in only the missing fields from tokens', () => {
-    expect(resolveImagePresentation(['6'])).toEqual({ width: 6, alignment: 'left', mode: 'fill' });
-    expect(resolveImagePresentation(['center'])).toEqual({ width: 11, alignment: 'center', mode: 'fill' });
-    expect(resolveImagePresentation(['fit'])).toEqual({ width: 11, alignment: 'left', mode: 'fit' });
+    expect(resolveImagePresentation(['6'])).toEqual({ width: 6, height: null, alignment: 'left', mode: 'fill' });
+    expect(resolveImagePresentation(['center'])).toEqual({
+      width: 11,
+      height: null,
+      alignment: 'center',
+      mode: 'fill',
+    });
+    expect(resolveImagePresentation(['fit'])).toEqual({ width: 11, height: null, alignment: 'left', mode: 'fit' });
   });
 
   it('resolves a fully-specified suffix', () => {
-    expect(resolveImagePresentation(['620', 'center', 'fit'])).toEqual({ width: 620, alignment: 'center', mode: 'fit' });
+    expect(resolveImagePresentation(['620', 'center', 'fit'])).toEqual({
+      width: 620,
+      height: null,
+      alignment: 'center',
+      mode: 'fit',
+    });
   });
 
   it('320,fit and fit,320 resolve to the exact same presentation', () => {
     expect(resolveImagePresentation(['320', 'fit'])).toEqual(resolveImagePresentation(['fit', '320']));
-    expect(resolveImagePresentation(['320', 'fit'])).toEqual({ width: 320, alignment: 'left', mode: 'fit' });
+    expect(resolveImagePresentation(['320', 'fit'])).toEqual({
+      width: 320,
+      height: null,
+      alignment: 'left',
+      mode: 'fit',
+    });
   });
 
   it('320,fill and fill,320 resolve to the exact same presentation', () => {
     expect(resolveImagePresentation(['320', 'fill'])).toEqual(resolveImagePresentation(['fill', '320']));
-    expect(resolveImagePresentation(['320', 'fill'])).toEqual({ width: 320, alignment: 'left', mode: 'fill' });
+    expect(resolveImagePresentation(['320', 'fill'])).toEqual({
+      width: 320,
+      height: null,
+      alignment: 'left',
+      mode: 'fill',
+    });
+  });
+
+  it('resolves a persisted Fill width + height (resize milestone)', () => {
+    expect(resolveImagePresentation(['320', '500', 'fill', 'center'])).toEqual({
+      width: 320,
+      height: 500,
+      alignment: 'center',
+      mode: 'fill',
+    });
+  });
+
+  it('resolves a persisted Fit width with a dormant height, unaffected by mode', () => {
+    expect(resolveImagePresentation(['320', '500', 'fit', 'center'])).toEqual({
+      width: 320,
+      height: 500,
+      alignment: 'center',
+      mode: 'fit',
+    });
   });
 });
 
@@ -117,10 +212,11 @@ describe('resolvePdfPresentation', () => {
     expect(resolvePdfPresentation(['center', '620'])).toEqual({ width: 620, alignment: 'center' });
   });
 
-  it('never surfaces a mode field — a mode token is simply irrelevant to the returned shape', () => {
-    const result = resolvePdfPresentation(['fit', '620']) as unknown as Record<string, unknown>;
+  it('never surfaces a mode or height field — those tokens are simply irrelevant to the returned shape', () => {
+    const result = resolvePdfPresentation(['fit', '620', '500']) as unknown as Record<string, unknown>;
     expect(result).toEqual({ width: 620, alignment: 'left' });
     expect(result.mode).toBeUndefined();
+    expect(result.height).toBeUndefined();
   });
 });
 
@@ -130,59 +226,71 @@ describe('serializeImagePresentationTokens', () => {
   });
 
   it('serializes width alone', () => {
-    expect(serializeImagePresentationTokens({ width: 6, alignment: 'left', mode: 'fill' })).toBe('6');
+    expect(serializeImagePresentationTokens({ width: 6, height: null, alignment: 'left', mode: 'fill' })).toBe('6');
   });
 
   it('serializes alignment alone', () => {
-    expect(serializeImagePresentationTokens({ width: 11, alignment: 'center', mode: 'fill' })).toBe('center');
+    expect(serializeImagePresentationTokens({ width: 11, height: null, alignment: 'center', mode: 'fill' })).toBe(
+      'center'
+    );
   });
 
   it('serializes mode alone', () => {
-    expect(serializeImagePresentationTokens({ width: 11, alignment: 'left', mode: 'fit' })).toBe('fit');
+    expect(serializeImagePresentationTokens({ width: 11, height: null, alignment: 'left', mode: 'fit' })).toBe('fit');
   });
 
   it('serializes width + alignment in canonical order', () => {
-    expect(serializeImagePresentationTokens({ width: 6, alignment: 'center', mode: 'fill' })).toBe('6,center');
+    expect(serializeImagePresentationTokens({ width: 6, height: null, alignment: 'center', mode: 'fill' })).toBe(
+      '6,center'
+    );
   });
 
   it('serializes width + mode in canonical order', () => {
-    expect(serializeImagePresentationTokens({ width: 6, alignment: 'left', mode: 'fit' })).toBe('6,fit');
+    expect(serializeImagePresentationTokens({ width: 6, height: null, alignment: 'left', mode: 'fit' })).toBe(
+      '6,fit'
+    );
   });
 
   it('serializes alignment + mode in canonical order', () => {
-    expect(serializeImagePresentationTokens({ width: 11, alignment: 'center', mode: 'fit' })).toBe('center,fit');
+    expect(serializeImagePresentationTokens({ width: 11, height: null, alignment: 'center', mode: 'fit' })).toBe(
+      'center,fit'
+    );
   });
 
-  it('serializes all three in canonical order regardless of construction order', () => {
-    const presentation: ImagePresentation = { mode: 'fit', width: 6, alignment: 'center' };
-    expect(serializeImagePresentationTokens(presentation)).toBe('6,center,fit');
+  it('serializes all fields in canonical order regardless of construction order', () => {
+    const presentation: ImagePresentation = { mode: 'fit', width: 6, height: 400, alignment: 'center' };
+    expect(serializeImagePresentationTokens(presentation)).toBe('6,400,center,fit');
   });
 
   it('serializes back to fill (changing from fit): width + fill', () => {
-    expect(serializeImagePresentationTokens({ width: 6, alignment: 'left', mode: 'fill' })).toBe('6');
+    expect(serializeImagePresentationTokens({ width: 6, height: null, alignment: 'left', mode: 'fill' })).toBe('6');
   });
 
   it('serializes back to fill (changing from fit): alignment + fill', () => {
-    expect(serializeImagePresentationTokens({ width: 11, alignment: 'center', mode: 'fill' })).toBe('center');
+    expect(serializeImagePresentationTokens({ width: 11, height: null, alignment: 'center', mode: 'fill' })).toBe(
+      'center'
+    );
   });
 
   it('serializes back to fill (changing from fit): width + alignment + fill', () => {
-    expect(serializeImagePresentationTokens({ width: 6, alignment: 'center', mode: 'fill' })).toBe('6,center');
+    expect(serializeImagePresentationTokens({ width: 6, height: null, alignment: 'center', mode: 'fill' })).toBe(
+      '6,center'
+    );
   });
 
   it('fill is the default and omitted when all fields are default', () => {
-    expect(serializeImagePresentationTokens({ width: 11, alignment: 'left', mode: 'fill' })).toBe('');
+    expect(serializeImagePresentationTokens({ width: 11, height: null, alignment: 'left', mode: 'fill' })).toBe('');
   });
 
   it('round-trip: fit,320 parses and serializes back to 320,fit (order-independent)', () => {
     const parsed = resolveImagePresentation(['fit', '320']);
-    expect(parsed).toEqual({ width: 320, alignment: 'left', mode: 'fit' });
+    expect(parsed).toEqual({ width: 320, height: null, alignment: 'left', mode: 'fit' });
     expect(serializeImagePresentationTokens(parsed)).toBe('320,fit');
   });
 
   it('round-trip: fill,320 parses and serializes back (fill is omitted when default)', () => {
     const parsed = resolveImagePresentation(['fill', '320']);
-    expect(parsed).toEqual({ width: 320, alignment: 'left', mode: 'fill' });
+    expect(parsed).toEqual({ width: 320, height: null, alignment: 'left', mode: 'fill' });
     expect(serializeImagePresentationTokens(parsed)).toBe('320');
   });
 
@@ -193,8 +301,53 @@ describe('serializeImagePresentationTokens', () => {
 
   it('round-trip: 320,center,fill parses and serializes (fill omitted since default)', () => {
     const parsed = resolveImagePresentation(['320', 'center', 'fill']);
-    expect(parsed).toEqual({ width: 320, alignment: 'center', mode: 'fill' });
+    expect(parsed).toEqual({ width: 320, height: null, alignment: 'center', mode: 'fill' });
     expect(serializeImagePresentationTokens(parsed)).toBe('320,center');
+  });
+
+  describe('height (resize milestone)', () => {
+    it('serializes width + height in canonical width-then-height order', () => {
+      expect(serializeImagePresentationTokens({ width: 320, height: 500, alignment: 'left', mode: 'fill' })).toBe(
+        '320,500'
+      );
+    });
+
+    it('emits height whenever set, regardless of mode — dormant while Fit', () => {
+      expect(serializeImagePresentationTokens({ width: 320, height: 500, alignment: 'left', mode: 'fit' })).toBe(
+        '320,500,fit'
+      );
+    });
+
+    it('round-trip: 320,500,fill,center', () => {
+      const parsed = resolveImagePresentation(['320', '500', 'fill', 'center']);
+      expect(serializeImagePresentationTokens(parsed)).toBe('320,500,center');
+    });
+
+    it('round-trip: a Fit width+dormant-height round-trips losslessly', () => {
+      const parsed = resolveImagePresentation(['320', '500', 'fit', 'center']);
+      expect(parsed).toEqual({ width: 320, height: 500, alignment: 'center', mode: 'fit' });
+      expect(serializeImagePresentationTokens(parsed)).toBe('320,500,center,fit');
+      expect(resolveImagePresentation(serializeImagePresentationTokens(parsed).split(','))).toEqual(parsed);
+    });
+
+    it('switching a persisted Fit width+height presentation to fill activates the dormant height', () => {
+      const fitParsed = resolveImagePresentation(['320', '500', 'fit', 'center']);
+      const switchedToFill: ImagePresentation = { ...fitParsed, mode: 'fill' };
+      expect(serializeImagePresentationTokens(switchedToFill)).toBe('320,500,center');
+      expect(resolveImagePresentation(serializeImagePresentationTokens(switchedToFill).split(','))).toEqual({
+        width: 320,
+        height: 500,
+        alignment: 'center',
+        mode: 'fill',
+      });
+    });
+
+    it('a width-only update preserves an existing dormant height untouched', () => {
+      const current = resolveImagePresentation(['320', '500', 'fit', 'center']);
+      const widthOnlyUpdate: ImagePresentation = { ...current, width: 400 };
+      expect(widthOnlyUpdate.height).toBe(500);
+      expect(serializeImagePresentationTokens(widthOnlyUpdate)).toBe('400,500,center,fit');
+    });
   });
 });
 

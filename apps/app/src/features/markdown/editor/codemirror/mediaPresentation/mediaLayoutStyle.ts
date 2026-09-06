@@ -2,7 +2,7 @@ import type { EditorView } from '@codemirror/view';
 
 import { getAvailableViewerWidth } from '@features/pdf/pdfFitWidth';
 
-import type { MediaAlignment } from './mediaPresentationModel';
+import type { MediaAlignment, MediaPresentationMode } from './mediaPresentationModel';
 
 /**
  * Applies a persisted `width` value (`mediaPresentationModel.ts`'s
@@ -115,6 +115,41 @@ export function applyMediaWidth(
   const observer = new ResizeObserver(applyClampedPixelWidth);
   observer.observe(view.contentDOM);
   observerHolder.current = observer;
+}
+
+/**
+ * Applies a persisted Fill-mode container height (resize milestone) —
+ * the container-height counterpart to `applyMediaWidth` above, called
+ * alongside it by `ImageWidget.ts`. **Fit's own height always stays
+ * CSS-derived `auto`** (`.tok-image--fit`'s own rule, MarkdownEditor.css)
+ * regardless of what `height` holds — a Fit image's persisted height is
+ * dormant (see `mediaPresentationModel.ts`'s `ImagePresentation.height`
+ * doc comment), so this function's own `mode !== 'fill'` branch always
+ * clears any inline height rather than ever applying one, the same way
+ * it does for `height === null` (never resized — falls back to
+ * `.cm-image-container--fill`'s own CSS default of 400px, exactly
+ * mirroring `applyMediaWidth`'s `width === 11` default-clears-inline
+ * case).
+ *
+ * Called with **both** the previous and the next widget's own
+ * mode/height by `ImageWidget.updateDOM` — once for `from` (before
+ * `applyMediaWidth`/class toggling, replacing what used to be an
+ * unconditional blind `container.style.removeProperty('height')`) so
+ * the FLIP "start" measurement reflects the image's *actual* previous
+ * rendered height rather than always the CSS default, and again for
+ * `this` (after class toggling) to set the real target. Unconditionally
+ * reapplying on every call is what keeps this self-healing against a
+ * stuck inline pin exactly the way `applyMediaWidth` already is (see
+ * that function's own doc comment) — the earlier blind-clear was doing
+ * this same self-heal, just without the ability to correctly restore a
+ * genuine persisted Fill height in the process.
+ */
+export function applyMediaHeight(container: HTMLElement, mode: MediaPresentationMode, height: number | null): void {
+  if (mode !== 'fill' || height === null) {
+    container.style.removeProperty('height');
+    return;
+  }
+  container.style.height = `${height}px`;
 }
 
 /** Stops and clears a width observer — called from a widget's own `destroy()`, mirroring `PdfEmbedWidget.ts`'s own teardown of its per-page resize observer. */
