@@ -45,6 +45,31 @@ import { presentationOnlyEdit } from '../image/imageUiState';
  * one settle-render at the final width once the drag ends — "after the
  * final [width] the normal PDF rendering/layout system... settle[s] to
  * the new width," never mid-drag.
+ *
+ * **Live visual responsiveness during the drag, without any PDF.js
+ * involvement.** Unlike an `<img>` (`width: 100%; height: auto`), the
+ * rendered page (`.pdf-viewer__page`, `pageWrap`) has no relative sizing
+ * anywhere in its chain — `pdfPageRenderer.ts` sets the canvas's CSS box
+ * in absolute pixels matching the *last real render's* fit scale, and
+ * `.textLayer`'s own child spans are positioned in absolute PDF-pixel
+ * coordinates keyed to that same fixed scale — so nothing about it
+ * naturally tracks a live-changing container width. The fix is a pure
+ * CSS `transform: scale(...)` applied to `pageWrap` itself on every
+ * `pointermove` (via the live `hooks.getPageWrap()` hook, never a
+ * captured reference — `renderCurrentPage()` replaces `pageWrap` with a
+ * brand-new element on every real render, so a stale reference would
+ * silently stop working the moment one occurs): `pageWrap` already wraps
+ * *both* the canvas and the text layer as one positioned unit (the text
+ * layer is `inset: 0` inside it), so scaling `pageWrap` scales both
+ * together, uniformly — text stays glyph-perfect aligned to the canvas
+ * beneath it because both scale by the exact same factor, with zero
+ * per-span recomputation. A single uniform scale factor scales width and
+ * height together by construction, so aspect ratio needs no separate
+ * math at all. On drag-end, no explicit transform cleanup is needed:
+ * `renderCurrentPage()` (called from `onResizeEnd`) always creates a
+ * wholesale *new* `pageWrap` and replaces `pageHost`'s children with it,
+ * discarding the old, transformed one — the "temporary preview" is
+ * replaced by construction, not by resetting a style.
  */
 export type PdfResizeSide = 'left' | 'right';
 
@@ -53,6 +78,14 @@ export interface PdfResizeHooks {
   onResizeStart(): void;
   /** Called once, synchronously, when a drag ends (`pointerup`, `pointercancel`, or lost pointer capture) — after the container's own live width already reflects its final value. Lets the widget resume normal rendering and settle the current page to that final width. Never called if a drag never actually started. */
   onResizeEnd(): void;
+  /**
+   * Returns the *currently mounted* `.pdf-viewer__page` element, or
+   * `null` if none exists yet (still loading, or broken) — read fresh on
+   * every `pointermove`, never captured once, since a real re-render
+   * (e.g. a page-nav click mid-drag, however unlikely) replaces this
+   * element wholesale.
+   */
+  getPageWrap(): HTMLElement | null;
 }
 
 /**
@@ -101,7 +134,25 @@ export function attachPdfResizeHandle(
       // Left corner: dragging further left (negative delta) grows the
       // width, mirroring the right corner's further-right convention.
       const deltaX = side === 'left' ? -rawDeltaX : rawDeltaX;
-      container.style.width = `${clampMediaWidth(view, startWidth + deltaX)}px`;
+      const width = clampMediaWidth(view, startWidth + deltaX);
+      container.style.width = `${width}px`;
+
+      // Live visual preview — see the class doc comment's "Live visual
+      // responsiveness" section for the full rationale. `factor` is the
+      // container's own growth ratio, not a separately re-derived
+      // available-width calculation: the page's rendered width already
+      // equals `computeFitScale`'s `availableWidth` at last render time,
+      // and `availableWidth` itself is a fixed offset (padding/border)
+      // away from the container's own width — scaling the page by the
+      // same ratio the container just grew/shrank by keeps it occupying
+      // the same visual proportion of the container throughout the drag,
+      // corrected exactly by the one real render on release.
+      const pageWrap = hooks.getPageWrap();
+      if (pageWrap && startWidth > 0) {
+        const factor = width / startWidth;
+        pageWrap.style.transformOrigin = 'top center';
+        pageWrap.style.transform = `scale(${factor})`;
+      }
     };
 
     // Shared end-of-drag path for `pointerup`, `pointercancel`, and a

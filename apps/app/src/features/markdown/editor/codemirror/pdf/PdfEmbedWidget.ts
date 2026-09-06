@@ -493,6 +493,16 @@ export class PdfEmbedWidget extends WidgetType {
         availableWidth = getAvailableViewerWidth(pageHost);
         renderCurrentPage();
       },
+      // Live visual preview during the drag (`pdfResizeHandle.ts`'s own
+      // "Live visual responsiveness" doc comment has the full mechanism)
+      // — read fresh on every `pointermove`, never captured once:
+      // `renderCurrentPage()` replaces this element wholesale on every
+      // real render (e.g. mid-drag page navigation, however unlikely),
+      // so a stale reference would silently stop working the moment one
+      // occurs. `null` while still loading/broken (no page rendered yet
+      // to preview) — the drag still resizes the container in that case,
+      // just with nothing to visually scale.
+      getPageWrap: () => pageHost.querySelector<HTMLElement>('.pdf-viewer__page'),
     };
 
     const leftHandle = document.createElement('div');

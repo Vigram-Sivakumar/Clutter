@@ -149,6 +149,12 @@ function getLeftHandle(view: EditorView): HTMLElement {
   return el;
 }
 
+function getPageWrap(view: EditorView): HTMLElement {
+  const el = view.dom.querySelector<HTMLElement>('.cm-pdf-embed .pdf-viewer__page');
+  if (!el) throw new Error('page wrap not found');
+  return el;
+}
+
 /** Same "inline style wins over the base rect" contract `image/imageResizeHandle.test.ts`'s own `stubDynamicRect` establishes — required since `pdfResizeHandle.ts` mutates `container.style.width` directly during `pointermove`. */
 function stubDynamicRect(el: HTMLElement, baseWidth: number): void {
   el.getBoundingClientRect = () => {
@@ -325,6 +331,69 @@ describe('PDF resize lifecycle — no continuous dispatch, exactly one commit, n
     const dispatchSpy = vi.spyOn(view, 'dispatch');
     handle.dispatchEvent(pointerEvent('pointerup', 60, 0, pointerId));
     expect(dispatchSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe('PDF resize — live visual preview via CSS transform (no PDF.js involvement)', () => {
+  it('pointermove scales the current .pdf-viewer__page in proportion to the live width change, uniformly (width and height together)', async () => {
+    const view = await mountResolvedPdf();
+    const pageWrap = getPageWrap(view);
+
+    const handle = getRightHandle(view);
+    const pointerId = 51;
+    handle.dispatchEvent(pointerEvent('pointerdown', 0, 0, pointerId));
+    handle.dispatchEvent(pointerEvent('pointermove', 60, 0, pointerId)); // 600 -> 660, factor 1.1
+
+    expect(pageWrap.style.transform).toBe('scale(1.1)');
+  });
+
+  it('the preview scale shrinks below 1 for a narrowing drag', async () => {
+    const view = await mountResolvedPdf();
+    const pageWrap = getPageWrap(view);
+
+    const handle = getRightHandle(view);
+    const pointerId = 52;
+    handle.dispatchEvent(pointerEvent('pointerdown', 100, 0, pointerId));
+    handle.dispatchEvent(pointerEvent('pointermove', 40, 0, pointerId)); // 600 -> 540, factor 0.9
+
+    expect(pageWrap.style.transform).toBe('scale(0.9)');
+  });
+
+  it('the left corner also drives the same live preview, mirrored pointer math', async () => {
+    const view = await mountResolvedPdf();
+    const pageWrap = getPageWrap(view);
+
+    const handle = getLeftHandle(view);
+    const pointerId = 53;
+    handle.dispatchEvent(pointerEvent('pointerdown', 100, 0, pointerId));
+    handle.dispatchEvent(pointerEvent('pointermove', 20, 0, pointerId)); // moved 80px further left -> width 680, factor 680/600
+
+    expect(pageWrap.style.transform).toBe(`scale(${680 / 600})`);
+  });
+
+  it('never triggers a PDF.js render while previewing — the scale is pure CSS', async () => {
+    const view = await mountResolvedPdf();
+    const callsBeforeDrag = pdfjsMock.state.getPageCalls.length;
+
+    const handle = getRightHandle(view);
+    const pointerId = 54;
+    handle.dispatchEvent(pointerEvent('pointerdown', 0, 0, pointerId));
+    handle.dispatchEvent(pointerEvent('pointermove', 30, 0, pointerId));
+    handle.dispatchEvent(pointerEvent('pointermove', 90, 0, pointerId));
+
+    expect(pdfjsMock.state.getPageCalls.length).toBe(callsBeforeDrag);
+  });
+
+  it('the settle-render after pointerup replaces the page wrap wholesale, discarding the transformed preview', async () => {
+    const view = await mountResolvedPdf();
+    const previewedPageWrap = getPageWrap(view);
+
+    drag(getRightHandle(view), 0, 60);
+    await flush();
+
+    const settledPageWrap = getPageWrap(view);
+    expect(settledPageWrap).not.toBe(previewedPageWrap);
+    expect(settledPageWrap.style.transform).toBe('');
   });
 });
 
