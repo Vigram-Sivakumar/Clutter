@@ -2,6 +2,7 @@ import { EditorSelection, type EditorState } from '@codemirror/state';
 import { WidgetType, type EditorView } from '@codemirror/view';
 
 import { computeImageDeletionRange } from './imageDeletion';
+import { renderInvalidMediaCard } from './brokenMediaCard';
 import {
   findEnclosingImageNode,
   getImageUiState,
@@ -35,22 +36,19 @@ import { attachImageResizeHandle } from './imageResizeHandle';
 // (shared/icon/svg/width-fill.svg) — the closest existing visual
 // convention for "this button controls horizontal sizing" — hand-copied
 // here rather than imported, since AppIcon's React components can't
-// mount in this raw-DOM context either. TRASH_ICON/BROKEN_IMAGE_ICON are
-// the exact same paths as `shared/icon/svg/trash.svg`/`broken-image.svg`
-// (TRASH_ICON matches the icon `ImageOptionsMenu.tsx`'s own real "Delete"
-// item already uses via `AppIcon`; `broken-image.svg` is this project's
-// own existing dedicated icon for exactly this state, not borrowed from
-// an unrelated construct the way the earlier link-icon placeholder was),
-// hand-copied for the same raw-DOM reason.
+// mount in this raw-DOM context either. BROKEN_IMAGE_ICON is the exact
+// same path as `shared/icon/svg/broken-image.svg` (this project's own
+// existing dedicated icon for exactly this state, not borrowed from an
+// unrelated construct the way the earlier link-icon placeholder was),
+// hand-copied for the same raw-DOM reason. TRASH_ICON now lives in
+// `brokenMediaCard.ts` — shared with `PdfEmbedWidget.ts`'s own Delete
+// button, since deleting is never media-specific.
 
 const EDIT_ICON =
   '<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8.625 4L3.64738 9.30947C3.22603 9.7589 2.95326 10.3272 2.86614 10.937L2.64142 12.5101C2.57071 13.005 2.99497 13.4293 3.48995 13.3586L4.95655 13.1491C5.63195 13.0526 6.25428 12.7288 6.7209 12.231L11.625 7M8.625 4L9.79364 2.75345C10.18 2.34132 10.831 2.33098 11.2304 2.73044C11.7865 3.28654 12.2541 3.75413 12.8152 4.31518C13.1968 4.69683 13.2069 5.31263 12.8378 5.70638L11.625 7M8.625 4L11.625 7" stroke="currentColor" stroke-linecap="round"/><path d="M8 13.5H13.5" stroke="currentColor" stroke-linecap="round"/></svg>';
 
 const SIZE_ICON =
   '<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="3.5" cy="8" r="1.25" fill="currentColor"/><circle cx="8" cy="8" r="1.25" fill="currentColor"/><circle cx="12.5" cy="8" r="1.25" fill="currentColor"/></svg>';
-
-const TRASH_ICON =
-  '<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M13 4L12.1801 12.199C12.0779 13.2214 11.2175 14 10.19 14H5.80998C4.78247 14 3.92214 13.2214 3.8199 12.199L3 4M13 4H14M13 4H10.5M3 4H2M3 4H5.5M10.5 4H5.5M10.5 4C10.5 2.89543 9.60457 2 8.5 2H7.5C6.39543 2 5.5 2.89543 5.5 4" stroke="currentColor" stroke-linecap="round"/></svg>';
 
 const BROKEN_IMAGE_ICON =
   '<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M2 2L14 14" stroke="currentColor" stroke-linecap="round"/><path d="M5 2H11C12.6569 2 14 3.34315 14 5V9.5V11M5 14H11C11.8284 14 12.5783 13.6643 13.1212 13.1215L9.03648 9.05728M5 14L7.2265 10.6603C7.69922 9.95118 8.32842 9.41242 9.03648 9.05728M5 14C3.34315 14 2 12.6569 2 11V5C2 4.18477 2.32517 3.44549 2.8529 2.90478L9.03648 9.05728" stroke="currentColor" stroke-linecap="round"/><path d="M5 7C5.55228 7 6 6.55228 6 6C6 5.44772 5.55228 5 5 5C4.44772 5 4 5.44772 4 6C4 6.55228 4.44772 7 5 7Z" stroke="currentColor" stroke-linecap="round"/></svg>';
@@ -781,46 +779,26 @@ export class ImageWidget extends WidgetType {
   private renderBroken(container: HTMLElement, view: EditorView): HTMLElement {
     container.classList.add('cm-image-container--broken');
 
-    const controls = document.createElement('div');
-    controls.classList.add('cm-image-controls');
-    controls.contentEditable = 'false';
-
-    const deleteButton = this.makeButton(TRASH_ICON, 'Delete image', () => {
-      const { from, to } = computeImageDeletionRange(view.state, this.pos);
-      view.dispatch({ changes: { from, to, insert: '' } });
-    });
     // No size button here at all — this UX's explicit requirement is that
     // a broken image never offers Large/Fill/Fit/Copy link/Set as cover
     // image/etc., not merely that those items are hidden/disabled once a
-    // menu is somehow open.
-    controls.append(deleteButton, this.makeEditButton(view));
-
-    const broken = document.createElement('div');
-    broken.classList.add('cm-image-broken');
-
-    // A 24x24 wrapper around the 16x16 icon — the icon's own hit/visual
-    // area matches the controls' own buttons (`.cm-image-control` is
-    // `--height-md` square with a 16x16 `svg` centered inside, above) for
-    // visual rhythm, even though this particular icon isn't interactive.
-    const iconWrap = document.createElement('span');
-    iconWrap.classList.add('cm-image-broken__icon-wrap');
-    iconWrap.innerHTML = BROKEN_IMAGE_ICON;
-    iconWrap.querySelector('svg')?.classList.add('cm-image-broken__icon');
-    broken.append(iconWrap);
-
-    const altSpan = document.createElement('span');
-    altSpan.classList.add('cm-image-broken__alt');
-    altSpan.textContent = 'Unable to load';
-    broken.append(altSpan);
-
-    const hintSpan = document.createElement('span');
-    hintSpan.classList.add('cm-image-broken__hint');
-    hintSpan.textContent = this.copyUrl ?? this.url;
-    broken.append(hintSpan);
+    // menu is somehow open. See `brokenMediaCard.ts`'s own doc comment for
+    // the shared shape this and `PdfEmbedWidget.renderBroken` both use.
+    renderInvalidMediaCard(container, {
+      controlsClassName: 'cm-image-controls',
+      makeButton: (iconHtml, label, onActivate) => this.makeButton(iconHtml, label, onActivate),
+      deleteLabel: 'Delete image',
+      onDelete: () => {
+        const { from, to } = computeImageDeletionRange(view.state, this.pos);
+        view.dispatch({ changes: { from, to, insert: '' } });
+      },
+      editButton: this.makeEditButton(view),
+      brokenIconHtml: BROKEN_IMAGE_ICON,
+      hintText: this.copyUrl ?? this.url,
+    });
 
     this.probeForRecovery(view);
 
-    container.append(controls, broken);
     return container;
   }
 

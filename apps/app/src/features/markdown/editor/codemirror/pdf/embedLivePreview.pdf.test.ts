@@ -236,22 +236,78 @@ describe('embedLivePreview — PDF embeds, rendering (at rest)', () => {
     expect(view.dom.querySelector('.pdf-viewer__page-canvas')).not.toBeNull();
   });
 
-  it('a missing PDF resource renders the shared broken-resource state (not a PDF-specific one), never calling the PDF resolver', () => {
+  it('a missing resource the PDF resolver also declines (not a PDF-looking path) renders the generic image-broken state', () => {
+    // `pdfResolverFor({})` defaults an unlisted path to `'non-pdf'` — the
+    // real `createEmbedPdfResolver` (resolveEmbedPdf.ts) returns exactly
+    // this for a missing target whose extension isn't `.pdf`.
     const resolveEmbedPdf = vi.fn(pdfResolverFor({}));
-    const view = mountView('x ![[missing.pdf]]', imageResolverFor({}), resolveEmbedPdf);
+    const view = mountView('x ![[missing.png]]', imageResolverFor({}), resolveEmbedPdf);
 
     expect(getPdfEmbed(view)).toBeNull();
     const broken = view.dom.querySelector('.cm-image-container--broken');
     expect(broken).not.toBeNull();
-    expect(view.dom.querySelector('.cm-image-broken__hint')?.textContent).toBe('missing.pdf');
-    expect(resolveEmbedPdf).not.toHaveBeenCalled();
+    expect(view.dom.querySelector('.cm-image-broken__hint')?.textContent).toBe('missing.png');
 
-    // Never reached `PdfEmbedWidget.ts` at all (the PDF resolver was
-    // never called) — this is `ImageWidget.ts`'s own generic
-    // unresolved-embed broken state, so it correctly keeps the image
-    // broken icon rather than the PDF one.
+    // ImageWidget.ts's own generic unresolved-embed broken state, so it
+    // correctly keeps the image broken icon rather than the PDF one.
     const iconSvg = broken?.querySelector('.cm-image-broken__icon-wrap svg');
     expect(iconSvg?.outerHTML).toContain('M2 2L14 14');
+  });
+
+  it('a missing PDF-looking reference (image resolver says unresolved, PDF resolver confirms the extension) renders PdfEmbedWidget\'s own broken state, with the PDF icon — not the generic image one', () => {
+    // The image resolver alone can never distinguish "missing, meant to
+    // be a PDF" from "missing, meant to be an image" (no VaultResource
+    // exists to read a `kind` off) — this is now decided by consulting
+    // the PDF resolver even for an 'unresolved' image outcome
+    // (embedLivePreview.ts), which in the real app falls back to the
+    // target path's own extension (resolveEmbedPdf.ts) once Vault
+    // resolution fails.
+    const getPageCallsBefore = pdfjsMock.state.getPageCalls.length;
+    const getDocumentUrlsBefore = pdfjsMock.state.getDocumentUrls.length;
+    const resolveEmbedPdf = vi.fn(
+      pdfResolverFor({ 'missing.pdf': { status: 'unresolved', title: 'missing' } })
+    );
+    const view = mountView('x ![[missing.pdf]]', imageResolverFor({}), resolveEmbedPdf);
+
+    expect(resolveEmbedPdf).toHaveBeenCalledWith('missing.pdf', null);
+    expect(getPdfEmbed(view)).not.toBeNull(); // PdfEmbedWidget, not ImageWidget
+    const broken = view.dom.querySelector('.cm-image-container--broken');
+    expect(broken).not.toBeNull();
+    expect(broken?.classList.contains('cm-pdf-embed')).toBe(true);
+    expect(view.dom.querySelector('.cm-image-broken__hint')?.textContent).toBe('missing.pdf');
+
+    // The PDF-specific icon (`PdfEmbedWidget.ts`'s `BROKEN_PDF_ICON`,
+    // `iconRegistry.ts`'s own `pdf` glyph) — never the crossed-out
+    // broken-image icon, since this is still a PDF reference.
+    const iconSvg = broken?.querySelector('.cm-image-broken__icon-wrap svg');
+    expect(iconSvg?.outerHTML).not.toContain('M2 2L14 14');
+    expect(iconSvg?.outerHTML).toContain('M2 13.3571H3.11111');
+
+    // Still exactly the shared invalid-media card shape — Delete + Edit
+    // source only, no working-state controls.
+    const controls = broken?.querySelector('.cm-pdf-controls');
+    expect(controls?.querySelectorAll('button').length).toBe(2);
+    expect(controls?.querySelector('button[aria-label="Delete embed"]')).not.toBeNull();
+    expect(
+      controls?.querySelector('button[aria-label="Edit source"], button[aria-label="Hide source"]')
+    ).not.toBeNull();
+
+    // None of the valid-PDF rendering path's own UI ever gets constructed
+    // for an invalid/missing PDF — `PdfEmbedWidget.toDOM` branches on
+    // `ui.broken` before anything else, so `renderWorking()` (pagination,
+    // resize handles, the page canvas/text layer, docCache loading,
+    // Expand/More actions) is structurally unreachable here, not merely
+    // hidden by CSS.
+    expect(broken?.querySelector('.cm-pdf-embed-pagination')).toBeNull();
+    expect(broken?.querySelector('button[aria-label="Previous page"]')).toBeNull();
+    expect(broken?.querySelector('button[aria-label="Next page"]')).toBeNull();
+    expect(broken?.querySelector('button[aria-label="Expand"]')).toBeNull();
+    expect(broken?.querySelector('button[aria-label="More actions"]')).toBeNull();
+    expect(broken?.querySelector('.pdf-viewer__page-canvas')).toBeNull();
+    expect(broken?.querySelector('.pdf-viewer__page')).toBeNull();
+    expect(broken?.querySelector('.cm-media-resize-handle')).toBeNull();
+    expect(pdfjsMock.state.getPageCalls.length).toBe(getPageCallsBefore);
+    expect(pdfjsMock.state.getDocumentUrls.length).toBe(getDocumentUrlsBefore);
   });
 
   it('a resolved-but-non-pdf outcome renders nothing — raw Markdown stays exactly as written', () => {
@@ -290,6 +346,28 @@ describe('embedLivePreview — PDF embeds, rendering (at rest)', () => {
       expect(iconSvg).not.toBeNull();
       expect(iconSvg?.outerHTML).not.toContain('M2 2L14 14');
       expect(iconSvg?.outerHTML).toContain('M2 13.3571H3.11111');
+
+      // The rest of the card's shape comes from the shared
+      // `renderInvalidMediaCard` builder (`brokenMediaCard.ts`) — same
+      // structure `ImageWidget.ts`'s own broken card uses: the title and
+      // hint grouped inside one `.cm-image-broken__text` wrapper, and
+      // exactly Delete + Edit source in the controls row — never any
+      // working-state control (Expand, More actions, page navigation).
+      expect(broken?.querySelector('.cm-image-broken__text')).not.toBeNull();
+      expect(broken?.querySelector('.cm-image-broken__text .cm-image-broken__alt')?.textContent).toBe(
+        'Unable to load'
+      );
+      expect(broken?.querySelector('.cm-image-broken__text .cm-image-broken__hint')?.textContent).toBe(
+        'document.pdf'
+      );
+      const controls = broken?.querySelector('.cm-pdf-controls');
+      expect(controls?.querySelectorAll('button').length).toBe(2);
+      expect(controls?.querySelector('button[aria-label="Delete embed"]')).not.toBeNull();
+      expect(
+        controls?.querySelector('button[aria-label="Edit source"], button[aria-label="Hide source"]')
+      ).not.toBeNull();
+      expect(controls?.querySelector('button[aria-label="Expand"]')).toBeNull();
+      expect(controls?.querySelector('button[aria-label="More actions"]')).toBeNull();
     } finally {
       pdfjsMock.state.shouldFail = false;
     }

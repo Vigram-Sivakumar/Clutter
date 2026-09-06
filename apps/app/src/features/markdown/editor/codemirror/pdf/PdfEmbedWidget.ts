@@ -22,6 +22,7 @@ import { computeFitScale } from '@features/pdf/pdfZoom';
 
 import { computeImageDeletionRange } from '../image/imageDeletion';
 import { setImageUiState, type ImageUiState } from '../image/imageUiState';
+import { renderInvalidMediaCard } from '../image/brokenMediaCard';
 import type { PdfDocumentCache } from './pdfDocumentCache';
 import { applyMediaAlignment, applyMediaWidth, disconnectMediaWidthObserver, type ResizeObserverHolder } from '../mediaPresentation/mediaLayoutStyle';
 import type { PdfPresentation } from '../mediaPresentation/mediaPresentationModel';
@@ -32,22 +33,21 @@ import './PdfEmbedWidget.css';
 // Hand-copied inline SVGs, same raw-DOM-widget convention ImageWidget.ts
 // already establishes (no React tree is available inside a CM6 WidgetType,
 // so the app's real AppIcon component system can't mount here). EDIT_ICON/
-// TRASH_ICON/MORE_ICON/EXPAND_ICON/ARROW_LEFT_ICON/ARROW_RIGHT_ICON are the
-// exact same paths ImageWidget.ts/iconRegistry.ts already use (`trash.svg`/
-// `more-horizontal.svg`/`expand-diagonal.svg`, the same glyph
-// `iconRegistry.ts` registers as `expandDiagonal`; the arrow icons match
-// `PdfViewer`'s own Previous/Next page glyphs); BROKEN_PDF_ICON is
-// hand-copied from `iconRegistry.ts`'s own `pdf` entry (`shared/icon/svg/
-// pdf.svg`) — deliberately not `broken-image.svg` (ImageWidget.ts's own
-// `BROKEN_IMAGE_ICON`): a failed PDF embed is still a PDF, not an image,
-// so its broken-state icon stays a PDF glyph rather than borrowing the
-// image family's.
+// MORE_ICON/EXPAND_ICON/ARROW_LEFT_ICON/ARROW_RIGHT_ICON are the exact
+// same paths ImageWidget.ts/iconRegistry.ts already use (`more-horizontal.
+// svg`/`expand-diagonal.svg`, the same glyph `iconRegistry.ts` registers
+// as `expandDiagonal`; the arrow icons match `PdfViewer`'s own Previous/
+// Next page glyphs); BROKEN_PDF_ICON is hand-copied from `iconRegistry.ts`'s
+// own `pdf` entry (`shared/icon/svg/pdf.svg`) — deliberately not
+// `broken-image.svg` (ImageWidget.ts's own `BROKEN_IMAGE_ICON`): a failed
+// PDF embed is still a PDF, not an image, so its broken-state icon stays
+// a PDF glyph rather than borrowing the image family's. The Delete icon
+// itself now lives in `../image/brokenMediaCard.ts`, shared with
+// `ImageWidget.ts`'s own broken-state Delete button — deleting is never
+// media-specific.
 
 const EDIT_ICON =
   '<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8.625 4L3.64738 9.30947C3.22603 9.7589 2.95326 10.3272 2.86614 10.937L2.64142 12.5101C2.57071 13.005 2.99497 13.4293 3.48995 13.3586L4.95655 13.1491C5.63195 13.0526 6.25428 12.7288 6.7209 12.231L11.625 7M8.625 4L9.79364 2.75345C10.18 2.34132 10.831 2.33098 11.2304 2.73044C11.7865 3.28654 12.2541 3.75413 12.8152 4.31518C13.1968 4.69683 13.2069 5.31263 12.8378 5.70638L11.625 7M8.625 4L11.625 7" stroke="currentColor" stroke-linecap="round"/><path d="M8 13.5H13.5" stroke="currentColor" stroke-linecap="round"/></svg>';
-
-const TRASH_ICON =
-  '<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M13 4L12.1801 12.199C12.0779 13.2214 11.2175 14 10.19 14H5.80998C4.78247 14 3.92214 13.2214 3.8199 12.199L3 4M13 4H14M13 4H10.5M3 4H2M3 4H5.5M10.5 4H5.5M10.5 4C10.5 2.89543 9.60457 2 8.5 2H7.5C6.39543 2 5.5 2.89543 5.5 4" stroke="currentColor" stroke-linecap="round"/></svg>';
 
 // Same glyph `iconRegistry.ts` registers as `moreHorizontal` — hand-copied
 // verbatim (no React tree available here) for the More actions control.
@@ -255,40 +255,25 @@ export class PdfEmbedWidget extends WidgetType {
   }
 
   private renderBroken(container: HTMLElement, view: EditorView): HTMLElement {
-    // Reuses ImageWidget's own broken-card classes/CSS verbatim (see the
-    // class doc comment) — no new broken-state styling for this widget.
+    // Reuses ImageWidget's own broken-card shape via the shared
+    // `renderInvalidMediaCard` builder (`brokenMediaCard.ts`) — no new
+    // broken-state styling for this widget; only the icon, delete label,
+    // and hint text are PDF-specific.
     container.classList.add('cm-image-container--broken');
 
-    const controls = document.createElement('div');
-    controls.classList.add('cm-pdf-controls');
-    controls.contentEditable = 'false';
-
-    const deleteButton = this.makeButton(TRASH_ICON, 'Delete embed', () => {
-      const { from, to } = computeImageDeletionRange(view.state, this.pos);
-      view.dispatch({ changes: { from, to, insert: '' } });
+    renderInvalidMediaCard(container, {
+      controlsClassName: 'cm-pdf-controls',
+      makeButton: (iconHtml, label, onActivate) => this.makeButton(iconHtml, label, onActivate),
+      deleteLabel: 'Delete embed',
+      onDelete: () => {
+        const { from, to } = computeImageDeletionRange(view.state, this.pos);
+        view.dispatch({ changes: { from, to, insert: '' } });
+      },
+      editButton: this.makeEditButton(view),
+      brokenIconHtml: BROKEN_PDF_ICON,
+      hintText: this.path,
     });
-    controls.append(deleteButton, this.makeEditButton(view));
 
-    const broken = document.createElement('div');
-    broken.classList.add('cm-image-broken');
-
-    const iconWrap = document.createElement('span');
-    iconWrap.classList.add('cm-image-broken__icon-wrap');
-    iconWrap.innerHTML = BROKEN_PDF_ICON;
-    iconWrap.querySelector('svg')?.classList.add('cm-image-broken__icon');
-    broken.append(iconWrap);
-
-    const altSpan = document.createElement('span');
-    altSpan.classList.add('cm-image-broken__alt');
-    altSpan.textContent = 'Unable to load';
-    broken.append(altSpan);
-
-    const hintSpan = document.createElement('span');
-    hintSpan.classList.add('cm-image-broken__hint');
-    hintSpan.textContent = this.path;
-    broken.append(hintSpan);
-
-    container.append(controls, broken);
     return container;
   }
 

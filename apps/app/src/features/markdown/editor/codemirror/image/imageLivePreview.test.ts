@@ -1547,8 +1547,13 @@ describe('Broken image fallback', () => {
     expect(broken).not.toBeNull();
     expect(broken?.querySelector('.cm-image-broken__icon-wrap')).not.toBeNull();
     expect(broken?.querySelector('.cm-image-broken__icon-wrap .cm-image-broken__icon')).not.toBeNull();
-    expect(broken?.querySelector('.cm-image-broken__alt')?.textContent).toBe('Unable to load');
-    expect(broken?.querySelector('.cm-image-broken__hint')?.textContent).toBe(
+    // Title + hint grouped inside one `.cm-image-broken__text` wrapper —
+    // the shared shape `brokenMediaCard.ts`'s `renderInvalidMediaCard`
+    // also produces for a broken PDF embed (`embedLivePreview.pdf.test.ts`).
+    expect(broken?.querySelector('.cm-image-broken__text .cm-image-broken__alt')?.textContent).toBe(
+      'Unable to load'
+    );
+    expect(broken?.querySelector('.cm-image-broken__text .cm-image-broken__hint')?.textContent).toBe(
       'https://example.com/mountain.jpg'
     );
   });

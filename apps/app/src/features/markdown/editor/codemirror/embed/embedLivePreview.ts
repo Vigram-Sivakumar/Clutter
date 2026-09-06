@@ -76,14 +76,20 @@ function currentEmbedImageSource(
  * doc comment):
  * - `'image'`: render exactly like a working standard image — same
  *   `ImageWidget`, `url` set to the resolved, loadable file URL.
- * - `'unresolved'`: render `ImageWidget` in its already-existing broken
- *   state from construction (never via a real, doomed-to-fail `<img>`
- *   load attempt) — `url: ''`, so no native network request/broken-glyph
- *   risk (`ImageWidget.renderBroken`'s own probe simply never resolves
- *   for an empty `src`, which is the correct outcome: there is nothing to
- *   recover until the next full decoration rebuild re-checks resolution).
- * - `'non-image'`: not this milestone's concern (PDF rendering) — no
- *   decoration at all, the raw `![[...]]` Markdown stays plain, editable
+ * - `'unresolved'`: no `VaultResource` exists for this target at all — the
+ *   PDF resolver is consulted first (below) in case the target path's own
+ *   extension says this was meant to be a PDF (a missing/deleted/mistyped
+ *   `.pdf` reference must still render as a missing *PDF*, not a missing
+ *   image); only if the PDF resolver also declines does this render
+ *   `ImageWidget` in its already-existing broken state from construction
+ *   (never via a real, doomed-to-fail `<img>` load attempt) — `url: ''`,
+ *   so no native network request/broken-glyph risk (`ImageWidget.
+ *   renderBroken`'s own probe simply never resolves for an empty `src`,
+ *   which is the correct outcome: there is nothing to recover until the
+ *   next full decoration rebuild re-checks resolution).
+ * - `'non-image'`: a real `VaultResource` was found, just not of kind
+ *   `'image'` — the PDF resolver is consulted (below); anything else is
+ *   out of scope, and the raw `![[...]]` Markdown stays plain, editable
  *   text, same as an incomplete/unparseable Embed already does.
  *
  * Two guards run before any of the above, in order, both producing "no
@@ -211,41 +217,81 @@ function buildDecorations(
         }
 
         const resolution = resolveEmbedImage(match.path, match.alias);
-        if (resolution.status === 'non-image') {
-          // Not an image — resolveResourceEmbed() already found a real
-          // VaultResource here (an 'unresolved' target never reaches this
-          // branch, see the guard above), so the only other possibility
-          // given VaultResourceKind = 'pdf' | 'image' is a PDF. Consulted
-          // only here, never in place of the image resolution above — see
-          // embedPdfResolution.ts's own doc comment.
+        if (resolution.status === 'non-image' || resolution.status === 'unresolved') {
+          // Two different reasons to ask the PDF resolver, same question
+          // either way — "should this render as a PDF instead": for
+          // 'non-image', resolveResourceEmbed() already found a real
+          // VaultResource that just isn't of kind 'image', so the only
+          // other possibility given VaultResourceKind = 'pdf' | 'image' is
+          // a PDF; for 'unresolved', no VaultResource exists at all, but
+          // the target path's own extension may still say this was meant
+          // to be a PDF (embedPdfResolution.ts's own doc comment has the
+          // full account of that fallback). Consulted only here, never in
+          // place of the image resolution above.
           const resolveEmbedPdf = getResolveEmbedPdf();
           const pdfResolution = resolveEmbedPdf?.(match.path, match.alias);
-          if (pdfResolution?.status !== 'pdf') {
+
+          if (pdfResolution?.status === 'pdf') {
+            const pdfWidget = new PdfEmbedWidget(
+              pdfResolution.title,
+              pdfResolution.url,
+              pdfResolution.path,
+              pdfResolution.resourceId,
+              baseUi,
+              node.from,
+              node.to,
+              getOnPdfEmbedClick,
+              getOnOpenPdfMenu,
+              pdfDocumentCache,
+              resolvePdfPresentation(resolveEmbedAliasFields(match.alias).tokens)
+            );
+
+            if (baseUi.revealed) {
+              ranges.push(Decoration.widget({ widget: pdfWidget, side: 1 }).range(node.to));
+            } else {
+              const range = Decoration.replace({ widget: pdfWidget }).range(node.from, node.to);
+              ranges.push(range);
+              atomicRanges.push(range);
+            }
             return;
           }
 
-          const pdfWidget = new PdfEmbedWidget(
-            pdfResolution.title,
-            pdfResolution.url,
-            pdfResolution.path,
-            pdfResolution.resourceId,
-            baseUi,
-            node.from,
-            node.to,
-            getOnPdfEmbedClick,
-            getOnOpenPdfMenu,
-            pdfDocumentCache,
-            resolvePdfPresentation(resolveEmbedAliasFields(match.alias).tokens)
-          );
-
-          if (baseUi.revealed) {
-            ranges.push(Decoration.widget({ widget: pdfWidget, side: 1 }).range(node.to));
-          } else {
+          if (pdfResolution?.status === 'unresolved') {
+            // No VaultResource, but the path's own extension confirms
+            // this was meant to be a PDF — render PdfEmbedWidget already
+            // in its broken state (url: '' — never a real load attempt,
+            // the same "nothing to recover until the next full decoration
+            // rebuild re-checks resolution" principle the image side's
+            // own 'unresolved' branch below already establishes;
+            // resourceId: '' since renderBroken()'s own controls never
+            // read it — no "More actions" menu exists for a broken PDF).
+            const pdfWidget = new PdfEmbedWidget(
+              pdfResolution.title,
+              '',
+              match.path,
+              '',
+              { ...baseUi, broken: true },
+              node.from,
+              node.to,
+              getOnPdfEmbedClick,
+              getOnOpenPdfMenu,
+              pdfDocumentCache,
+              resolvePdfPresentation(resolveEmbedAliasFields(match.alias).tokens)
+            );
             const range = Decoration.replace({ widget: pdfWidget }).range(node.from, node.to);
             ranges.push(range);
             atomicRanges.push(range);
+            return;
           }
-          return;
+
+          if (resolution.status === 'non-image') {
+            // A real, resolved non-PDF, non-image resource — out of scope
+            // for both widget families, same as before this fix.
+            return;
+          }
+          // Else: resolution.status === 'unresolved' and the PDF resolver
+          // declined too (not a PDF-looking path either) — falls through
+          // to the generic image-broken rendering below, unchanged.
         }
 
         const ui =

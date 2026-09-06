@@ -132,6 +132,14 @@ describe('createEmbedPdfResolver — unresolved', () => {
 
     expect(resolve('document.pdf', null)).toEqual({ status: 'unresolved', title: 'document' });
   });
+
+  it('reports non-pdf, not unresolved, for a missing target whose extension is not .pdf — the file-extension fallback only ever claims a PDF-looking path', () => {
+    const vault = makeVault([]);
+    const resolve = createEmbedPdfResolver(vault, () => '');
+
+    expect(resolve('missing.png', null)).toEqual({ status: 'non-pdf' });
+    expect(resolve('missing', null)).toEqual({ status: 'non-pdf' });
+  });
 });
 
 describe('createEmbedPdfResolver — lifecycle (rename/move/delete/restore)', () => {

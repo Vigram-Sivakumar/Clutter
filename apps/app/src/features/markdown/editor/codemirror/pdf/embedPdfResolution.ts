@@ -1,16 +1,19 @@
 /**
  * The injected Embed-PDF resolution contract — the PDF-scoped counterpart
  * to `embed/embedImageResolution.ts`'s `EmbedImageResolution`/
- * `ResolveEmbedImage`. `embedLivePreview.ts` calls this only after the
- * existing image resolver has already said `{ status: 'non-image' }` for a
- * target — i.e. `resolveResourceEmbed()` already found a real
- * `VaultResource` for this path, it just isn't of kind `'image'`. Given
- * `VaultResourceKind = 'pdf' | 'image'`, that makes `'pdf'` the only
- * reachable outcome here today; `'non-pdf'`/`'unresolved'` exist for the
- * same reason `EmbedImageResolution` keeps its own symmetric shape —
- * forward-compatible with a future third resource kind, and consistent
- * with the composer pattern `resolveEmbedImage.ts`/`resolveImageSrc.ts`/
- * `resolveImageResource.ts` already each establish independently.
+ * `ResolveEmbedImage`. `embedLivePreview.ts` calls this in two cases:
+ * after the image resolver has said `{ status: 'non-image' }` for a target
+ * (a real `VaultResource` was found, just not of kind `'image'` — given
+ * `VaultResourceKind = 'pdf' | 'image'`, `'pdf'` is the only reachable
+ * outcome there), and after it has said `{ status: 'unresolved' }` (no
+ * `VaultResource` at all — `resolveEmbedPdf.ts`'s own composer then falls
+ * back to the target path's file extension, the only signal left once
+ * Vault resolution fails, to decide whether this missing reference should
+ * still render as a *missing PDF* rather than the generic missing-image
+ * state). `'non-pdf'` is returned either for a resolved non-PDF resource
+ * or for a missing target whose extension doesn't say `.pdf` either —
+ * both mean "not this resolver's concern," and `embedLivePreview.ts`
+ * falls through to the image resolver's own outcome in both cases.
  *
  * `url`/`path` are plain strings, never a `VaultResource` — the editor
  * layer must never import `Vault` types (the same boundary

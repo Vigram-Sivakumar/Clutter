@@ -1372,8 +1372,8 @@ put it there. */
   bottom: var(--space-2);
   width: 12px;
   height: 12px;
-  border-inline-end: 2px solid var(--resize-handle-img);
-  border-block-end: 2px solid var(--resize-handle-img);
+  border-inline-end: 2px solid var(--resize-handle);
+  border-block-end: 2px solid var(--resize-handle);
   border-end-end-radius: var(--radius-sm);
   display: block;
 }
@@ -1382,8 +1382,8 @@ put it there. */
   bottom: var(--space-2);
   width: 12px;
   height: 12px;
-  border-inline-start: 2px solid var(--resize-handle-img);
-  border-block-end: 2px solid var(--resize-handle-img);
+  border-inline-start: 2px solid var(--resize-handle);
+  border-block-end: 2px solid var(--resize-handle);
   border-end-start-radius: var(--radius-sm);
   display: block;
 }
@@ -1427,6 +1427,16 @@ body.cm-image-resizing-nesw *,
 body.cm-pdf-resizing-nesw,
 body.cm-pdf-resizing-nesw * {
   cursor: nesw-resize !important;
+}
+
+.cm-editor .cm-image-container .cm-media-resize-handle--corner-right {
+  border-inline-end-color: var(--resize-handle-img);
+  border-block-end-color: var(--resize-handle-img);
+}
+
+.cm-editor .cm-image-container .cm-media-resize-handle--corner-left {
+  border-inline-start-color: var(--resize-handle-img);
+  border-block-end-color: var(--resize-handle-img);
 }
 
 /* The intermediate `<button class="cm-image-button">` wrapping the `<img>`
@@ -1742,6 +1752,14 @@ body.cm-pdf-resizing-nesw * {
   display: flex;
   align-items: center;
   width: 100%;
+  /* Gap between the icon and the text wrapper only
+     (`.cm-image-broken__text`, below) — this row now has exactly two
+     flex children (icon-wrap, text wrapper), so this `gap` is
+     unambiguously "icon-to-text," independent of the title/hint's own
+     internal spacing. Shared verbatim by both the broken-image
+     (`ImageWidget.ts`) and broken-PDF (`PdfEmbedWidget.ts`) cards via
+     `brokenMediaCard.ts`'s common `renderInvalidMediaCard` builder, so
+     their layout/spacing stay identical by construction. */
   gap: var(--space-6);
   padding: var(--space-6);
   border-radius: var(--radius-md);
@@ -1770,6 +1788,25 @@ body.cm-pdf-resizing-nesw * {
   height: var(--icon-md);
   stroke-width: var(--icon-stroke);
   color: var(--foreground-secondary);
+}
+
+/* Groups the title ("Unable to load") and the path/source hint together,
+   as one unit the icon sits beside (`brokenMediaCard.ts`) — a plain row
+   (not a column: title and hint sit side by side, vertically centered),
+   matching the original flat single-row layout exactly. `gap` here is
+   the title/hint's own internal spacing — unchanged from the previous
+   flat single-row `.cm-image-broken` gap value (`var(--space-6)`), now
+   scoped to just this pair rather than doubling as the icon-to-text gap
+   too. `min-width: 0` preserves both children's own existing `overflow`/
+   `text-overflow` ellipsis truncation — a flex item's default
+   `min-width: auto` would otherwise stop this wrapper (and therefore its
+   children) from shrinking below their content's natural width inside
+   the outer flex row. */
+.cm-editor .cm-image-broken__text {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: var(--space-12);
 }
 
 .cm-editor .cm-image-broken__alt {
