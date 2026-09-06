@@ -46,7 +46,7 @@
      this class rule — overrides it outright. */
   width: calc(100% - 1px);
   max-width: 100%;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   overflow: hidden;
   background: var(--surface-secondary);
   border: 1px solid var(--border-default);
@@ -163,7 +163,7 @@
   aspect-ratio: 1;
   padding: 1px;
   border: none;
-  border-radius: var(--radius-xs);
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--foreground-secondary);
   flex-shrink: 0;
