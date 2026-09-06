@@ -25,6 +25,7 @@ import { setImageUiState, type ImageUiState } from '../image/imageUiState';
 import type { PdfDocumentCache } from './pdfDocumentCache';
 import { applyMediaAlignment, applyMediaWidth, disconnectMediaWidthObserver, type ResizeObserverHolder } from '../mediaPresentation/mediaLayoutStyle';
 import type { PdfPresentation } from '../mediaPresentation/mediaPresentationModel';
+import { attachPdfResizeHandle } from './pdfResizeHandle';
 
 import './PdfEmbedWidget.css';
 
@@ -438,6 +439,18 @@ export class PdfEmbedWidget extends WidgetType {
       renderCurrentPage();
     };
 
+    // Suppresses the `ResizeObserver` callback below for exactly the
+    // duration of a corner-handle drag (`pdfResizeHandle.ts`'s own
+    // `onResizeStart`/`onResizeEnd` hooks) — without this, dragging the
+    // container's width live on every `pointermove` would re-trigger a
+    // real PDF.js re-render on every single tick (`pageHost`'s own
+    // measured width tracks `container`'s width via ordinary block-flow
+    // layout), reproducing exactly the flicker/overlapping-render
+    // problem an earlier interactive resize implementation was removed
+    // for. See `pdfResizeHandle.ts`'s own doc comment for the full
+    // account.
+    let suppressFitResize = false;
+
     // Keeps `availableWidth` live so resizing the editor column
     // recalculates and re-renders the *current* page at the new fit scale
     // (product requirement: resize) — the same `ResizeObserver` role
@@ -445,6 +458,9 @@ export class PdfEmbedWidget extends WidgetType {
     // `pageHost` element since no React ref/effect is available inside a
     // CM6 `WidgetType`. Never changes `currentPage` itself.
     const resizeObserver = new ResizeObserver(() => {
+      if (suppressFitResize) {
+        return;
+      }
       const nextWidth = getAvailableViewerWidth(pageHost);
       if (nextWidth === availableWidth) {
         return;
@@ -453,6 +469,43 @@ export class PdfEmbedWidget extends WidgetType {
       renderCurrentPage();
     });
     resizeObserver.observe(pageHost);
+
+    // Custom drag-to-resize (resize milestone) — replaces the browser's
+    // native CSS `resize: horizontal` (MarkdownEditor.css/PdfEmbedWidget.css
+    // own doc comments have the full account of why: no reliable native
+    // "resize finished" event to persist against). Both bottom-corner
+    // handles reuse Image's own `.cm-image-resize-handle--corner-left`/
+    // `--corner-right` CSS classes verbatim — same visual affordance, no
+    // duplicated styling — while `pdfResizeHandle.ts` itself is a wholly
+    // separate, PDF-specific module from `image/imageResizeHandle.ts`.
+    // `onResizeEnd` is what makes "the normal PDF rendering/layout system
+    // settle to the new width" happen deterministically right when the
+    // drag ends, rather than waiting on the `ResizeObserver` above to
+    // coincidentally re-fire (it may not, if the live-dragged width
+    // already equals the persisted value by the time `updateDOM` re-
+    // applies it).
+    const pdfResizeHooks = {
+      onResizeStart: () => {
+        suppressFitResize = true;
+      },
+      onResizeEnd: () => {
+        suppressFitResize = false;
+        availableWidth = getAvailableViewerWidth(pageHost);
+        renderCurrentPage();
+      },
+    };
+
+    const leftHandle = document.createElement('div');
+    leftHandle.classList.add('cm-image-resize-handle', 'cm-image-resize-handle--corner-left');
+    leftHandle.setAttribute('aria-hidden', 'true');
+    attachPdfResizeHandle(leftHandle, container, 'left', view, getCurrentTo, pdfResizeHooks);
+
+    const rightHandle = document.createElement('div');
+    rightHandle.classList.add('cm-image-resize-handle', 'cm-image-resize-handle--corner-right');
+    rightHandle.setAttribute('aria-hidden', 'true');
+    attachPdfResizeHandle(rightHandle, container, 'right', view, getCurrentTo, pdfResizeHooks);
+
+    container.append(leftHandle, rightHandle);
 
     this.docCache.get(this.url).then(
       (loadedDoc) => {

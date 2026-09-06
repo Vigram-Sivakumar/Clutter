@@ -5,6 +5,26 @@ import { getAvailableViewerWidth } from '@features/pdf/pdfFitWidth';
 import type { MediaAlignment, MediaPresentationMode } from './mediaPresentationModel';
 
 /**
+ * The same clamp `applyMediaWidth`'s own 12+ pixel-width branch applies —
+ * extracted so a live pointer-drag resize (`image/imageResizeHandle.ts`,
+ * `pdf/pdfResizeHandle.ts`) can clamp its own in-flight width identically
+ * to how the persisted value gets clamped every time it's later applied.
+ * Without this, a drag could commit a width the very next render then
+ * silently re-clamps to something smaller/larger, snapping visibly on
+ * the first reload/unrelated re-render after the drag ends. Shared here
+ * — not duplicated per widget — because both call sites need the exact
+ * same number, not merely a similar one.
+ */
+export function clampMediaWidth(view: EditorView, rawWidth: number): number {
+  const available = getAvailableViewerWidth(view.contentDOM);
+  if (available <= 0) {
+    return Math.max(1, rawWidth);
+  }
+  const min = available / 11;
+  return Math.min(available, Math.max(min, rawWidth));
+}
+
+/**
  * Applies a persisted `width` value (`mediaPresentationModel.ts`'s
  * encoding: 1–10 proportional, 11 = full/default, 12+ pixel) to `target` —
  * the element that should actually carry the width. `ImageWidget.ts`

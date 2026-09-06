@@ -50,8 +50,6 @@
   overflow: hidden;
   background: var(--surface-secondary);
   border: 1px solid var(--border-default);
-  /* Do not use transition for height and width because it causes resizing issues and the element doesn't follow the cursor */
-  resize: horizontal;
 }
 
 /* Alignment (resize milestone) — a direct margin rule centers/right-aligns

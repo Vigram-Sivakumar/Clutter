@@ -1,9 +1,7 @@
 import type { EditorView } from '@codemirror/view';
 
-import { getAvailableViewerWidth } from '@features/pdf/pdfFitWidth';
-
 import { computeImagePresentationUpdate, getImagePresentation } from '../mediaPresentation/mediaPresentationUpdate';
-import { measureBox } from '../mediaPresentation/mediaLayoutStyle';
+import { clampMediaWidth, measureBox } from '../mediaPresentation/mediaLayoutStyle';
 import { presentationOnlyEdit } from './imageUiState';
 
 /**
@@ -61,15 +59,6 @@ import { presentationOnlyEdit } from './imageUiState';
 export type ImageResizeSide = 'left' | 'right';
 
 const MIN_HEIGHT_PX = 40;
-
-function clampWidth(view: EditorView, rawWidth: number): number {
-  const available = getAvailableViewerWidth(view.contentDOM);
-  if (available <= 0) {
-    return Math.max(1, rawWidth);
-  }
-  const min = available / 11;
-  return Math.min(available, Math.max(min, rawWidth));
-}
 
 /**
  * Wires one bottom-corner resize handle element to drag-resize
@@ -129,7 +118,7 @@ export function attachImageResizeHandle(
       // width, mirroring the right corner's further-right convention —
       // the "different pointer math," never a different visual handle.
       const deltaX = side === 'left' ? -rawDeltaX : rawDeltaX;
-      const width = clampWidth(view, startWidth + deltaX);
+      const width = clampMediaWidth(view, startWidth + deltaX);
       container.style.width = `${width}px`;
 
       if (resizesHeight) {

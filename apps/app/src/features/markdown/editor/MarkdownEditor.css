@@ -1343,7 +1343,13 @@ put it there. */
 }
 
 .cm-editor .cm-image-container:hover .cm-image-resize-handle,
-.cm-editor .cm-image-container:focus-within .cm-image-resize-handle {
+.cm-editor .cm-image-container:focus-within .cm-image-resize-handle,
+/* PDF embed reuses this same handle class/shape verbatim
+   (`pdf/pdfResizeHandle.ts`, `PdfEmbedWidget.ts`'s own `renderWorking`) —
+   its own container needs the identical hover/focus-within reveal
+   trigger, just scoped to its own (differently-named) container class. */
+.cm-editor .cm-pdf-embed-container:hover .cm-image-resize-handle,
+.cm-editor .cm-pdf-embed-container:focus-within .cm-image-resize-handle {
   opacity: 1;
 }
 
@@ -1381,18 +1387,20 @@ put it there. */
   display: block;
 }
 
-/* Cursor is purely a function of which corner, never of Fill vs. Fit —
-   deliberately never `ew-resize`, even though Fit only ever changes
-   width: the handle is visually a corner in both modes, so it keeps a
-   corner-direction cursor regardless of which fields the drag actually
-   persists (`imageResizeHandle.ts`'s own doc comment has the full
-   rationale). Right mirrors bottom-right diagonal, left mirrors
-   bottom-left. */
-.cm-editor .cm-image-container .cm-image-resize-handle--corner-right {
+/* Cursor is purely a function of which corner — never of Fill vs. Fit,
+   and never of Image vs. PDF (unscoped by container type on purpose, so
+   PDF's reuse of these same handle classes gets an identical cursor with
+   no separate rule). Deliberately never `ew-resize`, even though Fit and
+   PDF alike only ever change width: the handle is visually a corner in
+   every case, so it keeps a corner-direction cursor regardless of which
+   fields the drag actually persists (`image/imageResizeHandle.ts`'s own
+   doc comment has the full rationale). Right mirrors bottom-right
+   diagonal, left mirrors bottom-left. */
+.cm-editor .cm-image-resize-handle--corner-right {
   cursor: nwse-resize;
 }
 
-.cm-editor .cm-image-container .cm-image-resize-handle--corner-left {
+.cm-editor .cm-image-resize-handle--corner-left {
   cursor: nesw-resize;
 }
 
@@ -1719,8 +1727,8 @@ body.cm-image-resizing-nesw * {
   overflow: hidden;
 }
 .cm-image-container--broken .cm-image-controls {
-  top: var(--space-2);
-  right: var(--space-2);
+  top: var(--space-4);
+  right: var(--space-4);
 }
 
 .cm-editor .cm-image-broken {
@@ -1729,7 +1737,7 @@ body.cm-image-resizing-nesw * {
   width: 100%;
   gap: var(--space-6);
   padding: var(--space-6);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   /* background: var(--surface-secondary); */
   /* box-shadow: var(--shadow-inset-thin); */
 }
