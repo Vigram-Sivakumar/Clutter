@@ -47,29 +47,51 @@ import { presentationOnlyEdit } from '../image/imageUiState';
  * the new width," never mid-drag.
  *
  * **Live visual responsiveness during the drag, without any PDF.js
- * involvement.** Unlike an `<img>` (`width: 100%; height: auto`), the
- * rendered page (`.pdf-viewer__page`, `pageWrap`) has no relative sizing
- * anywhere in its chain — `pdfPageRenderer.ts` sets the canvas's CSS box
- * in absolute pixels matching the *last real render's* fit scale, and
- * `.textLayer`'s own child spans are positioned in absolute PDF-pixel
- * coordinates keyed to that same fixed scale — so nothing about it
- * naturally tracks a live-changing container width. The fix is a pure
- * CSS `transform: scale(...)` applied to `pageWrap` itself on every
- * `pointermove` (via the live `hooks.getPageWrap()` hook, never a
- * captured reference — `renderCurrentPage()` replaces `pageWrap` with a
- * brand-new element on every real render, so a stale reference would
- * silently stop working the moment one occurs): `pageWrap` already wraps
- * *both* the canvas and the text layer as one positioned unit (the text
- * layer is `inset: 0` inside it), so scaling `pageWrap` scales both
- * together, uniformly — text stays glyph-perfect aligned to the canvas
- * beneath it because both scale by the exact same factor, with zero
- * per-span recomputation. A single uniform scale factor scales width and
- * height together by construction, so aspect ratio needs no separate
- * math at all. On drag-end, no explicit transform cleanup is needed:
- * `renderCurrentPage()` (called from `onResizeEnd`) always creates a
- * wholesale *new* `pageWrap` and replaces `pageHost`'s children with it,
- * discarding the old, transformed one — the "temporary preview" is
- * replaced by construction, not by resetting a style.
+ * involvement — including the *container's own height*.** Unlike an
+ * `<img>` (`width: 100%; height: auto`), nothing in the rendered page's
+ * chain has real *layout* dimensions tied to the container's width:
+ * `pdfPageRenderer.ts` sets the canvas's CSS box in absolute pixels
+ * matching the *last real render's* fit scale, and `.pdf-viewer__page`
+ * (`pageWrap`) is `width: fit-content` with no height rule of its own —
+ * it just shrink-wraps to whatever fixed size the canvas happens to be.
+ * `.cm-pdf-embed-page` (`pageHost`) has no explicit height either, so its
+ * own rendered height (and therefore the outer `.cm-pdf-embed-container`'s
+ * own overall height) is *entirely* derived from `pageWrap`'s real layout
+ * box. A first version of this fix applied a `transform: scale(...)` to
+ * `pageWrap` — **confirmed wrong**: `transform` is paint-only and never
+ * participates in layout, so it left `pageWrap`'s real box (and therefore
+ * `pageHost`'s and `container`'s own heights) completely frozen during
+ * the drag — only the container's *width* ever visibly changed.
+ *
+ * The actual fix gives `pageWrap` a genuine **layout** width/height for
+ * the drag's duration, computed to preserve the page's own aspect ratio
+ * (read straight off the canvas's own intrinsic pixel-buffer dimensions,
+ * `canvas.width`/`canvas.height` — always correct regardless of any CSS
+ * override, no separate bookkeeping needed), and makes the canvas's
+ * existing raster stretch to fill that box via ordinary percentage CSS
+ * sizing (`width: 100%; height: 100%`) — the same "browser stretches
+ * existing raster content" behavior an `<img>` gets for free, applied
+ * explicitly here. Setting `pageWrap`'s own inline `width`/`height`
+ * overrides its `width: fit-content` default (which has no competing
+ * height rule to fight) with a real box; that real height propagates up
+ * through `pageHost`'s auto-height to `container`'s own auto-height —
+ * genuine reflow, not merely a repaint. `.textLayer` needs no attention:
+ * it's `position: absolute; inset: 0` inside `pageWrap`, so its own outer
+ * box already tracks `pageWrap`'s new size for free, and its transparent
+ * text spans being momentarily stale (still positioned for the old scale)
+ * is invisible — nothing user-visible reads their exact position during a
+ * drag.
+ *
+ * Read via the live `hooks.getPageWrap()` hook, never a captured
+ * reference — `renderCurrentPage()` replaces `pageWrap` (and its canvas)
+ * with brand-new elements on every real render, so a stale reference
+ * would silently stop working the moment one occurs. On drag-end, no
+ * explicit cleanup of any inline override is needed for the same reason:
+ * `renderCurrentPage()` (called from `onResizeEnd`) always mounts a
+ * wholesale *new* `pageWrap`/canvas and replaces `pageHost`'s children
+ * with them, discarding every inline style the drag applied along with
+ * the old elements — the temporary preview is replaced by construction,
+ * not by resetting styles.
  */
 export type PdfResizeSide = 'left' | 'right';
 
@@ -120,6 +142,15 @@ export function attachPdfResizeHandle(
     const startX = event.clientX;
     let active = true;
 
+    // Captured once, before any mutation — `pageWrap`'s own current
+    // rendered width (== `computeFitScale`'s `availableWidth` at the last
+    // real render, per that function's own `availableWidth / pageBaseWidth`
+    // contract) is the reference this drag scales proportionally against.
+    // `null` if no page is mounted yet (still loading/broken) — the drag
+    // still resizes the container in that case, just with no page-height
+    // preview to drive (nothing rendered yet to preserve the ratio of).
+    const startPageWrapWidth = hooks.getPageWrap()?.getBoundingClientRect().width ?? 0;
+
     // Optional chaining — see `imageResizeHandle.ts`'s identical comment:
     // standard in every real target browser, absent in jsdom (this
     // project's own test environment); the drag still works correctly
@@ -138,20 +169,21 @@ export function attachPdfResizeHandle(
       container.style.width = `${width}px`;
 
       // Live visual preview — see the class doc comment's "Live visual
-      // responsiveness" section for the full rationale. `factor` is the
-      // container's own growth ratio, not a separately re-derived
-      // available-width calculation: the page's rendered width already
-      // equals `computeFitScale`'s `availableWidth` at last render time,
-      // and `availableWidth` itself is a fixed offset (padding/border)
-      // away from the container's own width — scaling the page by the
-      // same ratio the container just grew/shrank by keeps it occupying
-      // the same visual proportion of the container throughout the drag,
-      // corrected exactly by the one real render on release.
+      // responsiveness" section for the full rationale: a real layout
+      // width/height on `pageWrap` (never just a paint-only transform),
+      // so `pageHost`'s/`container`'s own auto-heights genuinely reflow
+      // in step with the drag, not only the container's width.
       const pageWrap = hooks.getPageWrap();
-      if (pageWrap && startWidth > 0) {
+      const canvas = pageWrap?.querySelector<HTMLCanvasElement>('canvas') ?? null;
+      if (pageWrap && canvas && startWidth > 0 && startPageWrapWidth > 0 && canvas.height > 0) {
+        const aspectRatio = canvas.width / canvas.height;
         const factor = width / startWidth;
-        pageWrap.style.transformOrigin = 'top center';
-        pageWrap.style.transform = `scale(${factor})`;
+        const newPageWrapWidth = startPageWrapWidth * factor;
+        const newPageWrapHeight = newPageWrapWidth / aspectRatio;
+        pageWrap.style.width = `${newPageWrapWidth}px`;
+        pageWrap.style.height = `${newPageWrapHeight}px`;
+        canvas.style.width = '100%';
+        canvas.style.height = '100%';
       }
     };
 

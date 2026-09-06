@@ -183,6 +183,13 @@ async function mountResolvedPdf(doc = PDF_MD, numPages = 1): Promise<EditorView>
   const view = mountView(doc, pdfResolverFor({ 'document.pdf': pdfResolution('app://vault/document.pdf', 'document', 'document.pdf') }));
   await flush();
   stubDynamicRect(getContainer(view), 600);
+  // jsdom never computes real layout, so `.pdf-viewer__page`'s own
+  // `getBoundingClientRect()` would otherwise read 0 regardless of the
+  // canvas's real inline CSS width — stubbed to what a real browser would
+  // measure for this mock's 600×800 base page at the initial scale-1 fit
+  // (`getAvailableViewerWidth` also reads 0 in jsdom, so `computeFitScale`
+  // falls back to scale 1 — see that function's own `<= 0` guard).
+  stubDynamicRect(getPageWrap(view), 600);
   return view;
 }
 
@@ -334,20 +341,29 @@ describe('PDF resize lifecycle — no continuous dispatch, exactly one commit, n
   });
 });
 
-describe('PDF resize — live visual preview via CSS transform (no PDF.js involvement)', () => {
-  it('pointermove scales the current .pdf-viewer__page in proportion to the live width change, uniformly (width and height together)', async () => {
+describe('PDF resize — live visual preview via a real layout width/height on .pdf-viewer__page (no PDF.js involvement)', () => {
+  // The mock page is 600×800 at scale 1 (jsdom's `getAvailableViewerWidth`
+  // always reads 0, so `computeFitScale` falls back to scale 1 per its own
+  // `<= 0` guard) — an exact 3:4 (0.75) aspect ratio, so `newHeight ===
+  // newWidth * (800 / 600)` throughout these assertions.
+
+  it('pointermove sets a real layout width+height on .pdf-viewer__page, preserving aspect ratio, and stretches the canvas to fill it', async () => {
     const view = await mountResolvedPdf();
     const pageWrap = getPageWrap(view);
+    const canvas = pageWrap.querySelector<HTMLCanvasElement>('canvas')!;
 
     const handle = getRightHandle(view);
     const pointerId = 51;
     handle.dispatchEvent(pointerEvent('pointerdown', 0, 0, pointerId));
     handle.dispatchEvent(pointerEvent('pointermove', 60, 0, pointerId)); // 600 -> 660, factor 1.1
 
-    expect(pageWrap.style.transform).toBe('scale(1.1)');
+    expect(pageWrap.style.width).toBe('660px');
+    expect(pageWrap.style.height).toBe('880px'); // 660 / (600/800)
+    expect(canvas.style.width).toBe('100%');
+    expect(canvas.style.height).toBe('100%');
   });
 
-  it('the preview scale shrinks below 1 for a narrowing drag', async () => {
+  it('the preview shrinks both dimensions together for a narrowing drag', async () => {
     const view = await mountResolvedPdf();
     const pageWrap = getPageWrap(view);
 
@@ -356,7 +372,8 @@ describe('PDF resize — live visual preview via CSS transform (no PDF.js involv
     handle.dispatchEvent(pointerEvent('pointerdown', 100, 0, pointerId));
     handle.dispatchEvent(pointerEvent('pointermove', 40, 0, pointerId)); // 600 -> 540, factor 0.9
 
-    expect(pageWrap.style.transform).toBe('scale(0.9)');
+    expect(pageWrap.style.width).toBe('540px');
+    expect(pageWrap.style.height).toBe('720px'); // 540 / (600/800)
   });
 
   it('the left corner also drives the same live preview, mirrored pointer math', async () => {
@@ -366,12 +383,13 @@ describe('PDF resize — live visual preview via CSS transform (no PDF.js involv
     const handle = getLeftHandle(view);
     const pointerId = 53;
     handle.dispatchEvent(pointerEvent('pointerdown', 100, 0, pointerId));
-    handle.dispatchEvent(pointerEvent('pointermove', 20, 0, pointerId)); // moved 80px further left -> width 680, factor 680/600
+    handle.dispatchEvent(pointerEvent('pointermove', 20, 0, pointerId)); // moved 80px further left -> width 680
 
-    expect(pageWrap.style.transform).toBe(`scale(${680 / 600})`);
+    expect(pageWrap.style.width).toBe('680px');
+    expect(pageWrap.style.height).toBe(`${(680 / 600) * 800}px`);
   });
 
-  it('never triggers a PDF.js render while previewing — the scale is pure CSS', async () => {
+  it('never triggers a PDF.js render while previewing — the live resize is pure CSS layout, not a re-render', async () => {
     const view = await mountResolvedPdf();
     const callsBeforeDrag = pdfjsMock.state.getPageCalls.length;
 
@@ -384,7 +402,7 @@ describe('PDF resize — live visual preview via CSS transform (no PDF.js involv
     expect(pdfjsMock.state.getPageCalls.length).toBe(callsBeforeDrag);
   });
 
-  it('the settle-render after pointerup replaces the page wrap wholesale, discarding the transformed preview', async () => {
+  it('the settle-render after pointerup replaces the page wrap wholesale, discarding the temporary preview sizing', async () => {
     const view = await mountResolvedPdf();
     const previewedPageWrap = getPageWrap(view);
 
@@ -393,7 +411,10 @@ describe('PDF resize — live visual preview via CSS transform (no PDF.js involv
 
     const settledPageWrap = getPageWrap(view);
     expect(settledPageWrap).not.toBe(previewedPageWrap);
-    expect(settledPageWrap.style.transform).toBe('');
+    // A wholesale new element from `renderCurrentPage()` — never carries
+    // over the old element's own inline preview sizing.
+    expect(settledPageWrap.style.width).toBe('');
+    expect(settledPageWrap.style.height).toBe('');
   });
 });
 
