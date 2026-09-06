@@ -241,9 +241,17 @@ describe('embedLivePreview — PDF embeds, rendering (at rest)', () => {
     const view = mountView('x ![[missing.pdf]]', imageResolverFor({}), resolveEmbedPdf);
 
     expect(getPdfEmbed(view)).toBeNull();
-    expect(view.dom.querySelector('.cm-image-container--broken')).not.toBeNull();
+    const broken = view.dom.querySelector('.cm-image-container--broken');
+    expect(broken).not.toBeNull();
     expect(view.dom.querySelector('.cm-image-broken__hint')?.textContent).toBe('missing.pdf');
     expect(resolveEmbedPdf).not.toHaveBeenCalled();
+
+    // Never reached `PdfEmbedWidget.ts` at all (the PDF resolver was
+    // never called) — this is `ImageWidget.ts`'s own generic
+    // unresolved-embed broken state, so it correctly keeps the image
+    // broken icon rather than the PDF one.
+    const iconSvg = broken?.querySelector('.cm-image-broken__icon-wrap svg');
+    expect(iconSvg?.outerHTML).toContain('M2 2L14 14');
   });
 
   it('a resolved-but-non-pdf outcome renders nothing — raw Markdown stays exactly as written', () => {
@@ -270,7 +278,18 @@ describe('embedLivePreview — PDF embeds, rendering (at rest)', () => {
       expect(getPdfEmbed(view)).not.toBeNull();
       await flush();
 
-      expect(view.dom.querySelector('.cm-image-container--broken')).not.toBeNull();
+      const broken = view.dom.querySelector('.cm-image-container--broken');
+      expect(broken).not.toBeNull();
+
+      // The broken card's icon is PDF-specific (`iconRegistry.ts`'s own
+      // `pdf` glyph, `PdfEmbedWidget.ts`'s `BROKEN_PDF_ICON`) — a failed
+      // PDF embed is still a PDF, not an image, so it must never fall
+      // back to `ImageWidget.ts`'s own `BROKEN_IMAGE_ICON` (identifiable
+      // by its diagonal strike-through path, absent from the PDF glyph).
+      const iconSvg = broken?.querySelector('.cm-image-broken__icon-wrap svg');
+      expect(iconSvg).not.toBeNull();
+      expect(iconSvg?.outerHTML).not.toContain('M2 2L14 14');
+      expect(iconSvg?.outerHTML).toContain('M2 13.3571H3.11111');
     } finally {
       pdfjsMock.state.shouldFail = false;
     }

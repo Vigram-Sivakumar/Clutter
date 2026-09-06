@@ -36,8 +36,12 @@ import './PdfEmbedWidget.css';
 // exact same paths ImageWidget.ts/iconRegistry.ts already use (`trash.svg`/
 // `more-horizontal.svg`/`expand-diagonal.svg`, the same glyph
 // `iconRegistry.ts` registers as `expandDiagonal`; the arrow icons match
-// `PdfViewer`'s own Previous/Next page glyphs); BROKEN_ICON is hand-copied
-// from its own shared/icon/svg source.
+// `PdfViewer`'s own Previous/Next page glyphs); BROKEN_PDF_ICON is
+// hand-copied from `iconRegistry.ts`'s own `pdf` entry (`shared/icon/svg/
+// pdf.svg`) — deliberately not `broken-image.svg` (ImageWidget.ts's own
+// `BROKEN_IMAGE_ICON`): a failed PDF embed is still a PDF, not an image,
+// so its broken-state icon stays a PDF glyph rather than borrowing the
+// image family's.
 
 const EDIT_ICON =
   '<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8.625 4L3.64738 9.30947C3.22603 9.7589 2.95326 10.3272 2.86614 10.937L2.64142 12.5101C2.57071 13.005 2.99497 13.4293 3.48995 13.3586L4.95655 13.1491C5.63195 13.0526 6.25428 12.7288 6.7209 12.231L11.625 7M8.625 4L9.79364 2.75345C10.18 2.34132 10.831 2.33098 11.2304 2.73044C11.7865 3.28654 12.2541 3.75413 12.8152 4.31518C13.1968 4.69683 13.2069 5.31263 12.8378 5.70638L11.625 7M8.625 4L11.625 7" stroke="currentColor" stroke-linecap="round"/><path d="M8 13.5H13.5" stroke="currentColor" stroke-linecap="round"/></svg>';
@@ -66,8 +70,8 @@ const ARROW_LEFT_ICON =
 const ARROW_RIGHT_ICON =
   '<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9 4C9 4 12 6.94592 12 8M12 8C12 9.05408 9 12 9 12M12 8H4" stroke="currentColor" stroke-linecap="round"/></svg>';
 
-const BROKEN_ICON =
-  '<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M2 2L14 14" stroke="currentColor" stroke-linecap="round"/><path d="M5 2H11C12.6569 2 14 3.34315 14 5V9.5V11M5 14H11C11.8284 14 12.5783 13.6643 13.1212 13.1215L9.03648 9.05728M5 14L7.2265 10.6603C7.69922 9.95118 8.32842 9.41242 9.03648 9.05728M5 14C3.34315 14 2 12.6569 2 11V5C2 4.18477 2.32517 3.44549 2.8529 2.90478L9.03648 9.05728" stroke="currentColor" stroke-linecap="round"/><path d="M5 7C5.55228 7 6 6.55228 6 6C6 5.44772 5.55228 5 5 5C4.44772 5 4 5.44772 4 6C4 6.55228 4.44772 7 5 7Z" stroke="currentColor" stroke-linecap="round"/></svg>';
+const BROKEN_PDF_ICON =
+  '<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M2 13.3571H3.11111C3.47947 13.3571 3.83274 13.2066 4.0932 12.9387C4.35367 12.6708 4.5 12.3075 4.5 11.9286C4.5 11.5497 4.35367 11.1863 4.0932 10.9184C3.83274 10.6505 3.47947 10.5 3.11111 10.5H2V14.5" stroke="currentColor" stroke-linecap="round"/><path d="M6.75 10.5V14.5H7.65909C8.08103 14.5 8.48568 14.2893 8.78403 13.9142C9.08239 13.5391 9.25 13.0304 9.25 12.5C9.25 11.9696 9.08239 11.4609 8.78403 11.0858C8.48568 10.7107 8.08103 10.5 7.65909 10.5H6.75Z" stroke="currentColor" stroke-linecap="round"/><path d="M11.5 14.5V12.4429M11.5 12.4429V10.5H14M11.5 12.4429H13.5238" stroke="currentColor" stroke-linecap="round"/><path d="M14 8.5V7V6M2 8.5V4C2 2.34315 3.34315 1 5 1H6H8H9M9 1V3C9 4.65685 10.3431 6 12 6H14M9 1C9.64029 1 10.2544 1.25435 10.7071 1.70711L13.2929 4.29289C13.7456 4.74565 14 5.35971 14 6" stroke="currentColor" stroke-linecap="round"/></svg>';
 
 /**
  * Invoked with the embed's own vault-relative target path (never a
@@ -116,8 +120,11 @@ export type OnOpenPdfMenu = (params: OpenPdfMenuParams) => void;
  * `revealed`), and the same broken-state DOM/CSS classes
  * (`.cm-image-container--broken`/`.cm-image-broken*`) `ImageWidget.
  * renderBroken` already defines and styles — reused as-is here rather than
- * duplicated, so a broken PDF and a broken image render as the exact same
- * visual "unable to load" card.
+ * duplicated, so a broken PDF and a broken image render as the same
+ * "unable to load" card layout. The one deliberate difference: the icon
+ * itself (`BROKEN_PDF_ICON`, below) is the `pdf` glyph, not `ImageWidget.
+ * ts`'s own `BROKEN_IMAGE_ICON` — a failed PDF embed is still a PDF, not
+ * an image, so its broken state stays visually identifiable as one.
  *
  * PDF page rendering itself is `pdfPageRenderer.ts`'s `renderPdfPage` — the
  * same primitive `PdfPageCanvas.tsx` (`PdfViewer`) calls — invoked directly
@@ -267,7 +274,7 @@ export class PdfEmbedWidget extends WidgetType {
 
     const iconWrap = document.createElement('span');
     iconWrap.classList.add('cm-image-broken__icon-wrap');
-    iconWrap.innerHTML = BROKEN_ICON;
+    iconWrap.innerHTML = BROKEN_PDF_ICON;
     iconWrap.querySelector('svg')?.classList.add('cm-image-broken__icon');
     broken.append(iconWrap);
 
