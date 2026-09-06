@@ -560,10 +560,15 @@ export class ImageWidget extends WidgetType {
   /**
    * Custom drag-to-resize (resize milestone) — replaces the browser's
    * native CSS `resize: both`/`resize: horizontal` (`MarkdownEditor.css`'s
-   * own doc comment on `.cm-image-resize-handle` has the full account of
-   * why). Both bottom-corner handles are always appended, identically for
-   * either mode (2026-09 UX correction — same visual affordance in Fill
-   * and Fit, only the drag *behavior* differs, decided live by
+   * own doc comment on `.cm-media-resize-handle` has the full account of
+   * why). Uses the generic `.cm-media-resize-handle`/`--corner-left`/
+   * `--corner-right` classes (MarkdownEditor.css) — the same shared
+   * handle primitive `pdf/pdfResizeHandle.ts`'s own handles use; any
+   * visual difference for Image specifically would be scoped via
+   * `.cm-image-container .cm-media-resize-handle`, never a second handle
+   * class. Both bottom-corner handles are always appended, identically
+   * for either mode (2026-09 UX correction — same visual affordance in
+   * Fill and Fit, only the drag *behavior* differs, decided live by
    * `imageResizeHandle.ts` itself from the container's current
    * `--fill`/`--fit` class) — a mode switch needs no rebuild here at all.
    * `getCurrentTo` is the same live `container.dataset.nodeTo` reader
@@ -573,12 +578,12 @@ export class ImageWidget extends WidgetType {
    */
   private attachResizeHandles(container: HTMLElement, view: EditorView, getCurrentTo: () => number): void {
     const leftHandle = document.createElement('div');
-    leftHandle.classList.add('cm-image-resize-handle', 'cm-image-resize-handle--corner-left');
+    leftHandle.classList.add('cm-media-resize-handle', 'cm-media-resize-handle--corner-left');
     leftHandle.setAttribute('aria-hidden', 'true');
     attachImageResizeHandle(leftHandle, container, 'left', view, getCurrentTo);
 
     const rightHandle = document.createElement('div');
-    rightHandle.classList.add('cm-image-resize-handle', 'cm-image-resize-handle--corner-right');
+    rightHandle.classList.add('cm-media-resize-handle', 'cm-media-resize-handle--corner-right');
     rightHandle.setAttribute('aria-hidden', 'true');
     attachImageResizeHandle(rightHandle, container, 'right', view, getCurrentTo);
 

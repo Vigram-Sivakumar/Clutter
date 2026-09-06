@@ -474,12 +474,14 @@ export class PdfEmbedWidget extends WidgetType {
     // native CSS `resize: horizontal` (MarkdownEditor.css/PdfEmbedWidget.css
     // own doc comments have the full account of why: no reliable native
     // "resize finished" event to persist against). Both bottom-corner
-    // handles reuse Image's own `.cm-image-resize-handle--corner-left`/
-    // `--corner-right` CSS classes verbatim — same visual affordance, no
-    // duplicated styling — while `pdfResizeHandle.ts` itself is a wholly
-    // separate, PDF-specific module from `image/imageResizeHandle.ts`.
-    // `onResizeEnd` is what makes "the normal PDF rendering/layout system
-    // settle to the new width" happen deterministically right when the
+    // handles use the generic `.cm-media-resize-handle--corner-left`/
+    // `--corner-right` primitive (MarkdownEditor.css) — the same shared
+    // handle Image's own corner handles use, styled once, not duplicated
+    // per widget — while `pdfResizeHandle.ts` itself remains a wholly
+    // separate, PDF-specific pointer-drag module from
+    // `image/imageResizeHandle.ts`. `onResizeEnd` is what makes "the
+    // normal PDF rendering/layout system settle to the new width" happen
+    // deterministically right when the
     // drag ends, rather than waiting on the `ResizeObserver` above to
     // coincidentally re-fire (it may not, if the live-dragged width
     // already equals the persisted value by the time `updateDOM` re-
@@ -506,12 +508,12 @@ export class PdfEmbedWidget extends WidgetType {
     };
 
     const leftHandle = document.createElement('div');
-    leftHandle.classList.add('cm-image-resize-handle', 'cm-image-resize-handle--corner-left');
+    leftHandle.classList.add('cm-media-resize-handle', 'cm-media-resize-handle--corner-left');
     leftHandle.setAttribute('aria-hidden', 'true');
     attachPdfResizeHandle(leftHandle, container, 'left', view, getCurrentTo, pdfResizeHooks);
 
     const rightHandle = document.createElement('div');
-    rightHandle.classList.add('cm-image-resize-handle', 'cm-image-resize-handle--corner-right');
+    rightHandle.classList.add('cm-media-resize-handle', 'cm-media-resize-handle--corner-right');
     rightHandle.setAttribute('aria-hidden', 'true');
     attachPdfResizeHandle(rightHandle, container, 'right', view, getCurrentTo, pdfResizeHooks);
 

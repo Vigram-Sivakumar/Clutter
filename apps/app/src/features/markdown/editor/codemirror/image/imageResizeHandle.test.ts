@@ -96,13 +96,13 @@ function getContainer(view: EditorView): HTMLElement {
 }
 
 function getRightHandle(view: EditorView): HTMLElement {
-  const el = view.dom.querySelector<HTMLElement>('.cm-image-resize-handle--corner-right');
+  const el = view.dom.querySelector<HTMLElement>('.cm-media-resize-handle--corner-right');
   if (!el) throw new Error('right resize handle not found');
   return el;
 }
 
 function getLeftHandle(view: EditorView): HTMLElement {
-  const el = view.dom.querySelector<HTMLElement>('.cm-image-resize-handle--corner-left');
+  const el = view.dom.querySelector<HTMLElement>('.cm-media-resize-handle--corner-left');
   if (!el) throw new Error('left resize handle not found');
   return el;
 }

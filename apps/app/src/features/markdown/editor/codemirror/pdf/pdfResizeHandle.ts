@@ -117,11 +117,12 @@ export interface PdfResizeHooks {
  * width only. `side` only affects the pointer math — dragging the left
  * corner further left grows the width, mirroring the right corner's
  * further-right convention, exactly like `image/imageResizeHandle.ts`'s
- * own left/right handling (see that module's doc comment for why this
- * is "different pointer math," never a different visual handle — the
- * same shared `.cm-image-resize-handle--corner-left`/`--corner-right`
- * CSS classes are reused verbatim here, per this milestone's own
- * "same visual handle design" requirement).
+ * own left/right handling (see that module's doc comment for why this is
+ * "different pointer math," never a different visual handle). Styled via
+ * the generic `.cm-media-resize-handle--corner-left`/`--corner-right`
+ * primitive (`MarkdownEditor.css`) — the same shared handle class Image's
+ * own corner handles use; this module owns only the pointer-drag
+ * mechanics, never the handle's CSS.
  */
 export function attachPdfResizeHandle(
   handle: HTMLElement,
@@ -159,7 +160,7 @@ export function attachPdfResizeHandle(
     // without it, capture only additionally protects against the pointer
     // briefly leaving the handle's own small hit area mid-drag.
     handle.setPointerCapture?.(event.pointerId);
-    document.body.classList.add(side === 'right' ? 'cm-image-resizing-nwse' : 'cm-image-resizing-nesw');
+    document.body.classList.add(side === 'right' ? 'cm-pdf-resizing-nwse' : 'cm-pdf-resizing-nesw');
     hooks.onResizeStart();
 
     const onMove = (moveEvent: PointerEvent) => {
@@ -210,7 +211,7 @@ export function attachPdfResizeHandle(
       handle.removeEventListener('pointerup', finish);
       handle.removeEventListener('pointercancel', finish);
       handle.removeEventListener('lostpointercapture', finish);
-      document.body.classList.remove('cm-image-resizing-nwse', 'cm-image-resizing-nesw');
+      document.body.classList.remove('cm-pdf-resizing-nwse', 'cm-pdf-resizing-nesw');
 
       hooks.onResizeEnd();
 

@@ -278,3 +278,14 @@
 .cm-pdf-embed-pagination .cm-pdf-control--disabled:hover {
   background: none;
 }
+
+/* Custom drag-to-resize handles (`pdf/pdfResizeHandle.ts`) use the
+   generic `.cm-media-resize-handle`/`--corner-left`/`--corner-right`
+   primitive (MarkdownEditor.css) — the same shared handle Image's own
+   `image/imageResizeHandle.ts` uses, styled once, not duplicated per
+   widget. See that file's own doc comment for the shared
+   geometry/cursor rules and this container's `:hover`/`:focus-within`
+   reveal trigger. `pdfResizeHandle.ts` owns only the pointer-drag
+   mechanics; `mediaPresentationUpdate.ts`'s existing PDF
+   presentation-write path owns persistence on pointerup — no new write
+   path, and nothing PDF-specific about the handle's own CSS. */
