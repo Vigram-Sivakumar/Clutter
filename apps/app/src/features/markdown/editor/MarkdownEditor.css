@@ -1270,72 +1270,42 @@
   position: relative;
   width: fit-content;
   max-width: 100%;
-  /* Presentation-update flicker fix — a subtle, fast transition on the
-     dimensions `applyMediaWidth`/`ImageWidget.updateDOM` actually mutate
-     via inline style, so a width/mode change reads as continuous layout
-     motion rather than an instant jump. Only meaningful now that
-     `updateDOM` keeps the same DOM element alive across the change (see
-     that method's own doc comment) — animating a property on an element
-     that gets destroyed and recreated has no visible effect at all.
-     `height`, not just `width` (2026-09, fixing a real Fit→Fill
-     asymmetry): `.cm-image-container--fill` (below) is the only modifier
-     that declares an explicit `height` (a fixed `400px`) *and*
-     `overflow: hidden` together — Fit's own container never declares a
-     height at all (content-driven `auto`). Going Fill→Fit, the missing
-     `height` transition was invisible by accident: `auto` continuously
-     re-derives from the `<img>`'s own height, which the FLIP mechanism
-     below already animates, so the container's box visually shrank right
-     along with it, frame by frame, with no transition of its own needed.
-     Going Fit→Fill, that accident doesn't help: `height: 400px` and
-     `overflow: hidden` both take effect the instant the class swaps —
-     if the Fit-mode image was taller than 400px, the container clips to
-     exactly 400px from the very first frame, before the image's own
-     (still-correctly-animating) height transition has moved at all, so
-     nothing above 400px was ever visible to interpolate — a real snap,
-     not merely a fast transition. `ImageWidget.ts`'s `updateDOM` now
-     FLIP-pins this element's own `height` the same way it already pins
-     `width` (and the `<img>`'s own width/height) — see that method's own
-     comment — giving this `transition` a real "from" size to play
-     against in both directions, so `overflow: hidden` only ever clips
-     whatever the container's own animating height doesn't cover *at that
-     instant*, not a value that already jumped to its final size. */
-  transition:
-    width 160ms ease,
-    height 160ms ease;
 }
 
 /* Fill and Fit's own boxes (below) are both the full available width by
-   design — `.cm-image-container`'s own `width: fit-content` above would
-   otherwise try to shrink-wrap a `width: 100%` child, an ambiguous case
-   not worth relying on browsers to resolve consistently. These two
-   modifier classes override it back to a real full-width box, so
-   `.cm-image-controls`'s own `position: absolute; right: 8px` still lands
-   at the actual rendered image's own top-right corner regardless of mode
-   — unaffected by *why* the container is that width, only by what it
-   actually is. They differ only in height: Fill's is a fixed 400px
-   (below); Fit's is left unset entirely, so `.tok-image--fit`'s own
-   `height: auto` (further below) is what actually determines it, derived
-   by the browser from the `<img>`'s intrinsic aspect ratio at this
-   box's resolved width — never computed in code.
+design — `.cm-image-container`'s own `width: fit-content` above would
+otherwise try to shrink-wrap a `width: 100%` child, an ambiguous case
+not worth relying on browsers to resolve consistently. These two
+modifier classes override it back to a real full-width box, so
+`.cm-image-controls`'s own `position: absolute; right: 8px` still lands
+at the actual rendered image's own top-right corner regardless of mode
+— unaffected by *why* the container is that width, only by what it
+actually is. They differ only in height: Fill's is a fixed 400px
+(below); Fit's is left unset entirely, so `.tok-image--fit`'s own
+`height: auto` (further below) is what actually determines it, derived
+by the browser from the `<img>`'s intrinsic aspect ratio at this
+box's resolved width — never computed in code.
 
-   `calc(100% - 1px)`, not a literal `100%` — the identical caret-overflow
-   bug `.cm-image-container--broken` has its own full account of below
-   (same root cause, confirmed the same way: a working Fill image reported
-   the identical "editor shifts ~1-2px when the caret lands next to it"
-   symptom). Any container in this file styled to the full available width
-   while sharing a `.cm-line` with a boundary-adjacent caret needs this
-   same 1px reserve — `.cm-cursor` is positioned by `coordsAtPos` off
-   this container's own real right edge regardless of which display mode
-   put it there. */
+`calc(100% - 1px)`, not a literal `100%` — the identical caret-overflow
+bug `.cm-image-container--broken` has its own full account of below
+(same root cause, confirmed the same way: a working Fill image reported
+the identical "editor shifts ~1-2px when the caret lands next to it"
+symptom). Any container in this file styled to the full available width
+while sharing a `.cm-line` with a boundary-adjacent caret needs this
+same 1px reserve — `.cm-cursor` is positioned by `coordsAtPos` off
+this container's own real right edge regardless of which display mode
+put it there. */
 .cm-editor .cm-image-container--fill {
   width: calc(100% - 1px);
   height: 400px;
   /* Crops the `<img>` to this fixed box — `object-fit: cover` below only
-     has something to crop *into* once the box itself clips overflow;
-     without this, an image whose natural aspect ratio doesn't match
-     400px at the container's width would render past this box's own
-     edges instead of being cropped. */
+  has something to crop *into* once the box itself clips overflow;
+  without this, an image whose natural aspect ratio doesn't match
+  400px at the container's width would render past this box's own
+  edges instead of being cropped. */
   overflow: hidden;
+  /* Do not use transition for height and width because it causes resizing issues and the element doesn't follow the cursor */
+  resize: both;
 }
 
 /* No `height`/`overflow` here, unlike `--fill` above — Fit never crops.
@@ -1346,6 +1316,9 @@
    image at its own intrinsic aspect ratio. */
 .cm-editor .cm-image-container--fit {
   width: calc(100% - 1px);
+  overflow: hidden;
+  /* Do not use transition for height and width because it causes resizing issues and the element doesn't follow the cursor */
+  resize: horizontal;
 }
 
 /* The intermediate `<button class="cm-image-button">` wrapping the `<img>`

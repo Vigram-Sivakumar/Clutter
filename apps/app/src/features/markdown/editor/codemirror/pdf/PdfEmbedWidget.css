@@ -50,10 +50,8 @@
   overflow: hidden;
   background: var(--surface-secondary);
   border: 1px solid var(--border-default);
-  /* Presentation-update flicker fix — see MarkdownEditor.css's own
-     `.cm-image-container` rule for the full rationale; identical here,
-     for `PdfEmbedWidget.updateDOM`. */
-  transition: width 160ms ease;
+  /* Do not use transition for height and width because it causes resizing issues and the element doesn't follow the cursor */
+  resize: horizontal;
 }
 
 /* Alignment (resize milestone) — a direct margin rule centers/right-aligns
