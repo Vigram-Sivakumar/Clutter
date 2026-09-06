@@ -57,30 +57,32 @@ import { presentationOnlyEdit } from '../image/imageUiState';
  * `.cm-pdf-embed-page` (`pageHost`) has no explicit height either, so its
  * own rendered height (and therefore the outer `.cm-pdf-embed-container`'s
  * own overall height) is *entirely* derived from `pageWrap`'s real layout
- * box. A first version of this fix applied a `transform: scale(...)` to
- * `pageWrap` — **confirmed wrong**: `transform` is paint-only and never
- * participates in layout, so it left `pageWrap`'s real box (and therefore
- * `pageHost`'s and `container`'s own heights) completely frozen during
- * the drag — only the container's *width* ever visibly changed.
+ * box. **`transform`/`scale()` cannot fix this — it is a permanently
+ * ruled-out approach, not a fallback**: `transform` is paint-only and
+ * never participates in layout, so it can only ever change what's
+ * *drawn*, never `pageWrap`'s actual box — which is exactly the value
+ * `pageHost`'s and `container`'s own auto-heights read. Applying it would
+ * leave the container's height completely frozen while its width
+ * visibly changes, the opposite of the goal.
  *
- * The actual fix gives `pageWrap` a genuine **layout** width/height for
- * the drag's duration, computed to preserve the page's own aspect ratio
- * (read straight off the canvas's own intrinsic pixel-buffer dimensions,
- * `canvas.width`/`canvas.height` — always correct regardless of any CSS
- * override, no separate bookkeeping needed), and makes the canvas's
- * existing raster stretch to fill that box via ordinary percentage CSS
- * sizing (`width: 100%; height: 100%`) — the same "browser stretches
- * existing raster content" behavior an `<img>` gets for free, applied
- * explicitly here. Setting `pageWrap`'s own inline `width`/`height`
- * overrides its `width: fit-content` default (which has no competing
- * height rule to fight) with a real box; that real height propagates up
- * through `pageHost`'s auto-height to `container`'s own auto-height —
- * genuine reflow, not merely a repaint. `.textLayer` needs no attention:
- * it's `position: absolute; inset: 0` inside `pageWrap`, so its own outer
- * box already tracks `pageWrap`'s new size for free, and its transparent
- * text spans being momentarily stale (still positioned for the old scale)
- * is invisible — nothing user-visible reads their exact position during a
- * drag.
+ * The one mechanism used instead gives `pageWrap` a genuine **layout**
+ * width/height for the drag's duration, computed to preserve the page's
+ * own aspect ratio (read straight off the canvas's own intrinsic
+ * pixel-buffer dimensions, `canvas.width`/`canvas.height` — always
+ * correct regardless of any CSS override, no separate bookkeeping
+ * needed), and makes the canvas's existing raster stretch to fill that
+ * box via ordinary percentage CSS sizing (`width: 100%; height: 100%`)
+ * — the same "browser stretches existing raster content" behavior an
+ * `<img>` gets for free, applied explicitly here. Setting `pageWrap`'s
+ * own inline `width`/`height` overrides its `width: fit-content` default
+ * (which has no competing height rule to fight) with a real box; that
+ * real height propagates up through `pageHost`'s auto-height to
+ * `container`'s own auto-height — genuine reflow, not merely a repaint.
+ * `.textLayer` needs no attention: it's `position: absolute; inset: 0`
+ * inside `pageWrap`, so its own outer box already tracks `pageWrap`'s new
+ * size for free, and its transparent text spans being momentarily stale
+ * (still positioned for the old scale) is invisible — nothing
+ * user-visible reads their exact position during a drag.
  *
  * Read via the live `hooks.getPageWrap()` hook, never a captured
  * reference — `renderCurrentPage()` replaces `pageWrap` (and its canvas)
