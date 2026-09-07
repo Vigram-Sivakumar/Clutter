@@ -1,6 +1,6 @@
 .page-title {
   font-size: var(--text-display);
-  font-weight: var(--fw-bold);
+  font-weight: var(--fw-extrabold);
   line-height: var(--lh-display);
   letter-spacing: var(--ls-display);
 }

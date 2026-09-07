@@ -136,7 +136,7 @@ function getImg(view: EditorView): HTMLImageElement | null {
 
 function getEditButton(view: EditorView): HTMLButtonElement {
   const button = view.dom.querySelector<HTMLButtonElement>(
-    '.cm-image-control[aria-label="Edit source"], .cm-image-control[aria-label="Hide source"]'
+    '.cm-media-control[aria-label="Edit source"], .cm-media-control[aria-label="Hide source"]'
   );
   if (!button) {
     throw new Error('edit/source control not found');
@@ -149,7 +149,7 @@ function clickEdit(view: EditorView): void {
 }
 
 function getSizeButton(view: EditorView): HTMLButtonElement {
-  const button = view.dom.querySelector<HTMLButtonElement>('.cm-image-control[aria-label="Image size options"]');
+  const button = view.dom.querySelector<HTMLButtonElement>('.cm-media-control[aria-label="Image size options"]');
   if (!button) {
     throw new Error('size button not found');
   }
@@ -214,8 +214,8 @@ describe('embedLivePreview — rendering (cursor already outside — "at rest")'
     const view = mountView('x ![[missing.png]]', resolverFor({}));
 
     expect(getImg(view)).toBeNull();
-    expect(view.dom.querySelector('.cm-image-container--broken')).not.toBeNull();
-    expect(view.dom.querySelector('.cm-image-broken')).not.toBeNull();
+    expect(view.dom.querySelector('.cm-invalid-embed')).not.toBeNull();
+    expect(view.dom.querySelector('.cm-invalid-embed__content')).not.toBeNull();
   });
 
   it('an invalid image URL/load failure for an otherwise-resolved resource renders the custom broken state, via the exact same ImageWidget onerror mechanism standard images already use', () => {
@@ -228,7 +228,7 @@ describe('embedLivePreview — rendering (cursor already outside — "at rest")'
     getImg(view)!.dispatchEvent(new Event('error'));
 
     expect(getImg(view)).toBeNull();
-    expect(view.dom.querySelector('.cm-image-container--broken')).not.toBeNull();
+    expect(view.dom.querySelector('.cm-invalid-embed')).not.toBeNull();
   });
 
   it('incomplete syntax (![[hero, no closing ]]) remains editable Markdown text — no Embed node, no widget', () => {
@@ -315,7 +315,7 @@ describe('embedLivePreview — global media/embed block-flow contract (.cm-media
 
   it('a broken asset-embed root also carries .cm-media-block — the contract applies in every state', () => {
     const view = mountView('x ![[missing.png]]', resolverFor({}));
-    const broken = view.dom.querySelector('.cm-image-container--broken');
+    const broken = view.dom.querySelector('.cm-invalid-embed');
     expect(broken).not.toBeNull();
     expect(broken?.classList.contains('cm-media-block')).toBe(true);
   });
@@ -335,7 +335,7 @@ describe('embedLivePreview — empty/incomplete targets never render, in any sta
 
     expect(getImg(view)).toBeNull();
     expect(view.dom.querySelector('.cm-image-container')).toBeNull();
-    expect(view.dom.querySelector('.cm-image-broken')).toBeNull();
+    expect(view.dom.querySelector('.cm-invalid-embed__content')).toBeNull();
     expect(view.dom.textContent).toContain('![[]]');
   });
 
@@ -403,7 +403,7 @@ describe('embedLivePreview — first-leave rendering lifecycle (Flow A/B/C style
     const view = mountAndType(resolverFor({}), '', '');
 
     expect(getImg(view)).toBeNull();
-    expect(view.dom.querySelector('.cm-image-container--broken')).toBeNull();
+    expect(view.dom.querySelector('.cm-invalid-embed')).toBeNull();
   });
 
   it('cursor strictly inside the target (mid-typing) also stays raw, not only at the exact boundary', () => {
@@ -430,11 +430,11 @@ describe('embedLivePreview — first-leave rendering lifecycle (Flow A/B/C style
   it('moving the cursor away from a freshly-completed, genuinely-nonexistent embed for the first time transitions it to the broken state — this is the expected, accepted outcome for a complete-but-nonexistent target (distinct from empty syntax, which never renders)', () => {
     const view = mountAndType(resolverFor({}), '', ' x');
     expect(getImg(view)).toBeNull();
-    expect(view.dom.querySelector('.cm-image-container--broken')).toBeNull();
+    expect(view.dom.querySelector('.cm-invalid-embed')).toBeNull();
 
     view.dispatch({ selection: { anchor: HERO.length + 2 } });
 
-    expect(view.dom.querySelector('.cm-image-container--broken')).not.toBeNull();
+    expect(view.dom.querySelector('.cm-invalid-embed')).not.toBeNull();
   });
 
   it('Phase 2: once an embed has settled (rendered once), merely navigating back into it does NOT hide the rendered widget again — navigation is not editing', () => {
@@ -518,7 +518,7 @@ describe('embedLivePreview — delete', () => {
 
   it('deleting a broken (unresolved) embed removes only the Markdown, never touches any resource — no VaultResource exists to touch, by construction', () => {
     const view = mountView(`See: ![[missing.png]]`, resolverFor({}));
-    const deleteButton = view.dom.querySelector<HTMLButtonElement>('.cm-image-control[aria-label="Delete image"]');
+    const deleteButton = view.dom.querySelector<HTMLButtonElement>('.cm-invalid-embed__control[aria-label="Delete image"]');
     expect(deleteButton).not.toBeNull();
 
     deleteButton!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
@@ -536,7 +536,7 @@ describe('embedLivePreview — delete', () => {
     });
     const view = new EditorView({ state, parent });
 
-    const deleteButton = view.dom.querySelector<HTMLButtonElement>('.cm-image-control[aria-label="Delete image"]')!;
+    const deleteButton = view.dom.querySelector<HTMLButtonElement>('.cm-invalid-embed__control[aria-label="Delete image"]')!;
     deleteButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     expect(view.state.doc.toString()).toBe('');
 
@@ -588,7 +588,7 @@ describe('embedLivePreview — controls: copyUrl threading', () => {
       ],
     });
     const view = new EditorView({ state, parent });
-    const sizeButton = view.dom.querySelector<HTMLButtonElement>('.cm-image-control[aria-label="Image size options"]')!;
+    const sizeButton = view.dom.querySelector<HTMLButtonElement>('.cm-media-control[aria-label="Image size options"]')!;
 
     sizeButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 
@@ -647,7 +647,7 @@ describe('embedLivePreview — consecutive embeds are independent', () => {
     );
 
     expect(view.dom.querySelectorAll('img.tok-image')).toHaveLength(1);
-    expect(view.dom.querySelectorAll('.cm-image-container--broken')).toHaveLength(1);
+    expect(view.dom.querySelectorAll('.cm-invalid-embed')).toHaveLength(1);
   });
 
   it('deleting one embed does not affect its neighbor', () => {
@@ -732,7 +732,7 @@ describe('embedLivePreview — lifecycle (Resource Sync/Reconciliation implicati
     view.dispatch({ selection: { anchor: 0 } }); // any transaction triggers buildDecorations to re-run
 
     expect(getImg(view)).toBeNull();
-    expect(view.dom.querySelector('.cm-image-container--broken')).not.toBeNull();
+    expect(view.dom.querySelector('.cm-invalid-embed')).not.toBeNull();
   });
 
   it('deleted resource: an embed pointing at it becomes unresolved on the next rebuild', () => {
@@ -745,13 +745,13 @@ describe('embedLivePreview — lifecycle (Resource Sync/Reconciliation implicati
     resolve = resolverFor({});
     view.dispatch({ selection: { anchor: 0 } });
 
-    expect(view.dom.querySelector('.cm-image-container--broken')).not.toBeNull();
+    expect(view.dom.querySelector('.cm-invalid-embed')).not.toBeNull();
   });
 
   it('restored resource: an embed resolves again once its exact original path is valid again', () => {
     let resolve: ResolveEmbedImage = resolverFor({});
     const view = mountView(`x ${HERO}`, (path, alias) => resolve(path, alias));
-    expect(view.dom.querySelector('.cm-image-container--broken')).not.toBeNull();
+    expect(view.dom.querySelector('.cm-invalid-embed')).not.toBeNull();
 
     resolve = resolverFor({ 'hero.png': imageResolution('app://vault/hero.png', 'hero.png', 'hero.png') });
     view.dispatch({ selection: { anchor: 0 } });
@@ -828,12 +828,12 @@ describe('embedLivePreview — Flow B: empty Embed (![[]] in the document, click
   it('the empty embed stays literal, no broken image, leaving the cursor does not cause rendering', () => {
     const view = mountView('![[]]', resolverFor({}), 0);
     expect(getImg(view)).toBeNull();
-    expect(view.dom.querySelector('.cm-image-broken')).toBeNull();
+    expect(view.dom.querySelector('.cm-invalid-embed__content')).toBeNull();
 
     view.dispatch({ selection: { anchor: 5 } });
 
     expect(getImg(view)).toBeNull();
-    expect(view.dom.querySelector('.cm-image-broken')).toBeNull();
+    expect(view.dom.querySelector('.cm-invalid-embed__content')).toBeNull();
   });
 
   it('clicking inside the empty target (![[|]]) opens autocomplete with suggestions, without rendering anything first', () => {
@@ -932,6 +932,6 @@ describe('embedLivePreview — Flow C: editing an existing Embed (![[image.png]]
     expect(view.state.doc.toString()).toBe('![[]]');
     expect(completionStatus(view.state)).not.toBeNull();
     expect(getImg(view)).toBeNull();
-    expect(view.dom.querySelector('.cm-image-container--broken')).toBeNull();
+    expect(view.dom.querySelector('.cm-invalid-embed')).toBeNull();
   });
 });

@@ -62,6 +62,7 @@ a {
   text-decoration-line: underline;
   text-decoration-color: var(--foreground-placeholder);
   text-decoration-thickness: 1px;
+  text-underline-offset: 20%;
 }
 
 /* a {

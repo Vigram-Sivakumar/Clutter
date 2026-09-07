@@ -395,7 +395,7 @@ describe('MarkdownEditor: image overlay', () => {
   it('clicking the size or edit control does not open the overlay', () => {
     render(<MarkdownEditor pageId="test-page" markdown={`See: ${IMAGE_MD}`} />);
     const sizeButton = document.querySelector<HTMLButtonElement>(
-      '.cm-image-control[aria-label="Image size options"]'
+      '.cm-media-control[aria-label="Image size options"]'
     )!;
 
     fireEvent.mouseDown(sizeButton);
@@ -404,7 +404,7 @@ describe('MarkdownEditor: image overlay', () => {
     expect(document.querySelector('.image-overlay')).toBeNull();
 
     const editButton = document.querySelector<HTMLButtonElement>(
-      '.cm-image-control[aria-label="Edit source"]'
+      '.cm-media-control[aria-label="Edit source"]'
     )!;
     fireEvent.mouseDown(editButton);
     fireEvent.click(editButton);
@@ -531,7 +531,7 @@ describe('MarkdownEditor: image options menu — Set as cover image', () => {
 
   function openSizeMenu() {
     const sizeButton = document.querySelector<HTMLButtonElement>(
-      '.cm-image-control[aria-label="Image size options"]'
+      '.cm-media-control[aria-label="Image size options"]'
     )!;
     fireEvent.mouseDown(sizeButton);
     fireEvent.click(sizeButton);
@@ -554,18 +554,18 @@ describe('MarkdownEditor: image options menu — Set as cover image', () => {
     // that mutation, not a swap, is what happens.
     render(<MarkdownEditor pageId="test-page" markdown={IMAGE_MD} />);
     const buttonBeforeOpen = document.querySelector<HTMLButtonElement>(
-      '.cm-image-control[aria-label="Image size options"]'
+      '.cm-media-control[aria-label="Image size options"]'
     )!;
 
     openSizeMenu();
 
     const buttonAfterOpen = document.querySelector<HTMLButtonElement>(
-      '.cm-image-control[aria-label="Image size options"]'
+      '.cm-media-control[aria-label="Image size options"]'
     )!;
     expect(buttonAfterOpen).toBe(buttonBeforeOpen);
     expect(buttonAfterOpen.isConnected).toBe(true);
     expect(buttonAfterOpen.getAttribute('aria-expanded')).toBe('true');
-    expect(buttonAfterOpen.classList.contains('cm-image-control--active')).toBe(true);
+    expect(buttonAfterOpen.classList.contains('cm-media-control--active')).toBe(true);
     expect(
       buttonAfterOpen.closest('.cm-image-container')?.getAttribute('data-menu-open')
     ).toBe('true');
@@ -575,14 +575,14 @@ describe('MarkdownEditor: image options menu — Set as cover image', () => {
     render(<MarkdownEditor pageId="test-page" markdown={IMAGE_MD} />);
     openSizeMenu();
     const button = document.querySelector<HTMLButtonElement>(
-      '.cm-image-control[aria-label="Image size options"]'
+      '.cm-media-control[aria-label="Image size options"]'
     )!;
 
     fireEvent.keyDown(document, { key: 'Escape' });
 
-    expect(document.querySelector('.cm-image-control[aria-label="Image size options"]')).toBe(button);
+    expect(document.querySelector('.cm-media-control[aria-label="Image size options"]')).toBe(button);
     expect(button.getAttribute('aria-expanded')).toBe('false');
-    expect(button.classList.contains('cm-image-control--active')).toBe(false);
+    expect(button.classList.contains('cm-media-control--active')).toBe(false);
     expect(button.closest('.cm-image-container')?.getAttribute('data-menu-open')).toBe('false');
   });
 
@@ -675,7 +675,7 @@ describe('MarkdownEditor: image options menu — Set as cover image', () => {
 describe('MarkdownEditor: Fit/Fill toggle never corrupts imageUiState position mapping', () => {
   function openSizeMenu() {
     const sizeButton = document.querySelector<HTMLButtonElement>(
-      '.cm-image-control[aria-label="Image size options"]'
+      '.cm-media-control[aria-label="Image size options"]'
     )!;
     fireEvent.mouseDown(sizeButton);
     fireEvent.click(sizeButton);
@@ -743,7 +743,7 @@ describe('MarkdownEditor: Fit/Fill toggle never corrupts imageUiState position m
       }
       expect(view.state.doc.toString()).toContain('Some text before.');
       expect(getContainer().classList.contains(`cm-image-container--${token}`)).toBe(true);
-      expect(getContainer().classList.contains('cm-image-container--broken')).toBe(false);
+      expect(getContainer().classList.contains('cm-invalid-embed')).toBe(false);
     }
   });
 
@@ -806,7 +806,7 @@ describe('MarkdownEditor: Fit/Fill toggle never corrupts imageUiState position m
         expect(view.state.doc.toString()).toContain(`image.png|${token}`);
       }
       expect(getContainer().classList.contains(`cm-image-container--${token}`)).toBe(true);
-      expect(getContainer().classList.contains('cm-image-container--broken')).toBe(false);
+      expect(getContainer().classList.contains('cm-invalid-embed')).toBe(false);
     }
   });
 
@@ -852,16 +852,16 @@ describe('MarkdownEditor: broken image fallback', () => {
 
     expect(document.querySelector('img.tok-image')).toBeNull();
     expect(document.querySelector('button.cm-image-button')).toBeNull();
-    const broken = document.querySelector('.cm-image-broken');
+    const broken = document.querySelector('.cm-invalid-embed__content');
     expect(broken).not.toBeNull();
-    expect(broken?.querySelector('.cm-image-broken__alt')?.textContent).toBe('Unable to load');
-    expect(broken?.querySelector('.cm-image-broken__hint')?.textContent).toBe(
+    expect(broken?.querySelector('.cm-invalid-embed__title')?.textContent).toBe('Unable to load');
+    expect(broken?.querySelector('.cm-invalid-embed__source')?.textContent).toBe(
       'https://example.com/mountain.jpg'
     );
 
-    expect(document.querySelector('.cm-image-control[aria-label="Edit source"]')).not.toBeNull();
-    expect(document.querySelector('.cm-image-control[aria-label="Delete image"]')).not.toBeNull();
-    expect(document.querySelector('.cm-image-control[aria-label="Image size options"]')).toBeNull();
+    expect(document.querySelector('.cm-invalid-embed__control[aria-label="Edit source"]')).not.toBeNull();
+    expect(document.querySelector('.cm-invalid-embed__control[aria-label="Delete image"]')).not.toBeNull();
+    expect(document.querySelector('.cm-media-control[aria-label="Image size options"]')).toBeNull();
   });
 
   it('Delete works from the broken state and supports undo', () => {
@@ -869,11 +869,11 @@ describe('MarkdownEditor: broken image fallback', () => {
     fireEvent.error(document.querySelector('img.tok-image')!);
 
     const deleteButton = document.querySelector<HTMLButtonElement>(
-      '.cm-image-control[aria-label="Delete image"]'
+      '.cm-invalid-embed__control[aria-label="Delete image"]'
     )!;
     fireEvent.mouseDown(deleteButton);
     fireEvent.click(deleteButton);
 
-    expect(document.querySelector('.cm-image-broken')).toBeNull();
+    expect(document.querySelector('.cm-invalid-embed__content')).toBeNull();
   });
 });

@@ -1,12 +1,13 @@
-import { useRef, useState } from 'react';
+import { useRef } from 'react';
 import type { Application } from '@core/application/Application';
 import type { VaultResource } from '@core/vault/models/VaultResource';
+import type { ImageOverlayImage } from '@features/markdown/editor/codemirror/image/ImageOverlay';
+import { createResourceLocationActions } from '@app/layouts/resourceLocationActions';
 
 import { useActivePage } from '@app/hooks/useActivePage';
 import { useDocumentSession } from '@app/hooks/useDocumentSession';
 import { useWorkspace } from '@app/hooks/useWorkspace';
 import { buildBreadcrumbs, buildBreadcrumbsForDraft } from '@core/presentation/buildBreadcrumbs';
-import { getResourceDisplayName } from '@core/presentation/getResourceDisplayName';
 import {
   getPageTitlePlaceholder,
   getFolderTitlePlaceholder,
@@ -44,15 +45,7 @@ import { resolveResourceEmbed } from '@app/layouts/page/resolveResourceEmbed';
 import { createImageSrcResolver } from '@app/layouts/page/resolveImageSrc';
 import { createImageResourceResolver } from '@app/layouts/page/resolveImageResource';
 import { createTagSuggester } from '@app/layouts/page/tagSuggestions';
-import { revealInFinder } from '@shared/helpers/revealInFinder';
-import { downloadResource } from '@shared/helpers/downloadResource';
 import { downloadRemoteImage } from '@shared/helpers/downloadRemoteImage';
-import { copyTextToClipboard } from '@shared/helpers/copyTextToClipboard';
-import {
-  getLocationPathRepresentations,
-  pickLocationPathRepresentation,
-  type LocationPathFormat,
-} from '@core/presentation/getLocationPathRepresentations';
 import {
   getCollectionPageTitleProps,
   createTagCollectionRenameHandler,
@@ -65,9 +58,6 @@ import {
   TasksCollectionBody,
   type TasksCollectionView,
 } from '@features/tasks/page/TasksCollectionBody';
-import { ImageOverlay } from '@features/markdown/editor/codemirror/image/ImageOverlay';
-import { PdfOverlay } from '@features/pdf/PdfOverlay';
-import type { ResourceOverlayState } from '@app/layouts/resourceOverlay';
 import {
   MarkdownEditor,
   type MarkdownEditorHandle,
@@ -76,6 +66,27 @@ import { clearCachedEditorSession } from '@features/markdown/editor/codemirror/e
 
 interface PageHostProps {
   application: Application;
+  /**
+   * Opens the shared resource overlay (owned by `AppLayout`) for a real
+   * `VaultResource` — routes to `ImageOverlay` or `PdfOverlay` based on
+   * `resource.kind`. `{ archived: true }` disables every resource-mutating
+   * action (Archive/Move/Set-cover/Download), matching the Archive
+   * collection's existing restriction.
+   */
+  readonly onOpenResource: (
+    resource: VaultResource,
+    options?: { readonly archived?: boolean }
+  ) => void;
+  /**
+   * Opens the shared resource overlay for an image that doesn't necessarily
+   * have a backing `VaultResource` — threaded down into `MarkdownEditor`,
+   * whose own image-click handler already resolves an optional `resourceId`
+   * itself and builds the full `ImageOverlayImage`.
+   */
+  readonly onOpenImageOverlay: (
+    image: ImageOverlayImage,
+    options?: { readonly onSetCoverImage?: () => void }
+  ) => void;
 }
 
 const TASK_COLLECTION_VIEWS: ReadonlySet<string> = new Set<TasksCollectionView>([
@@ -114,59 +125,18 @@ function focusEditorOnOpen(title: string): boolean {
  * Page dispatch currently uses a switch statement but is expected to evolve into a registry
  * when multiple page types justify the abstraction.
  */
-export function PageHost({ application }: PageHostProps) {
+export function PageHost({ application, onOpenResource, onOpenImageOverlay }: PageHostProps) {
   const workspace = useWorkspace(application.workspace);
   const vault = application.vault;
 
-  // The Assets/Archive collections' own instance of the same lightbox a
-  // clicked Markdown image opens (MarkdownEditor.tsx's own imageOverlay
-  // state, and Sidebar.tsx's identical sidebar-scoped instance) —
-  // ImageOverlay is a plain, stateless component parameterized only by
-  // { url, alt }, so a third mount site is reuse, not a second
-  // implementation. Shared across the Archive and Assets branches below
-  // (only one of which ever renders per return), same as before.
-  //
-  // One discriminated ResourceOverlayState (image | pdf | null), same
-  // reasoning as Sidebar.tsx's identical replacement of its own two
-  // independent useStates — see that file's doc comment.
-  const [resourceOverlay, setResourceOverlay] = useState<ResourceOverlayState>(
-    null
-  );
-  // Assets: includes resourceId, exactly as before — this is what gates
-  // ImageOverlay's own More Actions control on.
-  function openResourceOverlay(resource: VaultResource): void {
-    if (resource.kind === 'image') {
-      setResourceOverlay({
-        kind: 'image',
-        image: {
-          url: application.resolveResourceImageUrl(resource.path),
-          alt: getResourceDisplayName(resource),
-          resourceId: resource.id,
-        },
-      });
-    } else {
-      setResourceOverlay({ kind: 'pdf', resource });
-    }
-  }
-  // Archive: deliberately omits resourceId for an image, unchanged from
-  // before — an archived image's ImageOverlay never showed More Actions
-  // (Archive/Move-to/Set-as-cover don't apply to an already-archived
-  // resource; Restore/Delete already live on the row's own hover actions
-  // instead), and this preserves that exactly. PdfOverlay has no More
-  // Actions control at all in Stage 1, so the pdf branch is identical to
-  // openResourceOverlay above.
+  // Archive's onOpenResource dispatch — the resource-overlay state itself
+  // is owned by AppLayout now; this just fixes the `archived` option so
+  // every already-archived resource's overlay keeps the same restriction
+  // it always had (Restore/Delete live on the row's own hover actions
+  // instead — see PageHost/AppLayout's `openVaultResourceOverlay` doc
+  // comment for the full reasoning).
   function openArchivedResourceOverlay(resource: VaultResource): void {
-    if (resource.kind === 'image') {
-      setResourceOverlay({
-        kind: 'image',
-        image: {
-          url: application.resolveResourceImageUrl(resource.path),
-          alt: getResourceDisplayName(resource),
-        },
-      });
-    } else {
-      setResourceOverlay({ kind: 'pdf', resource });
-    }
+    onOpenResource(resource, { archived: true });
   }
 
   // One handle, reused across the draft/note/daily-note branches below —
@@ -209,12 +179,12 @@ export function PageHost({ application }: PageHostProps) {
   // The inline PDF embed's "Open" control (PdfEmbedWidget.ts) — re-resolves
   // the embed's own vault-relative path through the exact same
   // resolveResourceEmbed() lookup every other embed composer here already
-  // uses, then reuses openResourceOverlay's own existing 'pdf' branch
-  // (below) rather than a second PdfOverlay-opening implementation.
+  // uses, then reuses the shared onOpenResource opener (AppLayout) rather
+  // than a second PdfOverlay-opening implementation.
   const onPdfEmbedClick = (path: string): void => {
     const resource = resolveResourceEmbed(vault, path);
     if (resource) {
-      openResourceOverlay(resource);
+      onOpenResource(resource);
     }
   };
   // Same per-render, stateless-glue composition as resolveEmbedImage above —
@@ -234,36 +204,13 @@ export function PageHost({ application }: PageHostProps) {
   // moveResource, revealInFinder, getLocationPathRepresentations +
   // copyTextToClipboard), composed fresh here as a second entry point into
   // them, never a second implementation. Read-only location actions
-  // (reveal/copy path) go straight to `vault`, same as every other
+  // (reveal/copy path/download) go straight to `vault`, same as every other
   // location-action call site — they never touch ResourceOperations/the
-  // Gate, which own writes, not this.
-  function revealResourceInFinder(resourceId: string): void {
-    const path = vault.getResource(resourceId)?.path;
-    if (path) {
-      void revealInFinder(path);
-    }
-  }
-  function copyResourcePath(resourceId: string, format: LocationPathFormat): void {
-    const resource = vault.getResource(resourceId);
-    if (!resource) {
-      return;
-    }
-    const representations = getLocationPathRepresentations(resource, 'resource', vault.root);
-    const value = pickLocationPathRepresentation(representations, format);
-    if (value !== null) {
-      void copyTextToClipboard(value);
-    }
-  }
-  // Assets collection body's own Download dispatch — same read-only,
-  // straight-from-`vault` shape as revealResourceInFinder/copyResourcePath
-  // above (only ever called for an image resource; see
-  // AssetsCollectionBody's onDownloadResource doc comment).
-  function downloadResourceById(resourceId: string): void {
-    const resource = vault.getResource(resourceId);
-    if (resource) {
-      void downloadResource(resource.path, resource.name);
-    }
-  }
+  // Gate, which own writes, not this. Shared with AppLayout's identical
+  // overlay wiring via resourceLocationActions.ts, rather than a second
+  // inline copy of the same three functions.
+  const { revealResourceInFinder, copyResourcePath, downloadResourceById } =
+    createResourceLocationActions(vault);
   // MarkdownEditor's inline image options menu — Download, for both a
   // local Resource embed/image (resolves via the same resolveImageResource
   // boundary onImageClickRef already uses) and a genuinely external URL
@@ -580,19 +527,6 @@ export function PageHost({ application }: PageHostProps) {
             )
           }
         />
-        {isArchiveView && (
-          <>
-            <ImageOverlay
-              image={resourceOverlay?.kind === 'image' ? resourceOverlay.image : null}
-              onClose={() => setResourceOverlay(null)}
-            />
-            <PdfOverlay
-              resource={resourceOverlay?.kind === 'pdf' ? resourceOverlay.resource : null}
-              onClose={() => setResourceOverlay(null)}
-              resolveResourceUrl={(path) => application.resolveResourceImageUrl(path)}
-            />
-          </>
-        )}
       </>
     );
   }
@@ -609,76 +543,38 @@ export function PageHost({ application }: PageHostProps) {
     const resources = application.membershipSelector.getAllVisibleResources();
 
     return (
-      <>
-        <Page
-          isSidebarVisible={workspace.isSidebarVisible}
-          onToggleSidebarVisible={() => workspace.toggleSidebarVisible()}
-          canNavigateBack={workspace.canNavigateBack}
-          canNavigateForward={workspace.canNavigateForward}
-          onNavigateBack={() => application.navigation.back()}
-          onNavigateForward={() => application.navigation.forward()}
-          title={getSystemLocationPresentation('assets').label}
-          titleEditable={false}
-          breadcrumbs={<Breadcrumbs items={[]} />}
-          body={
-            <AssetsCollectionBody
-              resources={resources}
-              onOpenResource={openResourceOverlay}
-              onRenameResource={(id, name) =>
-                void application.resourceOperations.renameResource(id, name)
-              }
-              onArchiveResource={(id) =>
-                void application.resourceOperations.archiveResource(id)
-              }
-              onDownloadResource={downloadResourceById}
-              resourceMoveDestinations={buildResourceMoveDestinationItems(
-                application.membershipSelector,
-                application.query
-              )}
-              onMoveResource={(id, destinationFolderId) =>
-                void application.resourceOperations.moveResource(id, destinationFolderId)
-              }
-              onCreateFolder={(name) => application.folderOperations.create(name, null)}
-            />
-          }
-        />
-        <ImageOverlay
-          image={resourceOverlay?.kind === 'image' ? resourceOverlay.image : null}
-          onClose={() => setResourceOverlay(null)}
-          onArchiveResource={(id) =>
-            void application.resourceOperations.archiveResource(id)
-          }
-          onRevealResourceInFinder={revealResourceInFinder}
-          onCopyResourcePath={copyResourcePath}
-          onDownloadResource={downloadResourceById}
-          resourceMoveDestinations={buildResourceMoveDestinationItems(
-            application.membershipSelector,
-            application.query
-          )}
-          onMoveResource={(id, destinationFolderId) =>
-            void application.resourceOperations.moveResource(id, destinationFolderId)
-          }
-          onCreateFolder={(name) => application.folderOperations.create(name, null)}
-        />
-        <PdfOverlay
-          resource={resourceOverlay?.kind === 'pdf' ? resourceOverlay.resource : null}
-          onClose={() => setResourceOverlay(null)}
-          resolveResourceUrl={(path) => application.resolveResourceImageUrl(path)}
-          onArchiveResource={(id) =>
-            void application.resourceOperations.archiveResource(id)
-          }
-          onRevealResourceInFinder={revealResourceInFinder}
-          onCopyResourcePath={copyResourcePath}
-          resourceMoveDestinations={buildResourceMoveDestinationItems(
-            application.membershipSelector,
-            application.query
-          )}
-          onMoveResource={(id, destinationFolderId) =>
-            void application.resourceOperations.moveResource(id, destinationFolderId)
-          }
-          onCreateFolder={(name) => application.folderOperations.create(name, null)}
-        />
-      </>
+      <Page
+        isSidebarVisible={workspace.isSidebarVisible}
+        onToggleSidebarVisible={() => workspace.toggleSidebarVisible()}
+        canNavigateBack={workspace.canNavigateBack}
+        canNavigateForward={workspace.canNavigateForward}
+        onNavigateBack={() => application.navigation.back()}
+        onNavigateForward={() => application.navigation.forward()}
+        title={getSystemLocationPresentation('assets').label}
+        titleEditable={false}
+        breadcrumbs={<Breadcrumbs items={[]} />}
+        body={
+          <AssetsCollectionBody
+            resources={resources}
+            onOpenResource={onOpenResource}
+            onRenameResource={(id, name) =>
+              void application.resourceOperations.renameResource(id, name)
+            }
+            onArchiveResource={(id) =>
+              void application.resourceOperations.archiveResource(id)
+            }
+            onDownloadResource={downloadResourceById}
+            resourceMoveDestinations={buildResourceMoveDestinationItems(
+              application.membershipSelector,
+              application.query
+            )}
+            onMoveResource={(id, destinationFolderId) =>
+              void application.resourceOperations.moveResource(id, destinationFolderId)
+            }
+            onCreateFolder={(name) => application.folderOperations.create(name, null)}
+          />
+        }
+      />
     );
   }
 
@@ -825,94 +721,69 @@ export function PageHost({ application }: PageHostProps) {
     });
 
     return (
-      <>
-        <Page
-          titleKey={activePageId}
-          isSidebarVisible={workspace.isSidebarVisible}
-          onToggleSidebarVisible={() => workspace.toggleSidebarVisible()}
-          canNavigateBack={workspace.canNavigateBack}
-          canNavigateForward={workspace.canNavigateForward}
-          onNavigateBack={() => application.navigation.back()}
-          onNavigateForward={() => application.navigation.forward()}
-          title={model.title}
-          description={model.description}
-          titleEditable
-          titlePlaceholder={getPageTitlePlaceholder(draft.type)}
-          breadcrumbs={<Breadcrumbs items={draftBreadcrumbs} />}
-          // Same page chrome as a persisted page (ADR-017 Decision item 9) —
-          // archive/restore/delete render disabled, not omitted, since they
-          // don't apply until this draft is actually persisted.
-          actions={draftTopBar.actions}
-          bodyFocusRef={editorRef}
-          onTitleCommit={(title) =>
-            void application.pageOperations.updateDraftTitle(activePageId, title)
-          }
-          body={
-            <MarkdownBody>
-              <MarkdownEditor
-                key={activePageId}
-                pageId={activePageId}
-                ref={editorRef}
-                markdown={model.markdown}
-                focusOnOpen={focusEditorOnOpen(model.title)}
-                onEdit={(markdown) => model.updateMarkdown(markdown)}
-                onFlush={() => model.requestSave()}
-                resolveWikiLink={resolveWikiLink}
-                getWikiLinkSuggestions={getWikiLinkSuggestions}
-                getEmbedSuggestions={getEmbedSuggestions}
-                resolveEmbedImage={resolveEmbedImage}
-                resolveEmbedPdf={resolveEmbedPdf}
-                onPdfEmbedClick={onPdfEmbedClick}
-                resolveImageSrc={resolveImageSrc}
-                resolveTag={resolveTag}
-                getTagSuggestions={getTagSuggestions}
-                resolveDate={resolveDate}
-                onSetCoverImage={onSetCoverImage}
-                onDownloadImage={downloadImageFromEditor}
-                resolveImageResource={resolveImageResource}
-                onArchiveResource={(id) =>
-                  void application.resourceOperations.archiveResource(id)
-                }
-                onRevealResourceInFinder={revealResourceInFinder}
-                onCopyResourcePath={copyResourcePath}
-                onDownloadResource={downloadResourceById}
-                resourceMoveDestinations={buildResourceMoveDestinationItems(
-                  application.membershipSelector,
-                  application.query
-                )}
-                onMoveResource={(id, destinationFolderId) =>
-                  void application.resourceOperations.moveResource(id, destinationFolderId)
-                }
-                onCreateFolder={(name) => application.folderOperations.create(name, null)}
-              />
-            </MarkdownBody>
-          }
-        />
-        {/* The inline PDF embed's Expand control (PdfEmbedWidget.ts →
-            onPdfEmbedClick → openResourceOverlay, above) sets this same
-            resourceOverlay state — same discriminated state, same
-            PdfOverlay mount, as the Archive/Assets collection branches
-            below. Without this mount here, Expand had nothing listening
-            for that state change while editing a draft. */}
-        <PdfOverlay
-          resource={resourceOverlay?.kind === 'pdf' ? resourceOverlay.resource : null}
-          onClose={() => setResourceOverlay(null)}
-          resolveResourceUrl={(path) => application.resolveResourceImageUrl(path)}
-          onArchiveResource={(id) =>
-            void application.resourceOperations.archiveResource(id)
-          }
-          onRevealResourceInFinder={revealResourceInFinder}
-          onCopyResourcePath={copyResourcePath}
-          resourceMoveDestinations={buildResourceMoveDestinationItems(
-            application.membershipSelector,
-            application.query
-          )}
-          onMoveResource={(id, destinationFolderId) =>
-            void application.resourceOperations.moveResource(id, destinationFolderId)
-          }
-          onCreateFolder={(name) => application.folderOperations.create(name, null)}
-        />
-      </>
+      <Page
+        titleKey={activePageId}
+        isSidebarVisible={workspace.isSidebarVisible}
+        onToggleSidebarVisible={() => workspace.toggleSidebarVisible()}
+        canNavigateBack={workspace.canNavigateBack}
+        canNavigateForward={workspace.canNavigateForward}
+        onNavigateBack={() => application.navigation.back()}
+        onNavigateForward={() => application.navigation.forward()}
+        title={model.title}
+        description={model.description}
+        titleEditable
+        titlePlaceholder={getPageTitlePlaceholder(draft.type)}
+        breadcrumbs={<Breadcrumbs items={draftBreadcrumbs} />}
+        // Same page chrome as a persisted page (ADR-017 Decision item 9) —
+        // archive/restore/delete render disabled, not omitted, since they
+        // don't apply until this draft is actually persisted.
+        actions={draftTopBar.actions}
+        bodyFocusRef={editorRef}
+        onTitleCommit={(title) =>
+          void application.pageOperations.updateDraftTitle(activePageId, title)
+        }
+        body={
+          <MarkdownBody>
+            <MarkdownEditor
+              key={activePageId}
+              pageId={activePageId}
+              ref={editorRef}
+              markdown={model.markdown}
+              focusOnOpen={focusEditorOnOpen(model.title)}
+              onEdit={(markdown) => model.updateMarkdown(markdown)}
+              onFlush={() => model.requestSave()}
+              resolveWikiLink={resolveWikiLink}
+              getWikiLinkSuggestions={getWikiLinkSuggestions}
+              getEmbedSuggestions={getEmbedSuggestions}
+              resolveEmbedImage={resolveEmbedImage}
+              resolveEmbedPdf={resolveEmbedPdf}
+              onPdfEmbedClick={onPdfEmbedClick}
+              resolveImageSrc={resolveImageSrc}
+              resolveTag={resolveTag}
+              getTagSuggestions={getTagSuggestions}
+              resolveDate={resolveDate}
+              onOpenImageOverlay={onOpenImageOverlay}
+              onSetCoverImage={onSetCoverImage}
+              onDownloadImage={downloadImageFromEditor}
+              resolveImageResource={resolveImageResource}
+              onArchiveResource={(id) =>
+                void application.resourceOperations.archiveResource(id)
+              }
+              onRevealResourceInFinder={revealResourceInFinder}
+              onCopyResourcePath={copyResourcePath}
+              onDownloadResource={downloadResourceById}
+              resourceMoveDestinations={buildResourceMoveDestinationItems(
+                application.membershipSelector,
+                application.query
+              )}
+              onMoveResource={(id, destinationFolderId) =>
+                void application.resourceOperations.moveResource(id, destinationFolderId)
+              }
+              onCreateFolder={(name) => application.folderOperations.create(name, null)}
+            />
+          </MarkdownBody>
+        }
+      />
     );
   }
 
@@ -976,89 +847,67 @@ export function PageHost({ application }: PageHostProps) {
   const isRenameable = page.type !== 'daily-note';
 
   return (
-    <>
-      <Page
-        titleKey={activePageId}
-        isSidebarVisible={workspace.isSidebarVisible}
-        onToggleSidebarVisible={() => workspace.toggleSidebarVisible()}
-        canNavigateBack={workspace.canNavigateBack}
-        canNavigateForward={workspace.canNavigateForward}
-        onNavigateBack={() => application.navigation.back()}
-        onNavigateForward={() => application.navigation.forward()}
-        title={model.title}
-        description={model.description}
-        titleEditable={isRenameable}
-        onTitleEdit={isRenameable ? (title) => onEditPageTitle(page.id, title) : undefined}
-        onTitleFlush={isRenameable ? () => onFlushPageTitle(page.id) : undefined}
-        onTitleCancel={isRenameable ? () => onCancelPageTitle(page.id) : undefined}
-        breadcrumbs={<Breadcrumbs items={breadcrumbs} />}
-        actions={topBar.actions}
-        coverImage={
-          application.resolveCoverImageForDisplay(model.coverImage) ?? undefined
-        }
-        bodyFocusRef={editorRef}
-        body={
-          <MarkdownBody>
-            <MarkdownEditor
-              key={activePageId}
-              pageId={activePageId}
-              ref={editorRef}
-              markdown={model.markdown}
-              focusOnOpen={focusEditorOnOpen(model.title)}
-              onEdit={(markdown) => model.updateMarkdown(markdown)}
-              onFlush={() => model.requestSave()}
-              resolveWikiLink={resolveWikiLink}
-              getWikiLinkSuggestions={getWikiLinkSuggestions}
-              getEmbedSuggestions={getEmbedSuggestions}
-              resolveEmbedImage={resolveEmbedImage}
-              resolveEmbedPdf={resolveEmbedPdf}
-              onPdfEmbedClick={onPdfEmbedClick}
-              resolveImageSrc={resolveImageSrc}
-              resolveTag={resolveTag}
-              getTagSuggestions={getTagSuggestions}
-              resolveDate={resolveDate}
-              onSetCoverImage={onSetCoverImage}
-              onDownloadImage={downloadImageFromEditor}
-              resolveImageResource={resolveImageResource}
-              onArchiveResource={(id) =>
-                void application.resourceOperations.archiveResource(id)
-              }
-              onRevealResourceInFinder={revealResourceInFinder}
-              onCopyResourcePath={copyResourcePath}
-              onDownloadResource={downloadResourceById}
-              resourceMoveDestinations={buildResourceMoveDestinationItems(
-                application.membershipSelector,
-                application.query
-              )}
-              onMoveResource={(id, destinationFolderId) =>
-                void application.resourceOperations.moveResource(id, destinationFolderId)
-              }
-              onCreateFolder={(name) => application.folderOperations.create(name, null)}
-            />
-          </MarkdownBody>
-        }
-      />
-      {/* Same missing-mount fix as the draft branch above — this is the
-          persisted Note/Daily Note branch, the actual one the reported bug
-          was observed in (an existing page's ![[document.pdf]] embed). */}
-      <PdfOverlay
-        resource={resourceOverlay?.kind === 'pdf' ? resourceOverlay.resource : null}
-        onClose={() => setResourceOverlay(null)}
-        resolveResourceUrl={(path) => application.resolveResourceImageUrl(path)}
-        onArchiveResource={(id) =>
-          void application.resourceOperations.archiveResource(id)
-        }
-        onRevealResourceInFinder={revealResourceInFinder}
-        onCopyResourcePath={copyResourcePath}
-        resourceMoveDestinations={buildResourceMoveDestinationItems(
-          application.membershipSelector,
-          application.query
-        )}
-        onMoveResource={(id, destinationFolderId) =>
-          void application.resourceOperations.moveResource(id, destinationFolderId)
-        }
-        onCreateFolder={(name) => application.folderOperations.create(name, null)}
-      />
-    </>
+    <Page
+      titleKey={activePageId}
+      isSidebarVisible={workspace.isSidebarVisible}
+      onToggleSidebarVisible={() => workspace.toggleSidebarVisible()}
+      canNavigateBack={workspace.canNavigateBack}
+      canNavigateForward={workspace.canNavigateForward}
+      onNavigateBack={() => application.navigation.back()}
+      onNavigateForward={() => application.navigation.forward()}
+      title={model.title}
+      description={model.description}
+      titleEditable={isRenameable}
+      onTitleEdit={isRenameable ? (title) => onEditPageTitle(page.id, title) : undefined}
+      onTitleFlush={isRenameable ? () => onFlushPageTitle(page.id) : undefined}
+      onTitleCancel={isRenameable ? () => onCancelPageTitle(page.id) : undefined}
+      breadcrumbs={<Breadcrumbs items={breadcrumbs} />}
+      actions={topBar.actions}
+      coverImage={
+        application.resolveCoverImageForDisplay(model.coverImage) ?? undefined
+      }
+      bodyFocusRef={editorRef}
+      body={
+        <MarkdownBody>
+          <MarkdownEditor
+            key={activePageId}
+            pageId={activePageId}
+            ref={editorRef}
+            markdown={model.markdown}
+            focusOnOpen={focusEditorOnOpen(model.title)}
+            onEdit={(markdown) => model.updateMarkdown(markdown)}
+            onFlush={() => model.requestSave()}
+            resolveWikiLink={resolveWikiLink}
+            getWikiLinkSuggestions={getWikiLinkSuggestions}
+            getEmbedSuggestions={getEmbedSuggestions}
+            resolveEmbedImage={resolveEmbedImage}
+            resolveEmbedPdf={resolveEmbedPdf}
+            onPdfEmbedClick={onPdfEmbedClick}
+            resolveImageSrc={resolveImageSrc}
+            resolveTag={resolveTag}
+            getTagSuggestions={getTagSuggestions}
+            resolveDate={resolveDate}
+            onOpenImageOverlay={onOpenImageOverlay}
+            onSetCoverImage={onSetCoverImage}
+            onDownloadImage={downloadImageFromEditor}
+            resolveImageResource={resolveImageResource}
+            onArchiveResource={(id) =>
+              void application.resourceOperations.archiveResource(id)
+            }
+            onRevealResourceInFinder={revealResourceInFinder}
+            onCopyResourcePath={copyResourcePath}
+            onDownloadResource={downloadResourceById}
+            resourceMoveDestinations={buildResourceMoveDestinationItems(
+              application.membershipSelector,
+              application.query
+            )}
+            onMoveResource={(id, destinationFolderId) =>
+              void application.resourceOperations.moveResource(id, destinationFolderId)
+            }
+            onCreateFolder={(name) => application.folderOperations.create(name, null)}
+          />
+        </MarkdownBody>
+      }
+    />
   );
 }

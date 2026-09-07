@@ -74,6 +74,7 @@
   --md-indent: var(--md-base-space);
   --marker-height: var(--md-base-space);
   --marker-width: var(--md-base-space);
+  --cm-text-underline-offset: 20%;
 
   /* Content width */
   --content-width: calc(100% - 96px);
@@ -97,7 +98,10 @@
 
   /* Typography */
 
-  --font-sans: inter;
+  --font-sans:
+    ui-sans-serif, -apple-system, 'system-ui', 'Segoe UI Variable Display',
+    'Segoe UI', Helvetica, 'Apple Color Emoji', 'Noto Sans Arabic',
+    'Noto Sans Hebrew', Arial, sans-serif, 'Segoe UI Emoji', 'Segoe UI Symbol';
 
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
@@ -161,6 +165,7 @@
   --fw-medium: 500;
   --fw-semibold: 600; /* Use it for label & caption */
   --fw-bold: 700;
+  --fw-extrabold: 800;
 
   /* App shell — docked sidebar rail (spacer, panel, topbar column must match) */
   --app-sidebar-width: 280px;

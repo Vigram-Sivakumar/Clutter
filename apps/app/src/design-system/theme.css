@@ -49,8 +49,11 @@ html.theme-transitioning [data-themeable] *::after {
   /* Markdown foreground */
   --marker-foreground: var(--foreground-placeholder);
   --link-foreground: var(--foreground-primary);
+  --cm-link-underline: var(--link-underline);
   --tag-foreground: orange;
   --date-foreground: #999999;
+  --resize-handle: rgba(244, 244, 244, 0.5);
+  --resize-handle-img: rgba(244, 244, 244, 0.7);
 
   /* Text decoration */
   --strikethrough-color: #595757;
@@ -145,6 +148,9 @@ html.theme-transitioning [data-themeable] *::after {
   --cm-link-underline: rgba(46, 109, 233, 0.2);
   --tag-foreground: rgb(46, 109, 233);
   --tag-surface: rgba(46, 109, 233, 0.12);
+  --resize-handle: rgba(52, 52, 51, 0.5);
+  --resize-handle-img: rgba(244, 244, 244, 0.7);
+
   /* --date-foreground: #767676; */
   --date-foreground: rgb(46, 109, 233);
   --date-surface: rgba(46, 109, 233, 0.12);

@@ -43,10 +43,11 @@ export interface ImageOverlayMoreActionsProps {
  * interaction="subtle" isIconOnly`), the *exact* props `OverflowMenu.tsx`'s
  * own "⋯" trigger already renders with. This control is a top-right-of-
  * screen overlay affordance, not an inline Markdown-image control
- * (`.cm-image-control`, CM6's raw-DOM widget) — the two now render with
+ * (`.cm-media-control`, CM6's raw-DOM widget) — the two now render with
  * completely independent CSS on purpose: an earlier version of this file
- * reused `.cm-image-control` here for pixel-parity with the inline
- * control, but that's no longer this control's job (`.image-overlay__control`
+ * reused that class (then still named `.cm-image-control`) here for
+ * pixel-parity with the inline control, but that's no longer this
+ * control's job (`.image-overlay__control`
  * below owns only this control's own positioning; every visual property —
  * color, hover, active, icon sizing — comes from `Button`/`Button.css`
  * unmodified, the same design-system chrome every other icon-only trigger

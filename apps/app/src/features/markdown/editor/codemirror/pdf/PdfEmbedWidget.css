@@ -8,19 +8,23 @@
    only this file's own container/control-row/pagination *layout* rules are
    genuinely embed-specific.
 
-   `.cm-image-container--broken` (broken/unresolved state) uses shared styling
-   from `ImageFloatingControls.css`. The top row's action-button chrome uses
-   PDF-specific `.cm-pdf-controls`/`.cm-pdf-control` classes with complete
-   self-contained styling independent of image controls. Unlike image-widget
-   overlays, the top row's `.cm-pdf-controls` sits in normal flow above the
-   page alongside the title, participating in the header's flex layout. Control
-   visibility is driven by a JS-toggled `.cm-pdf-embed-container--hover` class
-   (not bare CSS `:hover`) to avoid a browser "sticky hover" quirk when
-   `renderCurrentPage()` mutates the DOM while the pointer sits over it.
+   `.cm-invalid-embed` (broken/unresolved state) uses the shared
+   `.cm-invalid-embed__controls`/`.cm-invalid-embed__control` chrome from
+   `MediaFloatingControls.css` (`invalidEmbedCard.ts`). The top row's
+   action-button chrome (working state only) uses PDF-specific
+   `.cm-pdf-controls`/`.cm-pdf-control` classes with complete
+   self-contained styling independent of that shared primitive. Unlike
+   image-widget overlays, the top row's `.cm-pdf-controls` sits in normal
+   flow above the page alongside the title, participating in the header's
+   flex layout. Control visibility is driven by a JS-toggled
+   `.cm-pdf-embed-container--hover` class (not bare CSS `:hover`) to avoid
+   a browser "sticky hover" quirk when `renderCurrentPage()` mutates the
+   DOM while the pointer sits over it.
 
    Page navigation (`.cm-pdf-embed-pagination`) is a second, deliberately
    *different* floating control — its own dedicated class, not
-   `.cm-image-controls` — since it has different reveal semantics: the pill
+   `.cm-media-controls`/`.cm-invalid-embed__controls` — since it has
+   different reveal semantics: the pill
    itself and its page-indicator text are always visible, and only the
    Previous/Next arrow buttons inside it reveal on hover/focus of the whole
    embed container (not just the small pill itself — the arrows should
@@ -37,7 +41,7 @@
      this enforces (every embed/media widget, this one included, must
      never share a line with surrounding Markdown text, at any width). */
   display: block;
-  /* 1px reserve — same caret-overflow fix `.cm-image-container--broken`
+  /* 1px reserve — same caret-overflow fix `.cm-invalid-embed`
      documents for the same reason: a full-width block-shaped widget needs
      slack for the caret's own drawn box at its boundary. Only the natural,
      unconstrained-width case relies on this: `applyMediaWidth`
@@ -151,7 +155,7 @@
 
 /* PDF floating action buttons — complete self-contained styling.
    24×24px buttons with padding, colors, and hover states. No dependency on
-   `.cm-image-control` or ImageFloatingControls.css. */
+   `.cm-media-control` or MediaFloatingControls.css. */
 .cm-pdf-control {
   display: flex;
   align-items: center;
@@ -190,13 +194,6 @@
   stroke-width: var(--icon-stroke);
 }
 
-/* Broken-state PDF controls — positioned in the broken card, static flex sizing. */
-.cm-image-container--broken .cm-pdf-controls {
-  position: static;
-  flex: 0 0 auto;
-  overflow: visible;
-}
-
 /* Show controls on hover: toggle flex-basis to expand container from 0 to intrinsic width. */
 .cm-pdf-embed-container--hover .cm-pdf-controls,
 .cm-pdf-embed-container:focus-within .cm-pdf-controls {
@@ -217,8 +214,8 @@
 }
 
 /* The page-navigation pill — floating, centered at the bottom of the page.
-   Its own dedicated chrome (not `.cm-image-controls`/
-   `ImageFloatingControls.css`, deliberately — see the class doc comment):
+   Its own dedicated chrome (not `.cm-media-controls`/`.cm-invalid-embed__controls`/
+   `MediaFloatingControls.css`, deliberately — see the class doc comment):
    the pill and its page-indicator text stay visible unconditionally; only
    the arrow buttons inside it fade in on hover/focus — of the *container*,
    below, not the pill itself (a hover/focus rule scoped to the pill alone

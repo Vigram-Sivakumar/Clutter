@@ -93,7 +93,7 @@ describe('ImageOverlay', () => {
 
       const button = screen.getByRole('button', { name: 'More actions' });
       // No opacity/visibility gating class the way the inline widget's own
-      // hover-reveal control has (`.cm-image-container:hover .cm-image-controls`)
+      // hover-reveal control has (`.cm-image-container:hover .cm-media-controls`)
       // — this control's container never needs that rule at all.
       expect(button).toBeVisible();
     });
@@ -346,44 +346,44 @@ describe('ImageOverlay', () => {
       });
     });
 
-    describe('own semantic class — independent from the inline Markdown-image control', () => {
-      it('the trigger is a real Button (design-system chrome), not the inline widget\'s .cm-image-control', () => {
+    describe('own semantic class — independent from the inline Markdown-media control', () => {
+      it('the trigger is a real Button (design-system chrome), not the inline widget\'s .cm-media-control', () => {
         render(<ImageOverlay image={localImage} onClose={vi.fn()} />);
 
         const button = screen.getByRole('button', { name: 'More actions' });
         expect(button.classList.contains('button')).toBe(true);
         expect(button.classList.contains('button--ghost')).toBe(true);
         expect(button.classList.contains('button--small')).toBe(true);
-        expect(button.classList.contains('cm-image-control')).toBe(false);
+        expect(button.classList.contains('cm-media-control')).toBe(false);
       });
 
-      it('the button is active while the menu is open, via Button\'s own isActive class, not .cm-image-control--active', () => {
+      it('the button is active while the menu is open, via Button\'s own isActive class, not .cm-media-control--active', () => {
         render(<ImageOverlay image={localImage} onClose={vi.fn()} />);
 
         const button = screen.getByRole('button', { name: 'More actions' });
         fireEvent.click(button);
 
         expect(button.classList.contains('button--active')).toBe(true);
-        expect(button.classList.contains('cm-image-control--active')).toBe(false);
+        expect(button.classList.contains('cm-media-control--active')).toBe(false);
       });
 
-      it('wrapped in its own .image-overlay__control positioning class, never .cm-image-controls', () => {
+      it('wrapped in its own .image-overlay__control positioning class, never .cm-media-controls', () => {
         render(<ImageOverlay image={localImage} onClose={vi.fn()} />);
 
         const button = screen.getByRole('button', { name: 'More actions' });
         expect(button.closest('.image-overlay__control')).not.toBeNull();
-        expect(button.closest('.cm-image-controls')).toBeNull();
+        expect(button.closest('.cm-media-controls')).toBeNull();
       });
 
-      it('regression: ImageOverlay.css no longer styles .cm-image-controls/.cm-image-control at all — that CSS belongs exclusively to the inline widget now (ImageFloatingControls.css)', () => {
+      it('regression: ImageOverlay.css no longer styles .cm-media-controls/.cm-media-control at all — that CSS belongs exclusively to the inline widget now (MediaFloatingControls.css)', () => {
         const css = readFileSync(join(__dirname, 'ImageOverlay.css'), 'utf8');
         // Strip comments first — this file's own doc comments legitimately
-        // mention `.cm-image-control` in prose (explaining what this
+        // mention `.cm-media-control` in prose (explaining what this
         // control deliberately does NOT reuse); only an actual selector
         // outside a comment would mean the CSS itself still styles it.
         const cssWithoutComments = css.replace(/\/\*[\s\S]*?\*\//g, '');
 
-        expect(cssWithoutComments).not.toMatch(/\.cm-image-controls?\b/);
+        expect(cssWithoutComments).not.toMatch(/\.cm-media-controls?\b/);
       });
     });
   });

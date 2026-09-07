@@ -51,8 +51,8 @@
   z-index: calc(var(--z-overlay, 1000) + 1);
   pointer-events: none;
 }
-/* The More Actions control's own class — deliberately NOT `.cm-image-control`
-   (the inline Markdown-image widget's own class, ImageFloatingControls.css):
+/* The More Actions control's own class — deliberately NOT `.cm-media-control`
+   (the inline Markdown-image widget's own class, MediaFloatingControls.css):
    this is a top-right-of-screen overlay affordance, not an inline image
    control, and the two are independent controls that happen to render the
    same icon, not one shared visual construct wearing two different

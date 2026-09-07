@@ -83,7 +83,7 @@ export interface OverflowMenuProps {
  * `Button` can reuse it directly instead of re-implementing the submenu/
  * keyboard logic a second time. `ImageOverlayMoreActions.tsx` is the first
  * such caller — its trigger must pixel-match the Markdown editor's inline
- * image controls (`.cm-image-control`), which this component's own
+ * media controls (`.cm-media-control`), which this component's own
  * `Button`-based trigger can't be reshaped into safely (see that file's own
  * doc comment).
  */

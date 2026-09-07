@@ -118,7 +118,7 @@
 .cm-editor .tok-heading4,
 .cm-editor .tok-heading5,
 .cm-editor .tok-heading6 {
-  font-weight: 700;
+  font-weight: var(--fw-extrabold);
   color: var(--foreground-primary);
 }
 
@@ -1136,7 +1136,7 @@
   text-decoration: underline;
   text-decoration-thickness: 0.05em;
   text-decoration-color: var(--cm-link-underline);
-  text-underline-offset: 10%;
+  text-underline-offset: var(--cm-text-underline-offset);
   cursor: pointer;
 }
 
@@ -1148,7 +1148,7 @@
   text-decoration: underline;
   text-decoration-thickness: 0.05em;
   text-decoration-color: var(--cm-link-underline);
-  text-underline-offset: 10%;
+  text-underline-offset: var(--cm-text-underline-offset);
   cursor: pointer;
 }
 .tok-wikilink[data-wikilink-status='unresolved'] {
@@ -1227,14 +1227,14 @@
 }
 
 /* ImageWidget's own wrapper — establishes the positioning context for
-   .cm-image-controls (top-right overlay) per the interaction-correction
+   .cm-media-controls (top-right overlay) per the interaction-correction
    change. Still bare containment beyond that: no caption, no filename
    label — those remain out of scope.
 
    `width: fit-content` (not `display: block`'s implicit `width: auto`,
    which stretches a block box to fill 100% of its containing block
    regardless of its content's own rendered size) is what makes
-   `.cm-image-controls`'s `position: absolute; right: ...` track the
+   `.cm-media-controls`'s `position: absolute; right: ...` track the
    image's own actual right edge instead of the editor's. A block box
    with no explicit width always fills its container — confirmed as the
    root cause directly, not assumed: at full width the container's own
@@ -1277,7 +1277,7 @@ design — `.cm-image-container`'s own `width: fit-content` above would
 otherwise try to shrink-wrap a `width: 100%` child, an ambiguous case
 not worth relying on browsers to resolve consistently. These two
 modifier classes override it back to a real full-width box, so
-`.cm-image-controls`'s own `position: absolute; right: 8px` still lands
+`.cm-media-controls`'s own `position: absolute; right: 8px` still lands
 at the actual rendered image's own top-right corner regardless of mode
 — unaffected by *why* the container is that width, only by what it
 actually is. They differ only in height: Fill's is a fixed 400px
@@ -1287,7 +1287,7 @@ by the browser from the `<img>`'s intrinsic aspect ratio at this
 box's resolved width — never computed in code.
 
 `calc(100% - 1px)`, not a literal `100%` — the identical caret-overflow
-bug `.cm-image-container--broken` has its own full account of below
+bug `.cm-invalid-embed` has its own full account of below
 (same root cause, confirmed the same way: a working Fill image reported
 the identical "editor shifts ~1-2px when the caret lands next to it"
 symptom). Any container in this file styled to the full available width
@@ -1345,7 +1345,7 @@ put it there. */
   display: none;
 }
 
-/* Hover/focus-within reveal, scoped per parent — Image's `.cm-image-controls`
+/* Hover/focus-within reveal, scoped per parent — Image's `.cm-media-controls`
    and PDF's `.cm-pdf-controls` each already reveal on their own container's
    hover/focus-within; this mirrors that per-widget convention rather than
    a single selector spanning both container classes. */
@@ -1598,7 +1598,7 @@ body.cm-pdf-resizing-nesw * {
    raw editing must always stay flush-left regardless of the media's chosen
    alignment. Fixed by aligning the container against its own line using
    `position: relative` (already set, unconditionally, above — needed for
-   `.cm-image-controls`'s absolute overlay) plus the standard
+   `.cm-media-controls`'s absolute overlay) plus the standard
    unknown-width centering technique: `left: 50%` offsets the box's normal
    (static, flush-left) position rightward by half the *line's* width, and
    `transform: translateX(-50%)` then offsets it back left by half the
@@ -1643,24 +1643,33 @@ body.cm-pdf-resizing-nesw * {
 
 /* Container appearance (background/radius/shadow/padding) and button
    chrome (sizing/color/hover/active/icon) now live in
-   `codemirror/image/ImageFloatingControls.css` — the shared visual
-   primitive also used by ImageOverlay's own floating control
-   (ImageOverlayMoreActions.tsx). This file keeps only what's genuinely
-   specific to being anchored inside a CM6 widget: absolute positioning
-   within `.cm-image-container`, and the hover/focus-within/`data-menu-open`
-   reveal-on-engagement opacity toggle — ImageOverlay's own control needs
-   neither (it's always visible, positioned relative to the overlay's own
-   image frame instead). */
-.cm-editor .cm-image-controls {
+   `codemirror/image/MediaFloatingControls.css` — the shared visual
+   primitive both `ImageWidget.ts`'s working-state controls
+   (`.cm-media-controls`/`.cm-media-control`) and `invalidEmbedCard.ts`'s
+   shared broken/invalid-embed card controls (Image and PDF alike, their
+   own `.cm-invalid-embed__controls`/`.cm-invalid-embed__control` names)
+   resolve to. ImageOverlay's own floating control
+   (ImageOverlayMoreActions.tsx) deliberately does NOT reuse either (its
+   own doc comment and `ImageOverlay.css` explain why) — it uses the
+   project's real `Button` component instead. This file keeps only what's
+   genuinely specific to being anchored inside a CM6 widget: absolute
+   positioning within `.cm-image-container`, and the hover/focus-within/
+   `data-menu-open` reveal-on-engagement opacity toggle — both class
+   families need the same positioning/reveal mechanism, so both are listed
+   below rather than duplicating these rules per family. */
+.cm-editor .cm-media-controls {
   position: absolute;
   top: var(--space-6);
   right: var(--space-6);
   opacity: 0;
   transition: opacity 150ms ease;
+  color: var(--foreground-secondary);
 }
 
-.cm-editor .cm-image-container:hover .cm-image-controls,
-.cm-editor .cm-image-container:focus-within .cm-image-controls,
+.cm-editor .cm-image-container:hover .cm-media-controls,
+.cm-editor .cm-image-container:focus-within .cm-media-controls,
+.cm-editor .cm-image-container:hover .cm-invalid-embed__controls,
+.cm-editor .cm-image-container:focus-within .cm-invalid-embed__controls,
 /* Item 5 (2026-09-02 UX baseline): "the entire controls area remains
    visible" while this image's own options menu is open. Needed as its
    own rule, not covered by :hover/:focus-within above — ImageOptionsMenu
@@ -1672,8 +1681,11 @@ body.cm-pdf-resizing-nesw * {
    closeImageMenu) — deliberately *not* CM6 state diffed through
    ImageWidget's own `eq()`/`toDOM()` the way `revealed`/`displayMode` are;
    see imageUiState.ts's doc comment for the bug that approach caused
-   (the menu's own Overlay anchor going stale). */
-.cm-editor .cm-image-container[data-menu-open='true'] .cm-image-controls {
+   (the menu's own Overlay anchor going stale). A broken/invalid embed has
+   no menu to open at all, so `.cm-invalid-embed__controls` never actually
+   matches this selector — listed on the shared rule above for the reveal
+   mechanism only, not needed here. */
+.cm-editor .cm-image-container[data-menu-open='true'] .cm-media-controls {
   opacity: 1;
 }
 
@@ -1681,29 +1693,31 @@ body.cm-pdf-resizing-nesw * {
    active/open state" — the same size button that opens ImageOptionsMenu,
    styled the same way any other toggled-on control in this codebase is
    (`--state-selected`, e.g. Breadcrumb.css/ImagePicker.css's own
-   selected-item rules), via the shared `.cm-image-control--active` class
-   (ImageFloatingControls.css). Toggled by the same direct-DOM-mutation
+   selected-item rules), via the shared `.cm-media-control--active` class
+   (MediaFloatingControls.css). Toggled by the same direct-DOM-mutation
    mechanism as `[data-menu-open]` above, not a CSS-only `:focus`/`:active`
    pseudo-class — the menu itself is a portal-rendered Overlay, so this
    button's own DOM focus state doesn't reliably track "is my menu
    actually open" once focus moves into it. Button chrome itself
    (dimensions/radius/color/hover/icon sizing) is defined once in
-   ImageFloatingControls.css, not repeated here — see that file's own doc
+   MediaFloatingControls.css, not repeated here — see that file's own doc
    comment. */
 
-/* Broken/invalid image (2026-09-02 UX baseline, "Broken / Invalid Image
-   UX") — ImageWidget.renderBroken()'s own dedicated representation,
-   rendered instead of an <img> once a genuine load failure flips
-   imageUiState.ts's `broken` (never for merely-incomplete Markdown, e.g.
-   `![Text]` with no destination — that never reaches ImageWidget at all,
-   see imageLivePreview.ts's own scanImage-based guard). Visual reference:
-   a rounded, bordered bar — broken-image icon, bold alt text, a lighter
-   "Invalid image url" hint — deliberately not a broken-image icon or a
-   dimmed copy of the normal image box, which is the whole point of this
+/* Invalid embed card (2026-09-02 UX baseline, "Broken / Invalid Image
+   UX") — the shared representation `invalidEmbedCard.ts`'s
+   `renderInvalidEmbedCard()` builds for every media widget that can fail
+   to load (`ImageWidget.renderBroken()`, `PdfEmbedWidget.renderBroken()`),
+   rendered instead of the widget's own working content once a genuine
+   load failure flips `imageUiState.ts`'s `broken` (never for merely-
+   incomplete Markdown, e.g. `![Text]` with no destination — that never
+   reaches ImageWidget at all, see imageLivePreview.ts's own scanImage-based
+   guard). Visual reference: a rounded, bordered bar — type-specific icon,
+   bold title text, a lighter source/path hint — deliberately not a dimmed
+   copy of the normal media box, which is the whole point of this
    representation existing.
 
-   `.cm-image-container--broken` always fills the available width — unlike
-   Large/Fit's shrink-wrapped box, a broken image has no display-mode
+   `.cm-invalid-embed` always fills the available width — unlike
+   Large/Fit's shrink-wrapped box, an invalid embed has no display-mode
    choice to honor (no size menu exists for it at all), so there's no
    "size" for the bar to reflect; it just always spans the full editor
    width, same mechanism as `.cm-image-container--fill` above.
@@ -1739,43 +1753,53 @@ body.cm-pdf-resizing-nesw * {
    sub-pixel-imperceptible, "fills the available width" in every practical
    sense a user could judge by eye, while genuinely eliminating the
    overflow at its actual source instead of merely hiding its symptom. */
-.cm-editor .cm-image-container--broken {
+/* Compound selector (`.cm-image-container.cm-invalid-embed`), not just
+   `.cm-invalid-embed` alone — guarantees this wins over the base
+   `.cm-image-container` width rule above by specificity, not by source
+   order, since `invalidEmbedCard.ts` adds both classes to the same
+   element. */
+.cm-editor .cm-image-container.cm-invalid-embed {
   width: calc(100% - 1px);
   overflow: hidden;
+  padding-block: 8px;
 }
-.cm-image-container--broken .cm-image-controls {
+.cm-invalid-embed__controls {
+  position: absolute;
   top: var(--space-4);
   right: var(--space-4);
+  opacity: 0;
+  transition: opacity 150ms ease;
   color: var(--foreground-secondary);
 }
 
-.cm-editor .cm-image-broken {
+.cm-editor .cm-invalid-embed__content {
   display: flex;
   align-items: center;
   width: 100%;
   /* Gap between the icon and the text wrapper only
-     (`.cm-image-broken__text`, below) — this row now has exactly two
+     (`.cm-invalid-embed__text`, below) — this row now has exactly two
      flex children (icon-wrap, text wrapper), so this `gap` is
-     unambiguously "icon-to-text," independent of the title/hint's own
+     unambiguously "icon-to-text," independent of the title/source's own
      internal spacing. Shared verbatim by both the broken-image
      (`ImageWidget.ts`) and broken-PDF (`PdfEmbedWidget.ts`) cards via
-     `brokenMediaCard.ts`'s common `renderInvalidMediaCard` builder, so
+     `invalidEmbedCard.ts`'s common `renderInvalidEmbedCard` builder, so
      their layout/spacing stay identical by construction. */
   gap: var(--space-6);
   padding: var(--space-6);
   border-radius: var(--radius-md);
-  /* background: var(--surface-secondary); */
+  background: var(--surface-secondary);
   /* box-shadow: var(--shadow-inset-thin); */
 }
-.cm-editor .cm-image-broken:hover {
+
+.cm-editor .cm-invalid-embed__content:hover {
   background: var(--surface-secondary);
 }
 
 /* 24x24 wrapper, 16x16 icon centered inside it — matches
-   `.cm-image-control`'s own icon-button proportions (`--height-md` square
-   button, 16x16 svg centered) for visual rhythm, even though this icon
-   isn't itself a button. */
-.cm-editor .cm-image-broken__icon-wrap {
+   `.cm-invalid-embed__control`'s own icon-button proportions (`--height-md`
+   square button, 16x16 svg centered) for visual rhythm, even though this
+   icon isn't itself a button. */
+.cm-editor .cm-invalid-embed__icon-wrap {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1784,7 +1808,7 @@ body.cm-pdf-resizing-nesw * {
   height: 24px;
 }
 
-.cm-editor .cm-image-broken__icon {
+.cm-editor .cm-invalid-embed__icon {
   width: var(--icon-md);
   height: var(--icon-md);
   stroke-width: var(--icon-stroke);
@@ -1792,25 +1816,25 @@ body.cm-pdf-resizing-nesw * {
 }
 
 /* Groups the title ("Unable to load") and the path/source hint together,
-   as one unit the icon sits beside (`brokenMediaCard.ts`) — a plain row
-   (not a column: title and hint sit side by side, vertically centered),
+   as one unit the icon sits beside (`invalidEmbedCard.ts`) — a plain row
+   (not a column: title and source sit side by side, vertically centered),
    matching the original flat single-row layout exactly. `gap` here is
-   the title/hint's own internal spacing — unchanged from the previous
-   flat single-row `.cm-image-broken` gap value (`var(--space-6)`), now
-   scoped to just this pair rather than doubling as the icon-to-text gap
-   too. `min-width: 0` preserves both children's own existing `overflow`/
-   `text-overflow` ellipsis truncation — a flex item's default
+   the title/source's own internal spacing — unchanged from the previous
+   flat single-row `.cm-invalid-embed__content` gap value (`var(--space-6)`),
+   now scoped to just this pair rather than doubling as the icon-to-text
+   gap too. `min-width: 0` preserves both children's own existing
+   `overflow`/`text-overflow` ellipsis truncation — a flex item's default
    `min-width: auto` would otherwise stop this wrapper (and therefore its
    children) from shrinking below their content's natural width inside
    the outer flex row. */
-.cm-editor .cm-image-broken__text {
+.cm-editor .cm-invalid-embed__text {
   display: flex;
   align-items: center;
   min-width: 0;
   gap: var(--space-12);
 }
 
-.cm-editor .cm-image-broken__alt {
+.cm-editor .cm-invalid-embed__title {
   font-size: var(--text-body-small);
   line-height: var(--lh-cm-content);
   color: var(--foreground-primary);
@@ -1819,7 +1843,7 @@ body.cm-pdf-resizing-nesw * {
   /* text-overflow: ellipsis; */
 }
 
-.cm-editor .cm-image-broken__hint {
+.cm-editor .cm-invalid-embed__source {
   font-size: var(--text-label);
   color: var(--foreground-tertiary);
   white-space: nowrap;

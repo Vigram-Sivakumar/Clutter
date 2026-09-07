@@ -1,5 +1,6 @@
 import type { FolderPickerItem } from '@components/folder-picker/FolderPicker.types';
 import type { LocationPathFormat } from '@core/presentation/getLocationPathRepresentations';
+import type { ImageOverlayImage } from './codemirror/image/ImageOverlay';
 
 import type { ResolveDate } from './codemirror/date/dateResolution';
 import type { GetEmbedSuggestions } from './codemirror/embed/embedSuggestion';

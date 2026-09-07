@@ -1,7 +1,7 @@
 /**
- * The invalid/broken-media card — one small shared component used by
- * every media widget that can be broken (`ImageWidget.ts`,
- * `PdfEmbedWidget.ts`). Four static pieces, always the same shape:
+ * The invalid-embed card — one small shared component used by every media
+ * widget that can be broken (`ImageWidget.ts`, `PdfEmbedWidget.ts`). Four
+ * static pieces, always the same shape:
  *
  *   container
  *   ├── controls
@@ -16,12 +16,24 @@
  * The only thing that ever differs between media types is the icon (plus
  * the small wording differences already reflected in each caller's own
  * `deleteLabel`/`editLabel` strings) — this module owns the DOM shape and
- * the controls' styling (`.cm-image-controls`/`.cm-image-control`, the
- * one hover-reveal mechanism already proven correct: plain CSS `:hover`/
- * `:focus-within` on `.cm-image-container`, no JS-toggled class to wire
- * up per widget). `onDelete`/`onEdit` are plain callbacks — this module
- * has no opinion on what deleting or editing means for a given widget,
- * and no CodeMirror/state dependency of its own.
+ * its own `.cm-invalid-embed*` classes, `__controls`/`__control` included
+ * — matching every other element here (`__content`, `__icon-wrap`, etc.),
+ * all BEM children of this one component, not a name borrowed from
+ * elsewhere. The container additionally keeps the pre-existing
+ * `.cm-image-container` class (unrenamed — it's a genuinely generic
+ * "media container with floating controls" primitive, already reused
+ * across widget types for the *working* state too) purely so the existing
+ * `.cm-image-container:hover`/`:focus-within` reveal-on-hover mechanism
+ * keeps applying here without a second copy of it — `MarkdownEditor.css`'s
+ * reveal rule targets both `.cm-media-controls` (the *working*-state
+ * controls' own name, `ImageWidget.ts`) and this component's own
+ * `.cm-invalid-embed__controls`. The actual button/container *chrome*
+ * (background/shadow/padding, icon-button sizing/hover) still lives once
+ * in `MediaFloatingControls.css`, whose selectors list both class families
+ * — one visual system, two semantically-owned names, no duplicated CSS.
+ * `onDelete`/`onEdit` are plain callbacks — this module has no opinion on
+ * what deleting or editing means for a given widget, and no CodeMirror/
+ * state dependency of its own.
  *
  * Fixes a real, confirmed bug: `PdfEmbedWidget.renderBroken` used to
  * build its controls with `.cm-pdf-controls` — the same class its
@@ -29,8 +41,8 @@
  * `opacity: 0` via a `.cm-pdf-embed-container:hover`/JS-toggled
  * `--hover` class that `renderBroken` never wires up. Delete/Edit source
  * existed in the DOM but sat permanently invisible. Using this shared
- * component's own `.cm-image-container`/`.cm-image-controls` — added
- * here, not by each widget — sidesteps that entirely.
+ * component's own `.cm-image-container`/`.cm-invalid-embed__controls` —
+ * added here, not by each widget — sidesteps that entirely.
  */
 
 const TRASH_ICON =
@@ -43,7 +55,7 @@ export const EDIT_ICON =
 function buildControlButton(iconHtml: string, label: string, onActivate: () => void): HTMLButtonElement {
   const button = document.createElement('button');
   button.type = 'button';
-  button.classList.add('cm-image-control');
+  button.classList.add('cm-invalid-embed__control');
   button.setAttribute('aria-label', label);
   button.title = label;
   button.innerHTML = iconHtml;
@@ -59,7 +71,7 @@ function buildControlButton(iconHtml: string, label: string, onActivate: () => v
   return button;
 }
 
-export interface InvalidMediaCardOptions {
+export interface InvalidEmbedCardOptions {
   /** The media-specific broken icon — a broken-image glyph or a PDF/document glyph. The one meaningful difference between callers. */
   readonly icon: string;
   /** The path/URL shown under the "Unable to load" title. */
@@ -70,12 +82,12 @@ export interface InvalidMediaCardOptions {
   readonly onEdit: () => void;
 }
 
-/** Appends the controls row and the broken card content onto `container`, and adds the `.cm-image-container`/`--broken` classes their styling/hover-reveal depend on. */
-export function renderInvalidMediaCard(container: HTMLElement, options: InvalidMediaCardOptions): void {
-  container.classList.add('cm-image-container', 'cm-image-container--broken');
+/** Appends the controls row and the invalid-embed content onto `container`, and adds the `.cm-image-container`/`.cm-invalid-embed` classes its styling/hover-reveal depend on. */
+export function renderInvalidEmbedCard(container: HTMLElement, options: InvalidEmbedCardOptions): void {
+  container.classList.add('cm-image-container', 'cm-invalid-embed');
 
   const controls = document.createElement('div');
-  controls.classList.add('cm-image-controls');
+  controls.classList.add('cm-invalid-embed__controls');
   controls.contentEditable = 'false';
   controls.append(
     buildControlButton(TRASH_ICON, options.deleteLabel, options.onDelete),
@@ -83,26 +95,26 @@ export function renderInvalidMediaCard(container: HTMLElement, options: InvalidM
   );
 
   const content = document.createElement('div');
-  content.classList.add('cm-image-broken');
+  content.classList.add('cm-invalid-embed__content');
 
   const iconWrap = document.createElement('span');
-  iconWrap.classList.add('cm-image-broken__icon-wrap');
+  iconWrap.classList.add('cm-invalid-embed__icon-wrap');
   iconWrap.innerHTML = options.icon;
-  iconWrap.querySelector('svg')?.classList.add('cm-image-broken__icon');
+  iconWrap.querySelector('svg')?.classList.add('cm-invalid-embed__icon');
   content.append(iconWrap);
 
   const text = document.createElement('div');
-  text.classList.add('cm-image-broken__text');
+  text.classList.add('cm-invalid-embed__text');
 
-  const alt = document.createElement('span');
-  alt.classList.add('cm-image-broken__alt');
-  alt.textContent = 'Unable to load';
-  text.append(alt);
+  const title = document.createElement('span');
+  title.classList.add('cm-invalid-embed__title');
+  title.textContent = 'Unable to load';
+  text.append(title);
 
-  const hint = document.createElement('span');
-  hint.classList.add('cm-image-broken__hint');
-  hint.textContent = options.source;
-  text.append(hint);
+  const source = document.createElement('span');
+  source.classList.add('cm-invalid-embed__source');
+  source.textContent = options.source;
+  text.append(source);
 
   content.append(text);
   container.append(controls, content);

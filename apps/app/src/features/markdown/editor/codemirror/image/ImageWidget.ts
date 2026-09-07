@@ -2,7 +2,7 @@ import { EditorSelection, type EditorState } from '@codemirror/state';
 import { WidgetType, type EditorView } from '@codemirror/view';
 
 import { computeImageDeletionRange } from './imageDeletion';
-import { EDIT_ICON, renderInvalidMediaCard } from './brokenMediaCard';
+import { EDIT_ICON, renderInvalidEmbedCard } from '../mediaPresentation/invalidEmbedCard';
 import {
   findEnclosingImageNode,
   getImageUiState,
@@ -41,7 +41,7 @@ import { attachImageResizeHandle } from './imageResizeHandle';
 // existing dedicated icon for exactly this state, not borrowed from an
 // unrelated construct the way the earlier link-icon placeholder was),
 // hand-copied for the same raw-DOM reason. TRASH_ICON/EDIT_ICON now live
-// in `brokenMediaCard.ts` — TRASH_ICON shared with `PdfEmbedWidget.ts`'s
+// in `invalidEmbedCard.ts` — TRASH_ICON shared with `PdfEmbedWidget.ts`'s
 // own Delete button (deleting is never media-specific); EDIT_ICON shared
 // with this file's own working-state Edit source button (`makeEditButton`,
 // below) and `PdfEmbedWidget.ts`'s equivalent — same glyph either way.
@@ -155,7 +155,7 @@ export function currentImageSource(state: EditorState, pos: number): CurrentImag
  * (`imageUiState.ts`), not this widget's — this file only ever turns
  * `revealed` on/off in direct response to the edit button's own click.
  * The working state's own floating control is `makeEditButton` (below);
- * the broken card builds the same toggle inline via `brokenMediaCard.ts`'s
+ * the broken card builds the same toggle inline via `invalidEmbedCard.ts`'s
  * plain `onEdit` callback (`renderBroken`'s own call site) — two small,
  * identical dispatch bodies rather than one shared private method, since
  * the shared card component takes plain callbacks, not this widget's own
@@ -166,7 +166,7 @@ export function currentImageSource(state: EditorState, pos: number): CurrentImag
  * on `this.ui.broken` (`imageUiState.ts`'s own doc comment covers exactly
  * when/how that flips, and why it's safe to store in CM6 state unlike
  * `menuOpen`). Broken:
- * - Shows a dedicated `.cm-image-broken` representation (broken-image icon
+ * - Shows a dedicated `.cm-invalid-embed` representation (broken-image icon
  *   + a static "Unable to load" label + the exact invalid reference — the
  *   vault-relative path or URL that failed) instead of an `<img>` — never
  *   the *native* (browser-drawn) broken-image icon, never the plain
@@ -474,7 +474,7 @@ export class ImageWidget extends WidgetType {
     const getCurrentTo = () => Number(container.dataset.nodeTo);
 
     const controls = document.createElement('div');
-    controls.classList.add('cm-image-controls');
+    controls.classList.add('cm-media-controls');
     controls.contentEditable = 'false';
 
     const sizeButton = this.makeButton(SIZE_ICON, 'Image size options', () => {
@@ -782,10 +782,10 @@ export class ImageWidget extends WidgetType {
     // No size button here at all — this UX's explicit requirement is that
     // a broken image never offers Large/Fill/Fit/Copy link/Set as cover
     // image/etc., not merely that those items are hidden/disabled once a
-    // menu is somehow open. See `brokenMediaCard.ts`'s own doc comment for
+    // menu is somehow open. See `invalidEmbedCard.ts`'s own doc comment for
     // the shared shape/controls this and `PdfEmbedWidget.renderBroken`
     // both use.
-    renderInvalidMediaCard(container, {
+    renderInvalidEmbedCard(container, {
       icon: BROKEN_IMAGE_ICON,
       source: this.copyUrl ?? this.url,
       deleteLabel: 'Delete image',
@@ -866,7 +866,7 @@ export class ImageWidget extends WidgetType {
 
   /**
    * The working-state floating Edit source control (the broken card
-   * builds its own inline, via `brokenMediaCard.ts`'s plain `onEdit`
+   * builds its own inline, via `invalidEmbedCard.ts`'s plain `onEdit`
    * callback — see `renderBroken`'s own call site).
    *
    * `getTo` is always `renderWorking`'s own live reader off the
@@ -913,7 +913,7 @@ export class ImageWidget extends WidgetType {
   ): HTMLButtonElement {
     const button = document.createElement('button');
     button.type = 'button';
-    button.classList.add('cm-image-control');
+    button.classList.add('cm-media-control');
     button.setAttribute('aria-label', label);
     button.title = label;
     button.innerHTML = iconHtml;

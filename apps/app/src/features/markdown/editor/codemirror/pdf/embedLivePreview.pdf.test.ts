@@ -190,7 +190,7 @@ function getPdfEmbed(view: EditorView): HTMLElement | null {
   return view.dom.querySelector('.cm-pdf-embed');
 }
 
-/** The working-state Edit source control is one of the floating `.cm-pdf-controls`/`.cm-pdf-control` controls; the broken card's own Edit source uses the shared `.cm-image-controls`/`.cm-image-control` component instead (`brokenMediaCard.ts`) — this selector matches either. */
+/** The working-state Edit source control is one of the floating `.cm-pdf-controls`/`.cm-pdf-control` controls; the broken card's own Edit source uses the shared `.cm-image-controls`/`.cm-image-control` component instead (`invalidEmbedCard.ts`) — this selector matches either. */
 function getEditButton(view: EditorView): HTMLButtonElement {
   const button = view.dom.querySelector<HTMLButtonElement>(
     '.cm-pdf-embed button[aria-label="Edit source"], .cm-pdf-embed button[aria-label="Hide source"]'
@@ -244,13 +244,13 @@ describe('embedLivePreview — PDF embeds, rendering (at rest)', () => {
     const view = mountView('x ![[missing.png]]', imageResolverFor({}), resolveEmbedPdf);
 
     expect(getPdfEmbed(view)).toBeNull();
-    const broken = view.dom.querySelector('.cm-image-container--broken');
+    const broken = view.dom.querySelector('.cm-invalid-embed');
     expect(broken).not.toBeNull();
-    expect(view.dom.querySelector('.cm-image-broken__hint')?.textContent).toBe('missing.png');
+    expect(view.dom.querySelector('.cm-invalid-embed__source')?.textContent).toBe('missing.png');
 
     // ImageWidget.ts's own generic unresolved-embed broken state, so it
     // correctly keeps the image broken icon rather than the PDF one.
-    const iconSvg = broken?.querySelector('.cm-image-broken__icon-wrap svg');
+    const iconSvg = broken?.querySelector('.cm-invalid-embed__icon-wrap svg');
     expect(iconSvg?.outerHTML).toContain('M2 2L14 14');
   });
 
@@ -271,21 +271,21 @@ describe('embedLivePreview — PDF embeds, rendering (at rest)', () => {
 
     expect(resolveEmbedPdf).toHaveBeenCalledWith('missing.pdf', null);
     expect(getPdfEmbed(view)).not.toBeNull(); // PdfEmbedWidget, not ImageWidget
-    const broken = view.dom.querySelector('.cm-image-container--broken');
+    const broken = view.dom.querySelector('.cm-invalid-embed');
     expect(broken).not.toBeNull();
     expect(broken?.classList.contains('cm-pdf-embed')).toBe(true);
-    expect(view.dom.querySelector('.cm-image-broken__hint')?.textContent).toBe('missing.pdf');
+    expect(view.dom.querySelector('.cm-invalid-embed__source')?.textContent).toBe('missing.pdf');
 
     // The PDF-specific icon (`PdfEmbedWidget.ts`'s `BROKEN_PDF_ICON`,
     // `iconRegistry.ts`'s own `pdf` glyph) — never the crossed-out
     // broken-image icon, since this is still a PDF reference.
-    const iconSvg = broken?.querySelector('.cm-image-broken__icon-wrap svg');
+    const iconSvg = broken?.querySelector('.cm-invalid-embed__icon-wrap svg');
     expect(iconSvg?.outerHTML).not.toContain('M2 2L14 14');
     expect(iconSvg?.outerHTML).toContain('M2 13.3571H3.11111');
 
     // Still exactly the shared invalid-media card shape — Delete + Edit
     // source only, no working-state controls. Uses the shared
-    // `.cm-image-controls`/`.cm-image-control` component (`brokenMediaCard.ts`)
+    // `.cm-image-controls`/`.cm-image-control` component (`invalidEmbedCard.ts`)
     // — never `.cm-pdf-controls`, whose buttons only ever reveal via the
     // working-state hover mechanism `renderBroken` never wires up.
     expect(broken?.querySelector('.cm-pdf-controls')).toBeNull();
@@ -338,7 +338,7 @@ describe('embedLivePreview — PDF embeds, rendering (at rest)', () => {
       expect(getPdfEmbed(view)).not.toBeNull();
       await flush();
 
-      const broken = view.dom.querySelector('.cm-image-container--broken');
+      const broken = view.dom.querySelector('.cm-invalid-embed');
       expect(broken).not.toBeNull();
 
       // The broken card's icon is PDF-specific (`iconRegistry.ts`'s own
@@ -346,25 +346,25 @@ describe('embedLivePreview — PDF embeds, rendering (at rest)', () => {
       // PDF embed is still a PDF, not an image, so it must never fall
       // back to `ImageWidget.ts`'s own `BROKEN_IMAGE_ICON` (identifiable
       // by its diagonal strike-through path, absent from the PDF glyph).
-      const iconSvg = broken?.querySelector('.cm-image-broken__icon-wrap svg');
+      const iconSvg = broken?.querySelector('.cm-invalid-embed__icon-wrap svg');
       expect(iconSvg).not.toBeNull();
       expect(iconSvg?.outerHTML).not.toContain('M2 2L14 14');
       expect(iconSvg?.outerHTML).toContain('M2 13.3571H3.11111');
 
       // The rest of the card's shape comes from the shared
-      // `renderInvalidMediaCard` builder (`brokenMediaCard.ts`) — same
+      // `renderInvalidEmbedCard` builder (`invalidEmbedCard.ts`) — same
       // structure `ImageWidget.ts`'s own broken card uses: the title and
-      // hint grouped inside one `.cm-image-broken__text` wrapper, and
+      // hint grouped inside one `.cm-invalid-embed__text` wrapper, and
       // exactly Delete + Edit source in the controls row — never any
       // working-state control (Expand, More actions, page navigation).
-      expect(broken?.querySelector('.cm-image-broken__text')).not.toBeNull();
-      expect(broken?.querySelector('.cm-image-broken__text .cm-image-broken__alt')?.textContent).toBe(
+      expect(broken?.querySelector('.cm-invalid-embed__text')).not.toBeNull();
+      expect(broken?.querySelector('.cm-invalid-embed__text .cm-invalid-embed__title')?.textContent).toBe(
         'Unable to load'
       );
-      expect(broken?.querySelector('.cm-image-broken__text .cm-image-broken__hint')?.textContent).toBe(
+      expect(broken?.querySelector('.cm-invalid-embed__text .cm-invalid-embed__source')?.textContent).toBe(
         'document.pdf'
       );
-      // The shared `.cm-image-controls` component (`brokenMediaCard.ts`)
+      // The shared `.cm-image-controls` component (`invalidEmbedCard.ts`)
       // — never `.cm-pdf-controls`, whose buttons only ever reveal via
       // the working-state hover mechanism `renderBroken` never wires up.
       expect(broken?.querySelector('.cm-pdf-controls')).toBeNull();
@@ -404,7 +404,7 @@ describe('embedLivePreview — PDF embeds, global media/embed block-flow contrac
 
   it('a broken PDF embed root also carries .cm-media-block — the contract applies in every state', () => {
     const view = mountView('x ![[missing.pdf]]', imageResolverFor({}), pdfResolverFor({}));
-    const broken = view.dom.querySelector('.cm-image-container--broken');
+    const broken = view.dom.querySelector('.cm-invalid-embed');
     expect(broken).not.toBeNull();
     expect(broken?.classList.contains('cm-media-block')).toBe(true);
   });
@@ -425,7 +425,7 @@ describe('embedLivePreview — PDF embeds, empty/incomplete syntax stays raw (sh
   it('![[]] never renders a PDF widget or broken state', () => {
     const view = mountView('x ![[]]', imageResolverFor({}), pdfResolverFor({}));
     expect(getPdfEmbed(view)).toBeNull();
-    expect(view.dom.querySelector('.cm-image-broken')).toBeNull();
+    expect(view.dom.querySelector('.cm-invalid-embed__content')).toBeNull();
     expect(view.dom.textContent).toContain('![[]]');
   });
 
@@ -631,10 +631,10 @@ describe('embedLivePreview — PDF embeds, consecutive and mixed-content indepen
     // *container* still mounts synchronously either way, which is enough
     // to confirm the image embed rendered as a working (non-broken) image
     // construct, independent of the PDF/missing-PDF embeds alongside it.
-    const workingImageContainers = view.dom.querySelectorAll('.cm-image-container:not(.cm-image-container--broken)');
+    const workingImageContainers = view.dom.querySelectorAll('.cm-image-container:not(.cm-invalid-embed)');
     expect(workingImageContainers.length).toBe(1);
     expect(view.dom.querySelectorAll('.cm-pdf-embed').length).toBe(1);
-    expect(view.dom.querySelectorAll('.cm-image-container--broken').length).toBe(1);
+    expect(view.dom.querySelectorAll('.cm-invalid-embed').length).toBe(1);
   });
 });
 

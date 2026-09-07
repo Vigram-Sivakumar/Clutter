@@ -170,7 +170,7 @@ describe('presentation-update flicker fix', () => {
     selectMode(view, 0, IMAGE_MD.length, 'fit');
     selectMode(view, 0, view.state.doc.length, 'fill');
 
-    expect(view.dom.querySelector('.cm-image-broken')).toBeNull();
+    expect(view.dom.querySelector('.cm-invalid-embed__content')).toBeNull();
     expect(getImg(view)).not.toBeNull();
   });
 
@@ -201,7 +201,7 @@ describe('presentation-update flicker fix', () => {
       changes: { from: urlStart, to: urlEnd, insert: 'https://example.com/broken.jpg' },
       selection: { anchor: 0 },
     });
-    expect(view.dom.querySelector('.cm-image-broken')).not.toBeNull();
+    expect(view.dom.querySelector('.cm-invalid-embed__content')).not.toBeNull();
   });
 });
 

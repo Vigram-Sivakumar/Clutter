@@ -190,7 +190,7 @@ function getImageButton(view: EditorView): HTMLButtonElement {
 
 /** The size button that opens ImageOptionsMenu — see ImageWidget.ts's own comment for why it no longer toggles width itself. */
 function getSizeButton(view: EditorView): HTMLButtonElement {
-  const button = view.dom.querySelector<HTMLButtonElement>('.cm-image-control[aria-label="Image size options"]');
+  const button = view.dom.querySelector<HTMLButtonElement>('.cm-media-control[aria-label="Image size options"]');
   if (!button) {
     throw new Error('size button not found');
   }
@@ -200,7 +200,7 @@ function getSizeButton(view: EditorView): HTMLButtonElement {
 /** `aria-label` distinguishes the edit button ("Edit source"/"Hide source") from the size button ("Image size options"). */
 function getEditButton(view: EditorView): HTMLButtonElement {
   const button = view.dom.querySelector<HTMLButtonElement>(
-    '.cm-image-control[aria-label="Edit source"], .cm-image-control[aria-label="Hide source"]'
+    '.cm-media-control[aria-label="Edit source"], .cm-media-control[aria-label="Hide source"]'
   );
   if (!button) {
     throw new Error('edit/source control not found');
@@ -487,7 +487,7 @@ describe('Edit source: cursor placement and leaving-source auto-hide', () => {
     });
 
     expect(getImageUiState(view.state, 0).revealed).toBe(false);
-    expect(view.dom.querySelector('.cm-image-broken')).not.toBeNull();
+    expect(view.dom.querySelector('.cm-invalid-embed__content')).not.toBeNull();
   });
 });
 
@@ -1179,7 +1179,7 @@ describe('Image composition / nesting', () => {
     expect(view.state.doc.toString()).toContain('**X![Mountain view]');
 
     // The image's own Edit button still works in this state.
-    const editButton = view.dom.querySelector<HTMLButtonElement>('.cm-image-control[aria-label="Edit source"]')!;
+    const editButton = view.dom.querySelector<HTMLButtonElement>('.cm-media-control[aria-label="Edit source"]')!;
     editButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     expect(view.dom.textContent).toContain('![Mountain view](https://example.com/mountain.jpg)');
   });
@@ -1291,7 +1291,7 @@ describe('Global media/embed block-flow contract — every ImageWidget root carr
     const img = getImg(view);
     img?.dispatchEvent(new Event('error'));
     const container = getContainer(view);
-    expect(container.classList.contains('cm-image-container--broken')).toBe(true);
+    expect(container.classList.contains('cm-invalid-embed')).toBe(true);
     expect(container.classList.contains('cm-media-block')).toBe(true);
   });
 
@@ -1507,7 +1507,7 @@ describe('Broken image fallback', () => {
     return button;
   }
 
-  it('MarkdownEditor.css: .cm-image-container--broken fills the available width, minus a deliberate 1px caret-overflow reserve', () => {
+  it('MarkdownEditor.css: .cm-invalid-embed fills the available width, minus a deliberate 1px caret-overflow reserve', () => {
     // Not a literal 100% — see this rule's own doc comment in
     // MarkdownEditor.css: at width:100% the container left zero slack for
     // CM6's own boundary-caret rendering, which measurably overflowed
@@ -1516,8 +1516,8 @@ describe('Broken image fallback', () => {
     // `calc(100% - 1px)` is sub-pixel-imperceptible but eliminates the
     // overflow at its source.
     const css = readFileSync(join(__dirname, '..', '..', 'MarkdownEditor.css'), 'utf8');
-    const match = css.match(/\.cm-editor\s+\.cm-image-container--broken\s*\{([^}]*)\}/);
-    expect(match, '.cm-image-container--broken rule not found').not.toBeNull();
+    const match = css.match(/\.cm-editor\s+\.cm-image-container\.cm-invalid-embed\s*\{([^}]*)\}/);
+    expect(match, '.cm-image-container.cm-invalid-embed rule not found').not.toBeNull();
     // `(?<!max-)` is load-bearing, not decorative — regression test for a
     // real bug: `max-width: calc(100% - 1px)` only *caps* the container's
     // width, it doesn't set it, so with the base `.cm-image-container`
@@ -1542,18 +1542,18 @@ describe('Broken image fallback', () => {
     getImg(view)!.dispatchEvent(new Event('error'));
 
     expect(getImg(view)).toBeNull();
-    expect(view.dom.querySelector('.cm-image-container--broken')).not.toBeNull();
-    const broken = view.dom.querySelector('.cm-image-broken');
+    expect(view.dom.querySelector('.cm-invalid-embed')).not.toBeNull();
+    const broken = view.dom.querySelector('.cm-invalid-embed__content');
     expect(broken).not.toBeNull();
-    expect(broken?.querySelector('.cm-image-broken__icon-wrap')).not.toBeNull();
-    expect(broken?.querySelector('.cm-image-broken__icon-wrap .cm-image-broken__icon')).not.toBeNull();
-    // Title + hint grouped inside one `.cm-image-broken__text` wrapper —
-    // the shared shape `brokenMediaCard.ts`'s `renderInvalidMediaCard`
+    expect(broken?.querySelector('.cm-invalid-embed__icon-wrap')).not.toBeNull();
+    expect(broken?.querySelector('.cm-invalid-embed__icon-wrap .cm-invalid-embed__icon')).not.toBeNull();
+    // Title + hint grouped inside one `.cm-invalid-embed__text` wrapper —
+    // the shared shape `invalidEmbedCard.ts`'s `renderInvalidEmbedCard`
     // also produces for a broken PDF embed (`embedLivePreview.pdf.test.ts`).
-    expect(broken?.querySelector('.cm-image-broken__text .cm-image-broken__alt')?.textContent).toBe(
+    expect(broken?.querySelector('.cm-invalid-embed__text .cm-invalid-embed__title')?.textContent).toBe(
       'Unable to load'
     );
-    expect(broken?.querySelector('.cm-image-broken__text .cm-image-broken__hint')?.textContent).toBe(
+    expect(broken?.querySelector('.cm-invalid-embed__text .cm-invalid-embed__source')?.textContent).toBe(
       'https://example.com/mountain.jpg'
     );
   });
@@ -1584,7 +1584,7 @@ describe('Broken image fallback', () => {
     clickEdit(view);
 
     expect(view.dom.textContent).toContain(IMAGE_MD);
-    expect(view.dom.querySelector('.cm-image-broken')).not.toBeNull();
+    expect(view.dom.querySelector('.cm-invalid-embed__content')).not.toBeNull();
     const sel = view.state.selection.main;
     expect(sel.empty).toBe(true);
     expect(sel.from).toBe(IMAGE_MD.length);
@@ -1600,7 +1600,7 @@ describe('Broken image fallback', () => {
     view.dispatch({ selection: { anchor: afterLineStart } });
 
     expect(view.dom.textContent).not.toContain(IMAGE_MD);
-    expect(view.dom.querySelector('.cm-image-broken')).not.toBeNull();
+    expect(view.dom.querySelector('.cm-invalid-embed__content')).not.toBeNull();
   });
 
   it('Delete removes the Markdown image via a real CM6 transaction, undo/redo both work', () => {
@@ -1615,7 +1615,7 @@ describe('Broken image fallback', () => {
     getDeleteButton(view).dispatchEvent(new MouseEvent('click', { bubbles: true }));
 
     expect(view.state.doc.toString()).toBe('');
-    expect(view.dom.querySelector('.cm-image-broken')).toBeNull();
+    expect(view.dom.querySelector('.cm-invalid-embed__content')).toBeNull();
 
     undo(view);
     expect(view.state.doc.toString()).toBe(`See: ${IMAGE_MD}`);
@@ -1636,7 +1636,7 @@ describe('Broken image fallback', () => {
   it('editing a broken image\'s own URL stays broken (our own UI, never a live <img>) until a background probe confirms the new URL actually loads', () => {
     const view = mountView(IMAGE_MD);
     getImg(view)!.dispatchEvent(new Event('error'));
-    expect(view.dom.querySelector('.cm-image-broken')).not.toBeNull();
+    expect(view.dom.querySelector('.cm-invalid-embed__content')).not.toBeNull();
 
     // Simulate fixing the URL by editing the (currently hidden) source —
     // reveal it first, same as a real user would via the Edit button.
@@ -1651,7 +1651,7 @@ describe('Broken image fallback', () => {
     // <img> with the new (as-yet-unverified) URL — this is the whole
     // point of the pessimistic-until-confirmed design. A background probe
     // was started for the new URL (captured below) but hasn't resolved.
-    expect(view.dom.querySelector('.cm-image-broken')).not.toBeNull();
+    expect(view.dom.querySelector('.cm-invalid-embed__content')).not.toBeNull();
     expect(getImg(view)).toBeNull();
     expect(getImageUiState(view.state, 0).broken).toBe(true);
 
@@ -1672,7 +1672,7 @@ describe('Broken image fallback', () => {
     // comment.
     settleAllProbes();
 
-    expect(view.dom.querySelector('.cm-image-broken')).toBeNull();
+    expect(view.dom.querySelector('.cm-invalid-embed__content')).toBeNull();
     expect(getImg(view)?.getAttribute('src')).toBe('https://example.com/fixed.jpg');
   });
 
@@ -1694,7 +1694,7 @@ describe('Broken image fallback', () => {
     // working image being edited toward a bad URL never gets a chance to
     // mount a real <img> with that unverified URL in the first place.
     expect(getImg(view)).toBeNull();
-    expect(view.dom.querySelector('.cm-image-broken')).not.toBeNull();
+    expect(view.dom.querySelector('.cm-invalid-embed__content')).not.toBeNull();
     expect(getImageUiState(view.state, 0).broken).toBe(true);
 
     const probe = latestProbe();
@@ -1704,7 +1704,7 @@ describe('Broken image fallback', () => {
     // Confirmed broken — stays on our own representation, never the
     // browser's native one (there was never a visible <img> to show it).
     expect(getImageUiState(view.state, 0).broken).toBe(true);
-    expect(view.dom.querySelector('.cm-image-broken')).not.toBeNull();
+    expect(view.dom.querySelector('.cm-invalid-embed__content')).not.toBeNull();
   });
 
   it('a stale probe (superseded by further typing before it resolved) is discarded, never applying a stale verdict', () => {
@@ -1729,7 +1729,7 @@ describe('Broken image fallback', () => {
     firstProbe.dispatchEvent(new Event('load'));
 
     expect(getImageUiState(view.state, 0).broken).toBe(true);
-    expect(view.dom.querySelector('.cm-image-broken')).not.toBeNull();
+    expect(view.dom.querySelector('.cm-invalid-embed__content')).not.toBeNull();
     expect(getImg(view)).toBeNull();
 
     // The second (current) probe resolving is what's actually allowed to
@@ -1771,7 +1771,7 @@ describe('Broken image fallback', () => {
   it('typing text immediately after a broken image does NOT reset broken: false — its own URL never changed', () => {
     const view = mountView(IMAGE_MD);
     getImg(view)!.dispatchEvent(new Event('error'));
-    expect(view.dom.querySelector('.cm-image-broken')).not.toBeNull();
+    expect(view.dom.querySelector('.cm-invalid-embed__content')).not.toBeNull();
     clickEdit(view);
 
     // Same shape as the "completing source editing" scenario: text
@@ -1832,8 +1832,8 @@ describe('Adjacent images with no separator — each node has fully independent 
 
     const containers = getContainers(view);
     expect(containers.length).toBe(2);
-    expect(containers[0]!.classList.contains('cm-image-container--broken')).toBe(false);
-    expect(containers[1]!.classList.contains('cm-image-container--broken')).toBe(true);
+    expect(containers[0]!.classList.contains('cm-invalid-embed')).toBe(false);
+    expect(containers[1]!.classList.contains('cm-invalid-embed')).toBe(true);
     // The first image is completely unaffected — still a real, working
     // <img>, still its own default (untouched) UI state.
     expect(getImages(view).length).toBe(1);
@@ -1856,8 +1856,8 @@ describe('Adjacent images with no separator — each node has fully independent 
     settleAllProbesExceptUrl('https://example.com/invalid.jpg');
 
     const containers = getContainers(view);
-    expect(containers[0]!.classList.contains('cm-image-container--broken')).toBe(true);
-    expect(containers[1]!.classList.contains('cm-image-container--broken')).toBe(false);
+    expect(containers[0]!.classList.contains('cm-invalid-embed')).toBe(true);
+    expect(containers[1]!.classList.contains('cm-invalid-embed')).toBe(false);
     expect(getImages(view).length).toBe(1);
   });
 
@@ -1870,20 +1870,20 @@ describe('Adjacent images with no separator — each node has fully independent 
     // Only the first has failed so far — the second must still be a real,
     // working <img> (this is the exact case the reported bug's DOM
     // evidence came from: the second rendering via renderWorking()).
-    expect(getContainers(view)[0]!.classList.contains('cm-image-container--broken')).toBe(true);
-    expect(getContainers(view)[1]!.classList.contains('cm-image-container--broken')).toBe(false);
+    expect(getContainers(view)[0]!.classList.contains('cm-invalid-embed')).toBe(true);
+    expect(getContainers(view)[1]!.classList.contains('cm-invalid-embed')).toBe(false);
 
     getImages(view)[0]!.dispatchEvent(new Event('error'));
     const containers = getContainers(view);
-    expect(containers[0]!.classList.contains('cm-image-container--broken')).toBe(true);
-    expect(containers[1]!.classList.contains('cm-image-container--broken')).toBe(true);
+    expect(containers[0]!.classList.contains('cm-invalid-embed')).toBe(true);
+    expect(containers[1]!.classList.contains('cm-invalid-embed')).toBe(true);
     expect(getImages(view).length).toBe(0);
   });
 
   it('two valid images (no separator): both render normally, neither ever goes broken', () => {
     const view = mountAdjacent('https://example.com/valid1.jpg', 'https://example.com/valid2.jpg');
     expect(getImages(view).length).toBe(2);
-    expect(getContainers(view).some((c) => c.classList.contains('cm-image-container--broken'))).toBe(false);
+    expect(getContainers(view).some((c) => c.classList.contains('cm-invalid-embed'))).toBe(false);
   });
 
   it('editing (touching) the first image after it renders does not corrupt the second image\'s own lookup', () => {
@@ -1900,7 +1900,7 @@ describe('Adjacent images with no separator — each node has fully independent 
 
     const secondImageFrom = view.state.doc.toString().indexOf('![B]');
     expect(getImageUiState(view.state, secondImageFrom).broken).toBe(true);
-    expect(view.dom.querySelector('.cm-image-container--broken')).not.toBeNull();
+    expect(view.dom.querySelector('.cm-invalid-embed')).not.toBeNull();
   });
 
   it('sanity: a space separator was never affected by this bug (images no longer share a boundary position)', () => {
@@ -1909,8 +1909,8 @@ describe('Adjacent images with no separator — each node has fully independent 
     images[1]!.dispatchEvent(new Event('error'));
 
     const containers = getContainers(view);
-    expect(containers[0]!.classList.contains('cm-image-container--broken')).toBe(false);
-    expect(containers[1]!.classList.contains('cm-image-container--broken')).toBe(true);
+    expect(containers[0]!.classList.contains('cm-invalid-embed')).toBe(false);
+    expect(containers[1]!.classList.contains('cm-invalid-embed')).toBe(true);
   });
 });
 
@@ -1950,18 +1950,18 @@ describe('Incomplete image syntax', () => {
   it('a complete valid-looking URL renders the normal working image', () => {
     const view = mountView('![Text](valid-url)');
     expect((getImg(view) !== null)).toBe(true);
-    expect(view.dom.querySelector('.cm-image-container--broken')).toBeNull();
+    expect(view.dom.querySelector('.cm-invalid-embed')).toBeNull();
     expect(getImg(view)?.getAttribute('src')).toBe('valid-url');
   });
 
   it('a complete image only goes broken after its own <img> actually fails to load, never merely from being present', () => {
     const view = mountView('![Text](https://example.com/nonexistent.jpg)');
-    expect(view.dom.querySelector('.cm-image-container--broken')).toBeNull();
+    expect(view.dom.querySelector('.cm-invalid-embed')).toBeNull();
     expect(getImg(view)).not.toBeNull();
 
     getImg(view)!.dispatchEvent(new Event('error'));
 
-    expect(view.dom.querySelector('.cm-image-container--broken')).not.toBeNull();
+    expect(view.dom.querySelector('.cm-invalid-embed')).not.toBeNull();
   });
 
   it('typing an image progressively never renders a widget while the syntax is still incomplete', () => {
@@ -2308,31 +2308,31 @@ describe('Standard Markdown image, local Vault path — resolveImageSrc', () => 
 
     // Not pre-determined broken — a real <img> was attempted with the raw path.
     expect(getImg(view)?.getAttribute('src')).toBe('Assets/image.jpg');
-    expect(view.dom.querySelector('.cm-image-broken')).toBeNull();
+    expect(view.dom.querySelector('.cm-invalid-embed__content')).toBeNull();
   });
 
   it('broken state for an unresolved local path shows "Unable to load" + the exact failed path, e.g. "Unable to load Assets/image.jpg"', () => {
     const view = mountView(LOCAL_MD, 0, () => {}, () => {}, resolverFor({}));
     getImg(view)!.dispatchEvent(new Event('error'));
 
-    const broken = view.dom.querySelector('.cm-image-broken');
-    expect(broken?.querySelector('.cm-image-broken__alt')?.textContent).toBe('Unable to load');
-    expect(broken?.querySelector('.cm-image-broken__hint')?.textContent).toBe('Assets/image.jpg');
+    const broken = view.dom.querySelector('.cm-invalid-embed__content');
+    expect(broken?.querySelector('.cm-invalid-embed__title')?.textContent).toBe('Unable to load');
+    expect(broken?.querySelector('.cm-invalid-embed__source')?.textContent).toBe('Assets/image.jpg');
   });
 
   it('broken state for a resolved-but-unloadable local path shows the raw Markdown path as the hint, not the resolved file URL', () => {
     const view = mountView(LOCAL_MD, 0, () => {}, () => {}, resolveLocal);
     getImg(view)!.dispatchEvent(new Event('error'));
 
-    const broken = view.dom.querySelector('.cm-image-broken');
-    expect(broken?.querySelector('.cm-image-broken__hint')?.textContent).toBe('Assets/image.jpg');
+    const broken = view.dom.querySelector('.cm-invalid-embed__content');
+    expect(broken?.querySelector('.cm-invalid-embed__source')?.textContent).toBe('Assets/image.jpg');
   });
 
   it('external URLs continue to work exactly as before — a resolver that reports every local path unresolved never touches an external URL\'s rendering', () => {
     const view = mountView(`See: ${IMAGE_MD}`, 0, () => {}, () => {}, resolveLocal);
 
     expect(getImg(view)?.getAttribute('src')).toBe('https://example.com/mountain.jpg');
-    expect(view.dom.querySelector('.cm-image-broken')).toBeNull();
+    expect(view.dom.querySelector('.cm-invalid-embed__content')).toBeNull();
   });
 
   it('does not rewrite the Markdown source — the document text is untouched by resolution', () => {
@@ -2456,7 +2456,7 @@ describe('Standard Markdown image, local Vault path — resolveImageSrc', () => 
   it('the broken-image recovery probe re-resolves through resolveImageSrc, not the raw Markdown text — a resolved local image\'s probe uses the resolved URL', () => {
     const view = mountView(LOCAL_MD, 0, () => {}, () => {}, resolveLocal);
     getImg(view)!.dispatchEvent(new Event('error'));
-    expect(view.dom.querySelector('.cm-image-broken')).not.toBeNull();
+    expect(view.dom.querySelector('.cm-invalid-embed__content')).not.toBeNull();
 
     const probe = latestProbe();
     // The probe itself attempts the resolved file URL (what a real retry
@@ -2466,7 +2466,7 @@ describe('Standard Markdown image, local Vault path — resolveImageSrc', () => 
     probe.dispatchEvent(new Event('load'));
     settleAllProbes();
 
-    expect(view.dom.querySelector('.cm-image-broken')).toBeNull();
+    expect(view.dom.querySelector('.cm-invalid-embed__content')).toBeNull();
     expect(getImg(view)?.getAttribute('src')).toBe('app://vault/Assets/image.jpg');
   });
 
@@ -2521,16 +2521,16 @@ describe('Standard Markdown image, local Vault path with a raw space — imageSp
     const view = mountView(`See: ${IMAGE_MD}`, 0, () => {}, () => {}, resolveSpaced);
 
     expect(getImg(view)?.getAttribute('src')).toBe('https://example.com/mountain.jpg');
-    expect(view.dom.querySelector('.cm-image-broken')).toBeNull();
+    expect(view.dom.querySelector('.cm-invalid-embed__content')).toBeNull();
   });
 
   it('an unresolved local path with a space produces the existing broken state — "Unable to load" + the exact raw path, spaces included', () => {
     const view = mountView(SPACED_MD, 0, () => {}, () => {}, resolverFor({}));
     getImg(view)!.dispatchEvent(new Event('error'));
 
-    const broken = view.dom.querySelector('.cm-image-broken');
-    expect(broken?.querySelector('.cm-image-broken__alt')?.textContent).toBe('Unable to load');
-    expect(broken?.querySelector('.cm-image-broken__hint')?.textContent).toBe('Delete me.jpg');
+    const broken = view.dom.querySelector('.cm-invalid-embed__content');
+    expect(broken?.querySelector('.cm-invalid-embed__title')?.textContent).toBe('Unable to load');
+    expect(broken?.querySelector('.cm-invalid-embed__source')?.textContent).toBe('Delete me.jpg');
   });
 
   it('raw Markdown editing still works — while actively typing, the space-containing destination shows as plain editable text, same first-leave lifecycle as any standard image', () => {

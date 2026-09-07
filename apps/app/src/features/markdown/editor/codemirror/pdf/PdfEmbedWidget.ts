@@ -22,7 +22,7 @@ import { computeFitScale } from '@features/pdf/pdfZoom';
 
 import { computeImageDeletionRange } from '../image/imageDeletion';
 import { setImageUiState, type ImageUiState } from '../image/imageUiState';
-import { EDIT_ICON, renderInvalidMediaCard } from '../image/brokenMediaCard';
+import { EDIT_ICON, renderInvalidEmbedCard } from '../mediaPresentation/invalidEmbedCard';
 import type { PdfDocumentCache } from './pdfDocumentCache';
 import { applyMediaAlignment, applyMediaWidth, disconnectMediaWidthObserver, type ResizeObserverHolder } from '../mediaPresentation/mediaLayoutStyle';
 import type { PdfPresentation } from '../mediaPresentation/mediaPresentationModel';
@@ -42,8 +42,8 @@ import './PdfEmbedWidget.css';
 // `broken-image.svg` (ImageWidget.ts's own `BROKEN_IMAGE_ICON`): a failed
 // PDF embed is still a PDF, not an image, so its broken-state icon stays
 // a PDF glyph rather than borrowing the image family's. The Delete/Edit
-// icons themselves now live in `../image/brokenMediaCard.ts`, shared with
-// `ImageWidget.ts`'s own equivalents — neither is media-specific.
+// icons themselves now live in `../mediaPresentation/invalidEmbedCard.ts`,
+// shared with `ImageWidget.ts`'s own equivalents — neither is media-specific.
 
 // Same glyph `iconRegistry.ts` registers as `moreHorizontal` — hand-copied
 // verbatim (no React tree available here) for the More actions control.
@@ -114,10 +114,10 @@ export type OnOpenPdfMenu = (params: OpenPdfMenuParams) => void;
  * `ImageUiState` shape for `revealed`/`broken` (via `setImageUiState`), the
  * same Edit-source button behavior (place a caret at `to`, toggle
  * `revealed`), and the same broken-state DOM/CSS classes
- * (`.cm-image-container--broken`/`.cm-image-broken*`) `ImageWidget.
- * renderBroken` already defines and styles — reused as-is here rather than
- * duplicated, so a broken PDF and a broken image render as the same
- * "unable to load" card layout. The one deliberate difference: the icon
+ * (`.cm-invalid-embed`/`.cm-invalid-embed__*`) `invalidEmbedCard.ts`
+ * already defines and styles — reused as-is here rather than duplicated,
+ * so a broken PDF and a broken image render as the same "unable to load"
+ * card layout. The one deliberate difference: the icon
  * itself (`BROKEN_PDF_ICON`, below) is the `pdf` glyph, not `ImageWidget.
  * ts`'s own `BROKEN_IMAGE_ICON` — a failed PDF embed is still a PDF, not
  * an image, so its broken state stays visually identifiable as one.
@@ -143,18 +143,24 @@ export type OnOpenPdfMenu = (params: OpenPdfMenuParams) => void;
  * `PdfViewer`'s own toolbar layout — title on the left, styled with the
  * exact same `.pdf-viewer__title` text styling `PdfViewer.css` already
  * defines, reused verbatim rather than redefined here) sits above the
- * page; the action buttons are built from the exact same floating-control
- * button visual system `ImageWidget.ts`'s own controls use
- * (`.cm-image-controls`/`.cm-image-control`, chrome from
- * `ImageFloatingControls.css`, reused verbatim — see `PdfEmbedWidget.css`'s
- * own doc comment for the layout-only rules this file adds on top) and
- * reveal on hover/focus, same as `ImageWidget`'s own controls; the title
- * itself is always visible. Expand opens the existing `PdfOverlay` for
- * this same resource via `getOnPdfEmbedClick` — never a second PDF reader.
+ * page; the action buttons are built from their own independent,
+ * self-contained `.cm-pdf-controls`/`.cm-pdf-control` chrome
+ * (`PdfEmbedWidget.css`) — deliberately *not* the shared
+ * `.cm-media-controls`/`.cm-media-control` primitive (`ImageWidget.ts`'s
+ * own working-state controls, `MediaFloatingControls.css`); see
+ * `PdfEmbedWidget.css`'s own doc comment for why the working state's
+ * reveal semantics differ enough to need its own class. The same shared
+ * visual chrome IS reused, verbatim, by this widget's *broken/invalid*
+ * state instead, under its own `.cm-invalid-embed__controls`/
+ * `.cm-invalid-embed__control` names — see `invalidEmbedCard.ts`.
+ * Working-state controls reveal on hover/focus, same as `ImageWidget`'s
+ * own controls; the title itself is always visible. Expand opens the
+ * existing `PdfOverlay` for this same resource via `getOnPdfEmbedClick` —
+ * never a second PDF reader.
  *
  * Page navigation is its own, differently-styled floating pill
  * (`.cm-pdf-embed-pagination`, a dedicated class — not the shared
- * `.cm-image-controls` chrome), centered at the bottom of the page.
+ * `.cm-media-controls` chrome), centered at the bottom of the page.
  * Unlike the top row, the page indicator ("1 / 4") inside it is always
  * visible; only the Previous/Next arrow buttons reveal on hover/focus of
  * the pill itself. Hidden entirely for a single-page document, matching
@@ -252,10 +258,10 @@ export class PdfEmbedWidget extends WidgetType {
 
   private renderBroken(container: HTMLElement, view: EditorView): HTMLElement {
     // Reuses ImageWidget's own broken-card shape via the shared
-    // `renderInvalidMediaCard` component (`brokenMediaCard.ts`) — no PDF
+    // `renderInvalidEmbedCard` component (`invalidEmbedCard.ts`) — no PDF
     // controls, no pagination, no PDF shell: only the icon, delete label,
     // and hint text are PDF-specific.
-    renderInvalidMediaCard(container, {
+    renderInvalidEmbedCard(container, {
       icon: BROKEN_PDF_ICON,
       source: this.path,
       deleteLabel: 'Delete embed',
@@ -333,7 +339,7 @@ export class PdfEmbedWidget extends WidgetType {
     controlsRow.append(titleSpan, actionsGroup);
 
     // The page-navigation pill — its own dedicated class
-    // (`.cm-pdf-embed-pagination`, not the shared `.cm-image-controls`
+    // (`.cm-pdf-embed-pagination`, not the shared `.cm-media-controls`
     // chrome), floating at the bottom-center of the page. The indicator
     // text is always visible; only the arrow buttons reveal on hover/focus
     // of the pill itself (see PdfEmbedWidget.css).
@@ -553,7 +559,7 @@ export class PdfEmbedWidget extends WidgetType {
     (dom as HTMLElement & { [PDF_EMBED_DESTROY]?: () => void })[PDF_EMBED_DESTROY]?.();
   }
 
-  /** Shared dispatch behind the working-state Edit/Hide source control — same reveal-toggle contract `ImageWidget.ts`'s own Edit source establishes (the broken card builds this itself, inline, via `brokenMediaCard.ts`'s plain `onEdit` callback — see `renderBroken`'s own call site). */
+  /** Shared dispatch behind the working-state Edit/Hide source control — same reveal-toggle contract `ImageWidget.ts`'s own Edit source establishes (the broken card builds this itself, inline, via `invalidEmbedCard.ts`'s plain `onEdit` callback — see `renderBroken`'s own call site). */
   private toggleRevealed(view: EditorView, getTo: () => number): void {
     const revealing = !this.ui.revealed;
     const to = getTo();

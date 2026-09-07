@@ -125,15 +125,15 @@ export type { OnPdfEmbedClick } from './codemirror/pdf/PdfEmbedWidget';
 export type { ResolveImageResource } from './codemirror/image/imageResourceResolution';
 export type { ResolveImageSrc, ImageSrcResolution } from './codemirror/image/imageSrcResolution';
 import './MarkdownEditor.css';
-// The inline image widget's own floating controls (ImageWidget.ts, raw CM6
-// DOM) style themselves via `.cm-image-controls`/`.cm-image-control` —
-// MarkdownEditor.css only carries this file's own CM6-specific rules on
-// top of those classes now; the shared chrome itself lives here, imported
-// explicitly so the inline widget's styling doesn't depend on whichever
-// other component happens to import it (currently ImageOverlay, but that's
-// an implementation detail this file's own raw-DOM consumer shouldn't rely
-// on transitively).
-import './codemirror/image/ImageFloatingControls.css';
+// The inline media widgets' own floating controls (ImageWidget.ts and
+// PdfEmbedWidget.ts's broken/invalid card, raw CM6 DOM) style themselves
+// via `.cm-media-controls`/`.cm-media-control` — MarkdownEditor.css only
+// carries this file's own CM6-specific rules on top of those classes now;
+// the shared chrome itself lives here, imported explicitly so the inline
+// widgets' styling doesn't depend on whichever other component happens to
+// import it (currently ImageOverlay, but that's an implementation detail
+// this file's own raw-DOM consumers shouldn't rely on transitively).
+import './codemirror/image/MediaFloatingControls.css';
 
 /**
  * Walks up from `el` to find the nearest ancestor that's actually the
@@ -334,7 +334,7 @@ export const MarkdownEditor = forwardRef<
    * `Overlay`'s anchor — is untouched by opening or closing this menu.
    */
   function setImageMenuButtonOpen(button: HTMLElement, open: boolean) {
-    button.classList.toggle('cm-image-control--active', open);
+    button.classList.toggle('cm-media-control--active', open);
     button.setAttribute('aria-expanded', String(open));
     button.closest('.cm-image-container')?.setAttribute('data-menu-open', String(open));
   }
@@ -372,7 +372,7 @@ export const MarkdownEditor = forwardRef<
   } | null>(null);
 
   function setPdfMenuButtonOpen(button: HTMLElement, open: boolean) {
-    button.classList.toggle('cm-image-control--active', open);
+    button.classList.toggle('cm-media-control--active', open);
     button.setAttribute('aria-expanded', String(open));
   }
 
