@@ -25,7 +25,7 @@ export function getPageIcon(
 ): SystemIcon {
   switch (pageType) {
     case 'note':
-      return 'squiggleLine';
+      return 'note';
     case 'daily-note':
       return isToday ? 'calendarDot' : 'calendarNote';
     case 'folder':

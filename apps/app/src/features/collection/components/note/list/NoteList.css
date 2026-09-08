@@ -1,0 +1,61 @@
+.note-list {
+  align-items: center;
+  border-radius: var(--radius-lg);
+  width: 100%;
+  padding-block: var(--space-6);
+}
+.note-list .collection-entry__primary {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: row;
+  align-items: baseline;
+  gap: var(--space-6);
+
+  min-width: 0;
+}
+.note-list .collection-entry__title,
+.note-list .collection-entry__description {
+  overflow: hidden;
+  min-width: 0;
+
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.note-list .collection-entry__content {
+  display: flex;
+  flex: 1;
+  flex-direction: row;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-12);
+  min-width: 0;
+}
+.note-list .collection-entry__metadata {
+  flex-shrink: 0;
+}
+
+.note-list:hover,
+.note-table__new-note:hover {
+  background: var(--state-hover);
+}
+
+/* Show the checkbox when hovering anywhere on the row */
+.note-list:hover
+  .note-list__entry.collection-entry--selectable
+  .collection-entry__icon,
+.note-list:hover
+  .note-list__entry.collection-entry--selectable
+  .collection-entry__emoji {
+  display: none;
+}
+
+.note-list:hover
+  .note-list__entry.collection-entry--selectable
+  .collection-entry__leading
+  .checkbox {
+  display: flex;
+}
+
+.note-list:has(.collection-entry--selected) {
+  background: rgba(35, 131, 226, 0.15);
+}

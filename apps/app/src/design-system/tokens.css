@@ -78,7 +78,7 @@
 
   /* Content width */
   --content-width: calc(100% - 96px);
-  --content-max-width: 720px;
+  --content-max-width: 1280px;
 
   /* icon size */
   --icon-md: var(--space-16);

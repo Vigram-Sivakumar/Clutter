@@ -32,7 +32,7 @@ html.theme-transitioning [data-themeable] *::after {
   --surface-inverse: var(--neutral-50);
 
   /* Text & icons */
-  --foreground-primary: #f4f4f4;
+  --foreground-primary: #f7f7f7;
   --foreground-secondary: #a8a8a8;
   --foreground-tertiary: #737373;
   --foreground-placeholder: #575757;
@@ -54,6 +54,8 @@ html.theme-transitioning [data-themeable] *::after {
   --date-foreground: #999999;
   --resize-handle: rgba(244, 244, 244, 0.5);
   --resize-handle-img: rgba(244, 244, 244, 0.7);
+  --folder-card-surface: var(--surface-secondary);
+  --folder-card-surface-hover: rgb(var(--state-base) / 5%);
 
   /* Text decoration */
   --strikethrough-color: #595757;
@@ -150,6 +152,8 @@ html.theme-transitioning [data-themeable] *::after {
   --tag-surface: rgba(46, 109, 233, 0.12);
   --resize-handle: rgba(52, 52, 51, 0.5);
   --resize-handle-img: rgba(244, 244, 244, 0.7);
+  --folder-card-surface: var(--surface-primary);
+  --folder-card-surface-hover: rgb(var(--state-base) / 5%);
 
   /* --date-foreground: #767676; */
   --date-foreground: rgb(46, 109, 233);

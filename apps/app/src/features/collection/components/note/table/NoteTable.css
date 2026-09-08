@@ -1,0 +1,26 @@
+.note-table {
+  width: 100%;
+  max-width: var(--content-max-width);
+  margin-top: var(--space-32);
+  overflow-y: auto;
+}
+
+.note-table__header {
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--collection-table-column);
+  align-items: center;
+  width: fit-content;
+  min-width: 100%;
+
+  font-size: var(--text-label-small);
+  font-weight: var(--fw-medium);
+  line-height: var(--lh-label-small);
+  letter-spacing: var(--ls-label-small);
+  color: var(--foreground-tertiary);
+}
+
+.note-table__header-cell {
+  padding-block: var(--space-8);
+  padding-inline: var(--space-12);
+}
