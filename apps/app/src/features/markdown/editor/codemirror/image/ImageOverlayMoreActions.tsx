@@ -125,8 +125,9 @@ export function ImageOverlayMoreActions({
       <Button
         className="image-overlay__control-button"
         ref={moveTrigger.triggerRef}
-        size="medium"
+        size="small"
         variant="ghost"
+        interaction="subtle"
         isIconOnly
         isActive={open}
         aria-label="More actions"

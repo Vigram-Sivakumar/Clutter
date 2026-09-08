@@ -23,6 +23,20 @@ function visibleText(view: EditorView): string {
   return view.dom.textContent ?? '';
 }
 
+/**
+ * The checkbox itself (`TaskCheckboxWidget`, `taskCheckboxDecoration.ts`)
+ * renders as a real `<button>` wrapping an inline SVG glyph, never a
+ * literal `☐`/`☑` character — so it never appears in `visibleText()`'s own
+ * `textContent` read (an SVG's `<path>` data isn't text). Checked/unchecked
+ * state is asserted here instead, via the same `aria-checked` attribute
+ * `taskCheckboxDecoration.test.ts`'s own `hasCheckboxAt` reads — this file
+ * only cares that *some* checkbox rendered with the right state, not the
+ * checkbox construct's own rendering, which that file already covers.
+ */
+function checkboxAriaChecked(view: EditorView): string | null {
+  return view.dom.querySelector('.cm-task-checkbox')?.getAttribute('aria-checked') ?? null;
+}
+
 function findNode(state: EditorState, name: string): SyntaxNode | null {
   ensureSyntaxTree(state, state.doc.length, 5000);
   let found: SyntaxNode | null = null;
@@ -74,7 +88,8 @@ describe('taskCompletionMetadataDecoration: rendering', () => {
   it('checked task with metadata: source stays intact, visual hides the metadata', () => {
     const view = mountView('- [x] Completed task @completed:2026-08-31');
     expect(view.state.doc.toString()).toBe('- [x] Completed task @completed:2026-08-31');
-    expect(visibleText(view)).toBe('☑ Completed task ');
+    expect(checkboxAriaChecked(view)).toBe('true');
+    expect(visibleText(view)).toBe(' Completed task ');
     expect(visibleText(view)).not.toContain('@completed');
     expect(visibleText(view)).not.toContain('2026-08-31');
   });
@@ -82,7 +97,8 @@ describe('taskCompletionMetadataDecoration: rendering', () => {
   it('unchecked task with metadata (parser permits it — grammar is context-free): also hidden visually, source unchanged', () => {
     const view = mountView('- [ ] Task @completed:2026-08-31');
     expect(view.state.doc.toString()).toBe('- [ ] Task @completed:2026-08-31');
-    expect(visibleText(view)).toBe('☐ Task ');
+    expect(checkboxAriaChecked(view)).toBe('false');
+    expect(visibleText(view)).toBe(' Task ');
     expect(visibleText(view)).not.toContain('@completed');
   });
 
@@ -94,12 +110,14 @@ describe('taskCompletionMetadataDecoration: rendering', () => {
 
   it('a task with no metadata is completely unaffected', () => {
     const view = mountView('- [x] Plain task');
-    expect(visibleText(view)).toBe('☑ Plain task');
+    expect(checkboxAriaChecked(view)).toBe('true');
+    expect(visibleText(view)).toBe(' Plain task');
   });
 
   it('metadata is hidden regardless of a different valid date value (not hard-coded to one specific date)', () => {
     const view = mountView('- [x] Task @completed:2099-12-31');
-    expect(visibleText(view)).toBe('☑ Task ');
+    expect(checkboxAriaChecked(view)).toBe('true');
+    expect(visibleText(view)).toBe(' Task ');
     expect(view.state.doc.toString()).toContain('2099-12-31');
   });
 });

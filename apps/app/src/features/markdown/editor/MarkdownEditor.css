@@ -1270,6 +1270,51 @@
   position: relative;
   width: fit-content;
   max-width: 100%;
+  /* Presentation-update flicker fix — a subtle, fast transition on the
+     dimensions `applyMediaWidth`/`ImageWidget.updateDOM` actually mutate
+     via inline style, so a width/mode change reads as continuous layout
+     motion rather than an instant jump. Only meaningful now that
+     `updateDOM` keeps the same DOM element alive across the change (see
+     that method's own doc comment) — animating a property on an element
+     that gets destroyed and recreated has no visible effect at all.
+     `height`, not just `width` (2026-09, fixing a real Fit→Fill
+     asymmetry): `.cm-image-container--fill` (below) is the only modifier
+     that declares an explicit `height` (a fixed `400px`) *and*
+     `overflow: hidden` together — Fit's own container never declares a
+     height at all (content-driven `auto`). Going Fill→Fit, the missing
+     `height` transition was invisible by accident: `auto` continuously
+     re-derives from the `<img>`'s own height, which the FLIP mechanism
+     below already animates, so the container's box visually shrank right
+     along with it, frame by frame, with no transition of its own needed.
+     Going Fit→Fill, that accident doesn't help: `height: 400px` and
+     `overflow: hidden` both take effect the instant the class swaps —
+     if the Fit-mode image was taller than 400px, the container clips to
+     exactly 400px from the very first frame, before the image's own
+     (still-correctly-animating) height transition has moved at all, so
+     nothing above 400px was ever visible to interpolate — a real snap,
+     not merely a fast transition. `ImageWidget.ts`'s `updateDOM` now
+     FLIP-pins this element's own `height` the same way it already pins
+     `width` (and the `<img>`'s own width/height) — see that method's own
+     comment — giving this `transition` a real "from" size to play
+     against in both directions, so `overflow: hidden` only ever clips
+     whatever the container's own animating height doesn't cover *at that
+     instant*, not a value that already jumped to its final size.
+
+     Suppressed during an active drag-resize (below,
+     `body.cm-image-resizing-*`) — not removed here — since
+     `imageResizeHandle.ts`'s own `pointermove` writes this same element's
+     inline `width`/`height` directly, once per pointer event; with this
+     transition still active during that drag, every one of those writes
+     would itself animate toward the new value instead of jumping to it
+     immediately, producing exactly the "box lags behind the cursor"
+     symptom `725a43dd` ("Added resize to image and pdf embed in css")
+     originally fixed — by deleting this whole rule instead of scoping the
+     suppression to the drag, which also silently broke the FLIP
+     mechanism above for the unrelated Fill/Fit menu-toggle case this
+     transition exists for. Restored here; scoped below instead. */
+  transition:
+    width 160ms ease,
+    height 160ms ease;
 }
 
 /* Fill and Fit's own boxes (below) are both the full available width by
@@ -1426,6 +1471,20 @@ body.cm-image-resizing-nesw *,
 body.cm-pdf-resizing-nesw,
 body.cm-pdf-resizing-nesw * {
   cursor: nesw-resize !important;
+}
+
+/* Suppresses `.cm-image-container`'s own `transition: width, height` above
+   for the duration of an active drag only — see that rule's own doc
+   comment for why: `imageResizeHandle.ts`'s `pointermove` writes this same
+   element's inline width/height directly, once per pointer event, and
+   without this override each of those writes would animate toward the new
+   value instead of jumping to it, visibly lagging behind the cursor. PDF
+   has no FLIP transition of its own to conflict with (`.cm-pdf-embed-
+   container` declares none), so `body.cm-pdf-resizing-*` needs no matching
+   rule here — only Image's own class pair does. */
+body.cm-image-resizing-nwse .cm-image-container,
+body.cm-image-resizing-nesw .cm-image-container {
+  transition: none;
 }
 
 .cm-editor .cm-image-container .cm-media-resize-handle--corner-right {
