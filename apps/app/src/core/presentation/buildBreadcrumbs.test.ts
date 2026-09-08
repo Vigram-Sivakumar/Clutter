@@ -513,12 +513,13 @@ describe('buildBreadcrumbs — reserved-folder ancestors use their canonical sys
     const dailyNotesCrumb = crumbs[0]!;
     const presentation = getSystemLocationPresentation('daily-notes');
     expect(dailyNotesCrumb.title).toBe(presentation.label);
-    expect(dailyNotesCrumb.icon).toBe('calendar');
+    expect(dailyNotesCrumb.icon).toBe(presentation.collectionIcon);
     // The collection/ancestor icon is deliberately different from the
     // sidebar tab's icon — a Daily Notes ancestor represents the whole
     // collection, not one specific day.
     expect(dailyNotesCrumb.icon).not.toBe(presentation.icon);
     expect(presentation.icon).toBe('calendarToday');
+    expect(presentation.collectionIcon).toBe('calendarDots');
   });
 
   it('does not apply system-location presentation to an ordinary folder that merely shares a reserved name at a non-root path', () => {

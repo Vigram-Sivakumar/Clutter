@@ -133,7 +133,9 @@ describe('MoveDestinationPicker', () => {
       fireEvent.change(screen.getByPlaceholderText('Search folders'), {
         target: { value: 'Marketing' },
       });
-      fireEvent.click(screen.getByText('Create "Marketing"'));
+      // FolderPicker's own Create row is a stable id, not one text node —
+      // see FolderPicker.test.tsx's own getCreateRow() doc comment for why.
+      fireEvent.click(document.getElementById('folder-picker-create')!);
 
       await vi.waitFor(() => {
         expect(onSelect).toHaveBeenCalledWith('folder-new');

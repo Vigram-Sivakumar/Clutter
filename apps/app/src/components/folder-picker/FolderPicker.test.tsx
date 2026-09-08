@@ -150,7 +150,7 @@ describe('FolderPicker', () => {
       expect(row?.querySelector('.folder__icon .emoji-icon')?.textContent).toBe('🏦');
     });
 
-    it('shows "Project / Finance" as folder__path below the title', () => {
+    it('shows "Project / Finance" as folder-picker__path below the title', () => {
       render(<FolderPicker items={nestedItems} onSelect={vi.fn()} />);
 
       fireEvent.change(screen.getByPlaceholderText('Search folders'), {
@@ -158,8 +158,8 @@ describe('FolderPicker', () => {
       });
 
       const row = document.querySelector('[role="menuitem"]');
-      expect(row?.querySelector('.folder__title')?.textContent).toBe('Bank Statement');
-      expect(row?.querySelector('.folder__path')?.textContent).toBe('Project / Finance');
+      expect(row?.querySelector('.folder-picker__title')?.textContent).toBe('Bank Statement');
+      expect(row?.querySelector('.folder-picker__path')?.textContent).toBe('Project / Finance');
     });
 
     it('the path is plain text — no icons inside it', () => {
@@ -169,12 +169,12 @@ describe('FolderPicker', () => {
         target: { value: 'Bank Statement' },
       });
 
-      const path = document.querySelector('.folder__path');
+      const path = document.querySelector('.folder-picker__path');
       expect(path?.querySelector('.app-icon')).toBeNull();
       expect(path?.querySelector('.emoji-icon')).toBeNull();
     });
 
-    it('a root-level search result renders no folder__path', () => {
+    it('a root-level search result renders no folder-picker__path', () => {
       render(<FolderPicker items={nestedItems} onSelect={vi.fn()} />);
 
       fireEvent.change(screen.getByPlaceholderText('Search folders'), {
@@ -182,8 +182,8 @@ describe('FolderPicker', () => {
       });
 
       const row = document.querySelector('[role="menuitem"]');
-      expect(row?.querySelector('.folder__title')?.textContent).toBe('Project');
-      expect(row?.querySelector('.folder__path')).toBeNull();
+      expect(row?.querySelector('.folder-picker__title')?.textContent).toBe('Project');
+      expect(row?.querySelector('.folder-picker__path')).toBeNull();
     });
   });
 
@@ -257,6 +257,22 @@ describe('FolderPicker', () => {
   });
 
   describe('Create folder row', () => {
+    // The Create row's own name/value (2026-08-25, "updated folder picker
+    // css") — a plain-text `Create "<name>"` string became two separately-
+    // styled spans, `.folder-picker__create-label` ("Create", muted) and
+    // `.folder-picker__title` (the typed name, same class the ordinary
+    // search-result rows already use) — so there is no longer one text
+    // node a `getByText('Create "X"')` query can match. `#folder-picker-
+    // create` (`CREATE_ITEM_ID`, FolderPicker.tsx) is the row's own stable
+    // id regardless of that markup shape.
+    function getCreateRow(): HTMLElement {
+      const row = document.getElementById('folder-picker-create');
+      if (!row) {
+        throw new Error('Create row not found');
+      }
+      return row;
+    }
+
     it('a search term with no matching folder shows "Create <name>"', () => {
       render(<FolderPicker items={items} onSelect={vi.fn()} onCreate={vi.fn()} />);
 
@@ -264,7 +280,9 @@ describe('FolderPicker', () => {
         target: { value: 'Finance Q1' },
       });
 
-      expect(screen.getByText('Create "Finance Q1"')).toBeDefined();
+      const createRow = getCreateRow();
+      expect(createRow.querySelector('.folder-picker__create-label')?.textContent).toBe('Create');
+      expect(createRow.querySelector('.folder-picker__title')?.textContent).toBe('Finance Q1');
     });
 
     it('a search term matching an existing folder does not show Create', () => {
@@ -274,7 +292,7 @@ describe('FolderPicker', () => {
         target: { value: 'Finance' },
       });
 
-      expect(screen.queryByText('Create "Finance"')).toBeNull();
+      expect(document.getElementById('folder-picker-create')).toBeNull();
       expect(screen.getByText('Finance')).toBeDefined();
     });
 
@@ -287,8 +305,7 @@ describe('FolderPicker', () => {
 
       // Styled via .folder__title-create (FolderPicker.css), not the
       // shared .tertiary utility class.
-      const createRow = screen.getByText('Create "Finance Q1"').closest('.entry');
-      expect(createRow?.className).toContain('folder__title-create');
+      expect(getCreateRow().className).toContain('folder__title-create');
     });
 
     it('clicking Create invokes onCreate with the trimmed search term', () => {
@@ -298,7 +315,7 @@ describe('FolderPicker', () => {
       fireEvent.change(screen.getByPlaceholderText('Search folders'), {
         target: { value: '  Finance Q1  ' },
       });
-      fireEvent.click(screen.getByText('Create "Finance Q1"'));
+      fireEvent.click(getCreateRow());
 
       expect(onCreate).toHaveBeenCalledWith('Finance Q1');
     });
@@ -310,8 +327,7 @@ describe('FolderPicker', () => {
 
       fireEvent.change(search, { target: { value: 'Finance Q1' } });
 
-      const createRow = screen.getByText('Create "Finance Q1"').closest('.entry');
-      expect(createRow?.className).toContain('entry-force-hover');
+      expect(getCreateRow().className).toContain('entry-force-hover');
 
       fireEvent.keyDown(search, { key: 'Enter' });
 

@@ -3,7 +3,7 @@ import { getPageIcon } from './getPageIcon';
 
 describe('getPageIcon', () => {
   it('returns the plain calendar icon for a daily-note by default', () => {
-    expect(getPageIcon('daily-note')).toBe('calendar');
+    expect(getPageIcon('daily-note')).toBe('calendarNote');
   });
 
   it('returns the dotted calendar icon for a daily-note when isToday is true', () => {
@@ -11,11 +11,11 @@ describe('getPageIcon', () => {
   });
 
   it('returns the plain calendar icon for a daily-note when isToday is explicitly false', () => {
-    expect(getPageIcon('daily-note', false)).toBe('calendar');
+    expect(getPageIcon('daily-note', false)).toBe('calendarNote');
   });
 
   it('ignores isToday for every other type', () => {
-    expect(getPageIcon('note', true)).toBe('squiggleLine');
+    expect(getPageIcon('note', true)).toBe('note');
     expect(getPageIcon('folder', true)).toBe('folder');
     expect(getPageIcon('tag', true)).toBe('tag');
   });
