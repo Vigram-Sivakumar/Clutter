@@ -4,6 +4,14 @@ import '@testing-library/jest-dom/vitest';
 import { cleanup, render } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 
+import { Vault } from '@core/vault/models/Vault';
+import { VaultProjectionBuilder } from '@core/vault/knowledge/VaultProjectionBuilder';
+import { TagBuilder } from '@core/vault/knowledge/TagBuilder';
+import { KnowledgeGraph } from '@core/vault/models/graph/KnowledgeGraph';
+import type { Page } from '@core/vault/models/Page';
+import type { EffectivePageState } from '@core/application/page/EffectivePageState';
+
+import { createPageEmbedResolver } from '@app/layouts/page/resolvePageEmbed';
 import type { PageEmbedResolution } from './blocks/pageEmbedResolution';
 import { DEFAULT_MAX_EMBED_DEPTH } from './blocks/NoteEmbed';
 import { MarkdownReadRenderer } from './MarkdownReadRenderer';
@@ -137,5 +145,68 @@ describe('MarkdownReadRenderer — note embeds', () => {
   it('renders a broken-embed placeholder when no resolvePageEmbed is injected at all', () => {
     const { container } = render(<MarkdownReadRenderer markdown="![[Some Note]]" />);
     expect(container.querySelector('.markdown-read-embed-broken')).toHaveTextContent('Some Note');
+  });
+
+  describe('heading-target embeds — end to end through the real resolvePageEmbed', () => {
+    function makeVault(pages: Page[]): Vault {
+      return new Vault('/vault', pages, [], new TagBuilder().build(pages), [], [], new KnowledgeGraph([]), new VaultProjectionBuilder());
+    }
+
+    const defaultPageMetadata = {
+      icon: null,
+      cover: null,
+      description: '',
+      favorite: false,
+      status: 'active' as const,
+      archivedAt: null,
+      originalParentId: null,
+      originalPath: null,
+      createdAt: null,
+      updatedAt: null,
+    };
+
+    function makePage(overrides: Partial<Page> & Pick<Page, 'id' | 'path' | 'name'>): Page {
+      return {
+        type: 'note',
+        parentId: null,
+        metadata: defaultPageMetadata,
+        source: { markdown: '' },
+        analysis: { headings: [], aliases: [], blockReferences: [], tasks: [], tags: [], links: [], embeds: [] },
+        ...overrides,
+      };
+    }
+
+    it('renders only the matched heading section, not the whole referenced page', () => {
+      const noteBMarkdown = ['# Overview', 'Overview text.', '', '## Setup', 'Setup steps here.', '', '# Appendix', 'Appendix text.'].join(
+        '\n'
+      );
+      const pageB = makePage({ id: 'b', path: '/vault/Note B.md', name: 'Note B', source: { markdown: noteBMarkdown } });
+      const vault = makeVault([pageB]);
+      const effectivePageState = { getPage: () => undefined } as unknown as EffectivePageState;
+      const resolvePageEmbed = createPageEmbedResolver(vault, effectivePageState);
+
+      const { container } = render(<MarkdownReadRenderer markdown="![[Note B#Setup]]" resolvers={{ resolvePageEmbed }} />);
+
+      const embed = container.querySelector('.markdown-read-note-embed[data-page-id="b"]');
+      expect(embed).not.toBeNull();
+      expect(embed).toHaveTextContent('Setup steps here.');
+      expect(embed).not.toHaveTextContent('Overview text.');
+      expect(embed).not.toHaveTextContent('Appendix text.');
+    });
+
+    it('renders a broken-embed placeholder naming the page when the heading does not exist in it', () => {
+      const pageB = makePage({ id: 'b', path: '/vault/Note B.md', name: 'Note B', source: { markdown: '# Real Heading\ntext' } });
+      const vault = makeVault([pageB]);
+      const effectivePageState = { getPage: () => undefined } as unknown as EffectivePageState;
+      const resolvePageEmbed = createPageEmbedResolver(vault, effectivePageState);
+
+      const { container } = render(<MarkdownReadRenderer markdown="![[Note B#Missing Heading]]" resolvers={{ resolvePageEmbed }} />);
+
+      const broken = container.querySelector('.markdown-read-embed-broken');
+      expect(broken).not.toBeNull();
+      expect(broken).toHaveTextContent('Note B');
+      expect(broken).toHaveTextContent('Missing Heading');
+      expect(container.querySelector('.markdown-read-note-embed')).toBeNull();
+    });
   });
 });

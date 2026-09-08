@@ -122,4 +122,115 @@ describe('createPageEmbedResolver', () => {
     expect(getPage).toHaveBeenCalledWith('p1');
     expect(getPage).toHaveBeenCalledTimes(1);
   });
+
+  describe('heading-target embeds (![[Page#Heading]])', () => {
+    const markdown = [
+      '# Root causes',
+      'Intro paragraph.',
+      '',
+      '## Details',
+      'Detail paragraph.',
+      '',
+      '# Next steps',
+      'Steps paragraph.',
+    ].join('\n');
+
+    it('resolves a top-level heading section, including the heading itself, stopping before the next same-or-higher-level heading', () => {
+      const page = makePage({ id: 'p1', path: '/vault/Notes/Alpha.md', name: 'Alpha', source: { markdown } });
+      const vault = makeVault([page]);
+      const effectivePageState = makeEffectivePageState(() => undefined);
+
+      const result = createPageEmbedResolver(vault, effectivePageState)('Notes/Alpha#Root causes');
+
+      expect(result.status).toBe('resolved');
+      if (result.status !== 'resolved') throw new Error('expected resolved');
+      expect(result.title).toBe('Alpha › Root causes');
+      // "# Root causes" through "## Details"'s own section, stopping right
+      // before "# Next steps" (level 1 <= "Root causes"'s own level 1).
+      expect(result.markdown).toBe(markdown.slice(0, markdown.indexOf('# Next steps')));
+    });
+
+    it('resolves a nested heading section, also stopping before the next same-or-higher-level heading even though that heading is a lower ATX level number', () => {
+      const page = makePage({ id: 'p1', path: '/vault/Alpha.md', name: 'Alpha', source: { markdown } });
+      const vault = makeVault([page]);
+      const effectivePageState = makeEffectivePageState(() => undefined);
+
+      const result = createPageEmbedResolver(vault, effectivePageState)('Alpha#Details');
+
+      expect(result.status).toBe('resolved');
+      if (result.status !== 'resolved') throw new Error('expected resolved');
+      // "## Details"'s section stops at "# Next steps" too — level 1 is
+      // <= level 2, so a higher-level heading closes a lower section.
+      expect(result.markdown).toBe(markdown.slice(markdown.indexOf('## Details'), markdown.indexOf('# Next steps')));
+    });
+
+    it('resolves the last heading in a document through to the end of the document', () => {
+      const page = makePage({ id: 'p1', path: '/vault/Alpha.md', name: 'Alpha', source: { markdown } });
+      const vault = makeVault([page]);
+      const effectivePageState = makeEffectivePageState(() => undefined);
+
+      const result = createPageEmbedResolver(vault, effectivePageState)('Alpha#Next steps');
+
+      expect(result.status).toBe('resolved');
+      if (result.status !== 'resolved') throw new Error('expected resolved');
+      expect(result.markdown).toBe(markdown.slice(markdown.indexOf('# Next steps')));
+    });
+
+    it('resolves the effective (live) markdown for heading lookup, not the durable copy — consistent with whole-note Model B', () => {
+      const page = makePage({ id: 'p1', path: '/vault/Alpha.md', name: 'Alpha', source: { markdown: '# Old Heading\nold' } });
+      const vault = makeVault([page]);
+      const liveMarkdown = '# New Heading\nnew content';
+      const effectivePageState = makeEffectivePageState((id) => (id === 'p1' ? { name: 'Alpha', markdown: liveMarkdown } : undefined));
+
+      const result = createPageEmbedResolver(vault, effectivePageState)('Alpha#New Heading');
+
+      expect(result).toEqual({ status: 'resolved', pageId: 'p1', title: 'Alpha › New Heading', markdown: liveMarkdown });
+    });
+
+    it('returns unresolved-heading when the page resolves but no heading matches', () => {
+      const page = makePage({ id: 'p1', path: '/vault/Alpha.md', name: 'Alpha', source: { markdown } });
+      const vault = makeVault([page]);
+      const effectivePageState = makeEffectivePageState(() => undefined);
+
+      const result = createPageEmbedResolver(vault, effectivePageState)('Alpha#Nonexistent Heading');
+
+      expect(result).toEqual({ status: 'unresolved-heading', pageId: 'p1', displayLabel: 'Alpha › Nonexistent Heading' });
+    });
+
+    it('matches the first heading in document order when duplicate heading text exists', () => {
+      const duplicateMarkdown = ['# Root causes', 'first', '', '## Root causes', 'second'].join('\n');
+      const page = makePage({ id: 'p1', path: '/vault/Alpha.md', name: 'Alpha', source: { markdown: duplicateMarkdown } });
+      const vault = makeVault([page]);
+      const effectivePageState = makeEffectivePageState(() => undefined);
+
+      const result = createPageEmbedResolver(vault, effectivePageState)('Alpha#Root causes');
+
+      expect(result.status).toBe('resolved');
+      if (result.status !== 'resolved') throw new Error('expected resolved');
+      expect(result.markdown).toBe(duplicateMarkdown);
+    });
+
+    it('matches heading text exactly (case-sensitive) after trimming surrounding whitespace from the query', () => {
+      const page = makePage({ id: 'p1', path: '/vault/Alpha.md', name: 'Alpha', source: { markdown: '# Root causes\ntext' } });
+      const vault = makeVault([page]);
+      const effectivePageState = makeEffectivePageState(() => undefined);
+      const resolve = createPageEmbedResolver(vault, effectivePageState);
+
+      expect(resolve('Alpha# Root causes ').status).toBe('resolved');
+      expect(resolve('Alpha#root causes')).toEqual({
+        status: 'unresolved-heading',
+        pageId: 'p1',
+        displayLabel: 'Alpha › root causes',
+      });
+    });
+
+    it('does not treat a bare wikilink/embed lacking # as a heading target', () => {
+      const page = makePage({ id: 'p1', path: '/vault/Alpha.md', name: 'Alpha', source: { markdown: '# Alpha\nbody' } });
+      const vault = makeVault([page]);
+      const effectivePageState = makeEffectivePageState(() => undefined);
+
+      const result = createPageEmbedResolver(vault, effectivePageState)('Alpha');
+      expect(result).toEqual({ status: 'resolved', pageId: 'p1', title: 'Alpha', markdown: '# Alpha\nbody' });
+    });
+  });
 });

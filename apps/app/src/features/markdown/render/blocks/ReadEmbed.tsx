@@ -39,7 +39,9 @@ export function ReadEmbed({ path, alias, resolvers }: ReadEmbedProps) {
   }
 
   const label =
-    pageResolution?.status === 'ambiguous' || pageResolution?.status === 'unresolved'
+    pageResolution?.status === 'ambiguous' ||
+    pageResolution?.status === 'unresolved' ||
+    pageResolution?.status === 'unresolved-heading'
       ? pageResolution.displayLabel
       : pdfResolution?.status === 'unresolved'
         ? pdfResolution.title
