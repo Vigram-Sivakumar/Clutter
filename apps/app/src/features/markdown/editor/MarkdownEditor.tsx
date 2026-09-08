@@ -67,7 +67,6 @@ import { horizontalRuleDecoration } from './codemirror/hr/horizontalRuleDecorati
 import { computeImageDeletionRange } from './codemirror/image/imageDeletion';
 import { ImageOptionsMenu } from './codemirror/image/ImageOptionsMenu';
 import type { OnImageClick, OnOpenImageMenu } from './codemirror/image/ImageWidget';
-import { ImageOverlay, type ImageOverlayImage } from './codemirror/image/ImageOverlay';
 import { imageLivePreview } from './codemirror/image/imageLivePreview';
 import { embedLivePreview } from './codemirror/embed/embedLivePreview';
 import type { OnOpenPdfMenu, OnPdfEmbedClick } from './codemirror/pdf/PdfEmbedWidget';
@@ -194,6 +193,7 @@ export const MarkdownEditor = forwardRef<
     resolveEmbedImage,
     resolveEmbedPdf,
     onPdfEmbedClick,
+    onOpenImageOverlay,
     resolveImageSrc,
     resolveTag,
     getTagSuggestions,
@@ -204,7 +204,6 @@ export const MarkdownEditor = forwardRef<
     onArchiveResource,
     onRevealResourceInFinder,
     onCopyResourcePath,
-    onDownloadResource,
     resourceMoveDestinations,
     onMoveResource,
     onCreateFolder,
@@ -279,15 +278,6 @@ export const MarkdownEditor = forwardRef<
   const resolveImageSrcRef = useRef(resolveImageSrc);
   resolveImageSrcRef.current = resolveImageSrc;
 
-  // Image's lightbox — local, presentational state (unlike
-  // resolveWikiLink/resolveTag/resolveDate above, opening an overlay for
-  // an already-resolved image URL needs no Vault/PageOperations access,
-  // so it's owned entirely inside this component rather than composed in
-  // the app layer). Same freshness-ref pattern as every other accessor
-  // here: the extension is built once at mount and reads this getter
-  // fresh per click, so the setState setter identity (already stable,
-  // guaranteed by React) never needs the extension itself rebuilt.
-  const [imageOverlay, setImageOverlay] = useState<ImageOverlayImage | null>(null);
   // Same freshness pattern as resolveEmbedImageRef above — this one IS an
   // injected Vault-backed boundary function (unlike opening the overlay
   // itself, which needs none): resolving "does this image have a local
@@ -295,9 +285,24 @@ export const MarkdownEditor = forwardRef<
   // control (see imageResourceResolution.ts's doc comment).
   const resolveImageResourceRef = useRef(resolveImageResource);
   resolveImageResourceRef.current = resolveImageResource;
+  // Opening the overlay itself is no longer local state — it's the shared
+  // `AppLayout`-owned resource overlay (see MarkdownEditor.types.ts's
+  // `onOpenImageOverlay` doc comment). Same freshness-ref pattern as every
+  // other accessor here: the extension is built once at mount and reads
+  // this getter fresh per click.
+  const onOpenImageOverlayRef = useRef(onOpenImageOverlay);
+  onOpenImageOverlayRef.current = onOpenImageOverlay;
+  // Same freshness pattern — read fresh per click so the overlay's own
+  // "Set as cover image" always calls whatever onSetCoverImage is current,
+  // not whatever it was when onImageClickRef's closure was first built.
+  const onSetCoverImageRef = useRef(onSetCoverImage);
+  onSetCoverImageRef.current = onSetCoverImage;
   const onImageClickRef = useRef<OnImageClick>((url, alt, copyUrl) => {
     const resource = resolveImageResourceRef.current?.(copyUrl ?? url);
-    setImageOverlay({ url, alt, resourceId: resource?.resourceId, copyUrl });
+    onOpenImageOverlayRef.current?.(
+      { url, alt, resourceId: resource?.resourceId, copyUrl },
+      onSetCoverImageRef.current ? { onSetCoverImage: () => onSetCoverImageRef.current?.(copyUrl ?? url) } : undefined
+    );
   });
 
   // Image's size/options menu — same local, presentational-state pattern
@@ -480,21 +485,12 @@ export const MarkdownEditor = forwardRef<
     onSetCoverImage?.(imageMenu.copyUrl ?? imageMenu.url);
   };
 
-  // ImageOverlay's own "Set as cover image" — same rule as
-  // handleSetCoverImage above (copyUrl, the vault-relative embed path, when
-  // present; otherwise the raw url), just reading imageOverlay's state
-  // instead of imageMenu's.
-  const handleSetCoverImageFromOverlay = () => {
-    if (!imageOverlay) {
-      return;
-    }
-    onSetCoverImage?.(imageOverlay.copyUrl ?? imageOverlay.url);
-  };
-
   // Same copyUrl-vs-url rule as handleSetCoverImage above — reads
-  // imageMenu's state (the inline size/options menu), not imageOverlay's
-  // (ImageOverlay's own Download is a separate, resourceId-based prop —
-  // see ImageOverlay.tsx's onDownloadResource).
+  // imageMenu's state (the inline size/options menu). ImageOverlay's own
+  // "Set as cover image" is handled by onImageClickRef's own
+  // onOpenImageOverlay call instead (ImageOverlay itself is no longer
+  // rendered by this component — see MarkdownEditor.types.ts's
+  // `onOpenImageOverlay` doc comment).
   const handleDownloadImage = () => {
     if (!imageMenu) {
       return;
@@ -901,18 +897,6 @@ export const MarkdownEditor = forwardRef<
   return (
     <>
       <div ref={containerRef} />
-      <ImageOverlay
-        image={imageOverlay}
-        onClose={() => setImageOverlay(null)}
-        onArchiveResource={onArchiveResource}
-        onRevealResourceInFinder={onRevealResourceInFinder}
-        onCopyResourcePath={onCopyResourcePath}
-        onDownloadResource={onDownloadResource}
-        resourceMoveDestinations={resourceMoveDestinations}
-        onMoveResource={onMoveResource}
-        onCreateFolder={onCreateFolder}
-        onSetCoverImage={onSetCoverImage ? handleSetCoverImageFromOverlay : undefined}
-      />
       <ImageOptionsMenu
         anchor={imageMenu?.anchor ?? null}
         currentMode={imageMenuCurrentMode}

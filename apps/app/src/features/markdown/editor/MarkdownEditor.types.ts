@@ -115,6 +115,21 @@ export interface MarkdownEditorProps {
    */
   readonly onPdfEmbedClick?: OnPdfEmbedClick;
   /**
+   * Opens the shared resource overlay (owned by `AppLayout`, per
+   * `resourceOverlay.ts`) for an image that doesn't necessarily have a
+   * backing `VaultResource` — this editor's own image-click handler
+   * already resolves an optional `resourceId` itself (`resolveImageResource`
+   * below) and builds the full `ImageOverlayImage` before calling this.
+   * Replaces this component's own former local `imageOverlay` state/
+   * `<ImageOverlay>` render, consolidating what used to be a third
+   * independent overlay owner (alongside Sidebar/PageHost) into the one
+   * `AppLayout` owner every entry point now shares.
+   */
+  readonly onOpenImageOverlay?: (
+    image: ImageOverlayImage,
+    options?: { readonly onSetCoverImage?: () => void }
+  ) => void;
+  /**
    * Resolves a standard Markdown `![alt](url)` image's own destination
    * into a loadable file URL when it happens to name a local Vault path —
    * supplied entirely by the feature/app layer, same injected-boundary
@@ -211,8 +226,6 @@ export interface MarkdownEditorProps {
     resourceId: string,
     format: LocationPathFormat
   ) => void;
-  /** Same shape/reasoning as onRevealResourceInFinder above — see downloadResource.ts. */
-  readonly onDownloadResource?: (resourceId: string) => void;
   readonly resourceMoveDestinations?: FolderPickerItem[];
   readonly onMoveResource?: (
     resourceId: string,

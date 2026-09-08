@@ -4,7 +4,7 @@ import '@testing-library/jest-dom/vitest';
 import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
-import { PageHost } from './PageHost';
+import { AppLayout } from '../app-layout/AppLayout';
 import { Application } from '@core/application/Application';
 import { Vault } from '@core/vault/models/Vault';
 import { VaultProjectionBuilder } from '@core/vault/knowledge/VaultProjectionBuilder';
@@ -188,7 +188,7 @@ describe('PageHost: inline PDF embed Expand control opens the real PdfOverlay', 
     const application = makeApplication(page, [resource]);
     await application.pageOperations.open(page.id);
 
-    render(<PageHost application={application} />);
+    render(<AppLayout application={application} />);
     await flush();
 
     // Before Expand: the inline embed rendered, no overlay yet.
@@ -221,7 +221,7 @@ describe('PageHost: inline PDF embed Expand control opens the real PdfOverlay', 
     const application = makeApplication(page, [resource]);
     await application.pageOperations.open(page.id);
 
-    render(<PageHost application={application} />);
+    render(<AppLayout application={application} />);
     await flush();
 
     const expandButton = document.querySelector<HTMLButtonElement>(

@@ -4,7 +4,7 @@ import '@testing-library/jest-dom/vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
-import { Sidebar } from './Sidebar';
+import { AppLayout } from '../app-layout/AppLayout';
 import { Application } from '@core/application/Application';
 import { Vault } from '@core/vault/models/Vault';
 import { VaultProjectionBuilder } from '@core/vault/knowledge/VaultProjectionBuilder';
@@ -84,7 +84,7 @@ describe('Sidebar: opening a local resource image shows ImageOverlay More Action
   it('clicking an image resource row opens ImageOverlay with the More Actions control (resourceId wired directly, no resolution step needed)', () => {
     const resource = makeResource();
     const application = makeApplication([resource]);
-    render(<Sidebar application={application} />);
+    render(<AppLayout application={application} />);
     switchToNotesTab();
 
     const row = screen.getByText('photo');
@@ -97,7 +97,7 @@ describe('Sidebar: opening a local resource image shows ImageOverlay More Action
   it('opens the exact same Resource menu the Sidebar row\'s own overflow menu shows — Move to…, Reveal in Finder, Copy path, Archive, no Rename (buildResourceSidebarMenu reused, not a second menu implementation)', () => {
     const resource = makeResource();
     const application = makeApplication([resource]);
-    render(<Sidebar application={application} />);
+    render(<AppLayout application={application} />);
     switchToNotesTab();
 
     fireEvent.click(screen.getByText('photo'));
@@ -113,7 +113,7 @@ describe('Sidebar: opening a local resource image shows ImageOverlay More Action
   it('Copy path submenu keyboard navigation still works (preserved submenu keyboard/focus behavior)', () => {
     const resource = makeResource();
     const application = makeApplication([resource]);
-    render(<Sidebar application={application} />);
+    render(<AppLayout application={application} />);
     switchToNotesTab();
 
     fireEvent.click(screen.getByText('photo'));
@@ -136,7 +136,7 @@ describe('Sidebar: opening a local resource image shows ImageOverlay More Action
     const resource = makeResource();
     const application = makeApplication([resource]);
     const archiveSpy = vi.spyOn(application.resourceOperations, 'archiveResource');
-    render(<Sidebar application={application} />);
+    render(<AppLayout application={application} />);
     switchToNotesTab();
 
     fireEvent.click(screen.getByText('photo'));
@@ -151,7 +151,7 @@ describe('Sidebar: opening a local resource pdf shows PdfOverlay, not ImageOverl
   it('clicking a pdf resource row opens PdfOverlay (toolbar with the resource filename), never ImageOverlay', () => {
     const resource = makeResource({ kind: 'pdf', name: 'contract.pdf' });
     const application = makeApplication([resource]);
-    render(<Sidebar application={application} />);
+    render(<AppLayout application={application} />);
     switchToNotesTab();
 
     fireEvent.click(screen.getByText('contract'));
@@ -165,7 +165,7 @@ describe('Sidebar: opening a local resource pdf shows PdfOverlay, not ImageOverl
     const pdf = makeResource({ id: 'resource-pdf', kind: 'pdf', name: 'contract.pdf' });
     const image = makeResource({ id: 'resource-image', kind: 'image', name: 'photo.png' });
     const application = makeApplication([pdf, image]);
-    render(<Sidebar application={application} />);
+    render(<AppLayout application={application} />);
     switchToNotesTab();
 
     fireEvent.click(screen.getByText('contract'));
@@ -183,7 +183,7 @@ describe('Sidebar: opening a local resource pdf shows PdfOverlay, not ImageOverl
     const resource = makeResource({ kind: 'pdf', name: 'contract.pdf' });
     const application = makeApplication([resource]);
     const archiveSpy = vi.spyOn(application.resourceOperations, 'archiveResource');
-    render(<Sidebar application={application} />);
+    render(<AppLayout application={application} />);
     switchToNotesTab();
 
     fireEvent.click(screen.getByText('contract'));
@@ -206,7 +206,7 @@ describe('Sidebar: opening a local resource pdf shows PdfOverlay, not ImageOverl
   it('Escape still closes the overlay with no Close button present', () => {
     const resource = makeResource({ kind: 'pdf', name: 'contract.pdf' });
     const application = makeApplication([resource]);
-    render(<Sidebar application={application} />);
+    render(<AppLayout application={application} />);
     switchToNotesTab();
 
     fireEvent.click(screen.getByText('contract'));

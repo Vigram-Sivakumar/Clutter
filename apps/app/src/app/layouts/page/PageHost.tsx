@@ -771,7 +771,6 @@ export function PageHost({ application, onOpenResource, onOpenImageOverlay }: Pa
               }
               onRevealResourceInFinder={revealResourceInFinder}
               onCopyResourcePath={copyResourcePath}
-              onDownloadResource={downloadResourceById}
               resourceMoveDestinations={buildResourceMoveDestinationItems(
                 application.membershipSelector,
                 application.query
@@ -896,7 +895,6 @@ export function PageHost({ application, onOpenResource, onOpenImageOverlay }: Pa
             }
             onRevealResourceInFinder={revealResourceInFinder}
             onCopyResourcePath={copyResourcePath}
-            onDownloadResource={downloadResourceById}
             resourceMoveDestinations={buildResourceMoveDestinationItems(
               application.membershipSelector,
               application.query

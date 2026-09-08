@@ -1315,7 +1315,6 @@ put it there. */
    image at its own intrinsic aspect ratio. */
 .cm-editor .cm-image-container--fit {
   width: calc(100% - 1px);
-  overflow: hidden;
   /* Do not use transition for height and width because it causes resizing issues and the element doesn't follow the cursor */
 }
 
@@ -1761,7 +1760,7 @@ body.cm-pdf-resizing-nesw * {
 .cm-editor .cm-image-container.cm-invalid-embed {
   width: calc(100% - 1px);
   overflow: hidden;
-  padding-block: 8px;
+  margin-block: var(--space-4);
 }
 .cm-invalid-embed__controls {
   position: absolute;

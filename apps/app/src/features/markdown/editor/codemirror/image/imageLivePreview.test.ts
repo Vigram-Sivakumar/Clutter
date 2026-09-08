@@ -197,10 +197,18 @@ function getSizeButton(view: EditorView): HTMLButtonElement {
   return button;
 }
 
-/** `aria-label` distinguishes the edit button ("Edit source"/"Hide source") from the size button ("Image size options"). */
+/**
+ * `aria-label` distinguishes the edit button ("Edit source"/"Hide source")
+ * from the size button ("Image size options"). Matches either the working-
+ * state control (`.cm-media-control`, `ImageWidget.ts`'s `renderWorking`)
+ * or the broken-state one (`.cm-invalid-embed__control`, the shared
+ * `invalidEmbedCard.ts` component `renderBroken` uses instead) — same
+ * either-state selector `embedLivePreview.pdf.test.ts`'s own `getEditButton`
+ * already uses for the PDF-embed counterpart.
+ */
 function getEditButton(view: EditorView): HTMLButtonElement {
   const button = view.dom.querySelector<HTMLButtonElement>(
-    '.cm-media-control[aria-label="Edit source"], .cm-media-control[aria-label="Hide source"]'
+    '.cm-media-control[aria-label="Edit source"], .cm-media-control[aria-label="Hide source"], .cm-invalid-embed__control[aria-label="Edit source"], .cm-invalid-embed__control[aria-label="Hide source"]'
   );
   if (!button) {
     throw new Error('edit/source control not found');
@@ -1483,7 +1491,7 @@ describe('Image size menu — initial (closed) state', () => {
     const view = mountView(IMAGE_MD);
     const container = view.dom.querySelector('.cm-image-container') as HTMLElement;
     expect(container.dataset.menuOpen).toBe('false');
-    expect(getSizeButton(view).classList.contains('cm-image-control--active')).toBe(false);
+    expect(getSizeButton(view).classList.contains('cm-media-control--active')).toBe(false);
     expect(getSizeButton(view).getAttribute('aria-expanded')).toBe('false');
   });
 });
@@ -1500,7 +1508,7 @@ describe('Image size menu — initial (closed) state', () => {
  */
 describe('Broken image fallback', () => {
   function getDeleteButton(view: EditorView): HTMLButtonElement {
-    const button = view.dom.querySelector<HTMLButtonElement>('.cm-image-control[aria-label="Delete image"]');
+    const button = view.dom.querySelector<HTMLButtonElement>('.cm-invalid-embed__control[aria-label="Delete image"]');
     if (!button) {
       throw new Error('delete control not found');
     }
@@ -1562,12 +1570,12 @@ describe('Broken image fallback', () => {
     const view = mountView(IMAGE_MD);
     getImg(view)!.dispatchEvent(new Event('error'));
 
-    expect(view.dom.querySelector('.cm-image-control[aria-label="Edit source"]')).not.toBeNull();
-    expect(view.dom.querySelector('.cm-image-control[aria-label="Delete image"]')).not.toBeNull();
-    expect(view.dom.querySelector('.cm-image-control[aria-label="Image size options"]')).toBeNull();
+    expect(view.dom.querySelector('.cm-invalid-embed__control[aria-label="Edit source"]')).not.toBeNull();
+    expect(view.dom.querySelector('.cm-invalid-embed__control[aria-label="Delete image"]')).not.toBeNull();
+    expect(view.dom.querySelector('.cm-invalid-embed__control[aria-label="Image size options"]')).toBeNull();
     // Exactly two controls — guards against a future addition silently
     // reintroducing a size/options affordance for a broken image.
-    expect(view.dom.querySelectorAll('.cm-image-controls .cm-image-control').length).toBe(2);
+    expect(view.dom.querySelectorAll('.cm-invalid-embed__controls .cm-invalid-embed__control').length).toBe(2);
   });
 
   it('never opens the image overlay — no image button/click-to-open wiring exists in the broken state', () => {

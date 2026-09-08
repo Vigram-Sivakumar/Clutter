@@ -340,60 +340,80 @@ describe('MarkdownEditor: no duplicate same-class decoration wrapping (same-rang
  * deliberately use `document.body`, matching how `Overlay.test.tsx`/
  * `Dialog.test.tsx` already query their own portaled content.
  */
+/**
+ * The rendered `<ImageOverlay>`/Escape-to-close behavior itself now lives
+ * entirely at `AppLayout` (the single shared owner every entry point opens
+ * through — see resourceOverlay.ts and MarkdownEditor.types.ts's own
+ * `onOpenImageOverlay` doc comment); Sidebar.test.tsx's own suite already
+ * covers that end-to-end through the real `AppLayout` tree, Escape-closing
+ * included. What's specific to *this* entry point, and therefore what
+ * belongs here, is the wiring between ImageWidget's click and the
+ * `onOpenImageOverlay` callback this editor is handed — asserting the
+ * callback fires with the right `ImageOverlayImage`, not that some DOM
+ * overlay appears (this component no longer renders one).
+ */
 describe('MarkdownEditor: image overlay', () => {
   const IMAGE_MD = '![Mountain view](https://example.com/mountain.jpg)';
 
-  it('clicking the rendered image opens the overlay with the same url/alt', () => {
-    render(<MarkdownEditor pageId="test-page" markdown={`See: ${IMAGE_MD}`} />);
+  it('clicking the rendered image calls onOpenImageOverlay with the same url/alt', () => {
+    const onOpenImageOverlay = vi.fn();
+    render(
+      <MarkdownEditor
+        pageId="test-page"
+        markdown={`See: ${IMAGE_MD}`}
+        onOpenImageOverlay={onOpenImageOverlay}
+      />
+    );
     const imageButton = document.querySelector('button.cm-image-button') as HTMLButtonElement;
     expect(imageButton).not.toBeNull();
 
-    expect(document.querySelector('.image-overlay')).toBeNull();
+    expect(onOpenImageOverlay).not.toHaveBeenCalled();
 
     fireEvent.mouseDown(imageButton);
     fireEvent.click(imageButton);
 
-    const overlayImg = document.querySelector('.image-overlay__img') as HTMLImageElement | null;
-    expect(overlayImg).not.toBeNull();
-    expect(overlayImg?.getAttribute('src')).toBe('https://example.com/mountain.jpg');
-    expect(overlayImg?.getAttribute('alt')).toBe('Mountain view');
+    expect(onOpenImageOverlay).toHaveBeenCalledTimes(1);
+    const [image] = onOpenImageOverlay.mock.calls[0]!;
+    expect(image.url).toBe('https://example.com/mountain.jpg');
+    expect(image.alt).toBe('Mountain view');
   });
 
-  it('closes on Escape, reusing Overlay/useEscape unmodified', () => {
-    render(<MarkdownEditor pageId="test-page" markdown={`See: ${IMAGE_MD}`} />);
-    const imageButton = document.querySelector('button.cm-image-button') as HTMLButtonElement;
-    fireEvent.mouseDown(imageButton);
-    fireEvent.click(imageButton);
-    expect(document.querySelector('.image-overlay')).not.toBeNull();
-
-    fireEvent.keyDown(document, { key: 'Escape' });
-
-    expect(document.querySelector('.image-overlay')).toBeNull();
-  });
-
-  it('keyboard activation (Enter/Space, as native <button> semantics produce) opens the overlay end-to-end', () => {
+  it('keyboard activation (Enter/Space, as native <button> semantics produce) calls onOpenImageOverlay end-to-end', () => {
     // jsdom doesn't synthesize a `click` from a raw Enter/Space keydown on
     // a real <button> (verified directly against this project's own
     // jsdom/vitest setup — see imageLivePreview.test.ts's "Image
     // accessibility" describe block for the full explanation) — this
     // exercises what that native activation actually produces (a `click`
     // event) through the real component tree, confirming the callback
-    // wiring all the way from ImageWidget through MarkdownEditor to the
-    // real, rendered Overlay/ImageOverlay — not just that CM6-level click
-    // handling is correct in isolation.
-    render(<MarkdownEditor pageId="test-page" markdown={`See: ${IMAGE_MD}`} />);
+    // wiring all the way from ImageWidget through MarkdownEditor to
+    // onOpenImageOverlay — not just that CM6-level click handling is
+    // correct in isolation.
+    const onOpenImageOverlay = vi.fn();
+    render(
+      <MarkdownEditor
+        pageId="test-page"
+        markdown={`See: ${IMAGE_MD}`}
+        onOpenImageOverlay={onOpenImageOverlay}
+      />
+    );
     const imageButton = document.querySelector('button.cm-image-button') as HTMLButtonElement;
     imageButton.focus();
 
     fireEvent.click(imageButton);
 
-    const overlayImg = document.querySelector('.image-overlay__img') as HTMLImageElement | null;
-    expect(overlayImg).not.toBeNull();
-    expect(overlayImg?.getAttribute('src')).toBe('https://example.com/mountain.jpg');
+    expect(onOpenImageOverlay).toHaveBeenCalledTimes(1);
+    expect(onOpenImageOverlay.mock.calls[0]![0].url).toBe('https://example.com/mountain.jpg');
   });
 
-  it('clicking the size or edit control does not open the overlay', () => {
-    render(<MarkdownEditor pageId="test-page" markdown={`See: ${IMAGE_MD}`} />);
+  it('clicking the size or edit control does not call onOpenImageOverlay', () => {
+    const onOpenImageOverlay = vi.fn();
+    render(
+      <MarkdownEditor
+        pageId="test-page"
+        markdown={`See: ${IMAGE_MD}`}
+        onOpenImageOverlay={onOpenImageOverlay}
+      />
+    );
     const sizeButton = document.querySelector<HTMLButtonElement>(
       '.cm-media-control[aria-label="Image size options"]'
     )!;
@@ -401,7 +421,7 @@ describe('MarkdownEditor: image overlay', () => {
     fireEvent.mouseDown(sizeButton);
     fireEvent.click(sizeButton);
 
-    expect(document.querySelector('.image-overlay')).toBeNull();
+    expect(onOpenImageOverlay).not.toHaveBeenCalled();
 
     const editButton = document.querySelector<HTMLButtonElement>(
       '.cm-media-control[aria-label="Edit source"]'
@@ -409,7 +429,7 @@ describe('MarkdownEditor: image overlay', () => {
     fireEvent.mouseDown(editButton);
     fireEvent.click(editButton);
 
-    expect(document.querySelector('.image-overlay')).toBeNull();
+    expect(onOpenImageOverlay).not.toHaveBeenCalled();
   });
 });
 
@@ -437,50 +457,55 @@ describe('MarkdownEditor: image overlay — resolveImageResource / More Actions'
     expect(resolveImageResource).toHaveBeenCalledWith('https://example.com/mountain.jpg');
   });
 
-  it('shows the More Actions control when resolveImageResource resolves a resource', () => {
+  it('passes the resolved resourceId to onOpenImageOverlay when resolveImageResource resolves a resource — the gate ImageOverlay\'s own More Actions control reads', () => {
     const resolveImageResource = vi.fn(() => ({ resourceId: 'resource-1' }));
+    const onOpenImageOverlay = vi.fn();
     render(
       <MarkdownEditor
         pageId="test-page"
         markdown={`See: ${IMAGE_MD}`}
         resolveImageResource={resolveImageResource}
+        onOpenImageOverlay={onOpenImageOverlay}
       />
     );
 
     clickImage();
 
-    expect(
-      document.querySelector('[aria-label="More actions"]')
-    ).not.toBeNull();
+    expect(onOpenImageOverlay.mock.calls[0]![0].resourceId).toBe('resource-1');
   });
 
-  it('omits the control when resolveImageResource is absent (default, every existing call site unaffected)', () => {
-    render(<MarkdownEditor pageId="test-page" markdown={`See: ${IMAGE_MD}`} />);
+  it('omits resourceId when resolveImageResource is absent (default, every existing call site unaffected)', () => {
+    const onOpenImageOverlay = vi.fn();
+    render(
+      <MarkdownEditor
+        pageId="test-page"
+        markdown={`See: ${IMAGE_MD}`}
+        onOpenImageOverlay={onOpenImageOverlay}
+      />
+    );
 
     clickImage();
 
-    expect(document.querySelector('[aria-label="More actions"]')).toBeNull();
+    expect(onOpenImageOverlay.mock.calls[0]![0].resourceId).toBeUndefined();
   });
 
-  it('More Actions\' own "Set as cover image" forwards the same url onSetCoverImage receives from the inline menu', () => {
+  it('passes an onSetCoverImage option that forwards the same url the inline menu\'s own onSetCoverImage receives', () => {
     const onSetCoverImage = vi.fn();
     const resolveImageResource = vi.fn(() => ({ resourceId: 'resource-1' }));
+    const onOpenImageOverlay = vi.fn();
     render(
       <MarkdownEditor
         pageId="test-page"
         markdown={`See: ${IMAGE_MD}`}
         resolveImageResource={resolveImageResource}
         onSetCoverImage={onSetCoverImage}
+        onOpenImageOverlay={onOpenImageOverlay}
       />
     );
 
     clickImage();
-    fireEvent.click(document.querySelector('[aria-label="More actions"]')!);
-    const item = Array.from(document.querySelectorAll('[role="menuitem"]')).find(
-      (el) => el.textContent === 'Set as cover image'
-    );
-    expect(item).not.toBeUndefined();
-    fireEvent.click(item!);
+    const [, options] = onOpenImageOverlay.mock.calls[0]!;
+    options.onSetCoverImage();
 
     expect(onSetCoverImage).toHaveBeenCalledWith('https://example.com/mountain.jpg');
   });
@@ -493,12 +518,14 @@ describe('MarkdownEditor: image overlay — resolveImageResource / More Actions'
         ? { status: 'resolved' as const, url: 'app://vault/Assets/image.jpg', copyUrl: 'Assets/image.jpg' }
         : { status: 'unresolved' as const }
     );
+    const onOpenImageOverlay = vi.fn();
     render(
       <MarkdownEditor
         pageId="test-page"
         markdown={`See: ${LOCAL_MD}`}
         resolveImageSrc={resolveImageSrc}
         resolveImageResource={resolveImageResource}
+        onOpenImageOverlay={onOpenImageOverlay}
       />
     );
 
@@ -511,10 +538,9 @@ describe('MarkdownEditor: image overlay — resolveImageResource / More Actions'
     // path, never the resolved app:// URL (MarkdownEditor.tsx's own
     // onImageClickRef doc comment).
     expect(resolveImageResource).toHaveBeenCalledWith('Assets/image.jpg');
-    expect(document.querySelector('[aria-label="More actions"]')).not.toBeNull();
-
-    const overlayImg = document.querySelector('.image-overlay__img') as HTMLImageElement | null;
-    expect(overlayImg?.getAttribute('src')).toBe('app://vault/Assets/image.jpg');
+    const [image] = onOpenImageOverlay.mock.calls[0]!;
+    expect(image.resourceId).toBe('resource-1');
+    expect(image.url).toBe('app://vault/Assets/image.jpg');
   });
 });
 
@@ -844,8 +870,44 @@ describe('MarkdownEditor: Fit/Fill toggle never corrupts imageUiState position m
 describe('MarkdownEditor: broken image fallback', () => {
   const IMAGE_MD = '![Mountain view](https://example.com/mountain.jpg)';
 
+  // ImageWidget.renderWorking() (2026-09 native-broken-icon fix) probes a
+  // URL with a detached, never-inserted Image() before ever creating the
+  // real, visible <img> — see ImageWidget.ts's own probeThenMount doc
+  // comment. jsdom never fires a real Image's load/error on its own (no
+  // network), so without resolving this probe first there is no <img> here
+  // to fire the *second*, real `error` event on below. Same capture-and-
+  // auto-resolve mechanism imageLivePreview.test.ts's own mountView()
+  // already establishes at the CM6 level; mirrored here since this suite
+  // renders through the full MarkdownEditor/React tree instead.
+  let capturedProbes: HTMLImageElement[] = [];
+  let OriginalImage: typeof Image;
+
+  beforeEach(() => {
+    capturedProbes = [];
+    OriginalImage = window.Image;
+    class CapturingImage extends OriginalImage {
+      constructor(width?: number, height?: number) {
+        super(width, height);
+        capturedProbes.push(this);
+      }
+    }
+    vi.stubGlobal('Image', CapturingImage);
+  });
+
+  afterEach(() => {
+    vi.stubGlobal('Image', OriginalImage);
+  });
+
+  function renderWithLoadedImage(markdown: string) {
+    const result = render(<MarkdownEditor pageId="test-page" markdown={markdown} />);
+    for (const probe of capturedProbes) {
+      probe.dispatchEvent(new Event('load'));
+    }
+    return result;
+  }
+
   it('renders the broken representation in place of the <img> once it errors, with a trimmed controls set', () => {
-    render(<MarkdownEditor pageId="test-page" markdown={IMAGE_MD} />);
+    renderWithLoadedImage(IMAGE_MD);
 
     const img = document.querySelector('img.tok-image')!;
     fireEvent.error(img);
@@ -865,7 +927,7 @@ describe('MarkdownEditor: broken image fallback', () => {
   });
 
   it('Delete works from the broken state and supports undo', () => {
-    render(<MarkdownEditor pageId="test-page" markdown={IMAGE_MD} />);
+    renderWithLoadedImage(IMAGE_MD);
     fireEvent.error(document.querySelector('img.tok-image')!);
 
     const deleteButton = document.querySelector<HTMLButtonElement>(
