@@ -1,55 +1,51 @@
-import type { ResolveEmbedImage } from '../../editor/codemirror/embed/embedImageResolution';
-import type { ResolveEmbedPdf } from '../../editor/codemirror/pdf/embedPdfResolution';
+import { BrokenEmbed } from './BrokenEmbed';
+import { NoteEmbed } from './NoteEmbed';
 import { ReadImage } from './ReadImage';
 import { ReadPdfEmbed } from './ReadPdfEmbed';
+import type { MarkdownReadResolvers } from './renderInlineSpans';
 
 export interface ReadEmbedProps {
   readonly path: string;
   readonly alias: string | null;
-  readonly resolveEmbedImage?: ResolveEmbedImage;
-  readonly resolveEmbedPdf?: ResolveEmbedPdf;
-}
-
-function BrokenEmbed({ label }: { readonly label: string }) {
-  return (
-    <span className="markdown-read-embed-broken" data-embed-status="unresolved">
-      {label}
-    </span>
-  );
+  readonly resolvers: MarkdownReadResolvers;
 }
 
 /**
- * Dispatches an `Embed`(`![[path]]`) span to `ReadImage`/`ReadPdfEmbed`,
- * mirroring `embedLivePreview.ts`'s own resolution order exactly: try the
- * image resolver first, and only fall through to the PDF resolver when it
- * says `'non-image'` (a real resource, just not an image) or `'unresolved'`
- * (no resource at all — the PDF resolver may still recognize it as a
- * missing *PDF* via its own extension fallback). No resolver injected at
- * all (e.g. compact/inline-only callers) renders the same broken state a
- * genuinely unresolved target would.
+ * Dispatches an `Embed` (`![[path]]`) span to `ReadImage`/`ReadPdfEmbed`/
+ * `NoteEmbed`, in that order — mirroring `embedLivePreview.ts`'s own
+ * image-then-pdf resolution order exactly, extended with a third,
+ * note-embed fallback tried only once both have declined (an image/PDF
+ * `VaultResource` and a `Page` are disjoint targets, so trying all three
+ * in a fixed order is unambiguous). No resolver injected at all renders
+ * the same broken state a genuinely unresolved target would.
  */
-export function ReadEmbed({ path, alias, resolveEmbedImage, resolveEmbedPdf }: ReadEmbedProps) {
-  const imageResolution = resolveEmbedImage?.(path, alias);
-
+export function ReadEmbed({ path, alias, resolvers }: ReadEmbedProps) {
+  const imageResolution = resolvers.resolveEmbedImage?.(path, alias);
   if (imageResolution?.status === 'image') {
     return <ReadImage resolution={imageResolution} />;
   }
 
-  if (imageResolution === undefined || imageResolution.status === 'non-image' || imageResolution.status === 'unresolved') {
-    const pdfResolution = resolveEmbedPdf?.(path, alias);
-
-    if (pdfResolution?.status === 'pdf') {
-      return <ReadPdfEmbed resolution={pdfResolution} />;
-    }
-
-    if (pdfResolution?.status === 'unresolved') {
-      return <BrokenEmbed label={pdfResolution.title} />;
-    }
+  // Reaching here means the image resolver declined (or none was
+  // injected) — try the PDF resolver next.
+  const pdfResolution = resolvers.resolveEmbedPdf?.(path, alias);
+  if (pdfResolution?.status === 'pdf') {
+    return <ReadPdfEmbed resolution={pdfResolution} />;
   }
 
-  if (imageResolution?.status === 'unresolved') {
-    return <BrokenEmbed label={imageResolution.alt} />;
+  // Both declined — try the note-embed resolver last.
+  const pageResolution = resolvers.resolvePageEmbed?.(path);
+  if (pageResolution?.status === 'resolved') {
+    return <NoteEmbed resolution={pageResolution} resolvers={resolvers} />;
   }
 
-  return <BrokenEmbed label={path} />;
+  const label =
+    pageResolution?.status === 'ambiguous' || pageResolution?.status === 'unresolved'
+      ? pageResolution.displayLabel
+      : pdfResolution?.status === 'unresolved'
+        ? pdfResolution.title
+        : imageResolution?.status === 'unresolved'
+          ? imageResolution.alt
+          : path;
+
+  return <BrokenEmbed label={label} />;
 }

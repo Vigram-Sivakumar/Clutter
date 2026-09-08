@@ -90,7 +90,12 @@ export function createWikiLinkResolver(
   };
 }
 
-function findPagesByAlias(vault: Vault, alias: string): Page[] {
+/**
+ * Exported so other resolvers targeting the same `[[path]]`/`![[path]]`
+ * syntax (`resolvePageEmbed.ts`'s note-embed resolution) can reuse the
+ * exact same alias-lookup rule instead of reimplementing it.
+ */
+export function findPagesByAlias(vault: Vault, alias: string): Page[] {
   const matches: Page[] = [];
   for (const page of vault.pages()) {
     if (page.analysis.aliases.some((candidate) => candidate.value === alias)) {

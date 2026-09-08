@@ -8,18 +8,30 @@ import type { ResolveEmbedPdf } from '../../editor/codemirror/pdf/embedPdfResolu
 import { fallbackTagResolution, type ResolveTag } from '../../editor/codemirror/tag/tagResolution';
 import { fallbackWikiLinkResolution, type ResolveWikiLink } from '../../editor/codemirror/wikilink/wikiLinkResolution';
 import type { InlineSpan } from '../inlineSpan';
+import type { ResolvePageEmbed } from './pageEmbedResolution';
 import { ReadEmbed } from './ReadEmbed';
 
 /**
  * Same resolver contracts `renderCompactMarkdown`/`MarkdownEditor` inject
  * — reused unchanged, not a second resolver shape invented for this
  * surface (see `CompactMarkdownResolvers`'s own doc comment for why).
+ * `resolvePageEmbed` has no editor-layer counterpart (note embeds are new
+ * to this renderer) but follows the exact same injected-function shape.
  */
 export interface MarkdownReadResolvers {
   readonly resolveWikiLink?: ResolveWikiLink;
   readonly resolveTag?: ResolveTag;
   readonly resolveEmbedImage?: ResolveEmbedImage;
   readonly resolveEmbedPdf?: ResolveEmbedPdf;
+  readonly resolvePageEmbed?: ResolvePageEmbed;
+  /**
+   * Overrides `NoteEmbed`'s default recursion-depth bound
+   * (`DEFAULT_MAX_EMBED_DEPTH`) for this render. A policy default, not a
+   * locked architectural constant — callers that want a different limit
+   * (or product experimentation before one is settled) set it here rather
+   * than it being hardcoded platform-wide.
+   */
+  readonly maxEmbedDepth?: number;
 }
 
 function renderDateSpan(isoDate: string, key: string): ReactNode {
@@ -111,15 +123,7 @@ function renderOneSpan(span: InlineSpan, resolvers: MarkdownReadResolvers, key: 
     case 'image':
       return span.alt;
     case 'embed':
-      return (
-        <ReadEmbed
-          key={key}
-          path={span.path}
-          alias={span.alias}
-          resolveEmbedImage={resolvers.resolveEmbedImage}
-          resolveEmbedPdf={resolvers.resolveEmbedPdf}
-        />
-      );
+      return <ReadEmbed key={key} path={span.path} alias={span.alias} resolvers={resolvers} />;
   }
 }
 

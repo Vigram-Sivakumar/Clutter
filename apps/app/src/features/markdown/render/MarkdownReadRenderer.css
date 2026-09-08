@@ -137,3 +137,11 @@
   color: var(--foreground-secondary);
   opacity: var(--opacity-medium);
 }
+
+.markdown-read-note-embed {
+  display: block;
+  padding: 0.75em 1em;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--surface-subtle);
+}
