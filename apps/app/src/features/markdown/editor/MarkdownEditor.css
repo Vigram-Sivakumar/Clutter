@@ -1849,10 +1849,6 @@ body.cm-image-resizing-nesw .cm-image-container {
   /* box-shadow: var(--shadow-inset-thin); */
 }
 
-.cm-editor .cm-invalid-embed__content:hover {
-  background: var(--surface-secondary);
-}
-
 /* 24x24 wrapper, 16x16 icon centered inside it — matches
    `.cm-invalid-embed__control`'s own icon-button proportions (`--height-md`
    square button, 16x16 svg centered) for visual rhythm, even though this
@@ -1887,14 +1883,14 @@ body.cm-image-resizing-nesw .cm-image-container {
    the outer flex row. */
 .cm-editor .cm-invalid-embed__text {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   min-width: 0;
-  gap: var(--space-12);
+  gap: var(--space-6);
 }
 
 .cm-editor .cm-invalid-embed__title {
   font-size: var(--text-body-small);
-  line-height: var(--lh-cm-content);
+  line-height: var(--lh-body-small);
   color: var(--foreground-primary);
   white-space: nowrap;
   overflow: hidden;
@@ -1903,6 +1899,7 @@ body.cm-image-resizing-nesw .cm-image-container {
 
 .cm-editor .cm-invalid-embed__source {
   font-size: var(--text-label);
+  line-height: var(--lh-body-small);
   color: var(--foreground-tertiary);
   white-space: nowrap;
   overflow: hidden;
