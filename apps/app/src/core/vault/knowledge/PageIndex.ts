@@ -1,6 +1,7 @@
 import type { Heading } from '@core/vault/models/analysis/Heading';
 import type { BlockReference } from '@core/vault/models/analysis/BlockReference';
 import type { Page } from '@core/vault/models/Page';
+import { findFirstHeadingOccurrence } from '@core/vault/ingest/extractors/headingSemantics';
 
 export class PageIndex {
   private readonly pagesByPath = new Map<string, Page>();
@@ -48,7 +49,12 @@ export class PageIndex {
 
   findHeading(pageId: string, heading: string): Heading | undefined {
     const page = this.pages.find((page) => page.id === pageId);
-    return page?.analysis.headings.find((item) => item.text === heading);
+    if (!page) {
+      return undefined;
+    }
+    // ADR-032: delegates to the shared matching rule (exact text, first
+    // match in document order) rather than reimplementing it here.
+    return findFirstHeadingOccurrence(page.analysis.headings, heading);
   }
 
   findBlockReference(

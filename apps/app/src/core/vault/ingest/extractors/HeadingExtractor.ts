@@ -1,36 +1,21 @@
+import { extractHeadingOccurrences } from './headingSemantics';
+
 export interface ScannedHeading {
   readonly level: number;
   readonly title: string;
 }
 
+/**
+ * ADR-032: delegates to the shared `extractHeadingOccurrences` grammar-based
+ * implementation rather than owning its own parsing logic. `ScannedHeading`'s
+ * shape is unchanged — parser-specific position data (`HeadingOccurrence.from`)
+ * is dropped here and never leaks into durable analysis.
+ */
 export class HeadingExtractor {
   extract(content: string): readonly ScannedHeading[] {
-    const headings: ScannedHeading[] = [];
-
-    const matches = content.matchAll(/^(#{1,6})\s+(.+)$/gm);
-
-    for (const match of matches) {
-      const heading = this.extractFromMatch(match);
-
-      if (heading) {
-        headings.push(heading);
-      }
-    }
-
-    return headings;
-  }
-
-  private extractFromMatch(match: RegExpMatchArray): ScannedHeading | null {
-    const hashes = match[1];
-    const title = match[2]?.trim();
-
-    if (!hashes || !title) {
-      return null;
-    }
-
-    return {
-      level: hashes.length,
-      title,
-    };
+    return extractHeadingOccurrences(content).map(({ level, text }) => ({
+      level,
+      title: text,
+    }));
   }
 }

@@ -111,6 +111,34 @@ Pure transformation: raw file bytes → typed, identity-resolved `Page`/`Folder`
     static parentDirectory(path: string): string;
     static isDescendantOf(path: string, ancestorPath: string): boolean;
   }
+
++ interface HeadingOccurrence {
+    // Pure heading-semantics result — level, plain text, and source
+    // offset. Deliberately richer than the durable-facing ScannedHeading/
+    // Heading shapes (see ADR-032): parser-specific position data lives
+    // only here, never in Page.analysis.headings.
+    readonly level: number;
+    readonly text: string;
+    readonly from: number;   // @lezer/markdown's ATXHeadingN.from
+  }
+
++ function extractHeadingOccurrences(markdown: string): readonly HeadingOccurrence[];
+    // Grammar-based (bare @lezer/markdown parser — no Clutter grammar
+    // extensions needed), restricted to ATXHeading1-6 nodes that are
+    // direct children of Document (excludes blockquote/list-nested
+    // pseudo-headings). ADR-032: the one shared implementation, called
+    // by both the durable ingest path (HeadingExtractor) and, from
+    // UI/Features, the live-render path (against EffectivePageState's
+    // markdown) — never independently reimplemented by either.
+
++ function findFirstHeadingOccurrence<T extends { readonly text: string }>(
+    occurrences: readonly T[],
+    text: string,
+  ): T | undefined;
+    // Exact text match, first match in document order. ADR-032: the
+    // one shared matching rule, extracted from PageIndex.findHeading's
+    // existing behavior and reused by it unchanged, not reimplemented
+    // by any live consumer.
 ```
 
 ### Internal collaborators
