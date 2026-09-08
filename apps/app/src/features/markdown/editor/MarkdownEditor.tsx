@@ -190,6 +190,7 @@ export const MarkdownEditor = forwardRef<
     resolveWikiLink,
     getWikiLinkSuggestions,
     getEmbedSuggestions,
+    getEmbedHeadingSuggestions,
     resolveEmbedImage,
     resolveEmbedPdf,
     onPdfEmbedClick,
@@ -261,6 +262,10 @@ export const MarkdownEditor = forwardRef<
   // Same freshness pattern, for Embed's completion source accessor below.
   const getEmbedSuggestionsRef = useRef(getEmbedSuggestions);
   getEmbedSuggestionsRef.current = getEmbedSuggestions;
+
+  // Same freshness pattern, for Embed's heading-suggestion accessor below.
+  const getEmbedHeadingSuggestionsRef = useRef(getEmbedHeadingSuggestions);
+  getEmbedHeadingSuggestionsRef.current = getEmbedHeadingSuggestions;
 
   // Same freshness pattern, for Embed's live-preview rendering accessor below.
   const resolveEmbedImageRef = useRef(resolveEmbedImage);
@@ -738,7 +743,8 @@ export const MarkdownEditor = forwardRef<
         semanticCompletion(
           () => getWikiLinkSuggestionsRef.current,
           () => getTagSuggestionsRef.current,
-          () => getEmbedSuggestionsRef.current
+          () => getEmbedSuggestionsRef.current,
+          () => getEmbedHeadingSuggestionsRef.current
         ),
       ],
       onDocChange: (nextMarkdown) => onEditRef.current?.(nextMarkdown),

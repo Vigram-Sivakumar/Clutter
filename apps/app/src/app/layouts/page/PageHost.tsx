@@ -39,6 +39,7 @@ import { createTagResolver } from '@app/layouts/page/resolveTag';
 import { createWikiLinkResolver } from '@app/layouts/page/resolveWikiLink';
 import { createWikiLinkSuggester } from '@app/layouts/page/wikiLinkSuggestions';
 import { createEmbedSuggester } from '@app/layouts/page/embedSuggestions';
+import { createEmbedHeadingSuggester } from '@app/layouts/page/headingSuggestions';
 import { createEmbedImageResolver } from '@app/layouts/page/resolveEmbedImage';
 import { createEmbedPdfResolver } from '@app/layouts/page/resolveEmbedPdf';
 import { resolveResourceEmbed } from '@app/layouts/page/resolveResourceEmbed';
@@ -164,6 +165,10 @@ export function PageHost({ application, onOpenResource, onOpenImageOverlay }: Pa
   // renderer to call yet (resolveResourceEmbed.ts exists but isn't wired
   // through as an injected prop until a rendering milestone needs it).
   const getEmbedSuggestions = createEmbedSuggester(vault, application.membershipSelector);
+  // Same per-render, stateless-glue composition as resolveWikiLink above —
+  // ADR-032's heading-suggestion counterpart, scoped to whichever page the
+  // in-progress ![[Page# target already names.
+  const getEmbedHeadingSuggestions = createEmbedHeadingSuggester(vault, application.effectivePageState);
   // Same per-render, stateless-glue composition as resolveWikiLink above —
   // this milestone's rendering counterpart to getEmbedSuggestions.
   const resolveEmbedImage = createEmbedImageResolver(vault, (path) =>
@@ -755,6 +760,7 @@ export function PageHost({ application, onOpenResource, onOpenImageOverlay }: Pa
               resolveWikiLink={resolveWikiLink}
               getWikiLinkSuggestions={getWikiLinkSuggestions}
               getEmbedSuggestions={getEmbedSuggestions}
+              getEmbedHeadingSuggestions={getEmbedHeadingSuggestions}
               resolveEmbedImage={resolveEmbedImage}
               resolveEmbedPdf={resolveEmbedPdf}
               onPdfEmbedClick={onPdfEmbedClick}
@@ -879,6 +885,7 @@ export function PageHost({ application, onOpenResource, onOpenImageOverlay }: Pa
             resolveWikiLink={resolveWikiLink}
             getWikiLinkSuggestions={getWikiLinkSuggestions}
             getEmbedSuggestions={getEmbedSuggestions}
+            getEmbedHeadingSuggestions={getEmbedHeadingSuggestions}
             resolveEmbedImage={resolveEmbedImage}
             resolveEmbedPdf={resolveEmbedPdf}
             onPdfEmbedClick={onPdfEmbedClick}

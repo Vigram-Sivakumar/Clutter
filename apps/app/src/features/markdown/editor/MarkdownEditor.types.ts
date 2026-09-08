@@ -3,7 +3,7 @@ import type { LocationPathFormat } from '@core/presentation/getLocationPathRepre
 import type { ImageOverlayImage } from './codemirror/image/ImageOverlay';
 
 import type { ResolveDate } from './codemirror/date/dateResolution';
-import type { GetEmbedSuggestions } from './codemirror/embed/embedSuggestion';
+import type { GetEmbedHeadingSuggestions, GetEmbedSuggestions } from './codemirror/embed/embedSuggestion';
 import type { ResolveEmbedImage } from './codemirror/embed/embedImageResolution';
 import type { ResolveEmbedPdf } from './codemirror/pdf/embedPdfResolution';
 import type { OnPdfEmbedClick } from './codemirror/pdf/PdfEmbedWidget';
@@ -84,6 +84,15 @@ export interface MarkdownEditorProps {
    * `![[path]]` into a rendered resource is a later step.
    */
   readonly getEmbedSuggestions?: GetEmbedSuggestions;
+  /**
+   * Supplies heading-suggestion candidates once a `![[Page#` target
+   * contains `#` (ADR-032) — scoped to headings within whatever page
+   * `pagePath` resolves to, never a vault-wide heading search. Same
+   * injected-boundary shape as `getEmbedSuggestions`, just a second,
+   * independent datasource `embedCompletionSource.ts` switches to by
+   * content, not a second completion framework.
+   */
+  readonly getEmbedHeadingSuggestions?: GetEmbedHeadingSuggestions;
   /**
    * Resolves a completed `![[path]]` Embed's target into an image URL (or
    * an unresolved/non-image outcome) for `embedLivePreview.ts` to render —

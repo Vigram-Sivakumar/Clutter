@@ -7,7 +7,7 @@ import { EditorView } from '@codemirror/view';
 import { markdownLanguageExtension } from '../markdownLanguage';
 import { embedCompletionSource } from './embedCompletionSource';
 import { wikiLinkCompletionSource } from '../wikilink/wikiLinkCompletionSource';
-import type { GetEmbedSuggestions } from './embedSuggestion';
+import type { GetEmbedHeadingSuggestions, GetEmbedSuggestions } from './embedSuggestion';
 import type { GetWikiLinkSuggestions } from '../wikilink/wikiLinkSuggestion';
 
 function mountView(doc: string): EditorView {
@@ -304,5 +304,115 @@ describe('embedCompletionSource / wikiLinkCompletionSource — no trigger collis
     expect(wikiLinkResult?.options).toHaveLength(1);
     expect(embedResult).toBeNull();
     expect(getEmbedSuggestions).not.toHaveBeenCalled();
+  });
+});
+
+describe('embedCompletionSource — heading suggestions (![[Page#, ADR-032)', () => {
+  it('switches to heading suggestions once the query contains #, scoped to the page portion', () => {
+    const view = mountView('x ![[Note B#');
+    const getSuggestions = vi.fn();
+    const getHeadingSuggestions: GetEmbedHeadingSuggestions = vi.fn(() => [
+      { kind: 'heading' as const, heading: 'Setup', level: 2 },
+      { kind: 'heading' as const, heading: 'Appendix', level: 1 },
+    ]);
+    const source = embedCompletionSource(() => getSuggestions, () => getHeadingSuggestions);
+
+    const result = call(source, contextAt(view, 12));
+
+    expect(getSuggestions).not.toHaveBeenCalled();
+    expect(getHeadingSuggestions).toHaveBeenCalledWith('Note B', '');
+    expect(result?.options).toHaveLength(2);
+    expect(result?.options[0]?.label).toBe('Setup');
+  });
+
+  it('filters heading suggestions as more of the heading query is typed', () => {
+    const view = mountView('x ![[Note B#Roo');
+    const getHeadingSuggestions: GetEmbedHeadingSuggestions = vi.fn(() => [{ kind: 'heading' as const, heading: 'Root causes', level: 1 }]);
+    const source = embedCompletionSource(
+      () => vi.fn(),
+      () => getHeadingSuggestions
+    );
+
+    const result = call(source, contextAt(view, view.state.doc.length));
+
+    expect(getHeadingSuggestions).toHaveBeenCalledWith('Note B', 'Roo');
+    expect(result?.options).toHaveLength(1);
+  });
+
+  it('preserves a folder-qualified page portion when splitting on #', () => {
+    const view = mountView('x ![[Notes/Note B#Set');
+    const getHeadingSuggestions: GetEmbedHeadingSuggestions = vi.fn(() => []);
+    const source = embedCompletionSource(
+      () => vi.fn(),
+      () => getHeadingSuggestions
+    );
+
+    call(source, contextAt(view, view.state.doc.length));
+
+    expect(getHeadingSuggestions).toHaveBeenCalledWith('Notes/Note B', 'Set');
+  });
+
+  it('returns null for a # query when no heading suggester is injected', () => {
+    const view = mountView('x ![[Note B#');
+    const getSuggestions = vi.fn();
+    const source = embedCompletionSource(() => getSuggestions);
+
+    const result = call(source, contextAt(view, 12));
+
+    expect(result).toBeNull();
+    expect(getSuggestions).not.toHaveBeenCalled();
+  });
+
+  it("a heading option's apply() inserts the full page#heading target", () => {
+    const view = mountView('x ![[Note B#Set y');
+    const getHeadingSuggestions: GetEmbedHeadingSuggestions = () => [{ kind: 'heading', heading: 'Setup', level: 2 }];
+    const source = embedCompletionSource(
+      () => vi.fn(),
+      () => getHeadingSuggestions
+    );
+
+    const result = call(source, contextAt(view, 15));
+    const option = result?.options[0];
+    expect(option).toBeDefined();
+
+    if (typeof option?.apply === 'function') {
+      option.apply(view, option, result?.from ?? 0, 15);
+    }
+
+    expect(view.state.doc.toString()).toBe('x ![[Note B#Setup]] y');
+  });
+
+  it('reactivating inside an already-closed ![[Page#Heading]] offers heading suggestions again, scoped to the page portion', () => {
+    const view = mountView('x ![[Note B#Setup]] y');
+    const getHeadingSuggestions: GetEmbedHeadingSuggestions = vi.fn(() => [{ kind: 'heading' as const, heading: 'Setup', level: 2 }]);
+    const source = embedCompletionSource(
+      () => vi.fn(),
+      () => getHeadingSuggestions
+    );
+
+    const result = call(source, contextAt(view, 15)); // inside "Setup"
+
+    expect(getHeadingSuggestions).toHaveBeenCalledWith('Note B', 'Setup');
+    expect(result?.from).toBe(5);
+    expect(result?.to).toBe(17); // right before the closing "]]"
+  });
+
+  it('a reactivated heading completion replaces the entire reference zone with the full page#heading text', () => {
+    const view = mountView('x ![[Note B#Set]] y');
+    const getHeadingSuggestions: GetEmbedHeadingSuggestions = () => [{ kind: 'heading', heading: 'Setup', level: 2 }];
+    const source = embedCompletionSource(
+      () => vi.fn(),
+      () => getHeadingSuggestions
+    );
+
+    const result = call(source, contextAt(view, 14));
+    const option = result?.options[0];
+    expect(option).toBeDefined();
+
+    if (typeof option?.apply === 'function') {
+      option.apply(view, option, result?.from ?? 0, result?.to ?? 0);
+    }
+
+    expect(view.state.doc.toString()).toBe('x ![[Note B#Setup]] y');
   });
 });

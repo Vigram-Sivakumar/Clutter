@@ -5,7 +5,7 @@ import { dateCompletionSource } from './date/dateCompletionSource';
 import { renderDateCompletion } from './date/dateCompletionRenderer';
 import { embedCompletionSource } from './embed/embedCompletionSource';
 import { renderEmbedCompletion } from './embed/embedCompletionRenderer';
-import type { GetEmbedSuggestions } from './embed/embedSuggestion';
+import type { GetEmbedHeadingSuggestions, GetEmbedSuggestions } from './embed/embedSuggestion';
 import { tagCompletionSource } from './tag/tagCompletionSource';
 import { renderTagCompletion } from './tag/tagCompletionRenderer';
 import type { GetTagSuggestions } from './tag/tagSuggestion';
@@ -46,7 +46,8 @@ import type { GetWikiLinkSuggestions } from './wikilink/wikiLinkSuggestion';
 export function semanticCompletion(
   getWikiLinkSuggestions: () => GetWikiLinkSuggestions | undefined,
   getTagSuggestions: () => GetTagSuggestions | undefined = () => undefined,
-  getEmbedSuggestions: () => GetEmbedSuggestions | undefined = () => undefined
+  getEmbedSuggestions: () => GetEmbedSuggestions | undefined = () => undefined,
+  getEmbedHeadingSuggestions: () => GetEmbedHeadingSuggestions | undefined = () => undefined
 ): Extension {
   return [
     autocompletion({
@@ -58,7 +59,7 @@ export function semanticCompletion(
         // for `![[` — wikiLinkCompletionSource.ts's own explicit
         // preceding-`!` guard is what does that (see its doc comment).
         // This ordering is cosmetic only.
-        embedCompletionSource(getEmbedSuggestions),
+        embedCompletionSource(getEmbedSuggestions, getEmbedHeadingSuggestions),
         wikiLinkCompletionSource(getWikiLinkSuggestions),
         dateCompletionSource(),
         tagCompletionSource(getTagSuggestions),

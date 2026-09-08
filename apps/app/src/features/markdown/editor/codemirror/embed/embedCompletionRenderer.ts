@@ -3,7 +3,7 @@ import type { Completion } from '@codemirror/autocomplete';
 import type { EditorState } from '@codemirror/state';
 import type { EditorView } from '@codemirror/view';
 
-import type { EmbedSuggestion } from './embedSuggestion';
+import type { EmbedResourceSuggestion, EmbedSuggestion } from './embedSuggestion';
 
 // Reuses WikiLink's own popup row styling (`.wikilink-completion*` classes)
 // wholesale — visually this is the same completion popup, one more row
@@ -33,7 +33,9 @@ export interface EmbedCompletion extends Completion {
  * not merely possessing the property. See wikiLinkCompletionRenderer.ts's
  * matching guard's own doc comment for the duplicate-row bug this fixes.
  */
-function isEmbedCompletion(completion: Completion): completion is EmbedCompletion {
+function isEmbedCompletion(
+  completion: Completion
+): completion is EmbedCompletion & { suggestion: EmbedResourceSuggestion } {
   return 'suggestion' in completion && (completion.suggestion as EmbedSuggestion).kind === 'resource';
 }
 

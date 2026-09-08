@@ -6,13 +6,14 @@
  * `MembershipSelector` itself, it only calls a function the app layer
  * supplies.
  *
- * A single suggestion kind, not a union like WikiLink's `page | create`:
- * there is no `create-resource` Gate operation kind yet (per the approved
- * Resource mutation scope — see ResourceOperations.ts), so unlike a
- * WikiLink referencing a not-yet-created page, an Embed can never offer
- * "create a new resource at this path" as a completion option. Still
- * exported as a union of one so a future kind (if one is ever needed) is
- * an additive change here, not a breaking one at every call site.
+ * Two suggestion kinds: `'resource'` (image/PDF targets, unchanged) and
+ * `'heading'` (ADR-032 — a heading within an already-typed page target,
+ * `![[Page#`). There is no `create-resource` Gate operation kind (per the
+ * approved Resource mutation scope — see `ResourceOperations.ts`), so
+ * unlike a WikiLink referencing a not-yet-created page, an Embed can
+ * never offer "create a new resource at this path" as a completion
+ * option — and a heading can't be "created" ahead of typing it either, so
+ * neither kind has a create variant.
  */
 export interface EmbedResourceSuggestion {
   readonly kind: 'resource';
@@ -32,7 +33,42 @@ export interface EmbedResourceSuggestion {
   readonly resourceKind: 'image' | 'pdf';
 }
 
-export type EmbedSuggestion = EmbedResourceSuggestion;
+/**
+ * A heading suggestion, scoped to one already-resolved page — never a
+ * vault-wide heading search (ADR-032's shared heading semantics resolve
+ * this against that one page's effective markdown; see
+ * `headingSuggestions.ts`). `heading` is the heading's own literal text —
+ * exactly what gets inserted after `#`, matching how a resource
+ * suggestion's `path` is inserted verbatim rather than a normalized form.
+ */
+export interface EmbedHeadingSuggestion {
+  readonly kind: 'heading';
+  readonly heading: string;
+  readonly level: number;
+}
 
-/** `query` is the raw text typed after `![[`, never including the brackets themselves. */
-export type GetEmbedSuggestions = (query: string) => readonly EmbedSuggestion[];
+export type EmbedSuggestion = EmbedResourceSuggestion | EmbedHeadingSuggestion;
+
+/**
+ * `query` is the raw text typed after `![[`, never including the
+ * brackets themselves. Scoped to `EmbedResourceSuggestion` specifically
+ * (not the general `EmbedSuggestion` union) — this datasource never
+ * returns headings; once a query contains `#`, `embedCompletionSource.ts`
+ * switches to `GetEmbedHeadingSuggestions` entirely rather than this one
+ * ever needing to produce a mixed result set.
+ */
+export type GetEmbedSuggestions = (
+  query: string
+) => readonly EmbedResourceSuggestion[];
+
+/**
+ * `pagePath` is the already-typed portion before `#` (the same string
+ * `resolvePageEmbed.ts` would resolve a page from); `query` is whatever
+ * follows `#` so far. Scoped to headings within that one page only — the
+ * app-layer composer must never search headings globally across the
+ * vault for this.
+ */
+export type GetEmbedHeadingSuggestions = (
+  pagePath: string,
+  query: string
+) => readonly EmbedHeadingSuggestion[];

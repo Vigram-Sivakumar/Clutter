@@ -1,12 +1,13 @@
 import type { Completion, CompletionResult, CompletionSource } from '@codemirror/autocomplete';
 import type { EditorState } from '@codemirror/state';
+import type { EditorView } from '@codemirror/view';
 
 import { findEmbedAt } from './embedEngagement';
 import type { EmbedCompletion } from './embedCompletionRenderer';
 import { serializeEmbed } from './embedSerialize';
 import { lastUnescapedSlashOffset, splitAtFirstUnescapedPipe } from '../wikilink/wikiLinkScanner';
 import { DEFAULT_IMAGE_UI_STATE, setImageUiState } from '../image/imageUiState';
-import type { EmbedSuggestion, GetEmbedSuggestions } from './embedSuggestion';
+import type { EmbedSuggestion, GetEmbedHeadingSuggestions, GetEmbedSuggestions } from './embedSuggestion';
 
 /**
  * Matches from the most recent unclosed `![[` up to the cursor — a fresh,
@@ -24,54 +25,88 @@ import type { EmbedSuggestion, GetEmbedSuggestions } from './embedSuggestion';
  */
 export const EMBED_TRIGGER_PATTERN = /!\[\[[^\]|\n]*$/;
 
-function toCompletion(suggestion: EmbedSuggestion, insertText: (path: string) => string): Completion {
+/**
+ * Shared `apply()` body — both a resource/heading suggestion insert the
+ * same way, differing only in what `insert` text they compose (a
+ * resource's own `path`, or `${pagePart}#${heading}` for a heading
+ * suggestion — see `toCompletion`/`toHeadingCompletion`).
+ */
+function applyEmbedInsert(insert: string, view: EditorView, from: number, to: number): void {
+  const changes = { from, to, insert };
+
+  // Mirrors wikiLinkCompletionSource.ts's identical fix, one node
+  // type over: reactivating completion inside an ALREADY-CLOSED
+  // `![[reference]]` replaces only the bare reference text, leaving
+  // whatever already follows it (bare `]]`, or `|alias]]`) untouched
+  // — so `from + insert.length` alone lands the cursor mid-syntax
+  // instead of after the complete construct. `existingBeforeChange`
+  // (looked up in the PRE-change state, the only state `from`/`to`
+  // are meaningful against) is that already-closed node's own end;
+  // the fresh (`![[query`, no existing brackets yet) case has no such
+  // node and falls back to `from + insert.length`, already correct
+  // there since `serializeEmbed` appended its own `]]` into `insert`.
+  const existingBeforeChange = findEmbedAt(view.state, from);
+  const selection = {
+    anchor: existingBeforeChange
+      ? existingBeforeChange.to + (insert.length - (to - from))
+      : from + insert.length,
+  };
+
+  // Phase 2 (2026-09 rendering-lifecycle unification): explicitly
+  // completing the target — as opposed to merely typing/pasting one
+  // — renders immediately, per this milestone's own product
+  // requirement. A scratch (never dispatched) `state.update()` is
+  // how the resulting Embed node's own exact `[from, to)` is known
+  // *before* the real dispatch, so the `setImageUiState` effect
+  // below can be included in the very same transaction as the
+  // insert — one atomic change, not two, so undo/redo treats
+  // "select this suggestion" as a single step, same as every other
+  // completion's own apply(). `pendingFirstLeave: false` (the
+  // default) is what lets `embedLivePreview.ts`'s own render gate
+  // skip its "stay raw" branch for this occurrence even though the
+  // cursor lands at its own `to` — which is otherwise
+  // indistinguishable, by selection alone, from a fresh, still-being-
+  // typed embed. See that file's own guard-2 doc comment.
+  const scratch = view.state.update({ changes, selection });
+  const node = findEmbedAt(scratch.state, from);
+  const effects = node
+    ? [setImageUiState.of({ pos: node.from, to: node.to, state: DEFAULT_IMAGE_UI_STATE })]
+    : [];
+
+  view.dispatch({ changes, selection, effects });
+}
+
+function toCompletion(
+  suggestion: Extract<EmbedSuggestion, { kind: 'resource' }>,
+  insertText: (path: string) => string
+): Completion {
   const completion: EmbedCompletion = {
     label: suggestion.title,
     suggestion,
     apply(view, _completion, from, to) {
-      const insert = insertText(suggestion.path);
-      const changes = { from, to, insert };
+      applyEmbedInsert(insertText(suggestion.path), view, from, to);
+    },
+  };
 
-      // Mirrors wikiLinkCompletionSource.ts's identical fix, one node
-      // type over: reactivating completion inside an ALREADY-CLOSED
-      // `![[reference]]` replaces only the bare reference text, leaving
-      // whatever already follows it (bare `]]`, or `|alias]]`) untouched
-      // — so `from + insert.length` alone lands the cursor mid-syntax
-      // instead of after the complete construct. `existingBeforeChange`
-      // (looked up in the PRE-change state, the only state `from`/`to`
-      // are meaningful against) is that already-closed node's own end;
-      // the fresh (`![[query`, no existing brackets yet) case has no such
-      // node and falls back to `from + insert.length`, already correct
-      // there since `serializeEmbed` appended its own `]]` into `insert`.
-      const existingBeforeChange = findEmbedAt(view.state, from);
-      const selection = {
-        anchor: existingBeforeChange
-          ? existingBeforeChange.to + (insert.length - (to - from))
-          : from + insert.length,
-      };
+  return completion;
+}
 
-      // Phase 2 (2026-09 rendering-lifecycle unification): explicitly
-      // completing the target — as opposed to merely typing/pasting one
-      // — renders immediately, per this milestone's own product
-      // requirement. A scratch (never dispatched) `state.update()` is
-      // how the resulting Embed node's own exact `[from, to)` is known
-      // *before* the real dispatch, so the `setImageUiState` effect
-      // below can be included in the very same transaction as the
-      // insert — one atomic change, not two, so undo/redo treats
-      // "select this suggestion" as a single step, same as every other
-      // completion's own apply(). `pendingFirstLeave: false` (the
-      // default) is what lets `embedLivePreview.ts`'s own render gate
-      // skip its "stay raw" branch for this occurrence even though the
-      // cursor lands at its own `to` — which is otherwise
-      // indistinguishable, by selection alone, from a fresh, still-being-
-      // typed embed. See that file's own guard-2 doc comment.
-      const scratch = view.state.update({ changes, selection });
-      const node = findEmbedAt(scratch.state, from);
-      const effects = node
-        ? [setImageUiState.of({ pos: node.from, to: node.to, state: DEFAULT_IMAGE_UI_STATE })]
-        : [];
-
-      view.dispatch({ changes, selection, effects });
+/**
+ * A heading suggestion inserts the full `${pagePart}#${heading}` target
+ * text — the same "replace the whole reference" rule every other Embed
+ * completion already follows (see `embedCompletionSource`'s own doc
+ * comment on the reference-zone branch), not just the portion after `#`.
+ */
+function toHeadingCompletion(
+  suggestion: Extract<EmbedSuggestion, { kind: 'heading' }>,
+  pagePart: string,
+  insertText: (target: string) => string
+): Completion {
+  const completion: EmbedCompletion = {
+    label: suggestion.heading,
+    suggestion,
+    apply(view, _completion, from, to) {
+      applyEmbedInsert(insertText(`${pagePart}#${suggestion.heading}`), view, from, to);
     },
   };
 
@@ -151,9 +186,39 @@ function buildResult(
  *   in the reference-zone-edit case — there is no "commit as reference,
  *   keep editing the display name" flow for this milestone.
  * - No `create` suggestion kind: see embedSuggestion.ts's own doc comment.
+ *
+ * ADR-032: once the typed target contains `#`, the query is split into
+ * a page portion (everything before `#`) and a heading query
+ * (everything after), and suggestions switch from resource targets to
+ * headings within that one already-typed page — never a second
+ * `CompletionSource`/trigger/`autocompletion()` registration, just a
+ * content-based branch inside this same source, at the same point the
+ * query string is already being computed for the resource case.
  */
+function buildHeadingResult(
+  from: number,
+  to: number,
+  pagePart: string,
+  headingQuery: string,
+  getHeadingSuggestions: GetEmbedHeadingSuggestions,
+  insertText: (target: string) => string
+): CompletionResult | null {
+  const items = getHeadingSuggestions(pagePart, headingQuery);
+  if (items.length === 0) {
+    return null;
+  }
+
+  return {
+    from,
+    to,
+    options: items.map((suggestion) => toHeadingCompletion(suggestion, pagePart, insertText)),
+    filter: false,
+  };
+}
+
 export function embedCompletionSource(
-  getSuggestions: () => GetEmbedSuggestions | undefined
+  getSuggestions: () => GetEmbedSuggestions | undefined,
+  getHeadingSuggestions: () => GetEmbedHeadingSuggestions | undefined = () => undefined
 ): CompletionSource {
   return (context) => {
     const suggestions = getSuggestions();
@@ -163,6 +228,23 @@ export function embedCompletionSource(
 
     const zone = embedReferenceZoneAt(context.state, context.pos);
     if (zone) {
+      // Checked against the FULL zone reference (pipe-split for a `|alias`
+      // if present, but not yet slash-narrowed) — a heading query's page
+      // portion must keep any folder prefix, unlike the resource-query
+      // "visible segment" narrowing below, which only ever applies once
+      // it's confirmed there's no `#` to handle instead.
+      const zoneReference = splitAtFirstUnescapedPipe(context.state.sliceDoc(zone.from, zone.to)).reference;
+      const zoneHashIndex = zoneReference.indexOf('#');
+      if (zoneHashIndex !== -1) {
+        const headingSuggestions = getHeadingSuggestions();
+        if (!headingSuggestions) {
+          return null;
+        }
+        const pagePart = zoneReference.slice(0, zoneHashIndex);
+        const headingQuery = zoneReference.slice(zoneHashIndex + 1);
+        return buildHeadingResult(zone.from, zone.to, pagePart, headingQuery, headingSuggestions, (target) => target);
+      }
+
       // Same reasoning as wikiLinkCompletionSource.ts: the FULL current
       // reference text, not just the prefix up to the cursor, and scoped
       // to the visible segment only (past the last folder slash) — one
@@ -193,6 +275,18 @@ export function embedCompletionSource(
     }
 
     const query = match.text.slice(3);
+    const hashIndex = query.indexOf('#');
+    if (hashIndex !== -1) {
+      const headingSuggestions = getHeadingSuggestions();
+      if (!headingSuggestions) {
+        return null;
+      }
+      const pagePart = query.slice(0, hashIndex);
+      const headingQuery = query.slice(hashIndex + 1);
+      return buildHeadingResult(match.from, context.pos, pagePart, headingQuery, headingSuggestions, (target) =>
+        serializeEmbed(target)
+      );
+    }
 
     return buildResult(match.from, context.pos, query, suggestions, (path) => serializeEmbed(path));
   };
