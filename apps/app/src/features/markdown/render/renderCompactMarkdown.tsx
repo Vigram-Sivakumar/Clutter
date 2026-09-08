@@ -96,6 +96,12 @@ function renderCompactSpan(span: CompactSpan, resolvers: CompactMarkdownResolver
       return span.label;
     case 'image':
       return span.alt;
+    case 'embed':
+      // Compact rendering has no image/PDF display concern at all (see
+      // this file's own doc comment) — an embed's target path is the
+      // only sensible flattened text, same treatment 'link'/'image'
+      // already get.
+      return span.path;
   }
 }
 

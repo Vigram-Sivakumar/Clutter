@@ -108,3 +108,32 @@
   white-space: pre-wrap;
   opacity: var(--opacity-medium);
 }
+
+.markdown-read-image {
+  display: block;
+  max-width: 100%;
+  border-radius: var(--radius-sm);
+}
+
+.markdown-read-pdf {
+  display: block;
+  width: 100%;
+}
+
+.markdown-read-pdf-loading {
+  padding: 0.75em 1em;
+  background: var(--surface-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--foreground-secondary);
+  font-size: var(--text-label-small);
+}
+
+.markdown-read-embed-broken {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.1em 0.4em;
+  border-radius: var(--radius-sm);
+  background: var(--surface-subtle);
+  color: var(--foreground-secondary);
+  opacity: var(--opacity-medium);
+}

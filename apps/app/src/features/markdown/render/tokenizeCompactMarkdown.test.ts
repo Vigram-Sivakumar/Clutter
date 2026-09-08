@@ -45,6 +45,12 @@ describe('tokenizeCompactMarkdown', () => {
     ]);
   });
 
+  it('tokenizes an Embed as its own span, distinct from a WikiLink', () => {
+    expect(tokenizeCompactMarkdown('![[photo.png]]')).toEqual([
+      { kind: 'embed', path: 'photo.png', alias: null },
+    ]);
+  });
+
   it('tokenizes a tag', () => {
     expect(tokenizeCompactMarkdown('#urgent')).toEqual([{ kind: 'tag', name: 'urgent' }]);
   });

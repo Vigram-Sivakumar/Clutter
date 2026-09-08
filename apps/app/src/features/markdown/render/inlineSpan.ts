@@ -1,6 +1,7 @@
 import type { SyntaxNode } from '@lezer/common';
 
 import { scanDate } from '../editor/codemirror/date/dateScanner';
+import { scanEmbed } from '../editor/codemirror/embed/embedScanner';
 import { scanTag } from '../editor/codemirror/tag/tagScanner';
 import { scanWikiLink } from '../editor/codemirror/wikilink/wikiLinkScanner';
 
@@ -18,7 +19,8 @@ export type InlineSpan =
   | { readonly kind: 'tag'; readonly name: string }
   | { readonly kind: 'date'; readonly isoDate: string }
   | { readonly kind: 'link'; readonly label: string }
-  | { readonly kind: 'image'; readonly alt: string };
+  | { readonly kind: 'image'; readonly alt: string }
+  | { readonly kind: 'embed'; readonly path: string; readonly alias: string | null };
 
 /**
  * Emphasis-family node kinds that flatten to a single span: each always
@@ -122,6 +124,22 @@ export function readImage(node: SyntaxNode, text: string): InlineSpan {
 }
 
 /**
+ * `Embed` is a single flat element with no children — same shape as
+ * `WikiLink` (it delegates entirely to `scanWikiLink` underneath, offset
+ * by the leading `!`; see `embedScanner.ts`'s own doc comment). Re-running
+ * `scanEmbed` at the node's start offset is the same "recover structured
+ * fields via the construct's own pure scanner" pattern `readWikiLink`
+ * already establishes.
+ */
+export function readEmbed(node: SyntaxNode, text: string): InlineSpan {
+  const match = scanEmbed(text, node.from);
+  if (!match) {
+    return { kind: 'text', value: text.slice(node.from, node.to) };
+  }
+  return { kind: 'embed', path: match.path, alias: match.alias };
+}
+
+/**
  * Flattens `node`'s inline content to a marker-free sequence of
  * `InlineSpan`s. Shared by `tokenizeCompactMarkdown` (called with
  * `tree.topNode`, spanning an entire compact-rendered string) and the
@@ -174,6 +192,13 @@ export function tokenizeInline(node: SyntaxNode, text: string, from?: number): I
     if (n.name === 'Link' || n.name === 'Image') {
       pushText(cursor, n.from);
       spans.push(n.name === 'Link' ? readLink(n, text) : readImage(n, text));
+      cursor = n.to;
+      return;
+    }
+
+    if (n.name === 'Embed') {
+      pushText(cursor, n.from);
+      spans.push(readEmbed(n, text));
       cursor = n.to;
       return;
     }

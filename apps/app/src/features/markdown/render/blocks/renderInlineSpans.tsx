@@ -3,18 +3,23 @@ import type { ReactNode } from 'react';
 import { formatDateDisplay } from '@shared/helpers/time/dateDisplay';
 import { isValidCalendarDate } from '@shared/helpers/time/helpers/isValidCalendarDate';
 
+import type { ResolveEmbedImage } from '../../editor/codemirror/embed/embedImageResolution';
+import type { ResolveEmbedPdf } from '../../editor/codemirror/pdf/embedPdfResolution';
 import { fallbackTagResolution, type ResolveTag } from '../../editor/codemirror/tag/tagResolution';
 import { fallbackWikiLinkResolution, type ResolveWikiLink } from '../../editor/codemirror/wikilink/wikiLinkResolution';
 import type { InlineSpan } from '../inlineSpan';
+import { ReadEmbed } from './ReadEmbed';
 
 /**
- * Same resolver contracts `renderCompactMarkdown` injects — reused
- * unchanged, not a second resolver shape invented for this surface (see
- * `CompactMarkdownResolvers`'s own doc comment for why).
+ * Same resolver contracts `renderCompactMarkdown`/`MarkdownEditor` inject
+ * — reused unchanged, not a second resolver shape invented for this
+ * surface (see `CompactMarkdownResolvers`'s own doc comment for why).
  */
 export interface MarkdownReadResolvers {
   readonly resolveWikiLink?: ResolveWikiLink;
   readonly resolveTag?: ResolveTag;
+  readonly resolveEmbedImage?: ResolveEmbedImage;
+  readonly resolveEmbedPdf?: ResolveEmbedPdf;
 }
 
 function renderDateSpan(isoDate: string, key: string): ReactNode {
@@ -105,6 +110,16 @@ function renderOneSpan(span: InlineSpan, resolvers: MarkdownReadResolvers, key: 
       return span.label;
     case 'image':
       return span.alt;
+    case 'embed':
+      return (
+        <ReadEmbed
+          key={key}
+          path={span.path}
+          alias={span.alias}
+          resolveEmbedImage={resolvers.resolveEmbedImage}
+          resolveEmbedPdf={resolvers.resolveEmbedPdf}
+        />
+      );
   }
 }
 

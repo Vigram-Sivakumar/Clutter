@@ -132,6 +132,13 @@ describe('renderCompactMarkdown', () => {
       expect(container).not.toHaveTextContent('https://img.example.com/a.png');
     });
 
+    it('renders an image/PDF embed as its target path, with no image/PDF display', () => {
+      const { container } = render(<>{renderCompactMarkdown('![[Photos/beach.jpg]]')}</>);
+
+      expect(container).toHaveTextContent('Photos/beach.jpg');
+      expect(container.querySelector('img, canvas')).toBeNull();
+    });
+
     it('renders an angle-bracket autolink as the bare URL, stripping < >', () => {
       const { container } = render(<>{renderCompactMarkdown('<https://example.com>')}</>);
 
