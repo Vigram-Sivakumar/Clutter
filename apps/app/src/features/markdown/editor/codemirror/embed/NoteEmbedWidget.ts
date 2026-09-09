@@ -10,14 +10,88 @@ import { EDIT_ICON, renderInvalidEmbedCard } from '../mediaPresentation/invalidE
 import { computeEmbedRemovalRange } from '../mediaPresentation/embedRemovalRange';
 import type { PageEmbedResolution } from '../../../render/blocks/pageEmbedResolution';
 
-// Hand-copied from `shared/icon/svg/note.svg` (this project's own existing
-// icon for "note"/page content) — same reason `ImageWidget.ts`'s
-// `BROKEN_IMAGE_ICON`/`PdfEmbedWidget.ts`'s `BROKEN_PDF_ICON` are hand-
-// copied rather than imported: the real icon system
-// (`shared/icon/iconRegistry.ts`) emits React components, which cannot
-// mount inside a `WidgetType`'s plain DOM.
-const NOTE_MISSING_ICON =
+// Hand-copied from `shared/icon/svg/note.svg` — the exact same glyph
+// `shared/icon/iconRegistry.ts`'s own `note` entry wraps as a React
+// component (`getPageIcon('note')`'s target, the default every page-list
+// row/breadcrumb/etc. falls back to via `AppIcon.tsx` when a page has no
+// emoji assigned — `buildEntryPresentation.ts`'s own `icon`/`emoji` pair).
+// Hand-copied rather than imported for the same reason `ImageWidget.ts`'s
+// `IMAGE_ICON`/`PdfEmbedWidget.ts`'s `BROKEN_PDF_ICON` are: the
+// real icon system emits React components, which cannot mount inside a
+// `WidgetType`'s plain DOM. Reused for two different meanings depending
+// on where `toDOM` renders it — the broken card's own icon (`renderBroken`)
+// and the working header's default identity icon when the resolved page
+// has no emoji (`toDOM`'s own icon-wrap, mirroring `AppIcon.tsx`'s
+// emoji-or-default rule) — both are genuinely "the standard note glyph,"
+// not two different icons that happen to look alike.
+const NOTE_ICON =
   '<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M2 4C2 2.34315 3.34315 1 5 1H11C12.6569 1 14 2.34315 14 4V12C14 13.6569 12.6569 15 11 15H5C3.34315 15 2 13.6569 2 12V4Z" stroke="currentColor" stroke-linecap="round"/><path d="M5 8H11M5 11H11" stroke="currentColor" stroke-linecap="round"/><path d="M5 5H9H5" stroke="currentColor" stroke-linecap="round"/></svg>';
+
+// Hand-copied from `shared/icon/svg/calendar-note.svg`/`calendar-dot.svg`
+// — the two other `getPageIcon()` defaults a resolved page can carry
+// (`resolution.icon`, `PageEmbedResolution`'s own doc comment): a daily
+// note's own icon, today's-date variant (the filled dot) or any other
+// date (the plain calendar). Same hand-copy-for-raw-DOM reason as
+// `NOTE_ICON` above.
+const CALENDAR_NOTE_ICON =
+  '<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 2V1M5 2H11M5 2C3.34315 2 2 3.34315 2 5V11C2 12.6569 3.34315 14 5 14H11C12.6569 14 14 12.6569 14 11V5C14 3.34315 12.6569 2 11 2M11 2V1" stroke="currentColor" stroke-linecap="round"/><path d="M5 5H9M5 8H11M5 11H11" stroke="currentColor" stroke-linecap="round"/></svg>';
+const CALENDAR_DOT_ICON =
+  '<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 2V1M11 2V1M4.75 4.5H11.25M5 2H11C12.6569 2 14 3.34315 14 5V11C14 12.6569 12.6569 14 11 14H5C3.34315 14 2 12.6569 2 11V5C2 3.34315 3.34315 2 5 2Z" stroke="currentColor" stroke-linecap="round"/><circle cx="8" cy="9" r="2.25" fill="currentColor"/></svg>';
+
+/** `resolution.icon`'s three possible values, mapped to their hand-copied SVG. Mirrors `iconRegistry.ts`'s own name→component lookup, just for the raw-DOM subset `NoteEmbedWidget` ever actually needs. */
+const DEFAULT_ICON_BY_KIND: Readonly<Record<'note' | 'calendarNote' | 'calendarDot', string>> = {
+  note: NOTE_ICON,
+  calendarNote: CALENDAR_NOTE_ICON,
+  calendarDot: CALENDAR_DOT_ICON,
+};
+
+/**
+ * Strips leading and trailing empty/whitespace-only *lines* from `markdown`
+ * — display-only, never touching the real source. A note with, say, 100
+ * blank lines before its first real content (or after its last) would
+ * otherwise render that same dead space inside the embed; trimming just
+ * the two edges (never anything between real content, however many blank
+ * lines separate two paragraphs) keeps the embedded excerpt reading like
+ * the passage actually starts/ends where its own content does.
+ *
+ * Applied exactly once, right where `toDOM`'s working-state branch
+ * constructs the nested `EditorView`'s own `doc` — the single call site
+ * every note embed (top-level or nested) goes through, so this needs no
+ * depth-specific logic: a note embedded inside another note's own nested
+ * view resolves its *own* `PageEmbedResolution` independently
+ * (`embedLivePreview.ts`'s own recursive decoration build), and that
+ * fresh resolution's `markdown` flows through this exact same `toDOM`
+ * method again, trimmed the same way.
+ *
+ * **On offsets**: the nested `EditorView` this string becomes `doc` for
+ * is an entirely self-contained coordinate space — nothing outside this
+ * widget ever maps a position *into* it back onto the original page's own
+ * source (Expand navigates by `pageId` alone; Edit source/More actions
+ * operate on *this* note's own `pos`/`to`, the outer `![[Note]]`
+ * reference, never a position inside the nested doc; a heading-target
+ * embed's own `resolution.markdown` is already `resolvePageEmbed.ts`'s
+ * own *slice* of the source, itself a derived, differently-offset
+ * document the nested view already treats as its whole world). Trimming
+ * further here is the same kind of transform, not a new category of one:
+ * the nested view's own decorations/positions are computed fresh from
+ * *this* string, never carried over from the untrimmed source, so an
+ * offset shift here has nothing on the other side of that boundary to
+ * disagree with. `eq()` above still compares the untrimmed
+ * `resolution.markdown` (the real equality/rebuild signal) — this
+ * function runs fresh on every `toDOM`, never stored as widget state.
+ */
+export function trimEmptyEdgeLines(markdown: string): string {
+  const lines = markdown.split('\n');
+  let start = 0;
+  let end = lines.length;
+  while (start < end && lines[start]?.trim() === '') {
+    start++;
+  }
+  while (end > start && lines[end - 1]?.trim() === '') {
+    end--;
+  }
+  return lines.slice(start, end).join('\n');
+}
 
 /**
  * Invoked with the embed's own `Embed` node position when the "More
@@ -165,7 +239,9 @@ export class NoteEmbedWidget extends WidgetType {
     return (
       this.resolution.pageId === other.resolution.pageId &&
       this.resolution.title === other.resolution.title &&
-      this.resolution.markdown === other.resolution.markdown
+      this.resolution.markdown === other.resolution.markdown &&
+      this.resolution.icon === other.resolution.icon &&
+      this.resolution.emoji === other.resolution.emoji
     );
   }
 
@@ -207,6 +283,24 @@ export class NoteEmbedWidget extends WidgetType {
     const header = document.createElement('div');
     header.classList.add('cm-note-embed__header');
 
+    // The resolved page's own identity icon — its assigned emoji if it
+    // has one, else its type's own canonical default icon (a daily note
+    // gets its calendar icon, not the plain note glyph) — exactly
+    // `AppIcon.tsx`'s own emoji-or-default rule (`shared/icon/AppIcon.tsx`),
+    // reused as plain data (`resolution.icon`/`resolution.emoji`, mirroring
+    // that component's own prop pair — see `PageEmbedResolution`'s own doc
+    // comment) rather than a second icon system. Never both at once — the
+    // emoji replaces the default icon, it doesn't sit beside it.
+    const iconWrap = document.createElement('span');
+    iconWrap.classList.add('cm-note-embed__icon-wrap');
+    if (resolution.emoji) {
+      iconWrap.classList.add('cm-note-embed__icon-wrap--emoji');
+      iconWrap.textContent = resolution.emoji;
+    } else {
+      iconWrap.innerHTML = DEFAULT_ICON_BY_KIND[resolution.icon];
+      iconWrap.querySelector('svg')?.classList.add('cm-note-embed__icon');
+    }
+
     const titleSpan = document.createElement('span');
     titleSpan.classList.add('cm-note-embed__title');
     titleSpan.textContent = resolution.title;
@@ -240,15 +334,28 @@ export class NoteEmbedWidget extends WidgetType {
     // PdfEmbedWidget.ts's own corrected control order.
     controls.append(expandButton, editButton, moreActionsButton);
 
-    header.append(titleSpan, controls);
+    header.append(iconWrap, titleSpan, controls);
 
     const content = document.createElement('div');
     content.classList.add('cm-note-embed__content');
 
-    container.append(header, content);
+    // The excerpt boundaries — a passage-from-another-document feel, not a
+    // card: the wavy divider above the header marks the very start of the
+    // embed, and the matching one after the nested view (with "End of
+    // note" set into its center) marks where it ends — the header and its
+    // controls sit *inside* that top-to-bottom boundary pair, not above
+    // it. Both reuse `buildDivider`'s own wavy-rule construction, itself
+    // the same mask-image technique `hr/horizontalRuleDecoration.ts`'s own
+    // `.cm-hr-labeled--wavy` renders for a real `~---~` Markdown divider —
+    // see `NoteEmbedWidget.css`'s own doc comment for why this is a
+    // deliberate reuse of that existing visual system, not a new one.
+    const startDivider = this.buildDivider();
+    const endDivider = this.buildDivider('End of note');
+
+    container.append(startDivider, header, content, endDivider);
 
     this.nestedView = createEditorView({
-      doc: this.resolution.markdown,
+      doc: trimEmptyEdgeLines(resolution.markdown),
       parent: content,
       readOnly: true,
       extensions: this.extensions,
@@ -258,12 +365,50 @@ export class NoteEmbedWidget extends WidgetType {
   }
 
   /**
+   * One wavy boundary — a plain full-width wavy rule with no `label`
+   * (the start boundary, directly below the header), or the same rule
+   * split in two around a centered label (the end boundary, "End of
+   * note"). Deliberately not `DividerLabelWidget` itself (`hr/
+   * DividerLabelWidget.ts`) — that widget replaces a real `~---~` line
+   * inside a *document's own* flow (`inline-flex`, `contain: inline-size`,
+   * `vertical-align: top` all exist solely to cooperate with CM6's
+   * `cm-widgetBuffer` siblings and a real line box, per that file's own
+   * doc comment) — this is a plain block child inside this widget's own
+   * already-isolated DOM subtree, with none of that to cooperate with, so
+   * a simpler block-level flex row is all it needs. The wavy rule
+   * *segments* still reuse the exact same mask-image technique/geometry
+   * that widget's own `--wavy` modifier applies — see this file's own CSS
+   * doc comment.
+   */
+  private buildDivider(label?: string): HTMLElement {
+    const divider = document.createElement('div');
+    divider.classList.add('cm-note-embed__divider');
+
+    if (label === undefined) {
+      const rule = document.createElement('span');
+      rule.classList.add('cm-note-embed__divider-rule');
+      divider.append(rule);
+      return divider;
+    }
+
+    const left = document.createElement('span');
+    left.classList.add('cm-note-embed__divider-rule');
+    const text = document.createElement('span');
+    text.classList.add('cm-note-embed__divider-text');
+    text.textContent = label;
+    const right = document.createElement('span');
+    right.classList.add('cm-note-embed__divider-rule');
+    divider.append(left, text, right);
+    return divider;
+  }
+
+  /**
    * The broken/unresolved-target state — `![[Page]]` names a page that no
    * longer exists (deleted, renamed, or simply never existed), rendered via
    * the exact shared `renderInvalidEmbedCard` component (`invalidEmbedCard.ts`)
    * `ImageWidget.ts`/`PdfEmbedWidget.ts`'s own `renderBroken` already use —
    * never a separate, duplicated invalid-card implementation. Only the icon
-   * (`NOTE_MISSING_ICON`) and title (`"Note not found"`, overriding the
+   * (`NOTE_ICON`) and title (`"Note not found"`, overriding the
    * shared default `"Unable to load"` — see `invalidEmbedCard.ts`'s own
    * `title` option doc comment) are note-specific; `source` is `this.path`,
    * the raw, still-unresolved reference text itself (there is no resolved
@@ -273,7 +418,7 @@ export class NoteEmbedWidget extends WidgetType {
    */
   private renderBroken(container: HTMLElement, view: EditorView): HTMLElement {
     renderInvalidEmbedCard(container, {
-      icon: NOTE_MISSING_ICON,
+      icon: NOTE_ICON,
       title: 'Note not found',
       source: this.path,
       removeLabel: 'Remove embed',

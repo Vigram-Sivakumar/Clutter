@@ -264,8 +264,21 @@ export function createEditorView(options: CreateEditorViewOptions): EditorView {
       // already gets for free from @codemirror/lang-markdown (headings,
       // fenced code blocks, blockquotes, tables); no Clutter-authored fold
       // detection or gutter rendering.
-      codeFolding(),
-      foldGutter(),
+      //
+      // Omitted entirely (not merely hidden) for a read-only view —
+      // `readOnly` has exactly one consumer, a note embed's own nested
+      // `EditorView` (this option's own doc comment) — never the top-level
+      // editor. A note embed already has its own presentation/boundaries
+      // (header, wavy start/end dividers, `NoteEmbedWidget.ts`); a fold
+      // gutter and collapsible headings inside it would add UI noise and
+      // indentation for a passage that should always read as one
+      // continuous, fully-expanded piece of content, not a second,
+      // independently-foldable outline nested inside the first. Omitting
+      // the extensions (rather than hiding `.cm-foldGutter` with CSS)
+      // means there is no fold *state* to expand either — genuinely
+      // unfoldable, not just visually hiding a gutter a keyboard shortcut
+      // (`foldKeymap`, below) could still reach.
+      ...(readOnly ? [] : [codeFolding(), foldGutter()]),
       ...extensions,
       // Lowest-priority keymap (added last), so any higher-precedence
       // binding in `extensions` above still wins when it applies. Without
@@ -281,12 +294,15 @@ export function createEditorView(options: CreateEditorViewOptions): EditorView {
       // convention, but it only fires for that one empty-pair case;
       // defaultKeymap's deleteCharBackward still handles every other
       // Backspace press exactly as before. foldKeymap adds
-      // Ctrl-Shift-[/Ctrl-Shift-] (fold/unfold), which nothing else binds.
+      // Ctrl-Shift-[/Ctrl-Shift-] (fold/unfold), which nothing else binds
+      // — omitted for the same `readOnly` reason `codeFolding()`/
+      // `foldGutter()` are above: no fold commands left to bind a
+      // shortcut to inside a note embed's own nested view.
       keymap.of([
         indentWithTab,
         ...closeBracketsKeymap,
         ...historyKeymap,
-        ...foldKeymap,
+        ...(readOnly ? [] : foldKeymap),
         ...defaultKeymap,
       ]),
   ];

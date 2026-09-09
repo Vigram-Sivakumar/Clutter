@@ -7,6 +7,8 @@ import {
   findFirstHeadingOccurrence,
   type HeadingOccurrence,
 } from '@core/vault/ingest/extractors/headingSemantics';
+import { getPageIcon } from '@core/presentation/getPageIcon';
+import { isToday } from '@shared/helpers/time';
 import type { PageEmbedResolution, ResolvePageEmbed } from '@features/markdown/render/blocks/pageEmbedResolution';
 
 import { findPagesByAlias } from './resolveWikiLink';
@@ -55,9 +57,35 @@ export function createPageEmbedResolver(vault: Vault, effectivePageState: Effect
     const markdown = effective?.markdown ?? page.source.markdown;
     const name = effective?.name ?? '';
     const pageTitle = name.trim().length > 0 ? name : VaultPath.pageName(page.path);
+    // Same session-wins-over-committed source as `markdown`/`name` above
+    // (`EffectivePage.icon`, `EffectivePageState.ts`'s own Category 2
+    // durable-structural field) — unlike `name`, `null` needs no derived
+    // fallback here: "no emoji assigned" is itself a valid terminal state
+    // the renderer already knows how to fall back from (the type's own
+    // default icon below), not a gap to paper over the way an empty name
+    // would be.
+    const emoji = effective?.icon ?? page.metadata.icon;
+    // The type's own canonical default — `getPageIcon` (`core/presentation/
+    // getPageIcon.ts`) is the single source of truth every other page
+    // representation in the app already goes through, so a daily note's
+    // own embed defaults to its calendar icon (today's-dot variant when
+    // it's today's date), never the plain note glyph. `effective?.name`,
+    // not `pageTitle`, for the same reason `buildEntryPresentation.ts`/
+    // `buildBreadcrumbs.ts` both key `isToday` off the entry's own raw
+    // name — `pageTitle`'s own path-derived fallback exists for display
+    // only and isn't guaranteed to still be a bare ISO date string.
+    // Cast is safe: `page.type` is always `PageType` here (never the
+    // `'folder' | 'tag'` extra members `getPageIcon` also accepts for its
+    // other callers), so its own return type is always narrowed in
+    // practice to exactly the two page-type branches — `'note'` or one of
+    // the two calendar variants.
+    const icon = getPageIcon(page.type, page.type === 'daily-note' && isToday(effective?.name ?? page.name)) as
+      | 'note'
+      | 'calendarNote'
+      | 'calendarDot';
 
     if (headingQuery === null) {
-      return { status: 'resolved', pageId: page.id, title: pageTitle, markdown };
+      return { status: 'resolved', pageId: page.id, title: pageTitle, markdown, icon, emoji };
     }
 
     const section = resolveHeadingSection(markdown, headingQuery);
@@ -70,6 +98,8 @@ export function createPageEmbedResolver(vault: Vault, effectivePageState: Effect
       pageId: page.id,
       title: `${pageTitle} › ${section.headingText}`,
       markdown: markdown.slice(section.from, section.to),
+      icon,
+      emoji,
     };
   }
 

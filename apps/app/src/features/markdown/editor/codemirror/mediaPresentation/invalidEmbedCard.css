@@ -163,8 +163,8 @@
   align-items: center;
   justify-content: center;
   flex: none;
-  width: 24px;
-  height: 24px;
+  width: var(--icon-wrapper-md);
+  height: var(--icon-wrapper-md);
 }
 
 .cm-editor .cm-invalid-embed__icon {

@@ -55,7 +55,7 @@ describe('Note embed "More actions" — Turn into WikiLink / Remove', () => {
         resolveEmbedImage={declineImage}
         resolveEmbedPdf={declinePdf}
         resolvePageEmbed={resolverFor({
-          'Other Note': { status: 'resolved', pageId: 'page-other', title: 'Other Note', markdown: 'Body.' },
+          'Other Note': { status: 'resolved', pageId: 'page-other', title: 'Other Note', markdown: 'Body.', icon: 'note', emoji: null },
         })}
       />
     );
@@ -82,7 +82,7 @@ describe('Note embed "More actions" — Turn into WikiLink / Remove', () => {
         resolveEmbedImage={declineImage}
         resolveEmbedPdf={declinePdf}
         resolvePageEmbed={resolverFor({
-          'Other Note': { status: 'resolved', pageId: 'page-other', title: 'Other Note', markdown: 'Body.' },
+          'Other Note': { status: 'resolved', pageId: 'page-other', title: 'Other Note', markdown: 'Body.', icon: 'note', emoji: null },
         })}
         onEdit={onEdit}
         onOpenPage={onOpenPage}
@@ -106,7 +106,7 @@ describe('Note embed "More actions" — Turn into WikiLink / Remove', () => {
         resolveEmbedImage={declineImage}
         resolveEmbedPdf={declinePdf}
         resolvePageEmbed={resolverFor({
-          'Other Note': { status: 'resolved', pageId: 'page-other', title: 'Other Note', markdown: 'Body.' },
+          'Other Note': { status: 'resolved', pageId: 'page-other', title: 'Other Note', markdown: 'Body.', icon: 'note', emoji: null },
         })}
         onEdit={onEdit}
         onOpenPage={onOpenPage}
@@ -128,7 +128,7 @@ describe('Note embed "More actions" — Turn into WikiLink / Remove', () => {
         resolveEmbedImage={declineImage}
         resolveEmbedPdf={declinePdf}
         resolvePageEmbed={resolverFor({
-          'Other Note': { status: 'resolved', pageId: 'page-other', title: 'Other Note', markdown: 'Body.' },
+          'Other Note': { status: 'resolved', pageId: 'page-other', title: 'Other Note', markdown: 'Body.', icon: 'note', emoji: null },
         })}
       />
     );
@@ -160,7 +160,7 @@ describe('Note embed "More actions" — Turn into WikiLink / Remove', () => {
         resolveEmbedImage={declineImage}
         resolveEmbedPdf={declinePdf}
         resolvePageEmbed={resolverFor({
-          'Other Note': { status: 'resolved', pageId: 'page-other', title: 'Other Note', markdown: 'Body.' },
+          'Other Note': { status: 'resolved', pageId: 'page-other', title: 'Other Note', markdown: 'Body.', icon: 'note', emoji: null },
         })}
       />
     );
@@ -185,7 +185,7 @@ describe('Note embed "More actions" — Turn into WikiLink / Remove', () => {
         resolveEmbedImage={declineImage}
         resolveEmbedPdf={declinePdf}
         resolvePageEmbed={resolverFor({
-          'Other Note': { status: 'resolved', pageId: 'page-other', title: 'Other Note', markdown: 'Body.' },
+          'Other Note': { status: 'resolved', pageId: 'page-other', title: 'Other Note', markdown: 'Body.', icon: 'note', emoji: null },
         })}
         onOpenPage={onOpenPage}
       />

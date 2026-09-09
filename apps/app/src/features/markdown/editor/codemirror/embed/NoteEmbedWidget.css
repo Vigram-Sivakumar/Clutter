@@ -1,6 +1,6 @@
 /*
- * The inline Markdown Note embed (`NoteEmbedWidget.ts`) — its own card/
- * header/title/controls CSS. Extracted out of `MarkdownEditor.css`
+ * The inline Markdown Note embed (`NoteEmbedWidget.ts`) — its own
+ * header/title/controls/divider CSS. Extracted out of `MarkdownEditor.css`
  * (2026-09) to match the colocation convention `PdfEmbedWidget.css`
  * already established — content and behavior unchanged, only the file it
  * lives in. The shared read-only mutating-control-hide rule this widget
@@ -10,11 +10,12 @@
  */
 
 /*
- * Note embeds (`![[Page]]`, `NoteEmbedWidget.ts`) — the outer card, its
- * header (plain-text title + Expand/Edit source/More actions), and the
- * nested read-only `EditorView` mount. Modeled directly on
+ * Note embeds (`![[Page]]`, `NoteEmbedWidget.ts`) — the header (plain-text
+ * title + Expand/Edit source/More actions) and the nested read-only
+ * `EditorView` mount, bracketed top and bottom by the wavy `__divider*`
+ * boundaries below rather than a card. Header layout modeled directly on
  * `PdfEmbedWidget.css`'s own top-row layout (title left, controls right,
- * reveal on hover/focus of the whole card) — see that file's own doc
+ * reveal on hover/focus of the whole embed) — see that file's own doc
  * comment for the layout rationale this mirrors.
  *
  * The header's own action buttons reuse the shared `.cm-media-control`
@@ -30,26 +31,63 @@
  * --mutating`, which that same rule does hide — see `NoteEmbedWidget.ts`'s
  * own class doc comment for the full account.
  */
+/*
+ * Presentation (2026-09, "reading a passage from another document"): a
+ * working note embed is deliberately NOT a card — no background, no
+ * border, no box-shadow. The two wavy dividers below (`__divider*`) are
+ * what signal "embedded content," the same way a book sets off a quoted
+ * passage with rules rather than a box. `margin-block` alone (no visual
+ * container) keeps it separated from surrounding paragraphs; `gap`
+ * between the flex children (header/divider/content/divider) is the only
+ * internal spacing.
+ */
 .cm-note-embed {
   position: relative;
   display: flex;
   flex-direction: column;
   gap: var(--space-6);
-  border-radius: var(--radius-sm);
-  background: var(--surface-secondary);
-  box-shadow: var(--shadow-inset-thin);
+  margin-block: var(--space-8);
 }
-/* .cm-note-embed .cm-note-embed {
-  box-shadow: none;
-} */
 
 .cm-note-embed__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-8);
+  gap: var(--space-6);
   padding: var(--space-8);
-  padding-left: var(--space-12);
+  padding-left: var(--space-0);
+}
+
+/* The resolved page's own identity icon — emoji if assigned, else the
+ * page type's own default icon (`NoteEmbedWidget.ts`'s own
+ * `DEFAULT_ICON_BY_KIND`), never both. `flex: none` keeps it a fixed size
+ * regardless of how much the title/controls squeeze it. `--icon-md` (not
+ * `--icon-sm`, which is `--space-6`/6px — too small to read as an icon
+ * here) is the same size every other icon in this file set already uses
+ * (`.cm-invalid-embed__icon`); the wrap is sized a couple of pixels
+ * larger, the same small-margin relationship
+ * `.cm-invalid-embed__icon-wrap`'s own 24×16 wrap/icon pairing already
+ * establishes for the same "small identity glyph beside text" shape.
+ */
+.cm-note-embed__icon-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: var(--icon-wrapper-md);
+  height: var(--icon-wrapper-md);
+}
+
+.cm-note-embed__icon-wrap--emoji {
+  font-size: var(--text-label);
+  line-height: 1;
+}
+
+.cm-note-embed__icon {
+  width: var(--icon-md);
+  height: var(--icon-md);
+  stroke-width: var(--icon-stroke);
+  color: var(--foreground-tertiary);
 }
 
 .cm-note-embed__title {
@@ -104,9 +142,126 @@
 .cm-note-embed[data-menu-open='true'] .cm-note-embed__controls {
   opacity: 1;
 }
+
+/* Base rule — applies to EVERY .cm-note-embed__content, top-level included */
 .cm-note-embed__content {
-  padding-inline: var(--space-6);
+  /* top-level-only styling goes here */
+  margin-bottom: var(--space-12);
+}
+
+/* Extra indent — nested note embeds only (a note embed rendered *inside*
+ * another note embed's own nested read-only view), never a top-level
+ * embed's own content (one embedded directly in the main, editable
+ * document). `.cm-content[contenteditable='false']` is the same signal
+ * `mediaPresentation/embedLayout.css`'s own read-only mutating-control
+ * rule already keys off — a nested `NoteEmbedWidget` is, by construction,
+ * always rendered inside the nested `EditorView`'s own `.cm-content`
+ * (`createEditorView.ts`'s `readOnly: true` sets `contenteditable="false"`
+ * there), so this is exactly "nested," at any depth, with no separate
+ * per-widget depth-tracking needed — same reasoning this file's own
+ * `__divider` nested-hiding rule already establishes for the same
+ * ancestor check.
+ */
+.cm-content[contenteditable='false'] .cm-note-embed__content {
+  padding-left: 30px;
+  /* Resets the base rule's own `margin-bottom` for the nested case —
+     overriding via higher specificity only affects properties actually
+     re-declared here; anything not repeated (like margin-bottom would be
+     without this line) still falls through from the base rule above,
+     top-level or not. */
+  margin-bottom: 0;
 }
 .cm-note-embed__content .cm-editor {
   outline: none;
+}
+
+/*
+ * The excerpt boundaries (`NoteEmbedWidget.ts`'s own `buildDivider`) — a
+ * plain wavy rule *above* the header marks the very start of the embed
+ * (the header/controls sit inside the boundary pair, not above it); the
+ * matching one after the nested view, with "End of note" set into its
+ * center, marks where it ends. Deliberately reuses the
+ * *exact* wavy-rule mask-image technique `hr/horizontalRuleDecoration.ts`
+ * + `hr/DividerLabelWidget.ts` already render for a real `~---~` Markdown
+ * divider at rest (`.cm-hr-line-wavy::after` / `.cm-hr-labeled--wavy
+ * .cm-hr-labeled__rule`, `MarkdownEditor.css`) — same 16×6 tile, same
+ * `M0 3 C4 3, 4 1, 8 1 S12 3, 16 3` path, same `mask-repeat`/`mask-size`/
+ * `mask-position` — rather than a second, independently-invented wave
+ * (a different SVG, a repeated-character rule, or any other decorative
+ * technique). Copied here rather than sharing the actual CSS rule
+ * cross-file: this widget's own colocated-CSS convention (every embed
+ * type owns its own file, `NoteEmbedWidget.css`'s own doc comment) means
+ * `hr/`'s markup-construct CSS and this widget's plain-DOM CSS were never
+ * going to share a single rule regardless — copying the same, already-
+ * proven mask parameters is what keeps the *result* visually and
+ * technically identical without coupling the two features' own files
+ * together for it.
+ *
+ * `.cm-note-embed__divider` itself is a plain block-level flex row, not
+ * `DividerLabelWidget`'s own `inline-flex`/`contain: inline-size`/
+ * `vertical-align: top` combination — that combination exists solely to
+ * cooperate with a real CM6 document line and its `cm-widgetBuffer`
+ * siblings (see that widget's own doc comment); this divider is a plain
+ * child inside this widget's own already-isolated DOM subtree, with none
+ * of that to cooperate with.
+ */
+.cm-note-embed__divider {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  /* pick whatever width you want */
+  /* max-width: 200px;
+  margin-inline: auto; */
+}
+
+.cm-note-embed__divider-rule {
+  flex: 1 1 auto;
+  height: 6px;
+  background-color: var(--border-strong);
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='6'%3E%3Cpath d='M0 3 C4 3, 4 1, 8 1 S12 3, 16 3' fill='none' stroke='white' stroke-width='1.2' stroke-linecap='round'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='6'%3E%3Cpath d='M0 3 C4 3, 4 1, 8 1 S12 3, 16 3' fill='none' stroke='white' stroke-width='1.2' stroke-linecap='round'/%3E%3C/svg%3E");
+  -webkit-mask-repeat: repeat-x;
+  mask-repeat: repeat-x;
+  -webkit-mask-size: 16px 6px;
+  mask-size: 16px 6px;
+  -webkit-mask-position: left center;
+  mask-position: left center;
+}
+
+/* "End of note" — set into the center of the closing boundary, styled to
+   read as the close of an excerpt (muted, italic) rather than a UI status
+   line. Sizing/truncation match `.cm-hr-labeled__text`'s own established
+   values for the identical "label between two rule segments" shape. */
+.cm-note-embed__divider-text {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 60%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--foreground-tertiary);
+  font-size: var(--text-label-small);
+  line-height: var(--lh-label-small);
+  letter-spacing: var(--ls-label-small);
+}
+
+/*
+ * Nested note embeds (a note embed rendered inside another note embed's
+ * own nested view) never show these boundaries — only the top-level
+ * embed's own excerpt is bracketed by them. A nested rendering already
+ * reads as "inside a passage" by virtue of being physically inside the
+ * outer one's own start/end pair; repeating another wavy start/end
+ * boundary one level down would visually nest excerpts inside excerpts
+ * rather than reading as one continuous passage, and clutters depth the
+ * header/controls' own `--mutating` hiding (below) already declutters for
+ * every other affordance. Same `.cm-content[contenteditable='false']`
+ * signal `mediaPresentation/embedLayout.css`'s own read-only rule keys
+ * off — a nested `NoteEmbedWidget` is, by construction, always rendered
+ * inside the nested `EditorView`'s own `.cm-content` (`createEditorView.ts`'s
+ * `readOnly: true` sets `contenteditable="false"` there), so this is
+ * exactly "not the top level," at any nesting depth, with no separate
+ * per-widget depth-tracking needed.
+ */
+.cm-content[contenteditable='false'] .cm-note-embed__divider {
+  display: none;
 }

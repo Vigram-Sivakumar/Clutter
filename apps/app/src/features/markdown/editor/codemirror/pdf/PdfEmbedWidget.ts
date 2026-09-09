@@ -37,9 +37,9 @@ import './PdfEmbedWidget.css';
 // ARROW_LEFT_ICON/ARROW_RIGHT_ICON match `PdfViewer`'s own Previous/Next
 // page glyphs; BROKEN_PDF_ICON is hand-copied from `iconRegistry.ts`'s
 // own `pdf` entry (`shared/icon/svg/pdf.svg`) — deliberately not
-// `broken-image.svg` (ImageWidget.ts's own `BROKEN_IMAGE_ICON`): a failed
-// PDF embed is still a PDF, not an image, so its broken-state icon stays
-// a PDF glyph rather than borrowing the image family's. EXPAND_ICON/
+// `image.svg` (ImageWidget.ts's own `IMAGE_ICON`): a failed PDF embed is
+// still a PDF, not an image, so its broken-state icon stays a PDF glyph
+// rather than borrowing the image family's. EXPAND_ICON/
 // MORE_ICON now live in `../mediaPresentation/embedControlIcons.ts`,
 // shared with `NoteEmbedWidget.ts`'s own Expand/More actions controls; the
 // Remove/Edit icons live in `../mediaPresentation/invalidEmbedCard.ts`,
@@ -116,8 +116,8 @@ export type OnOpenPdfMenu = (params: OpenPdfMenuParams) => void;
  * so a broken PDF and a broken image render as the same "unable to load"
  * card layout. The one deliberate difference: the icon
  * itself (`BROKEN_PDF_ICON`, below) is the `pdf` glyph, not `ImageWidget.
- * ts`'s own `BROKEN_IMAGE_ICON` — a failed PDF embed is still a PDF, not
- * an image, so its broken state stays visually identifiable as one.
+ * ts`'s own `IMAGE_ICON` — a failed PDF embed is still a PDF, not an
+ * image, so its broken state stays visually identifiable as one.
  *
  * PDF page rendering itself is `pdfPageRenderer.ts`'s `renderPdfPage` — the
  * same primitive `PdfPageCanvas.tsx` (`PdfViewer`) calls — invoked directly

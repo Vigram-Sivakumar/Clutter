@@ -6,8 +6,8 @@ import { computeEmbedRemovalRange } from './embedRemovalRange';
 import { renderInvalidEmbedCard } from './invalidEmbedCard';
 
 // Hand-copied from `shared/icon/svg/question.svg` — same reason
-// `ImageWidget.ts`'s `BROKEN_IMAGE_ICON`/`PdfEmbedWidget.ts`'s
-// `BROKEN_PDF_ICON`/`NoteEmbedWidget.ts`'s `NOTE_MISSING_ICON` are
+// `ImageWidget.ts`'s `IMAGE_ICON`/`PdfEmbedWidget.ts`'s
+// `BROKEN_PDF_ICON`/`NoteEmbedWidget.ts`'s `NOTE_ICON` are
 // hand-copied rather than imported: the real icon system
 // (`shared/icon/iconRegistry.ts`) emits React components, which cannot
 // mount inside a `WidgetType`'s plain DOM. A question mark, not a

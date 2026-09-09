@@ -37,11 +37,14 @@ import { attachImageResizeHandle } from './imageResizeHandle';
 // (shared/icon/svg/width-fill.svg) — the closest existing visual
 // convention for "this button controls horizontal sizing" — hand-copied
 // here rather than imported, since AppIcon's React components can't
-// mount in this raw-DOM context either. BROKEN_IMAGE_ICON is the exact
-// same path as `shared/icon/svg/broken-image.svg` (this project's own
-// existing dedicated icon for exactly this state, not borrowed from an
-// unrelated construct the way the earlier link-icon placeholder was),
-// hand-copied for the same raw-DOM reason. TRASH_ICON/EDIT_ICON now live
+// mount in this raw-DOM context either. IMAGE_ICON is the exact same path
+// as `shared/icon/svg/image.svg` (this project's own standard "image"
+// glyph, the same one `iconRegistry.ts`'s own `image` entry wraps as a
+// React component elsewhere in the app) — used for the broken-image card's
+// own icon instead of the crossed-out `broken-image.svg` variant, so a
+// missing/failed image reads as "this is an image" rather than leaning on
+// a dedicated "broken" glyph. Hand-copied for the same raw-DOM reason.
+// TRASH_ICON/EDIT_ICON now live
 // in `invalidEmbedCard.ts` — TRASH_ICON shared with `PdfEmbedWidget.ts`'s
 // own Delete button (deleting is never media-specific); EDIT_ICON shared
 // with this file's own working-state Edit source button (`makeEditButton`,
@@ -50,8 +53,8 @@ import { attachImageResizeHandle } from './imageResizeHandle';
 const SIZE_ICON =
   '<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="3.5" cy="8" r="1.25" fill="currentColor"/><circle cx="8" cy="8" r="1.25" fill="currentColor"/><circle cx="12.5" cy="8" r="1.25" fill="currentColor"/></svg>';
 
-const BROKEN_IMAGE_ICON =
-  '<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M2 2L14 14" stroke="currentColor" stroke-linecap="round"/><path d="M5 2H11C12.6569 2 14 3.34315 14 5V9.5V11M5 14H11C11.8284 14 12.5783 13.6643 13.1212 13.1215L9.03648 9.05728M5 14L7.2265 10.6603C7.69922 9.95118 8.32842 9.41242 9.03648 9.05728M5 14C3.34315 14 2 12.6569 2 11V5C2 4.18477 2.32517 3.44549 2.8529 2.90478L9.03648 9.05728" stroke="currentColor" stroke-linecap="round"/><path d="M5 7C5.55228 7 6 6.55228 6 6C6 5.44772 5.55228 5 5 5C4.44772 5 4 5.44772 4 6C4 6.55228 4.44772 7 5 7Z" stroke="currentColor" stroke-linecap="round"/></svg>';
+const IMAGE_ICON =
+  '<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M14 9.5V11C14 12.6569 12.6569 14 11 14H5M14 9.5V5C14 3.34315 12.6569 2 11 2H5C3.34315 2 2 3.34315 2 5V11C2 12.6569 3.34315 14 5 14M14 9.5C11.8277 7.87077 8.73272 8.40092 7.2265 10.6603L5 14" stroke="currentColor" stroke-linecap="round"/><path d="M5.66666 6.66675C6.21895 6.66675 6.66666 6.21903 6.66666 5.66675C6.66666 5.11446 6.21895 4.66675 5.66666 4.66675C5.11438 4.66675 4.66666 5.11446 4.66666 5.66675C4.66666 6.21903 5.11438 6.66675 5.66666 6.66675Z" fill="currentColor" stroke-linecap="round"/></svg>';
 
 /**
  * `copyUrl` mirrors `OpenImageMenuParams.copyUrl` below — present (and a
@@ -805,7 +808,7 @@ export class ImageWidget extends WidgetType {
     // the shared shape/controls this and `PdfEmbedWidget.renderBroken`
     // both use.
     renderInvalidEmbedCard(container, {
-      icon: BROKEN_IMAGE_ICON,
+      icon: IMAGE_ICON,
       source: this.copyUrl ?? this.url,
       removeLabel: 'Remove image',
       onRemove: () => {

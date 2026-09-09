@@ -21,9 +21,31 @@
  * outcome — the page resolved, but no heading in it matched the target
  * text — distinguished from `'unresolved'` (the page itself didn't
  * resolve) so the broken-embed state can say which failed.
+ *
+ * `icon`/`emoji` mirror `AppIcon.tsx`'s own prop pair exactly
+ * (`shared/icon/AppIcon.tsx`) — reused as plain data, not a new icon
+ * vocabulary: `icon` is the resolved page's own canonical default
+ * (`getPageIcon(page.type, isToday(...))`, `core/presentation/
+ * getPageIcon.ts` — the single source of truth every other page
+ * representation in the app already goes through, so a daily note's own
+ * embed defaults to its calendar icon, not the plain note glyph, exactly
+ * like the sidebar/breadcrumb/etc. already do); `emoji` is the page's own
+ * assigned emoji (`Page.metadata.icon`, via `EffectivePage.icon` — the
+ * same session-wins-over-committed source `markdown`/`title` already
+ * read), `null` when none is assigned. `AppIcon.tsx`'s own rule — `emoji`
+ * wins when present, `icon` is the fallback — is the renderer's to apply,
+ * not this type's; see `NoteEmbedWidget.ts`'s own doc comment for how it
+ * renders that rule in a raw-DOM (non-React) context.
  */
 export type PageEmbedResolution =
-  | { readonly status: 'resolved'; readonly pageId: string; readonly title: string; readonly markdown: string }
+  | {
+      readonly status: 'resolved';
+      readonly pageId: string;
+      readonly title: string;
+      readonly markdown: string;
+      readonly icon: 'note' | 'calendarNote' | 'calendarDot';
+      readonly emoji: string | null;
+    }
   | { readonly status: 'ambiguous'; readonly displayLabel: string }
   | { readonly status: 'unresolved'; readonly displayLabel: string }
   | { readonly status: 'unresolved-heading'; readonly pageId: string; readonly displayLabel: string };

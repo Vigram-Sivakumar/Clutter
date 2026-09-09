@@ -249,9 +249,11 @@ describe('embedLivePreview — PDF embeds, rendering (at rest)', () => {
     expect(view.dom.querySelector('.cm-invalid-embed__source')?.textContent).toBe('missing.png');
 
     // ImageWidget.ts's own generic unresolved-embed broken state, so it
-    // correctly keeps the image broken icon rather than the PDF one.
+    // correctly keeps the standard image icon (`IMAGE_ICON`, the same
+    // `shared/icon/svg/image.svg` glyph used elsewhere in the app —
+    // deliberately not a dedicated "broken" glyph) rather than the PDF one.
     const iconSvg = broken?.querySelector('.cm-invalid-embed__icon-wrap svg');
-    expect(iconSvg?.outerHTML).toContain('M2 2L14 14');
+    expect(iconSvg?.outerHTML).toContain('M14 9.5V11C14 12.6569');
   });
 
   it('a missing PDF-looking reference (image resolver says unresolved, PDF resolver confirms the extension) renders PdfEmbedWidget\'s own broken state, with the PDF icon — not the generic image one', () => {
@@ -282,10 +284,10 @@ describe('embedLivePreview — PDF embeds, rendering (at rest)', () => {
     expect(view.dom.querySelector('.cm-invalid-embed__source')?.textContent).toBe('missing.pdf');
 
     // The PDF-specific icon (`PdfEmbedWidget.ts`'s `BROKEN_PDF_ICON`,
-    // `iconRegistry.ts`'s own `pdf` glyph) — never the crossed-out
-    // broken-image icon, since this is still a PDF reference.
+    // `iconRegistry.ts`'s own `pdf` glyph) — never `ImageWidget.ts`'s own
+    // `IMAGE_ICON`, since this is still a PDF reference.
     const iconSvg = broken?.querySelector('.cm-invalid-embed__icon-wrap svg');
-    expect(iconSvg?.outerHTML).not.toContain('M2 2L14 14');
+    expect(iconSvg?.outerHTML).not.toContain('M14 9.5V11C14 12.6569');
     expect(iconSvg?.outerHTML).toContain('M2 13.3571H3.11111');
 
     // Still exactly the shared invalid-media card shape — Delete + Edit
@@ -349,11 +351,11 @@ describe('embedLivePreview — PDF embeds, rendering (at rest)', () => {
       // The broken card's icon is PDF-specific (`iconRegistry.ts`'s own
       // `pdf` glyph, `PdfEmbedWidget.ts`'s `BROKEN_PDF_ICON`) — a failed
       // PDF embed is still a PDF, not an image, so it must never fall
-      // back to `ImageWidget.ts`'s own `BROKEN_IMAGE_ICON` (identifiable
-      // by its diagonal strike-through path, absent from the PDF glyph).
+      // back to `ImageWidget.ts`'s own `IMAGE_ICON` (identifiable by its
+      // own distinct path, absent from the PDF glyph).
       const iconSvg = broken?.querySelector('.cm-invalid-embed__icon-wrap svg');
       expect(iconSvg).not.toBeNull();
-      expect(iconSvg?.outerHTML).not.toContain('M2 2L14 14');
+      expect(iconSvg?.outerHTML).not.toContain('M14 9.5V11C14 12.6569');
       expect(iconSvg?.outerHTML).toContain('M2 13.3571H3.11111');
 
       // The rest of the card's shape comes from the shared

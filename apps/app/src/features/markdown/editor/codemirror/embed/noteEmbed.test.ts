@@ -1,4 +1,6 @@
 // @vitest-environment jsdom
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
@@ -10,7 +12,7 @@ import type { ResolveEmbedImage } from './embedImageResolution';
 import type { ResolveEmbedPdf } from '../pdf/embedPdfResolution';
 import type { PageEmbedResolution, ResolvePageEmbed } from '../../../render/blocks/pageEmbedResolution';
 import type { NoteEmbedAncestry } from './noteEmbedAncestry';
-import type { OnOpenNoteEmbedMenu } from './NoteEmbedWidget';
+import { trimEmptyEdgeLines, type OnOpenNoteEmbedMenu } from './NoteEmbedWidget';
 
 /** Every fixture here targets a page (never a real Vault resource) — both resolvers always decline, matching real production wiring. */
 const declineImage: ResolveEmbedImage = () => ({ status: 'unresolved', alt: '' });
@@ -71,7 +73,7 @@ describe('note embeds (embedLivePreview + NoteEmbedWidget)', () => {
     const view = mountView(
       '![[Other Note]]',
       resolverFor({
-        'Other Note': { status: 'resolved', pageId: 'page-other', title: 'Other Note', markdown: '# Heading\n\nBody text.' },
+        'Other Note': { status: 'resolved', pageId: 'page-other', title: 'Other Note', markdown: '# Heading\n\nBody text.', icon: 'note', emoji: null },
       })
     );
 
@@ -92,7 +94,7 @@ describe('note embeds (embedLivePreview + NoteEmbedWidget)', () => {
     const view = mountView(
       '![[Other Note]]',
       resolverFor({
-        'Other Note': { status: 'resolved', pageId: 'page-other', title: 'Other Note', markdown: 'Body.' },
+        'Other Note': { status: 'resolved', pageId: 'page-other', title: 'Other Note', markdown: 'Body.', icon: 'note', emoji: null },
       }),
       { onOpenPage }
     );
@@ -108,7 +110,7 @@ describe('note embeds (embedLivePreview + NoteEmbedWidget)', () => {
     const view = mountView(
       '![[Other Note]]',
       resolverFor({
-        'Other Note': { status: 'resolved', pageId: 'page-other', title: 'Other Note', markdown: 'Body.' },
+        'Other Note': { status: 'resolved', pageId: 'page-other', title: 'Other Note', markdown: 'Body.', icon: 'note', emoji: null },
       }),
       { onOpenPage }
     );
@@ -124,7 +126,7 @@ describe('note embeds (embedLivePreview + NoteEmbedWidget)', () => {
     const view = mountView(
       '![[Other Note]]',
       resolverFor({
-        'Other Note': { status: 'resolved', pageId: 'page-other', title: 'Other Note', markdown: 'Body.' },
+        'Other Note': { status: 'resolved', pageId: 'page-other', title: 'Other Note', markdown: 'Body.', icon: 'note', emoji: null },
       })
     );
 
@@ -152,7 +154,7 @@ describe('note embeds (embedLivePreview + NoteEmbedWidget)', () => {
     const view = mountView(
       'x ![[Other Note]]',
       resolverFor({
-        'Other Note': { status: 'resolved', pageId: 'page-other', title: 'Other Note', markdown: 'Body.' },
+        'Other Note': { status: 'resolved', pageId: 'page-other', title: 'Other Note', markdown: 'Body.', icon: 'note', emoji: null },
       }),
       { onOpenNoteEmbedMenu }
     );
@@ -170,8 +172,8 @@ describe('note embeds (embedLivePreview + NoteEmbedWidget)', () => {
     const view = mountView(
       '![[Outer]]',
       resolverFor({
-        Outer: { status: 'resolved', pageId: 'page-outer', title: 'Outer', markdown: '![[Inner]]' },
-        Inner: { status: 'resolved', pageId: 'page-inner', title: 'Inner', markdown: 'Inner body.' },
+        Outer: { status: 'resolved', pageId: 'page-outer', title: 'Outer', markdown: '![[Inner]]', icon: 'note', emoji: null },
+        Inner: { status: 'resolved', pageId: 'page-inner', title: 'Inner', markdown: 'Inner body.', icon: 'note', emoji: null },
       })
     );
 
@@ -201,7 +203,7 @@ describe('note embeds (embedLivePreview + NoteEmbedWidget)', () => {
     const view = mountView(
       '![[Other Note]]',
       resolverFor({
-        'Other Note': { status: 'resolved', pageId: 'page-other', title: 'Other Note', markdown: 'Original content.' },
+        'Other Note': { status: 'resolved', pageId: 'page-other', title: 'Other Note', markdown: 'Original content.', icon: 'note', emoji: null },
       })
     );
 
@@ -222,7 +224,7 @@ describe('note embeds (embedLivePreview + NoteEmbedWidget)', () => {
     const view = mountView(
       '![[This Note]]',
       resolverFor({
-        'This Note': { status: 'resolved', pageId: 'page-self', title: 'This Note', markdown: '![[This Note]]' },
+        'This Note': { status: 'resolved', pageId: 'page-self', title: 'This Note', markdown: '![[This Note]]', icon: 'note', emoji: null },
       }),
       { ancestry: { ancestryPageIds: new Set(['page-self']), depth: 0 } }
     );
@@ -245,6 +247,7 @@ describe('note embeds (embedLivePreview + NoteEmbedWidget)', () => {
           pageId: 'page-other',
           title: 'Other Note',
           markdown: '# Heading\n\nSome **bold** text.',
+          icon: 'note', emoji: null,
         },
       })
     );
@@ -282,8 +285,8 @@ describe('note embeds (embedLivePreview + NoteEmbedWidget)', () => {
 
   it('does not render a note embed once an indirect cycle is detected deeper in the chain', () => {
     const resolvePageEmbed = resolverFor({
-      'Note B': { status: 'resolved', pageId: 'page-b', title: 'Note B', markdown: '![[Note A]]' },
-      'Note A': { status: 'resolved', pageId: 'page-a', title: 'Note A', markdown: '![[Note B]]' },
+      'Note B': { status: 'resolved', pageId: 'page-b', title: 'Note B', markdown: '![[Note A]]', icon: 'note', emoji: null },
+      'Note A': { status: 'resolved', pageId: 'page-a', title: 'Note A', markdown: '![[Note B]]', icon: 'note', emoji: null },
     });
 
     const view = mountView('![[Note B]]', resolvePageEmbed);
@@ -401,5 +404,198 @@ describe('embed target classification — extension decides type, never a failed
     expect(card?.classList.contains('cm-note-embed')).toBe(false);
     expect(view.dom.querySelector('.cm-invalid-embed__title')?.textContent).toBe('Unable to load');
     expect(view.dom.querySelector('.cm-invalid-embed__source')?.textContent).toBe('missing.pdf');
+  });
+});
+
+describe('trimEmptyEdgeLines — display-only leading/trailing blank-line trim', () => {
+  it('strips leading blank/whitespace-only lines', () => {
+    expect(trimEmptyEdgeLines('\n\n  \nHello\nWorld')).toBe('Hello\nWorld');
+  });
+
+  it('strips trailing blank/whitespace-only lines', () => {
+    expect(trimEmptyEdgeLines('Hello\nWorld\n  \n\n')).toBe('Hello\nWorld');
+  });
+
+  it('strips both edges at once, a real "100 blank lines before and after" shape', () => {
+    const padding = Array.from({ length: 100 }, () => '').join('\n');
+    expect(trimEmptyEdgeLines(`${padding}\nHello\nWorld\n${padding}`)).toBe('Hello\nWorld');
+  });
+
+  it('never touches blank lines between real content', () => {
+    expect(trimEmptyEdgeLines('\nFirst\n\n\nSecond\n')).toBe('First\n\n\nSecond');
+  });
+
+  it('a fully blank/whitespace-only document trims to an empty string', () => {
+    expect(trimEmptyEdgeLines('\n  \n\t\n')).toBe('');
+  });
+
+  it('a document with no leading/trailing blank lines is returned unchanged', () => {
+    expect(trimEmptyEdgeLines('First\n\nSecond')).toBe('First\n\nSecond');
+  });
+
+  it('treats a whitespace-only line (spaces/tabs, no newline content) as blank, not as real content', () => {
+    expect(trimEmptyEdgeLines('   \nHello\n\t\t')).toBe('Hello');
+  });
+});
+
+describe('note embed rendering trims leading/trailing blank lines, never internal ones, without touching the source document', () => {
+  it('the nested view never renders leading/trailing blank lines the source note has', () => {
+    const view = mountView(
+      '![[Padded Note]]',
+      resolverFor({
+        'Padded Note': {
+          status: 'resolved',
+          pageId: 'page-padded',
+          title: 'Padded Note',
+          markdown: '\n\n\nFirst line\n\nSecond line\n\n\n',
+          icon: 'note', emoji: null,
+        },
+      })
+    );
+
+    const nestedEditorDom = view.dom.querySelector('.cm-note-embed .cm-editor');
+    const nestedView = nestedEditorDom ? EditorView.findFromDOM(nestedEditorDom as HTMLElement) : null;
+    expect(nestedView).not.toBeNull();
+
+    // Trimmed at both edges, but the blank line *between* the two real
+    // lines survives untouched.
+    expect(nestedView?.state.doc.toString()).toBe('First line\n\nSecond line');
+  });
+
+  it('trims at every nesting depth automatically, with no depth-specific logic — a note embedded inside a note embedded inside a note', () => {
+    const view = mountView(
+      '![[Outer]]',
+      resolverFor({
+        Outer: {
+          status: 'resolved',
+          pageId: 'page-outer',
+          title: 'Outer',
+          markdown: '\n\nOuter first\n\n![[Inner]]\n\nOuter last\n\n',
+          icon: 'note', emoji: null,
+        },
+        Inner: {
+          status: 'resolved',
+          pageId: 'page-inner',
+          title: 'Inner',
+          markdown: '\n\n\nInner content\n\n\n',
+          icon: 'note', emoji: null,
+        },
+      })
+    );
+
+    const outerEditorDom = view.dom.querySelector('.cm-note-embed .cm-editor');
+    const outerNestedView = outerEditorDom ? EditorView.findFromDOM(outerEditorDom as HTMLElement) : null;
+    expect(outerNestedView).not.toBeNull();
+    expect(outerNestedView?.state.doc.toString()).toBe('Outer first\n\n![[Inner]]\n\nOuter last');
+
+    const innerEditorDom = outerNestedView?.dom.querySelector('.cm-note-embed .cm-editor') ?? null;
+    const innerNestedView = innerEditorDom ? EditorView.findFromDOM(innerEditorDom as HTMLElement) : null;
+    expect(innerNestedView).not.toBeNull();
+    expect(innerNestedView?.state.doc.toString()).toBe('Inner content');
+  });
+
+  it('never mutates the resolved page\'s own source markdown — the trim is a rendering-only transform', () => {
+    const sourceMarkdown = '\n\nUntouched\n\n';
+    const resolution: PageEmbedResolution = {
+      status: 'resolved',
+      pageId: 'page-source',
+      title: 'Source Note',
+      markdown: sourceMarkdown,
+      icon: 'note', emoji: null,
+    };
+    mountView('![[Source Note]]', resolverFor({ 'Source Note': resolution }));
+
+    // The resolution object handed in by the resolver is never mutated —
+    // the widget only ever reads `resolution.markdown` to derive a
+    // trimmed *copy* for the nested view's own `doc`.
+    expect(resolution.markdown).toBe(sourceMarkdown);
+  });
+});
+
+describe('note embeds have no fold gutter/folding — the embed always reads as one continuous, fully-expanded passage', () => {
+  it('a note embed\'s own nested view has no fold gutter, through the real embedLivePreview → NoteEmbedWidget → createEditorView pipeline (not just a direct createEditorView call)', () => {
+    const view = mountView(
+      '![[Other Note]]',
+      resolverFor({
+        'Other Note': { status: 'resolved', pageId: 'page-other', title: 'Other Note', markdown: '# Heading\n\nBody', icon: 'note', emoji: null },
+      })
+    );
+
+    const card = view.dom.querySelector('.cm-note-embed')!;
+    expect(card.querySelector('.cm-foldGutter')).toBeNull();
+    // The nested view's own content is real, not the top-level editor's —
+    // confirms this checked the embed's own gutter-less view, not merely
+    // the absence of a gutter somewhere unrelated.
+    expect(card.querySelector('.cm-content')?.textContent).toContain('Heading');
+  });
+
+  it('a note embedded inside another note embed also has no fold gutter — the same behavior at every nesting depth, with no depth-specific logic', () => {
+    const view = mountView(
+      '![[Outer]]',
+      resolverFor({
+        Outer: { status: 'resolved', pageId: 'page-outer', title: 'Outer', markdown: '# Outer heading\n\n![[Inner]]', icon: 'note', emoji: null },
+        Inner: { status: 'resolved', pageId: 'page-inner', title: 'Inner', markdown: '# Inner heading\n\nInner body', icon: 'note', emoji: null },
+      })
+    );
+
+    const outerCard = view.dom.querySelector('.cm-note-embed')!;
+    expect(outerCard.querySelector(':scope > .cm-note-embed__content .cm-foldGutter')).toBeNull();
+
+    const innerCard = outerCard.querySelector('.cm-note-embed')!;
+    expect(innerCard).not.toBeNull();
+    expect(innerCard.querySelector('.cm-foldGutter')).toBeNull();
+    expect(innerCard.querySelector('.cm-content')?.textContent).toContain('Inner heading');
+  });
+});
+
+describe("a note embed's own extra content indent applies only when it's nested inside another note embed, never at the top level", () => {
+  // jsdom applies no real CSS from imported stylesheets — reading the rule
+  // text directly, the same convention `imageLivePreview.test.ts`'s own
+  // CSS tripwires already establish for this codebase, rather than a
+  // `getComputedStyle` check that would silently pass against jsdom's own
+  // unstyled defaults regardless of what the real rule says.
+  it("the .cm-note-embed__content left-padding rule is scoped under .cm-content[contenteditable='false'] — the bare, unscoped .cm-note-embed__content rule (top-level styling, e.g. margin-bottom) never carries padding-left itself", () => {
+    const css = readFileSync(join(__dirname, 'NoteEmbedWidget.css'), 'utf8');
+    const cssWithoutComments = css.replace(/\/\*[\s\S]*?\*\//g, '');
+
+    const bareMatch = cssWithoutComments.match(/^\.cm-note-embed__content\s*\{([^}]*)\}/m);
+    expect(bareMatch, 'bare .cm-note-embed__content rule not found').not.toBeNull();
+    expect(bareMatch![1]).not.toMatch(/padding-left\s*:/);
+
+    const match = cssWithoutComments.match(
+      /\.cm-content\[contenteditable='false'\]\s+\.cm-note-embed__content\s*\{([^}]*)\}/
+    );
+    expect(match, "scoped .cm-content[contenteditable='false'] .cm-note-embed__content rule not found").not.toBeNull();
+    expect(match![1]).toMatch(/padding-left\s*:/);
+  });
+
+  it("a top-level embed's own .cm-note-embed__content never matches that scoped selector — it has no [contenteditable='false'] ancestor, only the main document's own editable .cm-content", () => {
+    const view = mountView(
+      '![[Other Note]]',
+      resolverFor({
+        'Other Note': { status: 'resolved', pageId: 'page-other', title: 'Other Note', markdown: 'Body', icon: 'note', emoji: null },
+      })
+    );
+
+    const content = view.dom.querySelector<HTMLElement>('.cm-note-embed__content')!;
+    expect(content.closest("[contenteditable='false']")).toBeNull();
+  });
+
+  it("a note embedded inside another note embed's own content does have a [contenteditable='false'] ancestor — the outer embed's own top-level content does not", () => {
+    const view = mountView(
+      '![[Outer]]',
+      resolverFor({
+        Outer: { status: 'resolved', pageId: 'page-outer', title: 'Outer', markdown: '![[Inner]]', icon: 'note', emoji: null },
+        Inner: { status: 'resolved', pageId: 'page-inner', title: 'Inner', markdown: 'Inner body', icon: 'note', emoji: null },
+      })
+    );
+
+    const outerCard = view.dom.querySelector('.cm-note-embed')!;
+    const outerContent = outerCard.querySelector<HTMLElement>(':scope > .cm-note-embed__content')!;
+    expect(outerContent.closest("[contenteditable='false']")).toBeNull();
+
+    const innerCard = outerCard.querySelector('.cm-note-embed')!;
+    const innerContent = innerCard.querySelector<HTMLElement>('.cm-note-embed__content')!;
+    expect(innerContent.closest("[contenteditable='false']")).not.toBeNull();
   });
 });

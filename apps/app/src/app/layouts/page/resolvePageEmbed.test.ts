@@ -47,7 +47,9 @@ function makePage(overrides: Partial<Page> & Pick<Page, 'id' | 'path' | 'name'>)
 }
 
 /** Duck-typed test double — `resolvePageEmbed.ts` only ever calls `.getPage(id)`. */
-function makeEffectivePageState(getPage: (id: string) => { name: string; markdown: string } | undefined): EffectivePageState {
+function makeEffectivePageState(
+  getPage: (id: string) => { name: string; markdown: string; icon?: string | null } | undefined
+): EffectivePageState {
   return { getPage } as unknown as EffectivePageState;
 }
 
@@ -60,7 +62,7 @@ describe('createPageEmbedResolver', () => {
     const resolve = createPageEmbedResolver(vault, effectivePageState);
     const result = resolve('Notes/Alpha');
 
-    expect(result).toEqual({ status: 'resolved', pageId: 'p1', title: 'Alpha', markdown: '# Alpha' });
+    expect(result).toEqual({ status: 'resolved', pageId: 'p1', title: 'Alpha', markdown: '# Alpha', icon: 'note', emoji: null });
   });
 
   it('returns the effective (live/session) markdown when EffectivePageState reports one, not the durable copy — Model B', () => {
@@ -73,7 +75,7 @@ describe('createPageEmbedResolver', () => {
     const resolve = createPageEmbedResolver(vault, effectivePageState);
     const result = resolve('Alpha');
 
-    expect(result).toEqual({ status: 'resolved', pageId: 'p1', title: 'Alpha', markdown: 'New uncommitted content' });
+    expect(result).toEqual({ status: 'resolved', pageId: 'p1', title: 'Alpha', markdown: 'New uncommitted content', icon: 'note', emoji: null });
   });
 
   it('resolves via alias when no literal path matches', () => {
@@ -184,7 +186,7 @@ describe('createPageEmbedResolver', () => {
 
       const result = createPageEmbedResolver(vault, effectivePageState)('Alpha#New Heading');
 
-      expect(result).toEqual({ status: 'resolved', pageId: 'p1', title: 'Alpha › New Heading', markdown: liveMarkdown });
+      expect(result).toEqual({ status: 'resolved', pageId: 'p1', title: 'Alpha › New Heading', markdown: liveMarkdown, icon: 'note', emoji: null });
     });
 
     it('returns unresolved-heading when the page resolves but no heading matches', () => {
@@ -230,7 +232,67 @@ describe('createPageEmbedResolver', () => {
       const effectivePageState = makeEffectivePageState(() => undefined);
 
       const result = createPageEmbedResolver(vault, effectivePageState)('Alpha');
-      expect(result).toEqual({ status: 'resolved', pageId: 'p1', title: 'Alpha', markdown: '# Alpha\nbody' });
+      expect(result).toEqual({ status: 'resolved', pageId: 'p1', title: 'Alpha', markdown: '# Alpha\nbody', icon: 'note', emoji: null });
+    });
+  });
+
+  describe('icon/emoji — resolved via getPageIcon(page.type), same rule every other page representation in the app already uses', () => {
+    it('a plain note gets the "note" default icon and no emoji when none is assigned', () => {
+      const page = makePage({ id: 'p1', path: '/vault/Alpha.md', name: 'Alpha' });
+      const vault = makeVault([page]);
+      const effectivePageState = makeEffectivePageState(() => undefined);
+
+      const result = createPageEmbedResolver(vault, effectivePageState)('Alpha');
+      expect(result).toMatchObject({ icon: 'note', emoji: null });
+    });
+
+    it('a non-today daily note gets the "calendarNote" default icon, never the plain note glyph', () => {
+      const page = makePage({ id: 'p1', path: '/vault/2020-01-01.md', name: '2020-01-01', type: 'daily-note' });
+      const vault = makeVault([page]);
+      const effectivePageState = makeEffectivePageState(() => undefined);
+
+      const result = createPageEmbedResolver(vault, effectivePageState)('2020-01-01');
+      expect(result).toMatchObject({ icon: 'calendarNote' });
+    });
+
+    it('today\'s own daily note gets the "calendarDot" variant instead', () => {
+      const today = new Date().toISOString().slice(0, 10);
+      const page = makePage({ id: 'p1', path: `/vault/${today}.md`, name: today, type: 'daily-note' });
+      const vault = makeVault([page]);
+      const effectivePageState = makeEffectivePageState(() => undefined);
+
+      const result = createPageEmbedResolver(vault, effectivePageState)(today);
+      expect(result).toMatchObject({ icon: 'calendarDot' });
+    });
+
+    it("a page's own assigned emoji (durable, no session open) is passed through as emoji, alongside the type's own default icon", () => {
+      const page = makePage({
+        id: 'p1',
+        path: '/vault/Alpha.md',
+        name: 'Alpha',
+        metadata: { ...defaultPageMetadata, icon: '📌' },
+      });
+      const vault = makeVault([page]);
+      const effectivePageState = makeEffectivePageState(() => undefined);
+
+      const result = createPageEmbedResolver(vault, effectivePageState)('Alpha');
+      expect(result).toMatchObject({ icon: 'note', emoji: '📌' });
+    });
+
+    it("the live session's own emoji override wins over the durable one, same session-wins-over-committed precedence markdown/title already follow", () => {
+      const page = makePage({
+        id: 'p1',
+        path: '/vault/Alpha.md',
+        name: 'Alpha',
+        metadata: { ...defaultPageMetadata, icon: '📌' },
+      });
+      const vault = makeVault([page]);
+      const effectivePageState = makeEffectivePageState((id) =>
+        id === 'p1' ? { name: 'Alpha', markdown: '', icon: '🔥' } : undefined
+      );
+
+      const result = createPageEmbedResolver(vault, effectivePageState)('Alpha');
+      expect(result).toMatchObject({ emoji: '🔥' });
     });
   });
 });

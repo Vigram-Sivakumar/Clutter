@@ -564,3 +564,63 @@ describe('Per-document undo/redo history preservation (editorHistoryCache + rest
     expect(aReopened.hasFocus).toBe(false);
   });
 });
+
+/**
+ * Fold gutter/folding commands are omitted entirely for a read-only view
+ * (`NoteEmbedWidget.ts`'s own nested `EditorView`, the only `readOnly: true`
+ * consumer) — never merely hidden with CSS. A note embed already has its
+ * own presentation/boundaries; it should always read as one continuous,
+ * fully-expanded passage, not a second, independently-foldable outline
+ * nested inside the top-level editor. The top-level (non-read-only)
+ * editor's own folding is unaffected.
+ */
+describe('createEditorView — fold gutter/folding omitted for a read-only view, present for the top-level editor', () => {
+  it('the top-level (writable) editor gets a real fold gutter DOM element', () => {
+    const parent = document.createElement('div');
+    document.body.appendChild(parent);
+
+    const view = createEditorView({ doc: '# Heading\n\nBody', parent });
+
+    expect(view.dom.querySelector('.cm-foldGutter')).not.toBeNull();
+  });
+
+  it('a read-only view (matching NoteEmbedWidget.ts\'s own nested EditorView construction) has no fold gutter DOM element at all', () => {
+    const parent = document.createElement('div');
+    document.body.appendChild(parent);
+
+    const view = createEditorView({ doc: '# Heading\n\nBody', parent, readOnly: true });
+
+    expect(view.dom.querySelector('.cm-foldGutter')).toBeNull();
+  });
+
+  it('a read-only view has no fold *state* either — Ctrl-Shift-[ (foldKeymap\'s own binding) is a genuine no-op, not just an invisible gutter', () => {
+    const parent = document.createElement('div');
+    document.body.appendChild(parent);
+
+    const view = createEditorView({ doc: '# Heading\n\nBody', parent, readOnly: true });
+    const before = view.dom.querySelector('.cm-content')!.textContent;
+
+    const handled = view.contentDOM.dispatchEvent(
+      new KeyboardEvent('keydown', { key: '[', ctrlKey: true, shiftKey: true, bubbles: true, cancelable: true })
+    );
+
+    // Nothing bound the shortcut at all (no foldKeymap in this view's own
+    // keymap), so the event is never handled/prevented, and the document's
+    // own rendered content is completely unchanged — the note stays fully
+    // expanded.
+    expect(handled).toBe(true); // dispatchEvent returns true unless preventDefault() was called
+    expect(view.dom.querySelector('.cm-content')!.textContent).toBe(before);
+  });
+
+  it('the top-level (writable) editor keeps its own fold gutter/folding regardless of what a nested read-only view does — the two never share state', () => {
+    const topParent = document.createElement('div');
+    document.body.appendChild(topParent);
+    const topView = createEditorView({ doc: '# Heading\n\nBody', parent: topParent });
+
+    const nestedParent = document.createElement('div');
+    document.body.appendChild(nestedParent);
+    createEditorView({ doc: '# Heading\n\nBody', parent: nestedParent, readOnly: true });
+
+    expect(topView.dom.querySelector('.cm-foldGutter')).not.toBeNull();
+  });
+});
