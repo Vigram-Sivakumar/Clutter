@@ -1,4 +1,4 @@
-import { useId, useRef, useState } from 'react';
+import { Fragment, useId, useRef, useState } from 'react';
 import type { MutableRefObject, RefObject } from 'react';
 
 import { Button } from '@components/button/Button';
@@ -45,6 +45,17 @@ export interface OverflowMenuItemConfig {
    * presentation detail, not a second dispatch mechanism.
    */
   submenu?: OverflowMenuSubmenuItemConfig[];
+  /**
+   * Renders a visual divider immediately above this item — the one
+   * generic grouping primitive this menu system has (previously each
+   * caller either accepted a flat, ungrouped list or hand-built its own
+   * `<Menu>`/`<MenuItem>` tree with a raw `.menu__divider` div, e.g.
+   * `ImageOptionsMenu.tsx`, just to get one). A plain boolean, not a
+   * group id or section model — every real use so far needs at most one
+   * divider, ahead of one item, so a richer sectioning API would be
+   * speculative until a second shape actually shows up.
+   */
+  separatorBefore?: boolean;
 }
 
 export interface OverflowMenuProps {
@@ -218,10 +229,11 @@ export function OverflowMenuBody({
         }
       }}
     >
-      {items.map((item) =>
-        item.submenu ? (
-          <OverflowSubmenuTrigger
-            key={item.id}
+      {items.map((item) => (
+        <Fragment key={item.id}>
+          {item.separatorBefore && <div className="menu__divider" role="separator" />}
+          {item.submenu ? (
+        <OverflowSubmenuTrigger
             id={menuItemDomId(item.id)}
             item={item}
             submenu={item.submenu}
@@ -236,7 +248,6 @@ export function OverflowMenuBody({
           />
         ) : (
           <MenuItem
-            key={item.id}
             id={menuItemDomId(item.id)}
             disabled={item.disabled}
             // Hovering any non-submenu item closes an open submenu —
@@ -272,8 +283,9 @@ export function OverflowMenuBody({
           >
             {item.label}
           </MenuItem>
-        )
-      )}
+          )}
+        </Fragment>
+      ))}
     </Menu>
   );
 }

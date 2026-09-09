@@ -7,7 +7,6 @@ import { AppIcon, SystemIcon } from '@shared/icon';
 
 import type { ImageDisplayMode } from './imageUiState';
 
-import './ImageOptionsMenu.css';
 
 export interface ImageOptionsMenuAnchor {
   readonly current: HTMLElement;
@@ -43,7 +42,8 @@ export interface ImageOptionsMenuProps {
    * layer — this menu itself has no opinion on which).
    */
   readonly onDownload: () => void;
-  readonly onDelete: () => void;
+  /** Removes this image's Markdown from the current note only — never the underlying resource. See `embedRemovalRange.ts`'s own doc comment for the Remove-vs-Archive product rule. */
+  readonly onRemove: () => void;
 }
 
 const MODE_ITEMS: ReadonlyArray<{
@@ -59,17 +59,15 @@ const MODE_ITEMS: ReadonlyArray<{
  * The image's size/options menu — deliberately built directly on the
  * project's existing `Overlay` + `Menu` + `MenuItem` primitives (the same
  * three `OverflowMenu.tsx` composes for its own "⋯" trigger), not
- * `OverflowMenu` itself and not a new menu component. Two reasons
- * `OverflowMenu` specifically wasn't reused as-is: it hardcodes its own
- * "⋯" (`moreVertical`) trigger button, and its flat `items` list has no
- * divider support — neither exists in this codebase to extend, and this
- * menu's own trigger button lives inside `ImageWidget.ts`'s raw CM6 DOM,
- * not React, so `OverflowMenu`'s own built-in `<Button>` trigger couldn't
- * be reused directly regardless. `Overlay`/`Menu`/`MenuItem` are reused
- * completely unmodified; the one new piece is `.menu__divider` (one CSS
- * rule, `ImageOptionsMenu.css`) — a data cell this codebase's existing
- * menu usage (e.g. `noteTopBarMenu.config.ts`) never needed before, since
- * no existing menu groups items with a visible separator today.
+ * `OverflowMenu` itself and not a new menu component. `OverflowMenu`
+ * specifically wasn't reused as-is because it hardcodes its own "⋯"
+ * (`moreVertical`) trigger button — this menu's own trigger button lives
+ * inside `ImageWidget.ts`'s raw CM6 DOM, not React, so `OverflowMenu`'s
+ * own built-in `<Button>` trigger couldn't be reused directly regardless.
+ * `Overlay`/`Menu`/`MenuItem` are reused completely unmodified; the
+ * divider below (`.menu__divider`) is the shared one
+ * `OverflowMenuItemConfig.separatorBefore` also renders (`Menu.css`) —
+ * not a second definition of the same rule.
  *
  * `anchor` bridges the CM6-widget-owned trigger button into `Overlay`'s
  * `anchorRef: RefObject<HTMLElement>` contract — a plain `{current:
@@ -78,7 +76,7 @@ const MODE_ITEMS: ReadonlyArray<{
  * hooks only ever read via `.current` and never require to be React-owned.
  *
  * Every item closes the menu in the same handler that performs its
- * action (`onSelectMode`/`onCopyLink`/`onDelete` each also
+ * action (`onSelectMode`/`onCopyLink`/`onRemove` each also
  * call `onClose()`), mirroring `OverflowMenu`'s own `onSelect` +
  * `onOpenChange(false)` pattern — this is what keeps the bridged
  * `anchor` element safe even though `ImageWidget`'s DOM can be recreated
@@ -95,7 +93,7 @@ export function ImageOptionsMenu({
   onCopyLink,
   onSetCoverImage,
   onDownload,
-  onDelete,
+  onRemove,
 }: ImageOptionsMenuProps) {
   return (
     <Overlay
@@ -162,11 +160,11 @@ export function ImageOptionsMenu({
           leading={<AppIcon icon="trash" />}
           onClick={(event) => {
             event.stopPropagation();
-            onDelete();
+            onRemove();
             onClose();
           }}
         >
-          Delete
+          Remove
         </MenuItem>
       </Menu>
     </Overlay>

@@ -518,8 +518,8 @@ describe('embedLivePreview — Edit source still works exactly like standard ima
   });
 });
 
-describe('embedLivePreview — delete', () => {
-  it("opening the size menu for a resolved embed reports the exact node pos/to computeImageDeletionRange (MarkdownEditor.tsx's own handleDeleteImage) needs — Delete for a working embed is MarkdownEditor-level wiring shared unchanged with standard images, not this plugin's own concern", () => {
+describe('embedLivePreview — remove', () => {
+  it("opening the size menu for a resolved embed reports the exact node pos/to computeEmbedRemovalRange (MarkdownEditor.tsx's own handleRemoveImage) needs — Remove for a working embed is MarkdownEditor-level wiring shared unchanged with standard images, not this plugin's own concern", () => {
     let captured: OpenImageMenuParams | null = null;
     const view = mountView(
       `See: ${HERO}`,
@@ -539,7 +539,7 @@ describe('embedLivePreview — delete', () => {
 
   it('deleting a broken (unresolved) embed removes only the Markdown, never touches any resource — no VaultResource exists to touch, by construction', () => {
     const view = mountView(`See: ![[missing.png]]`, resolverFor({}));
-    const deleteButton = view.dom.querySelector<HTMLButtonElement>('.cm-invalid-embed__control[aria-label="Delete image"]');
+    const deleteButton = view.dom.querySelector<HTMLButtonElement>('.cm-invalid-embed__control[aria-label="Remove image"]');
     expect(deleteButton).not.toBeNull();
 
     deleteButton!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
@@ -564,7 +564,7 @@ describe('embedLivePreview — delete', () => {
     });
     const view = new EditorView({ state, parent });
 
-    const deleteButton = view.dom.querySelector<HTMLButtonElement>('.cm-invalid-embed__control[aria-label="Delete image"]')!;
+    const deleteButton = view.dom.querySelector<HTMLButtonElement>('.cm-invalid-embed__control[aria-label="Remove image"]')!;
     deleteButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     expect(view.state.doc.toString()).toBe('');
 

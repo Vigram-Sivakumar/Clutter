@@ -19,6 +19,23 @@ export interface PdfEmbedMoreActionsProps {
   readonly anchor: PdfEmbedMoreActionsAnchor | null;
   readonly resourceId: string | null;
   readonly onClose: () => void;
+  /**
+   * Embed-level: removes this embed's own `![[...]]` Markdown from the
+   * current note only — never the underlying resource. Deliberately a
+   * distinct prop/menu item from every other action here, all of which
+   * are real source-resource operations (Archive included) — see
+   * `embedRemovalRange.ts`'s own doc comment for the Remove-vs-Archive
+   * product rule this separation enforces.
+   */
+  readonly onRemoveEmbed?: () => void;
+  /**
+   * Resource-level but non-mutating (a plain file copy, same as the
+   * Sidebar's own Download) — unlike `onRemoveEmbed`, this does touch the
+   * resource, just never destructively. Absent omits the Download item
+   * entirely, matching `resourceSidebarMenu.config.ts`'s existing
+   * PDF-has-no-Download-yet default until a caller opts in.
+   */
+  readonly onDownloadResource?: () => void;
   readonly onArchiveResource?: (resourceId: string) => void;
   readonly onRevealResourceInFinder?: (resourceId: string) => void;
   readonly onCopyResourcePath?: (
@@ -34,12 +51,25 @@ export interface PdfEmbedMoreActionsProps {
 }
 
 /**
- * The inline Markdown PDF embed's own floating "More actions" control — the
- * exact same Resource menu (`buildResourceSidebarMenu()` minus `rename`)
- * `PdfViewerMoreActions`/`ImageOverlayMoreActions`/the Sidebar's own row
- * menu already show, dispatched against this embed's own `resourceId`
- * (`embedPdfResolution.ts`'s `EmbedPdfResolution['pdf'].resourceId` —
- * already resolved, no second lookup here).
+ * The inline Markdown PDF embed's own floating "More actions" control.
+ * Two kinds of item share this one menu, in this order — Download, Move
+ * to…, Reveal in Finder, Copy path ›, Archive, ── divider ──, Remove —
+ * with a real visual divider (`OverflowMenuItemConfig.separatorBefore`,
+ * `Menu.css`'s `.menu__divider`) between them, not merely an ordering
+ * convention:
+ *
+ * 1. **Source-resource** (`download` when supplied, plus
+ *    `buildResourceSidebarMenu('pdf')` minus `rename`: Move to…, Reveal in
+ *    Finder, Copy path ›, Archive): the exact same menu
+ *    `PdfViewerMoreActions`/`ImageOverlayMoreActions`/the Sidebar's own
+ *    row menu already show, dispatched against this embed's own
+ *    `resourceId` (`embedPdfResolution.ts`'s
+ *    `EmbedPdfResolution['pdf'].resourceId` — already resolved, no second
+ *    lookup here). These affect the actual file, not just this note.
+ * 2. **Embed-level** (`remove-embed`, last, below the divider): only ever
+ *    edits this note's own Markdown, never the underlying resource — see
+ *    `embedRemovalRange.ts`'s own doc comment for the Remove-vs-Archive
+ *    product rule this separation enforces.
  *
  * Built the same way `ImageOptionsMenu.tsx` is, not the way
  * `ImageOverlayMoreActions.tsx` is: this control's own trigger button lives
@@ -62,6 +92,8 @@ export function PdfEmbedMoreActions({
   anchor,
   resourceId,
   onClose,
+  onRemoveEmbed,
+  onDownloadResource,
   onArchiveResource,
   onRevealResourceInFinder,
   onCopyResourcePath,
@@ -69,9 +101,16 @@ export function PdfEmbedMoreActions({
   onMoveResource,
   onCreateFolder,
 }: PdfEmbedMoreActionsProps) {
-  const menuItems: OverflowMenuItemConfig[] = buildResourceSidebarMenu('pdf').filter(
-    (item) => item.id !== 'rename'
-  );
+  const menuItems: OverflowMenuItemConfig[] = [
+    ...(onDownloadResource ? [{ id: 'download', label: 'Download', icon: 'download' as const }] : []),
+    ...buildResourceSidebarMenu('pdf').filter((item) => item.id !== 'rename'),
+    // Embed-level, never a source-resource operation — visually separated
+    // from every item above (all real resource actions, Archive included)
+    // by `separatorBefore`, not merely by ordering. See
+    // `embedRemovalRange.ts`'s own doc comment for the Remove-vs-Archive
+    // product rule this separation enforces.
+    { id: 'remove-embed', label: 'Remove', icon: 'trash', separatorBefore: true },
+  ];
   const moveTrigger = useMoveDestinationTrigger(resourceMoveDestinations);
   const suppressReturnFocusRef = useRef(false);
 
@@ -81,11 +120,20 @@ export function PdfEmbedMoreActions({
   }, [anchor, moveTrigger.triggerRef]);
 
   function handleSelect(id: string) {
+    // Embed-level — never needs `resourceId`, since it only ever edits
+    // this note's own Markdown text.
+    if (id === 'remove-embed') {
+      onRemoveEmbed?.();
+      return;
+    }
+
     if (!resourceId) {
       return;
     }
     moveTrigger.handleSelect(id, (id) => {
-      if (id === 'archive') {
+      if (id === 'download') {
+        onDownloadResource?.();
+      } else if (id === 'archive') {
         onArchiveResource?.(resourceId);
       } else if (id === 'reveal-in-finder') {
         onRevealResourceInFinder?.(resourceId);
@@ -110,6 +158,7 @@ export function PdfEmbedMoreActions({
       >
         <OverflowMenuBody
           items={menuItems}
+          size="small"
           onSelect={handleSelect}
           onOpenChange={(open) => {
             if (!open) {

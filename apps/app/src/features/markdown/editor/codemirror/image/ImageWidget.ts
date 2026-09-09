@@ -1,7 +1,7 @@
 import { EditorSelection, type EditorState } from '@codemirror/state';
 import { WidgetType, type EditorView } from '@codemirror/view';
 
-import { computeImageDeletionRange } from './imageDeletion';
+import { computeEmbedRemovalRange } from '../mediaPresentation/embedRemovalRange';
 import { EDIT_ICON, renderInvalidEmbedCard } from '../mediaPresentation/invalidEmbedCard';
 import {
   findEnclosingImageNode,
@@ -180,12 +180,15 @@ export function currentImageSource(state: EditorState, pos: number): CurrentImag
  * - Nothing in the broken representation opens `ImageOverlay` — there is
  *   no `imageButton`/`getOnImageClick()` wiring in this branch at all, not
  *   a guard that happens to suppress it.
- * - Delete is a real, direct action here (unlike the working state, where
- *   Delete only ever lives inside `ImageOptionsMenu`) — computed via the
- *   exact same `computeImageDeletionRange` helper `MarkdownEditor.tsx`'s
- *   own `handleDeleteImage` calls for the working state, dispatched
+ * - Remove is a real, direct action here (unlike the working state, where
+ *   Remove only ever lives inside `ImageOptionsMenu`) — computed via the
+ *   exact same `computeEmbedRemovalRange` helper `MarkdownEditor.tsx`'s
+ *   own `handleRemoveImage` calls for the working state, dispatched
  *   directly against `view` from this widget. One implementation, two
- *   entry points — never a second deletion-range algorithm.
+ *   entry points — never a second removal-range algorithm. Only ever
+ *   edits this note's own Markdown text, never the underlying resource
+ *   (see `embedRemovalRange.ts`'s own doc comment for the Remove-vs-Archive
+ *   product rule).
  */
 export class ImageWidget extends WidgetType {
   constructor(
@@ -488,7 +491,12 @@ export class ImageWidget extends WidgetType {
       });
     });
     sizeButton.setAttribute('aria-expanded', 'false');
-    controls.append(sizeButton, this.makeEditButton(view, getCurrentTo));
+    // Edit source, then the size/options menu (this construct's own
+    // "More actions" equivalent) last — matching PdfEmbedWidget.ts's
+    // Expand / Edit source / More actions order (image has no separate
+    // Expand button of its own: the image itself, appended after
+    // `controls` below, already is that affordance).
+    controls.append(this.makeEditButton(view, getCurrentTo), sizeButton);
 
     // The image itself is a clickable UI affordance (opens ImageOverlay),
     // not editable text. A real <button> wrapping the <img> — not
@@ -788,9 +796,9 @@ export class ImageWidget extends WidgetType {
     renderInvalidEmbedCard(container, {
       icon: BROKEN_IMAGE_ICON,
       source: this.copyUrl ?? this.url,
-      deleteLabel: 'Delete image',
-      onDelete: () => {
-        const { from, to } = computeImageDeletionRange(view.state, this.pos);
+      removeLabel: 'Remove image',
+      onRemove: () => {
+        const { from, to } = computeEmbedRemovalRange(view.state, this.pos);
         view.dispatch({ changes: { from, to, insert: '' } });
       },
       editLabel: this.ui.revealed ? 'Hide source' : 'Edit source',

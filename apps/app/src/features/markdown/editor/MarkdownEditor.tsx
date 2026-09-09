@@ -13,7 +13,7 @@ import {
   setCachedEditorSession,
 } from './codemirror/editorHistoryCache';
 import { buildEditorExtensions } from './codemirror/buildEditorExtensions';
-import { computeImageDeletionRange } from './codemirror/image/imageDeletion';
+import { computeEmbedRemovalRange } from './codemirror/mediaPresentation/embedRemovalRange';
 import { ImageOptionsMenu } from './codemirror/image/ImageOptionsMenu';
 import type { OnImageClick, OnOpenImageMenu } from './codemirror/image/ImageWidget';
 import type { OnOpenPdfMenu, OnPdfEmbedClick } from './codemirror/pdf/PdfEmbedWidget';
@@ -139,6 +139,7 @@ export const MarkdownEditor = forwardRef<
     resolveDate,
     onSetCoverImage,
     onDownloadImage,
+    onDownloadPdfResource,
     resolveImageResource,
     onArchiveResource,
     onRevealResourceInFinder,
@@ -325,6 +326,7 @@ export const MarkdownEditor = forwardRef<
   const [pdfMenu, setPdfMenu] = useState<{
     anchor: PdfEmbedMoreActionsAnchor;
     resourceId: string;
+    pos: number;
   } | null>(null);
 
   function setPdfMenuButtonOpen(button: HTMLElement, open: boolean) {
@@ -332,7 +334,7 @@ export const MarkdownEditor = forwardRef<
     button.setAttribute('aria-expanded', String(open));
   }
 
-  const onOpenPdfMenuRef = useRef<OnOpenPdfMenu>(({ anchor, resourceId }) => {
+  const onOpenPdfMenuRef = useRef<OnOpenPdfMenu>(({ anchor, resourceId, pos }) => {
     setPdfMenu((current) => {
       const closingSame = current !== null && current.anchor.current === anchor;
       if (current) {
@@ -341,7 +343,7 @@ export const MarkdownEditor = forwardRef<
       if (!closingSame) {
         setPdfMenuButtonOpen(anchor, true);
       }
-      return closingSame ? null : { anchor: { current: anchor }, resourceId };
+      return closingSame ? null : { anchor: { current: anchor }, resourceId, pos };
     });
   });
 
@@ -350,6 +352,26 @@ export const MarkdownEditor = forwardRef<
       setPdfMenuButtonOpen(pdfMenu.anchor.current, false);
     }
     setPdfMenu(null);
+  };
+
+  // "Remove" — only ever edits this note's own Markdown text (never the
+  // underlying PDF resource); see embedRemovalRange.ts's own doc comment
+  // for the Remove-vs-Archive product rule this enforces. Distinct from
+  // the resource-level "Archive" item in the same menu (PdfEmbedMoreActions).
+  const handleRemovePdfEmbed = () => {
+    const view = viewRef.current;
+    if (!pdfMenu || !view) {
+      return;
+    }
+    const { from, to } = computeEmbedRemovalRange(view.state, pdfMenu.pos);
+    view.dispatch({ changes: { from, to, insert: '' } });
+  };
+
+  const handleDownloadPdfResource = () => {
+    if (!pdfMenu) {
+      return;
+    }
+    onDownloadPdfResource?.(pdfMenu.resourceId);
   };
 
   const handleSelectImageDisplayMode = (mode: ImageDisplayMode) => {
@@ -449,12 +471,15 @@ export const MarkdownEditor = forwardRef<
     onDownloadImage?.(imageMenu.copyUrl ?? imageMenu.url);
   };
 
-  const handleDeleteImage = () => {
+  // "Remove" — only ever edits this note's own Markdown text (never the
+  // underlying resource); see embedRemovalRange.ts's own doc comment for
+  // the Remove-vs-Archive product rule this enforces.
+  const handleRemoveImage = () => {
     const view = viewRef.current;
     if (!imageMenu || !view) {
       return;
     }
-    const { from, to } = computeImageDeletionRange(view.state, imageMenu.pos);
+    const { from, to } = computeEmbedRemovalRange(view.state, imageMenu.pos);
     view.dispatch({ changes: { from, to, insert: '' } });
   };
 
@@ -702,12 +727,14 @@ export const MarkdownEditor = forwardRef<
         onCopyLink={handleCopyImageLink}
         onSetCoverImage={onSetCoverImage ? handleSetCoverImage : undefined}
         onDownload={handleDownloadImage}
-        onDelete={handleDeleteImage}
+        onRemove={handleRemoveImage}
       />
       <PdfEmbedMoreActions
         anchor={pdfMenu?.anchor ?? null}
         resourceId={pdfMenu?.resourceId ?? null}
         onClose={closePdfMenu}
+        onRemoveEmbed={handleRemovePdfEmbed}
+        onDownloadResource={onDownloadPdfResource ? handleDownloadPdfResource : undefined}
         onArchiveResource={onArchiveResource}
         onRevealResourceInFinder={onRevealResourceInFinder}
         onCopyResourcePath={onCopyResourcePath}

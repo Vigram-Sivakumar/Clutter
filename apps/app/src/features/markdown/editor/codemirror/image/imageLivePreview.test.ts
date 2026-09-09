@@ -1508,7 +1508,7 @@ describe('Image size menu — initial (closed) state', () => {
  */
 describe('Broken image fallback', () => {
   function getDeleteButton(view: EditorView): HTMLButtonElement {
-    const button = view.dom.querySelector<HTMLButtonElement>('.cm-invalid-embed__control[aria-label="Delete image"]');
+    const button = view.dom.querySelector<HTMLButtonElement>('.cm-invalid-embed__control[aria-label="Remove image"]');
     if (!button) {
       throw new Error('delete control not found');
     }
@@ -1571,7 +1571,7 @@ describe('Broken image fallback', () => {
     getImg(view)!.dispatchEvent(new Event('error'));
 
     expect(view.dom.querySelector('.cm-invalid-embed__control[aria-label="Edit source"]')).not.toBeNull();
-    expect(view.dom.querySelector('.cm-invalid-embed__control[aria-label="Delete image"]')).not.toBeNull();
+    expect(view.dom.querySelector('.cm-invalid-embed__control[aria-label="Remove image"]')).not.toBeNull();
     expect(view.dom.querySelector('.cm-invalid-embed__control[aria-label="Image size options"]')).toBeNull();
     // Exactly two controls — guards against a future addition silently
     // reintroducing a size/options affordance for a broken image.
@@ -1611,12 +1611,12 @@ describe('Broken image fallback', () => {
     expect(view.dom.querySelector('.cm-invalid-embed__content')).not.toBeNull();
   });
 
-  it('Delete removes the Markdown image via a real CM6 transaction, undo/redo both work', () => {
-    // Single-line doc: computeImageDeletionRange's own "image is the
+  it('Remove removes the Markdown image via a real CM6 transaction, undo/redo both work', () => {
+    // Single-line doc: computeEmbedRemovalRange's own "embed is the
     // document's only line" case deletes the whole line, "See: " prefix
-    // included — same behavior the existing (non-broken) Delete coverage
-    // in imageDeletion.test.ts already establishes; not special-cased for
-    // the broken state.
+    // included — same behavior the existing (non-broken) Remove coverage
+    // in embedRemovalRange.test.ts already establishes; not special-cased
+    // for the broken state.
     const view = mountView(`See: ${IMAGE_MD}`);
     getImg(view)!.dispatchEvent(new Event('error'));
 

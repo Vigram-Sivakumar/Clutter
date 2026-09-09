@@ -225,6 +225,15 @@ export interface MarkdownEditorProps {
    */
   readonly onDownloadImage?: (url: string) => void;
   /**
+   * Backs a PDF embed's own "More actions" menu's Download item. Unlike
+   * `onDownloadImage` above, a PDF embed's `resourceId` is already
+   * resolved (`embedPdfResolution.ts`'s own doc comment: every `'pdf'`
+   * outcome came from a real, resolved `VaultResource`) — there is no
+   * external-URL case to fall back to, so this takes the id directly
+   * rather than a URL string the app layer would have to re-resolve.
+   */
+  readonly onDownloadPdfResource?: (resourceId: string) => void;
+  /**
    * Resolves a clicked image's own path (a Resource embed's vault-relative
    * `copyUrl`, or — for a standard Markdown image — its raw `url`, see
    * `ImageWidget.ts`'s `OnImageClick` doc comment) into a local

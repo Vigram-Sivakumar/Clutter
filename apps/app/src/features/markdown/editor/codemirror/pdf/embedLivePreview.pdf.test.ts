@@ -291,7 +291,7 @@ describe('embedLivePreview — PDF embeds, rendering (at rest)', () => {
     expect(broken?.querySelector('.cm-pdf-controls')).toBeNull();
     const controls = broken?.querySelector('.cm-invalid-embed__controls');
     expect(controls?.querySelectorAll('button').length).toBe(2);
-    expect(controls?.querySelector('button[aria-label="Delete embed"]')).not.toBeNull();
+    expect(controls?.querySelector('button[aria-label="Remove embed"]')).not.toBeNull();
     expect(
       controls?.querySelector('button[aria-label="Edit source"], button[aria-label="Hide source"]')
     ).not.toBeNull();
@@ -370,7 +370,7 @@ describe('embedLivePreview — PDF embeds, rendering (at rest)', () => {
       expect(broken?.querySelector('.cm-pdf-controls')).toBeNull();
       const controls = broken?.querySelector('.cm-invalid-embed__controls');
       expect(controls?.querySelectorAll('button').length).toBe(2);
-      expect(controls?.querySelector('button[aria-label="Delete embed"]')).not.toBeNull();
+      expect(controls?.querySelector('button[aria-label="Remove embed"]')).not.toBeNull();
       expect(
         controls?.querySelector('button[aria-label="Edit source"], button[aria-label="Hide source"]')
       ).not.toBeNull();
@@ -578,7 +578,7 @@ describe('embedLivePreview — PDF embeds, More actions control', () => {
     expect(moreActionsButton).not.toBeNull();
     moreActionsButton!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 
-    expect(onOpenPdfMenu).toHaveBeenCalledWith({ anchor: moreActionsButton, resourceId: 'resource-1' });
+    expect(onOpenPdfMenu).toHaveBeenCalledWith({ anchor: moreActionsButton, resourceId: 'resource-1', pos: 2 });
   });
 });
 

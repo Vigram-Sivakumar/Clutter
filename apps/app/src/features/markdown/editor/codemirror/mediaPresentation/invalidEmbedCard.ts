@@ -5,7 +5,7 @@
  *
  *   container
  *   ├── controls
- *   │   ├── Delete
+ *   │   ├── Remove
  *   │   └── Edit source
  *   └── content
  *       ├── icon
@@ -15,7 +15,7 @@
  *
  * The only thing that ever differs between media types is the icon (plus
  * the small wording differences already reflected in each caller's own
- * `deleteLabel`/`editLabel` strings) — this module owns the DOM shape and
+ * `removeLabel`/`editLabel` strings) — this module owns the DOM shape and
  * its own `.cm-invalid-embed*` classes, `__controls`/`__control` included
  * — matching every other element here (`__content`, `__icon-wrap`, etc.),
  * all BEM children of this one component, not a name borrowed from
@@ -31,15 +31,18 @@
  * (background/shadow/padding, icon-button sizing/hover) still lives once
  * in `MediaFloatingControls.css`, whose selectors list both class families
  * — one visual system, two semantically-owned names, no duplicated CSS.
- * `onDelete`/`onEdit` are plain callbacks — this module has no opinion on
- * what deleting or editing means for a given widget, and no CodeMirror/
- * state dependency of its own.
+ * `onRemove`/`onEdit` are plain callbacks — this module has no opinion on
+ * what removing or editing means for a given widget, and no CodeMirror/
+ * state dependency of its own. `onRemove` in particular must only ever
+ * strip this embed's own Markdown from the current note — never touch the
+ * underlying resource; see `embedRemovalRange.ts`'s own doc comment for the
+ * Remove-vs-Archive product rule every caller of this card follows.
  *
  * Fixes a real, confirmed bug: `PdfEmbedWidget.renderBroken` used to
  * build its controls with `.cm-pdf-controls` — the same class its
  * *working*-state controls use, whose buttons only ever reveal from
  * `opacity: 0` via a `.cm-pdf-embed-container:hover`/JS-toggled
- * `--hover` class that `renderBroken` never wires up. Delete/Edit source
+ * `--hover` class that `renderBroken` never wires up. Remove/Edit source
  * existed in the DOM but sat permanently invisible. Using this shared
  * component's own `.cm-image-container`/`.cm-invalid-embed__controls` —
  * added here, not by each widget — sidesteps that entirely.
@@ -76,8 +79,9 @@ export interface InvalidEmbedCardOptions {
   readonly icon: string;
   /** The path/URL shown under the "Unable to load" title. */
   readonly source: string;
-  readonly deleteLabel: string;
-  readonly onDelete: () => void;
+  /** Removes this embed's Markdown from the current note only — never the underlying resource. See `embedRemovalRange.ts`'s own doc comment for the Remove-vs-Archive product rule. */
+  readonly removeLabel: string;
+  readonly onRemove: () => void;
   readonly editLabel: string;
   readonly onEdit: () => void;
 }
@@ -90,7 +94,7 @@ export function renderInvalidEmbedCard(container: HTMLElement, options: InvalidE
   controls.classList.add('cm-invalid-embed__controls');
   controls.contentEditable = 'false';
   controls.append(
-    buildControlButton(TRASH_ICON, options.deleteLabel, options.onDelete),
+    buildControlButton(TRASH_ICON, options.removeLabel, options.onRemove),
     buildControlButton(EDIT_ICON, options.editLabel, options.onEdit)
   );
 

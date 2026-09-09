@@ -127,6 +127,50 @@ describe('note embeds (embedLivePreview + NoteEmbedWidget)', () => {
     expect(view.dom.querySelector('.cm-invalid-embed')).not.toBeNull();
   });
 
+  it('never reveals raw Markdown syntax when the nested view\'s own selection lands inside a construct', () => {
+    const view = mountView(
+      '![[Other Note]]',
+      resolverFor({
+        'Other Note': {
+          status: 'resolved',
+          pageId: 'page-other',
+          title: 'Other Note',
+          markdown: '# Heading\n\nSome **bold** text.',
+        },
+      })
+    );
+
+    const nestedEditorDom = view.dom.querySelector('.cm-note-embed .cm-editor');
+    const nestedView = nestedEditorDom ? EditorView.findFromDOM(nestedEditorDom as HTMLElement) : null;
+    expect(nestedView).not.toBeNull();
+    if (!nestedView) {
+      return;
+    }
+
+    // At rest: the heading's `# ` marker and the bold word's `**` markers
+    // are both collapsed (Decoration.replace) — neither raw marker
+    // appears in the rendered text.
+    expect(nestedView.dom.textContent).not.toContain('# Heading');
+    expect(nestedView.dom.textContent).not.toContain('**bold**');
+
+    // A click landing inside "bold" would dispatch exactly this kind of
+    // selection-only transaction against the nested view's own state —
+    // confirmed in the prior investigation that this happens even though
+    // DOM focus never moves into the nested view. Simulate it directly.
+    const boldFrom = nestedView.state.doc.toString().indexOf('bold');
+    nestedView.dispatch({ selection: { anchor: boldFrom + 2 } });
+
+    // Still never reveals — `isTokenEngaged`'s `state.readOnly` guard
+    // means this nested, permanently read-only view can never enter an
+    // engaged/revealed state, regardless of where its selection sits.
+    expect(nestedView.dom.textContent).not.toContain('**bold**');
+
+    // Same check for the heading marker, engaging its own line.
+    const headingFrom = nestedView.state.doc.toString().indexOf('Heading');
+    nestedView.dispatch({ selection: { anchor: headingFrom } });
+    expect(nestedView.dom.textContent).not.toContain('# Heading');
+  });
+
   it('does not render a note embed once an indirect cycle is detected deeper in the chain', () => {
     const resolvePageEmbed = resolverFor({
       'Note B': { status: 'resolved', pageId: 'page-b', title: 'Note B', markdown: '![[Note A]]' },

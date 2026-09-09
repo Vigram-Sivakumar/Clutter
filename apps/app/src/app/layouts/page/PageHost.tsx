@@ -785,6 +785,7 @@ export function PageHost({ application, onOpenResource, onOpenImageOverlay }: Pa
               onOpenImageOverlay={onOpenImageOverlay}
               onSetCoverImage={onSetCoverImage}
               onDownloadImage={downloadImageFromEditor}
+              onDownloadPdfResource={downloadResourceById}
               resolveImageResource={resolveImageResource}
               onArchiveResource={(id) =>
                 void application.resourceOperations.archiveResource(id)
@@ -912,6 +913,7 @@ export function PageHost({ application, onOpenResource, onOpenImageOverlay }: Pa
             onOpenImageOverlay={onOpenImageOverlay}
             onSetCoverImage={onSetCoverImage}
             onDownloadImage={downloadImageFromEditor}
+            onDownloadPdfResource={downloadResourceById}
             resolveImageResource={resolveImageResource}
             onArchiveResource={(id) =>
               void application.resourceOperations.archiveResource(id)

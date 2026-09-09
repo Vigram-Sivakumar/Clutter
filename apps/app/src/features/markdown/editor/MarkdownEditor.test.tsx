@@ -632,6 +632,29 @@ describe('MarkdownEditor: image options menu — Set as cover image', () => {
     expect(findMenuItem('Set as cover image')).toBeNull();
   });
 
+  it('Remove is labelled "Remove" (not "Delete") and only edits this note\'s own Markdown', () => {
+    const onEdit = vi.fn();
+    render(<MarkdownEditor pageId="test-page" markdown={`Before\n\n${IMAGE_MD}\n\nAfter`} onEdit={onEdit} />);
+    openSizeMenu();
+
+    expect(findMenuItem('Delete')).toBeNull();
+    const item = findMenuItem('Remove');
+    expect(item).not.toBeNull();
+    fireEvent.click(item!);
+
+    expect(onEdit).toHaveBeenCalledWith('Before\n\nAfter');
+  });
+
+  it('places Edit source before the size/options button, matching PdfEmbedWidget\'s Expand/Edit source/More actions order', () => {
+    render(<MarkdownEditor pageId="test-page" markdown={IMAGE_MD} />);
+
+    const controls = document.querySelector('.cm-media-controls')!;
+    const buttonLabels = Array.from(controls.querySelectorAll('button')).map((button) =>
+      button.getAttribute('aria-label')
+    );
+    expect(buttonLabels).toEqual(['Edit source', 'Image size options']);
+  });
+
   it('Download is always present, unlike the capability-gated Set as cover image', () => {
     render(<MarkdownEditor pageId="test-page" markdown={IMAGE_MD} />);
     openSizeMenu();
@@ -922,16 +945,16 @@ describe('MarkdownEditor: broken image fallback', () => {
     );
 
     expect(document.querySelector('.cm-invalid-embed__control[aria-label="Edit source"]')).not.toBeNull();
-    expect(document.querySelector('.cm-invalid-embed__control[aria-label="Delete image"]')).not.toBeNull();
+    expect(document.querySelector('.cm-invalid-embed__control[aria-label="Remove image"]')).not.toBeNull();
     expect(document.querySelector('.cm-media-control[aria-label="Image size options"]')).toBeNull();
   });
 
-  it('Delete works from the broken state and supports undo', () => {
+  it('Remove works from the broken state and supports undo', () => {
     renderWithLoadedImage(IMAGE_MD);
     fireEvent.error(document.querySelector('img.tok-image')!);
 
     const deleteButton = document.querySelector<HTMLButtonElement>(
-      '.cm-invalid-embed__control[aria-label="Delete image"]'
+      '.cm-invalid-embed__control[aria-label="Remove image"]'
     )!;
     fireEvent.mouseDown(deleteButton);
     fireEvent.click(deleteButton);

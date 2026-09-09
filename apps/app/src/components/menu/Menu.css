@@ -28,3 +28,16 @@
 .menu:focus-visible {
   outline: none;
 }
+
+/* `OverflowMenuItemConfig.separatorBefore`'s own rendered divider — moved
+   here from `ImageOptionsMenu.css` (its original, single-caller home)
+   once `OverflowMenuBody` gained the same grouping primitive, so every
+   menu built on either `Menu`/`MenuItem` directly or `OverflowMenuBody`
+   shares one definition. Negative horizontal margin cancels `.menu`'s own
+   padding so the rule spans its full width, not just the item column. */
+.menu__divider {
+  height: 1px;
+  margin: var(--space-4) calc(var(--space-4) * -1);
+  margin-inline: var(--space-8);
+  background: var(--border-default);
+}

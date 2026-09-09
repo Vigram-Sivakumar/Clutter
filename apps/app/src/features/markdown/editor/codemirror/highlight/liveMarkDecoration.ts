@@ -125,6 +125,15 @@ export type MarkEngagementPredicate = (
 export type MarkEngagementMode = 'node-range' | 'physical-line' | MarkEngagementPredicate;
 
 export function isPhysicalLineEngaged(state: EditorState, ranges: readonly TokenNodeRange[]): boolean {
+  // Same read-only guard as `isTokenEngaged` (semanticToken/tokenEngagement.ts)
+  // — a permanently read-only view (a note embed's nested `EditorView`)
+  // must never reveal a construct's markers just because a click landed
+  // on its line. See that function's own doc comment for the full
+  // rationale; this is the line-granularity sibling of the same rule.
+  if (state.readOnly) {
+    return false;
+  }
+
   if (ranges.length === 0) {
     return false;
   }

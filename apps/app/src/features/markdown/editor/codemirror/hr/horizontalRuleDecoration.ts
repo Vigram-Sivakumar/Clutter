@@ -4,6 +4,7 @@ import { Decoration, type DecorationSet, EditorView, ViewPlugin, type PluginValu
 
 import { DividerLabelWidget, type DividerKind } from './DividerLabelWidget';
 import { matchStraightLabeledDivider, matchWrappedDivider } from './dividerLabelMatch';
+import { isPhysicalLineEngaged } from '../highlight/liveMarkDecoration';
 
 /**
  * Live Preview rendering for horizontal rules: native CommonMark `---`/
@@ -88,17 +89,19 @@ function extractLabel(state: EditorState, nodeName: string, from: number, to: nu
 
 /**
  * Engaged iff the current selection touches the rule's own physical line —
- * identical `isPhysicalLineEngaged` rule used by `liveMarkDecoration.ts`
- * and `tableDecoration.ts`'s `isRowEngaged`. `HorizontalRule` is always a
- * single physical line (the block parser matches and closes it in one
- * step), so there's no lazy-continuation ambiguity to resolve.
+ * the exact shared `isPhysicalLineEngaged` (`highlight/liveMarkDecoration.ts`)
+ * every other physical-line-scoped construct (heading, blockquote) already
+ * uses, reused here rather than a second, parallel reimplementation of the
+ * identical rule (this file used to carry its own copy — folded into the
+ * shared function so the read-only guard `isPhysicalLineEngaged` now
+ * carries only needs to exist once). `HorizontalRule` is always a single
+ * physical line (the block parser matches and closes it in one step), so
+ * there's no lazy-continuation ambiguity to resolve — a one-element
+ * `ranges` array is exactly as correct here as `liveMarkDecoration.ts`'s
+ * own multi-mark callers.
  */
 function isRuleEngaged(state: EditorState, ruleFrom: number): boolean {
-  const ruleLine = state.doc.lineAt(ruleFrom).number;
-  const selection = state.selection.main;
-  const fromLine = state.doc.lineAt(selection.from).number;
-  const toLine = state.doc.lineAt(selection.to).number;
-  return ruleLine === fromLine || ruleLine === toLine;
+  return isPhysicalLineEngaged(state, [{ from: ruleFrom, to: ruleFrom }]);
 }
 
 interface DecoItem {

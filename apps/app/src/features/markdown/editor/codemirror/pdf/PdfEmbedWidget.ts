@@ -20,7 +20,7 @@ import { renderPdfPage, type RenderPdfPageHandle } from '@features/pdf/pdfPageRe
 import { getAvailableViewerWidth } from '@features/pdf/pdfFitWidth';
 import { computeFitScale } from '@features/pdf/pdfZoom';
 
-import { computeImageDeletionRange } from '../image/imageDeletion';
+import { computeEmbedRemovalRange } from '../mediaPresentation/embedRemovalRange';
 import { setImageUiState, type ImageUiState } from '../image/imageUiState';
 import { EDIT_ICON, renderInvalidEmbedCard } from '../mediaPresentation/invalidEmbedCard';
 import type { PdfDocumentCache } from './pdfDocumentCache';
@@ -83,6 +83,15 @@ export interface OpenPdfMenuParams {
   readonly anchor: HTMLElement;
   /** Already-resolved by `embedPdfResolution.ts` — see that file's own doc comment for why a PDF embed's `resourceId` needs no separate click-time lookup the way `ImageWidget`'s does. */
   readonly resourceId: string;
+  /**
+   * The embed's own `Embed` node position — what the menu's own "Remove"
+   * item (embed-level, never touching the source resource) needs to
+   * compute its removal range via `computeEmbedRemovalRange`. Safe to
+   * capture once (unlike `to`): confirmed by `ImageWidget.ts`'s
+   * `makeEditButton` doc comment that a node's own `from` never shifts
+   * under a presentation-only patch, only `to` can.
+   */
+  readonly pos: number;
 }
 
 /**
@@ -264,9 +273,9 @@ export class PdfEmbedWidget extends WidgetType {
     renderInvalidEmbedCard(container, {
       icon: BROKEN_PDF_ICON,
       source: this.path,
-      deleteLabel: 'Delete embed',
-      onDelete: () => {
-        const { from, to } = computeImageDeletionRange(view.state, this.pos);
+      removeLabel: 'Remove embed',
+      onRemove: () => {
+        const { from, to } = computeEmbedRemovalRange(view.state, this.pos);
         view.dispatch({ changes: { from, to, insert: '' } });
       },
       editLabel: this.ui.revealed ? 'Hide source' : 'Edit source',
@@ -326,7 +335,7 @@ export class PdfEmbedWidget extends WidgetType {
     const actionsGroup = document.createElement('div');
     actionsGroup.classList.add('cm-pdf-controls');
     const moreActionsButton = this.makeButton(MORE_ICON, 'More actions', () => {
-      this.getOnOpenPdfMenu()?.({ anchor: moreActionsButton, resourceId: this.resourceId });
+      this.getOnOpenPdfMenu()?.({ anchor: moreActionsButton, resourceId: this.resourceId, pos: this.pos });
     });
     const expandButton = this.makeButton(EXPAND_ICON, 'Expand', () => {
       this.getOnPdfEmbedClick()?.(this.path);
