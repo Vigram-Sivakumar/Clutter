@@ -81,26 +81,91 @@ function widenToEnclosingLivePreviewRegion(node: SyntaxNodeRef): TokenNodeRange 
  * requirement that Backspace/Delete work character-by-character rather
  * than risk one keystroke deleting the whole reference. Only the
  * folder-prefix substring (up to and including the last unescaped `/`) is
- * concealed, via a zero-width `Decoration.replace({})` — the same
- * technique the retired `wikiLinkMarkerDecorations.ts` used for the same
- * purpose. `lastUnescapedSlashOffset`/`splitAtFirstUnescapedPipe` are
+ * concealed. `lastUnescapedSlashOffset`/`splitAtFirstUnescapedPipe` are
  * reused unchanged from `wikiLinkScanner.ts` — the same primitives
  * `wikiLinkCompletionSource.ts` already uses to scope its own query to
  * "the visible segment", so there is exactly one definition of where the
  * visible part starts, not two.
  *
- * No Arrow-key handling, no custom keymap, no cursor repositioning: CM6's
- * own default caret motion is left entirely alone. Crossing the hidden
- * folder-prefix costs one keystroke per hidden character with no visible
- * caret movement — the same accepted cost the old mechanism had before its
- * now-removed hop keymap compensated for it (docs/editor-architecture-
- * decisions.md's "CodeMirror owns cursor and selection behavior" locks
- * that keymap out; this file does not attempt to replace it).
+ * The engaged text is always wrapped in one `Decoration.mark({})` spanning
+ * the whole node (`ENGAGED_WIKILINK_MARK`, below) — unstyled, never
+ * atomic, purely a stable DOM element boundary. This is not optional
+ * decoration: confirmed via live instrumentation (arrow-key-stuck-at-`[[`
+ * investigation) that on WebKit/Tauri, when this branch previously
+ * returned `[]` for a slash-free path, the just-revealed text landed as a
+ * bare Text node directly adjacent to the paragraph's own preceding bare
+ * Text node with no element between them — and WebKit's native
+ * caret-advance fails to cross that specific bare-text/bare-text seam,
+ * permanently losing the native selection onto the line's own container
+ * `<div>` (confirmed via `document.getSelection()` vs `EditorState.selection`
+ * comparison: the model position kept advancing correctly the entire time;
+ * only the browser's rendered caret froze). Every sibling participant in
+ * `inlineLivePreviewParticipants.ts` (`delimitedInlineRenderer`,
+ * `linkRenderer`, even `urlRenderer` for a URL that never changes on
+ * engage) already always wraps its revealed content in a `Decoration.mark`
+ * for exactly this reason — WikiLink's slash-free branch was the only
+ * participant in the codebase that skipped it. No `class`/`attributes`: a
+ * `Decoration.mark` never needs one to produce a real wrapping element —
+ * `MarkDecoration` defaults `tagName` to `"span"` regardless.
+ *
+ * The concealed folder-prefix range computed below (`computeConcealedFolderPrefixRange`,
+ * exported) is reused by `wikiLinkConcealedPrefixNavigation.ts` — a
+ * narrowly-scoped ArrowLeft/ArrowRight keymap that hops over exactly this
+ * concealed run in one keystroke when the caret sits at its edge, so
+ * crossing a folder-qualified path doesn't cost one silent, invisible
+ * keystroke per hidden character. That keymap is the one place in this
+ * codebase that reopens docs/editor-architecture-decisions.md's
+ * "CodeMirror owns cursor and selection behavior" entry, per that entry's
+ * own reservation clause — see that file's doc comment for the full
+ * justification and its strict scope (Arrow keys only, only at this exact
+ * concealed range's boundary; Backspace/Delete/typing/click/drag-selection
+ * are entirely untouched, still ordinary CM6 defaults over non-atomic
+ * decorations, exactly as before).
  *
  * Reuses `isTokenEngaged` unchanged (imported, never modified) — the exact
  * same containment check every other construct uses, just evaluated from
  * this file's own tree scan instead of the shared traversal's.
  */
+const ENGAGED_WIKILINK_MARK = Decoration.mark({});
+
+/**
+ * The folder-prefix substring (up to and including the last unescaped
+ * `/`) that stays concealed even while engaged — the one part of a
+ * WikiLink's raw syntax that never becomes visible, per this file's own
+ * "folder-qualified path must never be visible, in either state"
+ * requirement (above). Extracted from `buildEngagedDecorations` and
+ * exported so `wikiLinkConcealedPrefixNavigation.ts` computes hop targets
+ * from the exact same range this file decorates — one definition of
+ * "where the concealed run is," not two.
+ */
+export function computeConcealedFolderPrefixRange(
+  node: TokenNodeRange,
+  state: EditorState
+): TokenNodeRange | null {
+  if (node.to > state.doc.lineAt(node.from).to) {
+    return null;
+  }
+
+  const raw = state.sliceDoc(node.from, node.to);
+  if (!scanWikiLink(raw, 0)) {
+    return null;
+  }
+
+  const middleStart = node.from + 2;
+  const middleEnd = node.to - 2;
+  const middleRaw = state.sliceDoc(middleStart, middleEnd);
+  const { pipeIndex } = splitAtFirstUnescapedPipe(middleRaw);
+  const pathRawEnd = pipeIndex === null ? middleEnd : middleStart + pipeIndex;
+  const pathRaw = state.sliceDoc(middleStart, pathRawEnd);
+
+  const slashOffset = lastUnescapedSlashOffset(pathRaw);
+  if (slashOffset === null) {
+    return null;
+  }
+
+  return { from: middleStart, to: middleStart + slashOffset + 1 };
+}
+
 function buildEngagedDecorations(node: SyntaxNodeRef, state: EditorState): Range<Decoration>[] {
   if (node.to > state.doc.lineAt(node.from).to) {
     // The scanner (wikiLinkScanner.ts) never emits a WikiLink node crossing
@@ -117,21 +182,14 @@ function buildEngagedDecorations(node: SyntaxNodeRef, state: EditorState): Range
     return [];
   }
 
-  const middleStart = node.from + 2;
-  const middleEnd = node.to - 2;
-  const middleRaw = state.sliceDoc(middleStart, middleEnd);
-  const { pipeIndex } = splitAtFirstUnescapedPipe(middleRaw);
-  const pathRawEnd = pipeIndex === null ? middleEnd : middleStart + pipeIndex;
-  const pathRaw = state.sliceDoc(middleStart, pathRawEnd);
+  const decorations: Range<Decoration>[] = [ENGAGED_WIKILINK_MARK.range(node.from, node.to)];
 
-  const slashOffset = lastUnescapedSlashOffset(pathRaw);
-  if (slashOffset === null) {
-    // No folder component — the whole reference is already just the
-    // filename, nothing to conceal.
-    return [];
+  const concealedPrefix = computeConcealedFolderPrefixRange(node, state);
+  if (concealedPrefix) {
+    decorations.push(Decoration.replace({}).range(concealedPrefix.from, concealedPrefix.to));
   }
 
-  return [Decoration.replace({}).range(middleStart, middleStart + slashOffset + 1)];
+  return decorations;
 }
 
 function buildDecorations(

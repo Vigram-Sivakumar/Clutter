@@ -236,6 +236,61 @@ describe('wikiLinkLivePreview', () => {
       expect(visibleText(view)).toBe(doc);
     });
 
+    // =================================================================
+    // Regression: native-caret-stuck-after-`[[` investigation (WebKit/Tauri).
+    // Entering a slash-free WikiLink used to leave the revealed text as a
+    // bare Text node with nothing between it and the preceding paragraph's
+    // own bare Text node — no shared element boundary at the seam.
+    // WebKit's native caret-advance failed to cross exactly that
+    // bare-text/bare-text boundary, permanently losing the native
+    // selection onto the line's own container element (confirmed live via
+    // document.getSelection() vs EditorState.selection comparison: the
+    // model position kept advancing correctly; only the rendered caret
+    // froze). The fix wraps the engaged text in one Decoration.mark, same
+    // as every sibling participant in inlineLivePreviewParticipants.ts
+    // already does. This test asserts the structural fix directly — jsdom
+    // doesn't implement WebKit's own caret-traversal bug, so the only
+    // thing assertable here is the DOM shape that caused it.
+    // =================================================================
+    it('regression: entering a slash-free WikiLink produces a real element boundary at the seam, not two adjacent bare text nodes', () => {
+      const doc = 'before [[Note title]] after';
+      const nodeFrom = 'before '.length;
+      const view = mountViewWithSelection(doc, nodeFrom, resolvedAs('Note title'));
+
+      const line = view.dom.querySelector('.cm-line');
+      expect(line).not.toBeNull();
+      const children = Array.from(line!.childNodes);
+      const wikiLinkChild = children.find((n) => (n.textContent ?? '').startsWith('[['));
+
+      expect(wikiLinkChild).toBeDefined();
+      // The fix: a real Element (the mark's own <span>) wrapping the
+      // revealed text — never a bare Text node sitting directly adjacent
+      // to the preceding "before " text node.
+      expect(wikiLinkChild!.nodeType).toBe(Node.ELEMENT_NODE);
+      expect((wikiLinkChild as Element).tagName).toBe('SPAN');
+      expect(visibleText(view)).toBe(doc);
+    });
+
+    it('regression: the stable wrapper is present for a folder-qualified path too, composed correctly with the concealed-prefix decoration', () => {
+      const doc = 'before [[Projects/Project A]] after';
+      const nodeFrom = 'before '.length;
+      const view = mountViewWithSelection(doc, nodeFrom, resolvedAs('Project A'));
+
+      const line = view.dom.querySelector('.cm-line');
+      const children = Array.from(line!.childNodes);
+      // The revealed "[[" now starts inside the wrapping mark span rather
+      // than as bare text directly following "before ".
+      const wikiLinkChild = children.find((n) => (n.textContent ?? '').startsWith('[['));
+      expect(wikiLinkChild).toBeDefined();
+      expect(wikiLinkChild!.nodeType).toBe(Node.ELEMENT_NODE);
+      expect((wikiLinkChild as Element).tagName).toBe('SPAN');
+
+      // The folder prefix stays concealed exactly as before — the mark is
+      // purely a structural addition, not a visibility change.
+      expect(visibleText(view)).toBe('before [[Project A]] after');
+      expect(visibleText(view)).not.toContain('Projects/');
+    });
+
     it('has no atomic range while engaged', () => {
       const doc = 'before [[Projects/Project A]] after';
       const nodeFrom = 'before '.length;
