@@ -475,6 +475,11 @@ describe('wikiLinkLivePreview', () => {
       expectNestedAncestry(view, '[data-wikilink-status]', 'tok-strong', 'tok-strike');
     });
 
+    it('~~==**[[Page]]**==~~: three levels deep (tok-strike > tok-highlight > tok-strong > tok-wikilink) — the DOM-ancestry precondition MarkdownEditor.css\'s ".tok-strike .tok-wikilink" text-decoration fix depends on holding at arbitrary depth, not just one extra level', () => {
+      const view = mountView('before ~~==**[[Page]]**==~~ after', resolvedAs('Page'), true);
+      expectNestedAncestry(view, '[data-wikilink-status]', 'tok-strong', 'tok-highlight', 'tok-strike');
+    });
+
     it('with an alias, nesting is unaffected: **[[Page|Alias]]** still wraps tok-strong > tok-wikilink', () => {
       const view = mountView('before **[[Page|Alias]]** after', () => ({
         status: 'resolved', icon: 'note', emoji: null,

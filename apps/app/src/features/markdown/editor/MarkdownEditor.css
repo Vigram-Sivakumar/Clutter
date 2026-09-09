@@ -1169,6 +1169,26 @@
   padding-inline: var(--space-3);
 }
 
+/* `inline-flex` above makes `.tok-wikilink` an atomic inline-level box, and
+ * `text-decoration-line` does not paint through such a box from an
+ * ancestor — e.g. `~~[[Page]]~~` struck through "normal link" but not the
+ * WikiLink widget itself (see docs/editor-architecture-decisions.md,
+ * "Atomic inline widgets and text-decoration composition"). This rule
+ * fixes it at the widget boundary rather than teaching every enclosing
+ * mark (`.tok-strong`/`.tok-emphasis`/`.tok-highlight`) to relay the
+ * value: a plain descendant selector matches `.tok-wikilink` under a
+ * `.tok-strike` ancestor at any depth (`~~**[[Page]]**~~`,
+ * `~~==**[[Page]]**==~~`, ...) regardless of what sits in between,
+ * because CSS descendant combinators ignore intermediate elements
+ * entirely — unlike `text-decoration-line: inherit`, which only reads the
+ * immediate parent's computed value and so breaks as soon as one
+ * intervening mark (e.g. `.tok-strong`) doesn't itself carry the
+ * decoration. Verified live across every nesting order and depth tried;
+ * see the architecture doc entry for the full comparison. */
+.cm-editor .tok-strike .tok-wikilink {
+  text-decoration-line: line-through;
+}
+
 /* A resolved WikiLink's own identity icon — emoji if assigned, else its
  * page type's default icon (`WikiLinkWidget.ts`'s own `PAGE_IDENTITY_ICON_BY_KIND`
  * usage) — the same emoji-or-default pairing `.cm-note-embed__icon-wrap`
