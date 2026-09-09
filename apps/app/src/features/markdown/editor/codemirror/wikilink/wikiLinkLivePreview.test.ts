@@ -498,6 +498,45 @@ describe('wikiLinkLivePreview', () => {
   });
 
   // ===================================================================
+  // Regression: a WikiLink inside a completed task must sit in the same
+  // `.cm-line` as the checked `.cm-task-checkbox` — the DOM-ancestry
+  // precondition MarkdownEditor.css's
+  // ".cm-line:has(.cm-task-checkbox[aria-checked='true']) .tok-wikilink"
+  // text-decoration fix depends on. This is a separate decorating
+  // ancestor from Strikethrough's `.tok-strike` (a completed task's
+  // strikethrough is a line-level rule keyed off the checkbox's
+  // aria-checked state, not `~~~~` syntax), discovered and fixed
+  // alongside it — see docs/editor-architecture-decisions.md's "Atomic
+  // inline widgets and text-decoration composition".
+  // ===================================================================
+  describe('regression: WikiLink inside a completed task shares the checked task line', () => {
+    it('- [x] text [[Page]]: the WikiLink widget is inside the same .cm-line as the checked checkbox', async () => {
+      const { taskCheckboxDecoration } = await import('../task/taskCheckboxDecoration');
+      const parent = document.createElement('div');
+      document.body.appendChild(parent);
+      const state = EditorState.create({
+        doc: '- [x] Track my bag [[Page]]',
+        extensions: [
+          markdownLanguageExtension(),
+          taskCheckboxDecoration(),
+          inlineLivePreviewRegion(
+            createInlineLivePreviewParticipants({ resolveTag: () => undefined, resolveDate: () => undefined })
+          ),
+          wikiLinkLivePreview(() => resolvedAs('Page')),
+        ],
+      });
+      const view = new EditorView({ state, parent });
+
+      const checkbox = view.dom.querySelector('.cm-task-checkbox');
+      expect(checkbox?.getAttribute('aria-checked')).toBe('true');
+
+      const widget = view.dom.querySelector('[data-wikilink-status]');
+      expect(widget).not.toBeNull();
+      expect(widget!.closest('.cm-line')).toBe(checkbox!.closest('.cm-line'));
+    });
+  });
+
+  // ===================================================================
   // Known, not-yet-fixed side effect of wikiLinkLivePreview.ts's generic
   // ancestor-widening (isDelimitedMarkConstruct), discovered while
   // investigating Link (docs/editor-architecture-decisions.md, "A live,

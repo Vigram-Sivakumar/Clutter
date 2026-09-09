@@ -1173,19 +1173,30 @@
  * `text-decoration-line` does not paint through such a box from an
  * ancestor — e.g. `~~[[Page]]~~` struck through "normal link" but not the
  * WikiLink widget itself (see docs/editor-architecture-decisions.md,
- * "Atomic inline widgets and text-decoration composition"). This rule
- * fixes it at the widget boundary rather than teaching every enclosing
- * mark (`.tok-strong`/`.tok-emphasis`/`.tok-highlight`) to relay the
- * value: a plain descendant selector matches `.tok-wikilink` under a
- * `.tok-strike` ancestor at any depth (`~~**[[Page]]**~~`,
- * `~~==**[[Page]]**==~~`, ...) regardless of what sits in between,
- * because CSS descendant combinators ignore intermediate elements
- * entirely — unlike `text-decoration-line: inherit`, which only reads the
- * immediate parent's computed value and so breaks as soon as one
- * intervening mark (e.g. `.tok-strong`) doesn't itself carry the
- * decoration. Verified live across every nesting order and depth tried;
+ * "Atomic inline widgets and text-decoration composition"). Each rule
+ * below fixes one decorating ancestor at the widget boundary rather than
+ * teaching that ancestor's own class (`.tok-strong`/`.tok-emphasis`/
+ * `.tok-highlight`, or the completed-task `.cm-line` rule) to relay the
+ * value: a plain descendant selector matches `.tok-wikilink` under the
+ * named ancestor at any depth (`~~**[[Page]]**~~`, `~~==**[[Page]]**==~~`,
+ * ...) regardless of what sits in between, because CSS descendant
+ * combinators ignore intermediate elements entirely — unlike
+ * `text-decoration-line: inherit`, which only reads the immediate
+ * parent's computed value and so breaks as soon as one intervening mark
+ * (e.g. `.tok-strong`) doesn't itself carry the decoration. Verified live
+ * across every nesting order/depth and both decorating contexts tried;
  * see the architecture doc entry for the full comparison. */
 .cm-editor .tok-strike .tok-wikilink {
+  text-decoration-line: line-through;
+}
+
+/* Second decorating ancestor, same fix: a completed task's own
+ * line-level strikethrough (`.cm-line:has(.cm-task-checkbox
+ * [aria-checked='true'])`, below) is a separate mechanism from `~~~~`
+ * Strikethrough — not routed through `.tok-strike` at all — so it needs
+ * its own rule; `.tok-wikilink` composes with each decorating ancestor it
+ * actually appears under, not just the first one found. */
+.cm-editor .cm-line:has(.cm-task-checkbox[aria-checked='true']) .tok-wikilink {
   text-decoration-line: line-through;
 }
 
