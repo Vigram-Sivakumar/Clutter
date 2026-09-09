@@ -331,10 +331,20 @@ export class PdfEmbedWidget extends WidgetType {
     const expandButton = this.makeButton(EXPAND_ICON, 'Expand', () => {
       this.getOnPdfEmbedClick()?.(this.path);
     });
+    const editButton = this.makeEditButton(view, getCurrentTo);
+    // `--mutating` distinguishes the two content-changing controls (Edit
+    // source reveals editable raw Markdown; More actions includes
+    // archive/move/delete) from Expand (pure viewing, opens PdfOverlay) —
+    // Read Mode (MarkdownEditor.css, keyed on `.cm-content[contenteditable
+    // ="false"]`) hides only the former, matching the product requirement
+    // that viewing affordances stay available while mutation affordances
+    // don't.
+    editButton.classList.add('cm-pdf-control--mutating');
+    moreActionsButton.classList.add('cm-pdf-control--mutating');
     // Expand, then Edit source, then More actions last (far right) — the
     // two direct content-manipulation actions read left-to-right before
     // the catch-all overflow menu.
-    actionsGroup.append(expandButton, this.makeEditButton(view, getCurrentTo), moreActionsButton);
+    actionsGroup.append(expandButton, editButton, moreActionsButton);
 
     controlsRow.append(titleSpan, actionsGroup);
 

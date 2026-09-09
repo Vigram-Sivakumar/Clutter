@@ -8,7 +8,13 @@ import {
   undoDepth,
 } from '@codemirror/commands';
 import { codeFolding, foldGutter, foldKeymap, indentUnit } from '@codemirror/language';
-import { Annotation, EditorState, Transaction, type Extension, type StateEffect } from '@codemirror/state';
+import {
+  Annotation,
+  EditorState,
+  Transaction,
+  type Extension,
+  type StateEffect,
+} from '@codemirror/state';
 import {
   drawSelection,
   dropCursor,
@@ -37,12 +43,70 @@ import { INDENT_UNIT_STRING } from './indent/markdownIndentContext';
  */
 const externalSync = Annotation.define<boolean>();
 
+/**
+ * Read-only support (docs/editor-architecture-decisions.md, "Note
+ * embeds: nested read-only `EditorView`..."). Not a toggleable Compartment
+ * — this app has no product-level Edit/Read mode for the normal,
+ * top-level note; the only consumer of `readOnly` is a note embed's
+ * nested `EditorView` (`NoteEmbedWidget.ts`), which is always constructed
+ * read-only and never toggled afterward, so a plain, fixed-at-construction
+ * extension pair is the smaller, correct mechanism — a `Compartment`
+ * would be unnecessary complexity for a value that never changes after
+ * construction.
+ */
+function readOnlyExtensions(readOnly: boolean): Extension[] {
+  return [
+    // Disables CM6's own built-in editing commands (keymaps/history) — a
+    // convention those commands check themselves; it does not, on its
+    // own, block a raw `view.dispatch({changes: ...})` call from
+    // application code (Clutter's own custom keymap commands, or a
+    // widget's button handler). `blockReadOnlyEdits` below is the actual,
+    // single enforcement point for that.
+    EditorState.readOnly.of(readOnly),
+    // Toggles `contenteditable` on the editor's content DOM — a rendering-
+    // layer setting only; decorations/widgets render identically either
+    // way, which is exactly the visual-parity property Read Mode needs.
+    // MarkdownEditor.css keys its own Read Mode control-hiding rules off
+    // this same native attribute.
+    EditorView.editable.of(!readOnly),
+  ];
+}
+
+/**
+ * The one, central enforcement point for "no mutation while read-only" —
+ * deliberately not left to each individual command/widget to check
+ * `state.readOnly` itself (an audit of every custom keymap command in
+ * this codebase found none of them do). A `transactionFilter` sees every
+ * transaction regardless of what produced it — a keymap command, a
+ * widget's button `view.dispatch()` call, anything — so this one check
+ * is a robust backstop even if a future mutating control forgets its own
+ * read-only awareness. No `externalSync` exemption: unlike the normal
+ * editable editor, a note embed's `EditorView` is never reused across a
+ * content change — `embedLivePreview.ts` rebuilds a fresh `NoteEmbedWidget`
+ * (and therefore a fresh nested `EditorView`) whenever the resolved
+ * markdown changes, so there is no "sync an existing read-only view"
+ * scenario this needs to accommodate; keeping the check to exactly what
+ * the actual consumer needs.
+ */
+const blockReadOnlyEdits = EditorState.transactionFilter.of((tr) =>
+  tr.startState.readOnly && tr.docChanged ? [] : tr
+);
+
 export interface CreateEditorViewOptions {
   readonly doc: string;
   readonly parent: HTMLElement;
   readonly extensions?: readonly Extension[];
   readonly onDocChange?: (markdown: string) => void;
   readonly onBlur?: () => void;
+  /**
+   * Defaults to editable (`false`). Fixed for this view's lifetime — the
+   * only caller that passes `true` (`NoteEmbedWidget.ts`, a note embed's
+   * nested `EditorView`) never toggles it afterward, so there is no
+   * corresponding "change it later" API; a caller that genuinely needed
+   * that would construct a fresh `EditorView` instead, the same way any
+   * other CM6 option here would be changed.
+   */
+  readonly readOnly?: boolean;
   /**
    * A previous `serializeEditorHistory()` snapshot for this exact
    * document (typically retrieved from `editorHistoryCache.ts` by the
@@ -95,7 +159,16 @@ export interface CreateEditorViewOptions {
  * CSS hiding was replaced).
  */
 export function createEditorView(options: CreateEditorViewOptions): EditorView {
-  const { doc, parent, extensions = [], onDocChange, onBlur, restoreHistoryJSON, restoreScrollEffect } = options;
+  const {
+    doc,
+    parent,
+    extensions = [],
+    onDocChange,
+    onBlur,
+    restoreHistoryJSON,
+    restoreScrollEffect,
+    readOnly = false,
+  } = options;
 
   const updateListener = EditorView.updateListener.of((update) => {
     if (!update.docChanged) {
@@ -119,6 +192,8 @@ export function createEditorView(options: CreateEditorViewOptions): EditorView {
   const allExtensions = [
       updateListener,
       blurHandler,
+      ...readOnlyExtensions(readOnly),
+      blockReadOnlyEdits,
       // Synchronizes CM6's own generic `indentUnit` facet to Clutter's
       // canonical indentation-unit constant (`INDENT_STEP_SPACES`,
       // `indent/markdownIndentContext.ts`) — the single point that keeps

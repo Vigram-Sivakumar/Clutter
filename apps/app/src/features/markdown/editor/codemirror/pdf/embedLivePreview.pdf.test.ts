@@ -143,14 +143,14 @@ function mountView(
     extensions: [
       history(),
       markdownLanguageExtension(),
-      embedLivePreview(
-        () => resolveEmbedImage,
-        () => undefined,
-        () => undefined,
-        () => resolveEmbedPdf,
-        () => onPdfEmbedClick,
-        () => onOpenPdfMenu
-      ),
+      embedLivePreview({
+        resolveEmbedImage: () => resolveEmbedImage,
+        onImageClick: () => undefined,
+        onOpenImageMenu: () => undefined,
+        resolveEmbedPdf: () => resolveEmbedPdf,
+        onPdfEmbedClick: () => onPdfEmbedClick,
+        onOpenPdfMenu: () => onOpenPdfMenu,
+      }),
     ],
   });
   return new EditorView({ state, parent });
@@ -173,14 +173,14 @@ function mountFullView(
       markdownLanguageExtension(),
       autocompletion({ override: [embedCompletionSource(() => getEmbedSuggestions)] }),
       embedAutocomplete(),
-      embedLivePreview(
-        () => resolveEmbedImage,
-        () => undefined,
-        () => undefined,
-        () => resolveEmbedPdf,
-        () => undefined,
-        () => undefined
-      ),
+      embedLivePreview({
+        resolveEmbedImage: () => resolveEmbedImage,
+        onImageClick: () => undefined,
+        onOpenImageMenu: () => undefined,
+        resolveEmbedPdf: () => resolveEmbedPdf,
+        onPdfEmbedClick: () => undefined,
+        onOpenPdfMenu: () => undefined,
+      }),
     ],
   });
   return new EditorView({ state, parent });

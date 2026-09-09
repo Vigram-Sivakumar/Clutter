@@ -81,7 +81,14 @@ function mountAssetEmbed(doc: string, resolve: ResolveEmbedImage): EditorView {
     extensions: [
       history(),
       markdownLanguageExtension(),
-      embedLivePreview(() => resolve, () => () => {}, () => () => {}, () => undefined, () => undefined, () => undefined),
+      embedLivePreview({
+        resolveEmbedImage: () => resolve,
+        onImageClick: () => () => {},
+        onOpenImageMenu: () => () => {},
+        resolveEmbedPdf: () => undefined,
+        onPdfEmbedClick: () => undefined,
+        onOpenPdfMenu: () => undefined,
+      }),
     ],
   });
   const view = new EditorView({ state, parent });

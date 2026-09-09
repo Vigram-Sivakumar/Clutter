@@ -12,79 +12,15 @@ import {
   getCachedEditorSession,
   setCachedEditorSession,
 } from './codemirror/editorHistoryCache';
-import { semanticCompletion } from './codemirror/completion';
-// Visual decoration imports below are commented out alongside their usage
-// further down — temporary keyboard-behavior-only configuration. See the
-// disabling comments at each call site for what each one did and why it's
-// safe to unwire. The old list-marker implementation was one exception:
-// `listMarkerDecoration.ts`, `list/listLineDecoration.ts`,
-// `list/listIndentWhitespaceDecoration.ts`, and `task/taskCheckboxMouseHandlers.ts`
-// were deleted outright (2026-08-28 list reset), not left dormant — list
-// rendering is being rebuilt from scratch against a different architecture;
-// see docs/editor-architecture-decisions.md for the research that preceded
-// the reset. `listMarkerDecoration()` (wired below) is the first slice of
-// that rebuild — bullet (`-`/`*`/`+`) markers only, built on the shared
-// `liveMarkDecoration` mechanism rather than the old bespoke ViewPlugin.
-// Ordered lists, task checklists, and hanging-indent/line-level list
-// decoration remain unimplemented; leading indentation for nested bullets
-// is already handled, construct-agnostically, by `leadingIndentDecoration.ts`.
-import { dateAutocomplete } from './codemirror/date/dateAutocomplete';
-import { dateMouseHandlers } from './codemirror/date/dateMouseHandlers';
-// import { emojiListMarkDecoration } from './codemirror/emoji-list/emojiListMarkDecoration';
-import { markdownEnterKeymap } from './codemirror/enter/markdownEnterKeymap';
-import { markdownIndentKeymap } from './codemirror/indent/markdownIndentKeymap';
-import { orderedListStructuralNormalization } from './codemirror/list/orderedListStructuralNormalization';
-import { formatShortcutsKeymap } from './codemirror/format/formatShortcutsKeymap';
-import { blockquoteLineDecoration } from './codemirror/highlight/blockquoteLineDecoration';
-import { blockquoteMarkerDecoration } from './codemirror/highlight/blockquoteMarkerDecoration';
-// import { emphasisMarkerDecoration } from './codemirror/highlight/emphasisMarkerDecoration';
-import { headingMarkerDecoration } from './codemirror/highlight/headingMarkerDecoration';
-import { createInlineLivePreviewParticipants } from './codemirror/highlight/inlineLivePreviewParticipants';
-import { inlineLivePreviewRegion } from './codemirror/highlight/inlineLivePreviewRegion';
-import { leadingIndentDecoration } from './codemirror/highlight/leadingIndentDecoration';
-import { linkMouseHandlers } from './codemirror/link/linkMouseHandlers';
-import { urlMouseHandlers } from './codemirror/link/urlMouseHandlers';
-import { listMarkerCaretAssoc, listMarkerDecoration } from './codemirror/list/listMarkerDecoration';
-import { taskCheckboxDecoration } from './codemirror/task/taskCheckboxDecoration';
-import { taskCheckboxMouseHandlers } from './codemirror/task/taskCheckboxMouseHandlers';
-import { taskCompletionMetadataDecoration } from './codemirror/task/taskCompletionMetadataDecoration';
-// The liveMarkDecoration-based marker decorations still dormant here
-// (emphasis, strikethrough — plus blockquote/list, which stay on
-// liveMarkDecoration permanently per ODR §4.10) carry the
-// still-undecided liveMarkSelectionSnap transactionFilter. Heading is
-// wired below (re-enabled alongside horizontalRuleDecoration) — its
-// liveMarkSelectionSnap wiring comes bundled from the same
-// liveMarkDecoration() factory call, unchanged. Highlight,
-// InlineCode, Tag, and Date's own liveMarkDecoration/
-// semanticTokenDecorations-based modules were retired outright (not left
-// dormant) once inlineLivePreviewRegion() took over their inline
-// visibility — see docs/editor-research/inline-live-preview-region-odr-v1.md.
-// WikiLink's own at-rest widget went through the same path, but its
-// engaged-state behavior now lives outside inlineLivePreviewRegion
-// entirely, in wikiLinkLivePreview.ts (see that file's doc comment).
-// import { strikethroughMarkerDecoration } from './codemirror/highlight/strikethroughMarkerDecoration';
-import { horizontalRuleDecoration } from './codemirror/hr/horizontalRuleDecoration';
+import { buildEditorExtensions } from './codemirror/buildEditorExtensions';
 import { computeImageDeletionRange } from './codemirror/image/imageDeletion';
 import { ImageOptionsMenu } from './codemirror/image/ImageOptionsMenu';
 import type { OnImageClick, OnOpenImageMenu } from './codemirror/image/ImageWidget';
-import { imageLivePreview } from './codemirror/image/imageLivePreview';
-import { embedLivePreview } from './codemirror/embed/embedLivePreview';
 import type { OnOpenPdfMenu, OnPdfEmbedClick } from './codemirror/pdf/PdfEmbedWidget';
 import { PdfEmbedMoreActions, type PdfEmbedMoreActionsAnchor } from './codemirror/pdf/PdfEmbedMoreActions';
 import { getImageUiState, presentationOnlyEdit, setImageUiState, type ImageDisplayMode } from './codemirror/image/imageUiState';
 import { getImagePresentation, computeImagePresentationUpdate } from './codemirror/mediaPresentation/mediaPresentationUpdate';
-import { markdownLanguageExtension } from './codemirror/markdownLanguage';
 import { copyTextToClipboard } from '@shared/helpers/copyTextToClipboard';
-// import { tableDecoration } from './codemirror/table/tableDecoration';
-// taskCheckboxMouseHandlers.ts was deleted alongside the rest of the old
-// list-marker implementation (2026-08-28 list reset) and rebuilt in the
-// task visual-rendering slice (2026-08-31) — see the wiring site below.
-import { tagAutocomplete } from './codemirror/tag/tagAutocomplete';
-import { tagMouseHandlers } from './codemirror/tag/tagMouseHandlers';
-import { wikiLinkAutocomplete } from './codemirror/wikilink/wikiLinkAutocomplete';
-import { embedAutocomplete } from './codemirror/embed/embedAutocomplete';
-import { wikiLinkLivePreview } from './codemirror/wikilink/wikiLinkLivePreview';
-import { wikiLinkMouseHandlers } from './codemirror/wikilink/wikiLinkMouseHandlers';
 import type {
   MarkdownEditorHandle,
   MarkdownEditorProps,
@@ -194,6 +130,8 @@ export const MarkdownEditor = forwardRef<
     resolveEmbedImage,
     resolveEmbedPdf,
     onPdfEmbedClick,
+    resolvePageEmbed,
+    onOpenPage,
     onOpenImageOverlay,
     resolveImageSrc,
     resolveTag,
@@ -277,6 +215,14 @@ export const MarkdownEditor = forwardRef<
   resolveEmbedPdfRef.current = resolveEmbedPdf;
   const onPdfEmbedClickRef = useRef<OnPdfEmbedClick | undefined>(onPdfEmbedClick);
   onPdfEmbedClickRef.current = onPdfEmbedClick;
+
+  // Same freshness pattern, for the note-embed branch's own resolver/
+  // open-source-note accessors below (embedLivePreview.ts, via
+  // buildEditorExtensions.ts).
+  const resolvePageEmbedRef = useRef(resolvePageEmbed);
+  resolvePageEmbedRef.current = resolvePageEmbed;
+  const onOpenPageRef = useRef(onOpenPage);
+  onOpenPageRef.current = onOpenPage;
 
   // Same freshness pattern, for standard Image's own live-preview local-
   // path resolution accessor below.
@@ -554,199 +500,44 @@ export const MarkdownEditor = forwardRef<
       // unconditionally, cache hit or miss.
       restoreHistoryJSON: cachedSession?.historyJSON,
       restoreScrollEffect: cachedSession?.scrollEffect,
-      extensions: [
-        // Still CodeMirror's own keyboard behavior for Delete/Arrow keys —
-        // no Clutter interception there. Enter, Backspace, and (2026-08-28)
-        // Tab/Shift-Tab are the exceptions. Enter/Backspace:
-        // markdownEnterKeymap() below, in place of the markdownKeymap that
-        // markdownLanguageExtension() deliberately no longer installs
-        // (addKeymap: false) — Backspace identically (deleteMarkupBackward),
-        // Enter differing only in the empty-continuation policy documented
-        // in that file. Tab/Shift-Tab: markdownIndentKeymap() — a
-        // construct-aware replacement for `createEditorView.ts`'s own
-        // generic `indentMore`/`indentLess` (`indentWithTab`), scoped this
-        // milestone to plain paragraphs and single-line list items only;
-        // every other construct (heading, blockquote, code, tables, …)
-        // still falls through to that same generic behavior, unchanged —
-        // see markdownIndentKeymap.ts's own doc comment for exactly which
-        // constructs are, and aren't, handled yet.
-        markdownLanguageExtension(),
-        markdownEnterKeymap(),
-        markdownIndentKeymap(),
-        // Transaction-level ordered-list membership renumbering
-        // (2026-08-31) — fires on *any* document-changing transaction
-        // (Enter, Backspace, Delete, selection-delete, raw edits),
-        // regardless of which command produced it, complementing
-        // Tab/Shift-Tab's own (markdownIndentKeymap above) and Space's
-        // own (wired inside markdownEnterKeymap) narrower, command-scoped
-        // normalization. See
-        // codemirror/list/orderedListStructuralNormalization.ts's own
-        // doc comment for the full rationale and the transactionFilter
-        // composition/idempotence guarantees.
-        orderedListStructuralNormalization(),
-        // --- Temporarily unwired: purely visual Live Preview decorations ---
-        // Every extension below this line, up to the next "--- end ---"
-        // marker, was checked for behavioral coupling (keymap registration,
-        // EditorView.atomicRanges, transactionFilter) before being disabled.
-        // None of them have any — confirmed by grepping each file. Nothing
-        // deleted or rewritten; uncomment to restore. See the accompanying
-        // report for the full per-extension classification.
-        // emphasisMarkerDecoration(),
-        // The single authoritative inline Live Preview visibility
-        // mechanism — Emphasis, StrongEmphasis, Strikethrough, Highlight,
-        // InlineCode (marker-hiding), plus WikiLink, Tag, Date
-        // (widget-replace, Phase 3) — per
-        // docs/editor-research/inline-live-preview-region-odr-v1.md.
-        // Replaces the previously separate per-construct plugins: an
-        // independent traversal per construct could each decide
-        // engagement only for its own node kinds, so a caret between an
-        // outer and inner delimiter (`~~__Text__~~`) revealed the outer
-        // construct while the inner stayed concealed. Visibility now
-        // resolves per nested *region*, not per construct. Resolvers are
-        // threaded through as stable getter closures (same freshness
-        // pattern as onEdit/onFlush below), so the extension is never
-        // rebuilt when a resolver changes. `atomicRanges` is derived from
-        // the same single traversal, scoped to the widget-replace family
-        // only (ODR §10 Phase 3) — ordinary marks never atomic, widgets
-        // atomic only at rest. `Task` is deliberately not a participant:
-        // its checkbox rendering is fused into block-level
-        // listMarkerDecoration/'physical-line' engagement, out of scope
-        // per ODR §4.10 (the ODR's own §10 Phase 3 text naming Task is a
-        // recorded erratum, not implemented). Adding a participant is a
-        // registry entry in inlineLivePreviewParticipants.ts — never a
-        // change here or to another construct (ODR §4.8).
-        inlineLivePreviewRegion(
-          createInlineLivePreviewParticipants({
-            resolveTag: () => resolveTagRef.current,
-            resolveDate: () => resolveDateRef.current,
-          })
-        ),
-        // WikiLink's own standalone visibility mechanism — not a
-        // participant above. Its required behavior (the folder-qualified
-        // path must never be visible, engaged or not) is not an instance
-        // of inlineLivePreviewRegion's reveal-on-engage contract, so it
-        // isn't governed by that shared traversal at all. See
-        // wikilink/wikiLinkLivePreview.ts's own doc comment.
-        wikiLinkLivePreview(() => resolveWikiLinkRef.current),
-        // Image's own standalone visibility mechanism — not a participant
-        // above (see inlineLivePreviewParticipants.ts's own comment).
-        // Required behavior: the rendered image must never be replaced by
-        // raw Markdown just because the caret enters it; only its own
-        // edit/source control does that, and even then the image stays
-        // rendered alongside the now-editable source. See
-        // image/imageLivePreview.ts's own doc comment.
-        imageLivePreview(
-          () => onImageClickRef.current,
-          () => onOpenImageMenuRef.current,
-          () => resolveImageSrcRef.current
-        ),
-        // Resource embed rendering — shares ImageWidget/the image overlay/
-        // options menu wholesale with the standard-image extension above
-        // (see embed/embedLivePreview.ts's own doc comment for why this is
-        // a separate ViewPlugin keyed on the `Embed` node rather than a
-        // change to imageLivePreview.ts itself).
-        embedLivePreview(
-          () => resolveEmbedImageRef.current,
-          () => onImageClickRef.current,
-          () => onOpenImageMenuRef.current,
-          () => resolveEmbedPdfRef.current,
-          () => onPdfEmbedClickRef.current,
-          () => onOpenPdfMenuRef.current
-        ),
-        // strikethroughMarkerDecoration(),
-        // Bullet (-/*/+) marker rendering only — the first slice of the
-        // list-rendering rebuild (2026-08-28 reset, see the comment near
-        // this file's top). Built on liveMarkDecoration, same mechanism as
-        // headingMarkerDecoration()/blockquoteMarkerDecoration() above.
-        // Ordered lists are still unrendered; a future slice adds them
-        // alongside line/hanging-indent decoration (listLineDecoration(),
-        // not yet reimplemented). Task checklists are rendered separately
-        // below, via taskCheckboxDecoration() — deliberately not folded
-        // into this function: `listMarkerDecoration.ts`'s own glyph-paint
-        // mechanism (real 1-char marker, transparent text + `::before`)
-        // cannot cleanly collapse `TaskMarker`'s fixed 3-character source
-        // range to one visual glyph; the checkbox needs a real
-        // `Decoration.replace`/`WidgetType`, matching WikiLink/Tag/Date's
-        // own at-rest widget mechanism instead. `listMarkerDecoration.ts`
-        // itself is unchanged — its own `hasTaskChild` check still
-        // excludes task items from bullet-glyph rendering, unaffected.
-        listMarkerDecoration(),
-        // TEMPORARY PROTOTYPE — fixes ArrowRight's caret-rendering
-        // asymmetry at a bullet item's content-start position; see
-        // listMarkerDecoration.ts's own doc comment on listMarkerCaretAssoc.
-        listMarkerCaretAssoc(),
-        // Task checklist visual rendering (2026-08-31): the checkbox
-        // widget (`☐`/`☑`, replacing the raw `[ ]`/`[x]` — TaskMarker
-        // itself stays in the document) plus concealment of the outer
-        // list marker for task items only, and separately, permanent
-        // concealment of `@completed:<date>` inline metadata. See
-        // taskCheckboxDecoration.ts's own doc comment for why this is a
-        // real Decoration.replace/WidgetType/atomicRanges construct, not
-        // an extension of listMarkerDecoration()'s glyph-paint mechanism.
-        taskCheckboxDecoration(),
-        taskCompletionMetadataDecoration(),
-        // listLineDecoration(),
-        // listIndentWhitespaceDecoration(),
-        // emojiListMarkDecoration(),
-        blockquoteMarkerDecoration(),
-        blockquoteLineDecoration(),
-        headingMarkerDecoration(),
-        // tok-heading1-6 content classing is now emitted directly by
-        // inlineLivePreviewRegion() above (see its own doc comment) —
-        // folded into the same shared decoration source rather than a
-        // second, independent syntaxHighlighting() extension, so it
-        // composes correctly with Highlight/Emphasis/Link/etc. nested
-        // inside a heading. No separate registration needed here.
-        horizontalRuleDecoration(),
-        leadingIndentDecoration(),
-        formatShortcutsKeymap(),
-        // tableDecoration(),
-        // --- end purely-visual decorations ---
-        // Reuses the exact same onFlush callback already wired to blur
-        // below (PageOperations.requestSave, via SaveCoordinator) — a
-        // checkbox toggle is instant, single-click feedback a user expects
-        // to see reflected everywhere (the sidebar) immediately, unlike
-        // ordinary typing, which should keep using the normal debounced
-        // autosave. See taskCheckboxActivation.ts's own doc comment.
-        // Rebuilt (2026-08-31, task visual-rendering slice) on the exact
-        // same generic tokenMouseHandlers mechanism WikiLink/Tag/Date
-        // already use below — not a new click-resolution mechanism, and
-        // not coupled to listMarkerDecoration.ts's own marker range at
-        // all (that coupling was the old, deleted implementation's own
-        // design, not repeated here).
-        taskCheckboxMouseHandlers(() => onFlushRef.current?.()),
-        // Kept: click activation is product interaction (open/toggle),
-        // not cursor behavior, and works independently of the decorations
-        // above (it reads the syntax tree directly, not the rendered
-        // widget). `*SelectionSnap()` was removed in the cursor/selection
-        // behavior reset — it existed only to correct a drag-selection
-        // endpoint landing inside an at-rest widget's rendered footprint,
-        // which requires that widget to actually render; with the
-        // decorations above off, it had nothing left to compensate for
-        // and was overriding CM6's own default selection placement on
-        // plain, fully-editable raw Markdown text. See
-        // `semanticToken/tokenSelectionSnap.ts`'s own doc comment and
-        // docs/editor-architecture-decisions.md for the full record.
-        wikiLinkMouseHandlers(() => resolveWikiLinkRef.current),
-        wikiLinkAutocomplete(),
-        embedAutocomplete(),
-        tagMouseHandlers(() => resolveTagRef.current),
-        tagAutocomplete(),
-        dateMouseHandlers(() => resolveDateRef.current),
-        dateAutocomplete(),
-        // Explicit Markdown Link ([label](url)) and bare-URL/Autolink
-        // click-to-navigate — no injected resolver needed (unlike
-        // WikiLink/Tag/Date), since opening a URL has no Vault/app-layer
-        // dependency. See link/linkActivation.ts and link/urlActivation.ts.
-        linkMouseHandlers(),
-        urlMouseHandlers(),
-        semanticCompletion(
-          () => getWikiLinkSuggestionsRef.current,
-          () => getTagSuggestionsRef.current,
-          () => getEmbedSuggestionsRef.current,
-          () => getEmbedHeadingSuggestionsRef.current
-        ),
-      ],
+      // The full rendering/interaction extension list is built by the one
+      // shared factory (`buildEditorExtensions.ts`) a note embed's own
+      // nested, permanently read-only `EditorView` also calls (from
+      // `embedLivePreview.ts`, when a `![[Page]]` target resolves) — see
+      // that factory's own doc comment for why this extraction exists and
+      // exactly which extensions differ (`readOnly: false` here keeps
+      // every editing keymap/autocomplete/normalization extension
+      // included, unlike a note embed's own build). `readOnly` here must
+      // stay in sync with the `readOnly: false` (default) this same
+      // `createEditorView()` call above implicitly uses — no explicit
+      // `readOnly` option is passed to `createEditorView` for the
+      // top-level editor, exactly as before this extraction.
+      extensions: buildEditorExtensions({
+        resolveWikiLink: () => resolveWikiLinkRef.current,
+        getWikiLinkSuggestions: () => getWikiLinkSuggestionsRef.current,
+        getEmbedSuggestions: () => getEmbedSuggestionsRef.current,
+        getEmbedHeadingSuggestions: () => getEmbedHeadingSuggestionsRef.current,
+        resolveEmbedImage: () => resolveEmbedImageRef.current,
+        resolveEmbedPdf: () => resolveEmbedPdfRef.current,
+        resolvePageEmbed: () => resolvePageEmbedRef.current,
+        onImageClick: () => onImageClickRef.current,
+        onOpenImageMenu: () => onOpenImageMenuRef.current,
+        onPdfEmbedClick: () => onPdfEmbedClickRef.current,
+        onOpenPdfMenu: () => onOpenPdfMenuRef.current,
+        onOpenPage: () => onOpenPageRef.current,
+        resolveImageSrc: () => resolveImageSrcRef.current,
+        resolveTag: () => resolveTagRef.current,
+        getTagSuggestions: () => getTagSuggestionsRef.current,
+        resolveDate: () => resolveDateRef.current,
+        onTaskCheckboxToggled: () => onFlushRef.current?.(),
+        readOnly: false,
+        // Seeds this page's own id into the top-level ancestry so a note
+        // that embeds itself directly (`![[ThisPage]]`) is caught on
+        // first encounter, exactly like any other cycle — not just a
+        // cycle discovered one level of embedding deep. See
+        // `noteEmbedAncestry.ts`'s own doc comment.
+        ancestry: { ancestryPageIds: new Set([pageId]), depth: 0 },
+      }),
       onDocChange: (nextMarkdown) => onEditRef.current?.(nextMarkdown),
       onBlur: () => onFlushRef.current?.(),
     });

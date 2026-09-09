@@ -124,14 +124,14 @@ function mountPdfView(doc: string, anchor = 0): EditorView {
     extensions: [
       history(),
       markdownLanguageExtension(),
-      embedLivePreview(
-        () => resolveEmbedImage,
-        () => undefined,
-        () => undefined,
-        () => resolveEmbedPdf,
-        () => () => {},
-        () => () => {}
-      ),
+      embedLivePreview({
+        resolveEmbedImage: () => resolveEmbedImage,
+        onImageClick: () => undefined,
+        onOpenImageMenu: () => undefined,
+        resolveEmbedPdf: () => resolveEmbedPdf,
+        onPdfEmbedClick: () => () => {},
+        onOpenPdfMenu: () => () => {},
+      }),
     ],
   });
   return new EditorView({ state, parent });

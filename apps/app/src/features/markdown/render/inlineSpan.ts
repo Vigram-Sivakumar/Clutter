@@ -6,11 +6,13 @@ import { scanTag } from '../editor/codemirror/tag/tagScanner';
 import { scanWikiLink } from '../editor/codemirror/wikilink/wikiLinkScanner';
 
 /**
- * Inline span vocabulary shared by every read-only Markdown rendering
- * surface (the compact/sidebar renderer and the future block-aware
- * `MarkdownReadRenderer`) — one shape, so the two never independently
- * decide what counts as bold/italic/strikethrough/code/highlight/
- * WikiLink/Tag/Date/link/image.
+ * Inline span vocabulary for a read-only Markdown rendering surface —
+ * currently only the compact/sidebar renderer (`tokenizeCompactMarkdown`/
+ * `renderCompactMarkdown`) — kept as its own module (rather than inlined
+ * into that renderer) so a second CM6-independent rendering surface,
+ * should one ever exist, shares this exact vocabulary instead of
+ * independently deciding what counts as bold/italic/strikethrough/code/
+ * highlight/WikiLink/Tag/Date/link/image.
  */
 export type InlineSpan =
   | { readonly kind: 'text'; readonly value: string }

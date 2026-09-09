@@ -13,6 +13,7 @@ import type { ResolveTag } from './codemirror/tag/tagResolution';
 import type { GetTagSuggestions } from './codemirror/tag/tagSuggestion';
 import type { ResolveWikiLink } from './codemirror/wikilink/wikiLinkResolution';
 import type { GetWikiLinkSuggestions } from './codemirror/wikilink/wikiLinkSuggestion';
+import type { ResolvePageEmbed } from '../render/blocks/pageEmbedResolution';
 
 export interface MarkdownEditorProps {
   /**
@@ -123,6 +124,26 @@ export interface MarkdownEditorProps {
    * itself and never imports `Vault`, per this file's own boundary.
    */
   readonly onPdfEmbedClick?: OnPdfEmbedClick;
+  /**
+   * Resolves a completed `![[path]]` Embed's target into a note (or an
+   * ambiguous/unresolved/unresolved-heading outcome) for
+   * `embedLivePreview.ts` to render as a permanently read-only note
+   * embed — the note-scoped counterpart to `resolveEmbedImage`/
+   * `resolveEmbedPdf` above, consulted only after both of those decline
+   * (see `embedLivePreview.ts`'s own doc comment). Composed from
+   * `Vault` + `EffectivePageState` (`resolvePageEmbed.ts`, ADR-032/
+   * Milestone 3-5 work, reused unchanged).
+   */
+  readonly resolvePageEmbed?: ResolvePageEmbed;
+  /**
+   * A note embed's own "open source note" action — the only supported
+   * way to edit an embedded note's content, per this milestone's own
+   * permanent product rule (there is no edit-in-place, ever). Supplied
+   * entirely by the feature/app layer, the same one-line
+   * `pageOperations.open(pageId)` pattern `resolveWikiLink.ts`'s own
+   * `activate()` already establishes.
+   */
+  readonly onOpenPage?: (pageId: string) => void;
   /**
    * Opens the shared resource overlay (owned by `AppLayout`, per
    * `resourceOverlay.ts`) for an image that doesn't necessarily have a

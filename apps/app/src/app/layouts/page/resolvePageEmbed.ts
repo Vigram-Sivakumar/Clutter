@@ -12,11 +12,12 @@ import type { PageEmbedResolution, ResolvePageEmbed } from '@features/markdown/r
 import { findPagesByAlias } from './resolveWikiLink';
 
 /**
- * Composes `Vault` + `EffectivePageState` into the render layer's injected
- * `ResolvePageEmbed` boundary — `MarkdownReadRenderer`/`NoteEmbed` never
- * import either directly (same "editor/feature layer never imports Vault
- * directly" boundary `resolveWikiLink.ts`/`resolveEmbedImage.ts` already
- * respect). Path/alias lookup reuses `resolveWikiLink.ts`'s exact literal-
+ * Composes `Vault` + `EffectivePageState` into the editor layer's injected
+ * `ResolvePageEmbed` boundary — the CM6 note-embed rendering path
+ * (`embedLivePreview.ts`/`NoteEmbedWidget.ts`) never imports either
+ * directly (same "editor/feature layer never imports Vault directly"
+ * boundary `resolveWikiLink.ts`/`resolveEmbedImage.ts` already respect).
+ * Path/alias lookup reuses `resolveWikiLink.ts`'s exact literal-
  * path-then-alias-fallback rule (`findPagesByAlias`, exported from there)
  * rather than a second implementation of the same target-resolution logic
  * — a note embed's `![[path|alias]]` names exactly the same kind of
@@ -117,9 +118,9 @@ function splitEmbedTarget(path: string): { pagePath: string; headingQuery: strin
  * is `[matched heading's own start, next occurrence with level <= the
  * matched heading's level, or end of document)` — the matched heading's
  * own line is included in the result (a product decision, not a parser
- * fact: `MarkdownReadRenderer` renders whatever span it's given, and a
- * heading section without its own heading would read oddly as embedded
- * content).
+ * fact: the note-embed rendering path (`NoteEmbedWidget.ts`) renders
+ * whatever markdown span it's given, and a heading section without its
+ * own heading would read oddly as embedded content).
  */
 function resolveHeadingSection(
   markdown: string,

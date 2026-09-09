@@ -25,6 +25,19 @@ import type { ResolveEmbedImage } from './embedImageResolution';
 import { PdfEmbedWidget, type OnOpenPdfMenu, type OnPdfEmbedClick } from '../pdf/PdfEmbedWidget';
 import type { ResolveEmbedPdf } from '../pdf/embedPdfResolution';
 import { createPdfDocumentCache, type PdfDocumentCache } from '../pdf/pdfDocumentCache';
+import { NoteEmbedWidget } from './NoteEmbedWidget';
+import type { ResolvePageEmbed } from '../../../render/blocks/pageEmbedResolution';
+import {
+  checkNoteEmbedAncestry,
+  DEFAULT_MAX_EMBED_DEPTH,
+  ROOT_ANCESTRY,
+  type NoteEmbedAncestry,
+} from './noteEmbedAncestry';
+import { buildEditorExtensions } from '../buildEditorExtensions';
+import type { ResolveWikiLink } from '../wikilink/wikiLinkResolution';
+import type { ResolveTag } from '../tag/tagResolution';
+import type { ResolveDate } from '../date/dateResolution';
+import type { ResolveImageSrc } from '../image/imageSrcResolution';
 
 /**
  * Resource embeds' own `GetCurrentImageSource` — the Embed-scoped
@@ -154,16 +167,65 @@ function currentEmbedImageSource(
  * `getOnImageClick`/`getOnOpenImageMenu` injected-getter shape — read fresh
  * per rebuild/per probe-resolve, never captured once.
  */
+export interface EmbedLivePreviewOptions {
+  readonly resolveEmbedImage: () => ResolveEmbedImage | undefined;
+  readonly onImageClick: () => OnImageClick | undefined;
+  readonly onOpenImageMenu: () => OnOpenImageMenu | undefined;
+  readonly resolveEmbedPdf: () => ResolveEmbedPdf | undefined;
+  readonly onPdfEmbedClick: () => OnPdfEmbedClick | undefined;
+  readonly onOpenPdfMenu: () => OnOpenPdfMenu | undefined;
+  /**
+   * Consulted only after both resolvers above decline (see this file's
+   * own doc comment, the `'unresolved'`-and-not-a-PDF fallthrough) —
+   * `![[...]]` is one shared syntax for a resource embed (image/PDF) and
+   * a note embed alike; a target that resolves to neither a `VaultResource`
+   * nor a PDF-by-extension is the one case worth asking "is this a page
+   * instead." Omitted entirely (every pre-note-embed call site) simply
+   * skips that question, falling through to the same missing-resource
+   * rendering as always.
+   */
+  readonly resolvePageEmbed?: () => ResolvePageEmbed | undefined;
+  /** A resolved note embed's own "open source note" action — see `NoteEmbedWidget.ts`'s doc comment. */
+  readonly onOpenPage?: () => ((pageId: string) => void) | undefined;
+  /**
+   * Threaded through only so a resolved note embed's own nested view
+   * (`NoteEmbedWidget`) can be built with the *same* resolvers the
+   * embedding document already has — WikiLink/Tag/Date/standard-image
+   * rendering inside an embedded note must look exactly as it would if
+   * that note were open directly, not a stripped-down subset. Never
+   * consulted by this file's own image/PDF/page resolution — only
+   * forwarded into `buildEditorExtensions()` below.
+   */
+  readonly resolveWikiLink?: () => ResolveWikiLink | undefined;
+  readonly resolveTag?: () => ResolveTag | undefined;
+  readonly resolveDate?: () => ResolveDate | undefined;
+  readonly resolveImageSrc?: () => ResolveImageSrc | undefined;
+  /** Defaults to `ROOT_ANCESTRY` — the top-level editor's own starting point (see `buildEditorExtensions.ts`'s doc comment on this same field). */
+  readonly ancestry?: NoteEmbedAncestry;
+  readonly maxEmbedDepth?: number;
+}
+
 function buildDecorations(
   view: EditorView,
-  getResolveEmbedImage: () => ResolveEmbedImage | undefined,
-  getOnImageClick: () => OnImageClick | undefined,
-  getOnOpenImageMenu: () => OnOpenImageMenu | undefined,
-  getResolveEmbedPdf: () => ResolveEmbedPdf | undefined,
-  getOnPdfEmbedClick: () => OnPdfEmbedClick | undefined,
-  getOnOpenPdfMenu: () => OnOpenPdfMenu | undefined,
+  options: EmbedLivePreviewOptions,
   pdfDocumentCache: PdfDocumentCache
 ): { decorations: DecorationSet; atomic: DecorationSet } {
+  const {
+    resolveEmbedImage: getResolveEmbedImage,
+    onImageClick: getOnImageClick,
+    onOpenImageMenu: getOnOpenImageMenu,
+    resolveEmbedPdf: getResolveEmbedPdf,
+    onPdfEmbedClick: getOnPdfEmbedClick,
+    onOpenPdfMenu: getOnOpenPdfMenu,
+    resolvePageEmbed: getResolvePageEmbed,
+    onOpenPage: getOnOpenPage,
+    resolveWikiLink: getResolveWikiLink,
+    resolveTag: getResolveTag,
+    resolveDate: getResolveDate,
+    resolveImageSrc: getResolveImageSrc,
+    ancestry = ROOT_ANCESTRY,
+    maxEmbedDepth = DEFAULT_MAX_EMBED_DEPTH,
+  } = options;
   const ranges: Range<Decoration>[] = [];
   const atomicRanges: Range<Decoration>[] = [];
   const getCurrentSource = currentEmbedImageSource(getResolveEmbedImage);
@@ -289,9 +351,56 @@ function buildDecorations(
             // for both widget families, same as before this fix.
             return;
           }
-          // Else: resolution.status === 'unresolved' and the PDF resolver
-          // declined too (not a PDF-looking path either) — falls through
-          // to the generic image-broken rendering below, unchanged.
+
+          // resolution.status === 'unresolved' and the PDF resolver
+          // declined too (not a PDF-looking path either) — the one case
+          // where a target might name a page instead of a resource. See
+          // this file's own doc comment and `EmbedLivePreviewOptions`'s
+          // `resolvePageEmbed` field.
+          const resolvePageEmbed = getResolvePageEmbed?.();
+          const pageResolution = resolvePageEmbed?.(match.path);
+
+          if (pageResolution?.status === 'resolved') {
+            const ancestryCheck = checkNoteEmbedAncestry(ancestry, pageResolution.pageId, maxEmbedDepth);
+
+            if (ancestryCheck.ok) {
+              // The nested view's own extensions are built through the
+              // exact same shared factory the top-level editor uses
+              // (`buildEditorExtensions.ts`), `readOnly: true` and the
+              // extended ancestry threaded through so a further-nested
+              // embed inside *this* note is protected identically —
+              // never a duplicated rendering/cycle-check mechanism.
+              const noteExtensions = buildEditorExtensions({
+                resolveWikiLink: getResolveWikiLink ?? (() => undefined),
+                resolveEmbedImage: getResolveEmbedImage,
+                resolveEmbedPdf: getResolveEmbedPdf,
+                resolvePageEmbed: getResolvePageEmbed,
+                onImageClick: getOnImageClick,
+                onOpenImageMenu: () => undefined,
+                onPdfEmbedClick: getOnPdfEmbedClick,
+                onOpenPdfMenu: () => undefined,
+                onOpenPage: getOnOpenPage,
+                resolveImageSrc: getResolveImageSrc ?? (() => undefined),
+                resolveTag: getResolveTag ?? (() => undefined),
+                resolveDate: getResolveDate ?? (() => undefined),
+                readOnly: true,
+                ancestry: ancestryCheck.ancestry,
+                maxEmbedDepth,
+              });
+              const widget = new NoteEmbedWidget(pageResolution, noteExtensions, getOnOpenPage?.());
+              const range = Decoration.replace({ widget }).range(node.from, node.to);
+              ranges.push(range);
+              atomicRanges.push(range);
+              return;
+            }
+            // Cycle or depth-limit hit — falls through to the generic
+            // broken-embed rendering below, same as any other unresolved
+            // target; never constructs the widget, which is what actually
+            // stops the recursion.
+          }
+          // Else: not a page either (ambiguous/unresolved/unresolved-heading,
+          // or no resolvePageEmbed supplied at all) — falls through to the
+          // generic image-broken rendering below, unchanged.
         }
 
         const ui =
@@ -348,16 +457,12 @@ interface EmbedLivePreviewPlugin extends PluginValue {
  * `getResolveEmbedPdf`/`getOnPdfEmbedClick`/`getOnOpenPdfMenu` are the
  * PDF-embed counterparts — consulted only when `getResolveEmbedImage`'s own
  * resolution says `'non-image'` for a target, see `buildDecorations`'s own
- * doc comment on that branch.
+ * doc comment on that branch. `resolvePageEmbed`/`onOpenPage` (plus the
+ * `resolveWikiLink`/`resolveTag`/`resolveDate`/`resolveImageSrc` forwarded
+ * only for a resolved note embed's own nested rendering) are the note-embed
+ * counterparts — see `EmbedLivePreviewOptions`'s own field docs.
  */
-export function embedLivePreview(
-  getResolveEmbedImage: () => ResolveEmbedImage | undefined,
-  getOnImageClick: () => OnImageClick | undefined,
-  getOnOpenImageMenu: () => OnOpenImageMenu | undefined,
-  getResolveEmbedPdf: () => ResolveEmbedPdf | undefined,
-  getOnPdfEmbedClick: () => OnPdfEmbedClick | undefined,
-  getOnOpenPdfMenu: () => OnOpenPdfMenu | undefined
-): Extension {
+export function embedLivePreview(options: EmbedLivePreviewOptions): Extension {
   const plugin = ViewPlugin.fromClass<EmbedLivePreviewPlugin>(
     class implements EmbedLivePreviewPlugin {
       decorations: DecorationSet;
@@ -372,12 +477,7 @@ export function embedLivePreview(
       constructor(view: EditorView) {
         ({ decorations: this.decorations, atomic: this.atomic } = buildDecorations(
           view,
-          getResolveEmbedImage,
-          getOnImageClick,
-          getOnOpenImageMenu,
-          getResolveEmbedPdf,
-          getOnPdfEmbedClick,
-          getOnOpenPdfMenu,
+          options,
           this.pdfDocumentCache
         ));
       }
@@ -387,12 +487,7 @@ export function embedLivePreview(
         if (update.docChanged || update.viewportChanged || update.selectionSet || uiChanged) {
           ({ decorations: this.decorations, atomic: this.atomic } = buildDecorations(
             update.view,
-            getResolveEmbedImage,
-            getOnImageClick,
-            getOnOpenImageMenu,
-            getResolveEmbedPdf,
-            getOnPdfEmbedClick,
-            getOnOpenPdfMenu,
+            options,
             this.pdfDocumentCache
           ));
         }

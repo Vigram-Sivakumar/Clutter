@@ -42,6 +42,7 @@ import { createEmbedSuggester } from '@app/layouts/page/embedSuggestions';
 import { createEmbedHeadingSuggester } from '@app/layouts/page/headingSuggestions';
 import { createEmbedImageResolver } from '@app/layouts/page/resolveEmbedImage';
 import { createEmbedPdfResolver } from '@app/layouts/page/resolveEmbedPdf';
+import { createPageEmbedResolver } from '@app/layouts/page/resolvePageEmbed';
 import { resolveResourceEmbed } from '@app/layouts/page/resolveResourceEmbed';
 import { createImageSrcResolver } from '@app/layouts/page/resolveImageSrc';
 import { createImageResourceResolver } from '@app/layouts/page/resolveImageResource';
@@ -191,6 +192,17 @@ export function PageHost({ application, onOpenResource, onOpenImageOverlay }: Pa
     if (resource) {
       onOpenResource(resource);
     }
+  };
+  // Same per-render, stateless-glue composition as resolveEmbedImage above
+  // — the note-embed counterpart, unchanged since ADR-032/Milestones 3-5
+  // (see resolvePageEmbed.ts's own doc comment): reads through
+  // EffectivePageState, never a second draft-vs-committed resolution.
+  const resolvePageEmbed = createPageEmbedResolver(vault, application.effectivePageState);
+  // A note embed's own "open source note" action — the exact same
+  // one-line pageOperations.open(id) pattern resolveWikiLink.ts's own
+  // activate() already establishes, never a second implementation.
+  const onOpenPage = (pageId: string): void => {
+    void application.pageOperations.open(pageId);
   };
   // Same per-render, stateless-glue composition as resolveEmbedImage above —
   // the standard-Markdown-image counterpart: `![alt](Assets/image.jpg)`'s
@@ -764,6 +776,8 @@ export function PageHost({ application, onOpenResource, onOpenImageOverlay }: Pa
               resolveEmbedImage={resolveEmbedImage}
               resolveEmbedPdf={resolveEmbedPdf}
               onPdfEmbedClick={onPdfEmbedClick}
+              resolvePageEmbed={resolvePageEmbed}
+              onOpenPage={onOpenPage}
               resolveImageSrc={resolveImageSrc}
               resolveTag={resolveTag}
               getTagSuggestions={getTagSuggestions}
@@ -889,6 +903,8 @@ export function PageHost({ application, onOpenResource, onOpenImageOverlay }: Pa
             resolveEmbedImage={resolveEmbedImage}
             resolveEmbedPdf={resolveEmbedPdf}
             onPdfEmbedClick={onPdfEmbedClick}
+            resolvePageEmbed={resolvePageEmbed}
+            onOpenPage={onOpenPage}
             resolveImageSrc={resolveImageSrc}
             resolveTag={resolveTag}
             getTagSuggestions={getTagSuggestions}

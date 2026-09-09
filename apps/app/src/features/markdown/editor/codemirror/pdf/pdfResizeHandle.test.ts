@@ -112,14 +112,14 @@ function mountView(doc: string, resolveEmbedPdf: ResolveEmbedPdf): EditorView {
     extensions: [
       history(),
       markdownLanguageExtension(),
-      embedLivePreview(
-        () => imageResolverFor({ 'document.pdf': { status: 'non-image' } }),
-        () => undefined,
-        () => undefined,
-        () => resolveEmbedPdf,
-        () => () => {},
-        () => () => {}
-      ),
+      embedLivePreview({
+        resolveEmbedImage: () => imageResolverFor({ 'document.pdf': { status: 'non-image' } }),
+        onImageClick: () => undefined,
+        onOpenImageMenu: () => undefined,
+        resolveEmbedPdf: () => resolveEmbedPdf,
+        onPdfEmbedClick: () => () => {},
+        onOpenPdfMenu: () => () => {},
+      }),
     ],
   });
   return new EditorView({ state, parent });

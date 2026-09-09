@@ -77,7 +77,14 @@ function mountView(
     extensions: [
       history(),
       markdownLanguageExtension(),
-      embedLivePreview(() => resolveEmbedImage, () => onImageClick, () => onOpenImageMenu, () => undefined, () => undefined, () => undefined),
+      embedLivePreview({
+        resolveEmbedImage: () => resolveEmbedImage,
+        onImageClick: () => onImageClick,
+        onOpenImageMenu: () => onOpenImageMenu,
+        resolveEmbedPdf: () => undefined,
+        onPdfEmbedClick: () => undefined,
+        onOpenPdfMenu: () => undefined,
+      }),
     ],
   });
   const view = new EditorView({ state, parent });
@@ -109,7 +116,14 @@ function mountFullView(
       markdownLanguageExtension(),
       autocompletion({ override: [embedCompletionSource(() => getEmbedSuggestions)] }),
       embedAutocomplete(),
-      embedLivePreview(() => resolveEmbedImage, () => undefined, () => undefined, () => undefined, () => undefined, () => undefined),
+      embedLivePreview({
+        resolveEmbedImage: () => resolveEmbedImage,
+        onImageClick: () => undefined,
+        onOpenImageMenu: () => undefined,
+        resolveEmbedPdf: () => undefined,
+        onPdfEmbedClick: () => undefined,
+        onOpenPdfMenu: () => undefined,
+      }),
     ],
   });
   return new EditorView({ state, parent });
@@ -244,7 +258,14 @@ describe('embedLivePreview — rendering (cursor already outside — "at rest")'
     document.body.appendChild(parent);
     const state = EditorState.create({
       doc: `x ${HERO}`,
-      extensions: [markdownLanguageExtension(), embedLivePreview(() => undefined, () => undefined, () => undefined, () => undefined, () => undefined, () => undefined)],
+      extensions: [markdownLanguageExtension(), embedLivePreview({
+      resolveEmbedImage: () => undefined,
+      onImageClick: () => undefined,
+      onOpenImageMenu: () => undefined,
+      resolveEmbedPdf: () => undefined,
+      onPdfEmbedClick: () => undefined,
+      onOpenPdfMenu: () => undefined,
+    })],
     });
     const view = new EditorView({ state, parent });
 
@@ -532,7 +553,14 @@ describe('embedLivePreview — delete', () => {
     const doc = 'See: ![[missing.png]]';
     const state = EditorState.create({
       doc,
-      extensions: [history(), markdownLanguageExtension(), embedLivePreview(() => resolverFor({}), () => undefined, () => undefined, () => undefined, () => undefined, () => undefined)],
+      extensions: [history(), markdownLanguageExtension(), embedLivePreview({
+      resolveEmbedImage: () => resolverFor({}),
+      onImageClick: () => undefined,
+      onOpenImageMenu: () => undefined,
+      resolveEmbedPdf: () => undefined,
+      onPdfEmbedClick: () => undefined,
+      onOpenPdfMenu: () => undefined,
+    })],
     });
     const view = new EditorView({ state, parent });
 

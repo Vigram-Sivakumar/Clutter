@@ -2008,3 +2008,77 @@ body.cm-image-resizing-nesw .cm-image-container {
 .cm-editor.cm-focused .cm-cursor {
   border-left-color: var(--foreground-primary);
 }
+
+/*
+ * Note embeds (`![[Page]]`): the nested, permanently read-only
+ * `EditorView` a `NoteEmbedWidget` mounts uses `EditorView.editable.of
+ * (false)` (createEditorView.ts's readOnlyExtensions), which sets
+ * `contenteditable` directly on that view's own `.cm-content` — keying
+ * every rule below on that native attribute means the embed needs no
+ * separate per-widget TypeScript awareness for hiding these controls:
+ * the same decorations/widgets render exactly as in the normal editor
+ * (the whole point of reusing its extensions), only their mutation-
+ * capable affordances are hidden here. View-only affordances (image
+ * click-to-open-overlay, PDF Expand, PDF page-navigation) are
+ * deliberately left visible/interactive — viewing is not editing. Actual
+ * mutation is additionally, independently blocked at the transaction
+ * level regardless of this CSS (createEditorView.ts's
+ * blockReadOnlyEdits) — this is a UX/visibility layer on top of that,
+ * not the only thing preventing a mutation.
+ */
+.cm-content[contenteditable='false'] .cm-media-controls,
+.cm-content[contenteditable='false'] .cm-media-resize-handle,
+.cm-content[contenteditable='false'] .cm-pdf-control--mutating,
+.cm-content[contenteditable='false'] .cm-invalid-embed__controls {
+  display: none;
+}
+
+.cm-content[contenteditable='false'] .cm-task-checkbox {
+  cursor: default;
+  pointer-events: none;
+}
+
+/*
+ * Note embeds (`![[Page]]`, `NoteEmbedWidget.ts`) — the outer card and its
+ * "open source note" header button. The embedded content itself is a real
+ * nested `EditorView` (`.cm-content[contenteditable='false']`'s own rules
+ * above already hide its mutation-only controls; no separate rule needed
+ * here for that).
+ */
+.cm-note-embed {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  padding: 0.75em 1em;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--surface-subtle);
+}
+
+.cm-note-embed__header {
+  display: flex;
+}
+
+.cm-note-embed__open {
+  align-self: flex-start;
+  border: none;
+  background: none;
+  padding: 0;
+  font-size: var(--text-label-small);
+  font-weight: 600;
+  color: var(--foreground-secondary);
+  cursor: pointer;
+}
+
+.cm-note-embed__open:hover:not(:disabled) {
+  color: var(--foreground-primary);
+  text-decoration: underline;
+}
+
+.cm-note-embed__open:disabled {
+  cursor: default;
+}
+
+.cm-note-embed__content .cm-editor {
+  outline: none;
+}
