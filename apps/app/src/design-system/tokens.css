@@ -78,12 +78,14 @@
 
   /* Content width */
   --content-width: calc(100% - 96px);
-  --content-max-width: 1280px;
+  --content-max-width: 720px;
 
   /* icon size */
   --icon-md: var(--space-16);
   --icon-sm: var(--space-6);
   --icon-stroke: 1.2px;
+  --icon-wrapper-sm: var(--space-20);
+  --icon-wrapper-md: var(--space-24);
 
   /* Gap between buttons */
   --btn-gap-lg: var(--space-8); /* Use it for secondary buttons group */

@@ -28,8 +28,9 @@
 
 .pdf-viewer__title {
   color: var(--foreground-secondary);
-  font-size: 13px;
-  font-weight: 500;
+  font-size: var(--text-label);
+  font-weight: var(--fw-medium);
+  line-height: var(--lh-label);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
