@@ -1,5 +1,7 @@
 import { WidgetType } from '@codemirror/view';
 
+import { PAGE_IDENTITY_ICON_BY_KIND } from '../mediaPresentation/pageIdentityIcons';
+
 import type { WikiLinkResolution } from './wikiLinkResolution';
 
 /**
@@ -30,13 +32,15 @@ export class WikiLinkWidget extends WidgetType {
       this.path === other.path &&
       this.alias === other.alias &&
       this.resolution.status === other.resolution.status &&
-      this.resolution.displayLabel === other.resolution.displayLabel
+      this.resolution.displayLabel === other.resolution.displayLabel &&
+      (this.resolution.status !== 'resolved' ||
+        other.resolution.status !== 'resolved' ||
+        (this.resolution.icon === other.resolution.icon && this.resolution.emoji === other.resolution.emoji))
     );
   }
 
   override toDOM(): HTMLElement {
     const span = document.createElement('span');
-    span.textContent = this.resolution.displayLabel;
     span.classList.add('tok-wikilink');
     // Baseline accessibility hook (§6) — not a final ARIA design. Whether
     // "link" is the right role for every status, and the exact wording of
@@ -46,6 +50,41 @@ export class WikiLinkWidget extends WidgetType {
     span.setAttribute('role', 'link');
     span.setAttribute('aria-label', `${this.resolution.status}: ${this.resolution.displayLabel}`);
     span.dataset.wikilinkStatus = this.resolution.status;
+
+    // A resolved WikiLink's at-rest presentation mirrors a Note embed's
+    // own header exactly — its target's assigned emoji if it has one,
+    // else its type's own canonical default icon — via the same shared
+    // `resolution.icon`/`resolution.emoji` pair `NoteEmbedWidget.ts`
+    // consumes (both computed by the one shared `resolvePageIdentityIcon()`
+    // — see that module's own doc comment). Purely a rendering concern:
+    // never reflected into the Markdown (still just `[[Note]]`), and never
+    // shown once the raw syntax is revealed — this whole widget is
+    // replaced by plain text on engage (`wikiLinkLivePreview.ts`), so no
+    // separate "hide the icon while engaged" logic is needed here.
+    // `unresolved`/`ambiguous` reference no real page to have one, so they
+    // keep the previous flat-text rendering unchanged.
+    if (this.resolution.status === 'resolved') {
+      const iconWrap = document.createElement('span');
+      iconWrap.classList.add('tok-wikilink__icon-wrap');
+      if (this.resolution.emoji) {
+        const emojiSpan = document.createElement('span');
+        emojiSpan.classList.add('tok-wikilink__emoji');
+        emojiSpan.textContent = this.resolution.emoji;
+        iconWrap.append(emojiSpan);
+      } else {
+        iconWrap.innerHTML = PAGE_IDENTITY_ICON_BY_KIND[this.resolution.icon];
+        iconWrap.querySelector('svg')?.classList.add('tok-wikilink__icon');
+      }
+
+      const titleSpan = document.createElement('span');
+      titleSpan.classList.add('tok-wikilink__title');
+      titleSpan.textContent = this.resolution.displayLabel;
+
+      span.append(iconWrap, titleSpan);
+    } else {
+      span.textContent = this.resolution.displayLabel;
+    }
+
     return span;
   }
 

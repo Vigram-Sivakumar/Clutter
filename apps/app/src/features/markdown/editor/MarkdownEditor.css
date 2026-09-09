@@ -1132,12 +1132,59 @@
 }
 
 .cm-editor .tok-wikilink {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  vertical-align: bottom;
   color: var(--link-foreground);
+  cursor: pointer;
+  text-indent: 0;
+  padding-inline: var(--space-3);
+}
+
+/* A resolved WikiLink's own identity icon — emoji if assigned, else its
+ * page type's default icon (`WikiLinkWidget.ts`'s own `PAGE_IDENTITY_ICON_BY_KIND`
+ * usage) — the same emoji-or-default pairing `.cm-note-embed__icon-wrap`
+ * renders for a note embed's header, via the identical shared
+ * `resolution.icon`/`resolution.emoji` data. Sized in `em` (unlike the note
+ * embed's fixed `--icon-wrapper-md`) since this sits inline within running
+ * text at the surrounding font size, not a fixed-height block header.
+ * `unresolved`/`ambiguous` WikiLinks render no icon-wrap at all
+ * (`WikiLinkWidget.ts`'s own `toDOM`), so no icon rule is needed for them. */
+.tok-wikilink__icon-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 1em;
+  height: 1em;
+}
+
+/* Emoji icon-wraps keep the SAME `1em`×`1em` layout box as the SVG icon-wrap
+ * above — no `font-size` override here — so both icon kinds occupy identical
+ * space and land on the same `align-items: center` midpoint (verified live:
+ * a smaller, `font-size`-shrunk box still centers correctly, but its bottom
+ * edge then falls short of the title text's baseline, since geometric
+ * centering isn't baseline-aware). Only the glyph itself is sized down, via
+ * `.tok-wikilink__emoji` below. */
+.tok-wikilink__emoji {
+  font-size: 0.8em;
+  line-height: 1;
+}
+
+.tok-wikilink__icon {
+  width: 1em;
+  height: 1em;
+  stroke-width: var(--icon-stroke);
+  color: var(--foreground-secondary);
+}
+
+.tok-wikilink__title {
+  min-width: 0;
   text-decoration: underline;
   text-decoration-thickness: 0.05em;
   text-decoration-color: var(--cm-link-underline);
   text-underline-offset: var(--cm-text-underline-offset);
-  cursor: pointer;
 }
 
 /* Markdown [label](url), bare URL, and Autolink — click activates/navigates
@@ -1257,4 +1304,3 @@
 .cm-editor.cm-focused .cm-cursor {
   border-left-color: var(--foreground-primary);
 }
-
