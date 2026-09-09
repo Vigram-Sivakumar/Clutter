@@ -132,15 +132,11 @@ export function wikiLinkAutocompleteTheme(): Extension {
  * in-progress `[[query` text with its `path`, a literal `|`, and the
  * closing `]]`) and closes completion — the reference/display-name
  * boundary the whole feature is built around. The closing brackets are
- * inserted immediately, not left for the user to type: `wikiLinkMarkerDecorations.ts`'s
- * folder-prefix concealment only applies to an already-closed `WikiLink`
- * syntax node (per the grammar's own "no partial node" rule — an unclosed
- * `[[path|` has no such node at all, since Lezer never produces one for
- * invalid/incomplete syntax), so leaving it open here would visually
- * expose the full canonical path for as long as the alias remained
- * unfinished. Closing immediately keeps this path consistent with the
- * other acceptance route (Enter/click), which already inserts the full
- * `[[path]]` atomically via `serializeWikiLink`. Not a second,
+ * inserted immediately, not left for the user to type: this keeps this
+ * acceptance path consistent with the other one (Enter/click), which
+ * already inserts the full `[[path]]` atomically via `serializeWikiLink` —
+ * accepting a suggestion should always produce a complete, well-formed
+ * reference in one step, regardless of which key committed it. Not a second,
  * Clutter-owned selection: `selectedCompletion(state)` reads whichever
  * `Completion` CM6 itself currently has highlighted (arrow keys/mouse
  * hover, entirely CM6's own machinery, untouched here), so this only ever

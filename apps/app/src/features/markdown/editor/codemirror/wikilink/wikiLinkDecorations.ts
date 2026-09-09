@@ -25,10 +25,9 @@ import { WikiLinkWidget } from './WikiLinkWidget';
  * empty path, producing a widget with empty `textContent` — present in
  * the DOM, atomic, but visually indistinguishable from nothing at all.
  * Declining to decorate it here leaves it as ordinary raw, editable text
- * in every state (engaged or not — the engaged branch already reaches the
- * same plain-text outcome independently, since there's no folder prefix
- * to conceal in an empty path either), so an in-progress or intentionally
- * empty WikiLink is never silently invisible.
+ * in every state (engaged or not — the engaged branch already leaves
+ * WikiLink text completely undecorated regardless of path), so an
+ * in-progress or intentionally empty WikiLink is never silently invisible.
  */
 export function renderWikiLink(
   raw: string,

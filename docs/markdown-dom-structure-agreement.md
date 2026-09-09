@@ -306,11 +306,14 @@ Every claim sourced directly from current files. All seven constructs below curr
 ```text
 1. Exact current DOM:        at rest — fully opaque widget (compact alias/filename render); `[[`/`]]`
                               do not exist as separate DOM nodes at all, concealed or otherwise
-                              engaged — the complete raw source (`[[`, full folder-qualified path if
-                              any, filename, `|alias` if present, `]]`) renders as plain text wrapped
-                              in one Decoration.mark span (wikiLinkLivePreview.ts) — nothing concealed
-                              (folder-prefix concealment while engaged was tried and reverted 2026-09-09,
-                              see docs/editor-architecture-decisions.md)
+                              engaged — completely undecorated: the complete raw source (`[[`, full
+                              folder-qualified path if any, filename, `|alias` if present, `]]`) is
+                              ordinary document text with no wrapping element and nothing concealed
+                              (wikiLinkLivePreview.ts). Two workarounds were tried and reverted the same
+                              day (2026-09-09): folder-prefix concealment while engaged, and a
+                              Decoration.mark wrapper around the engaged text (a suspected WebKit caret
+                              workaround, dropped once shown to have no remaining purpose) — see
+                              docs/editor-architecture-decisions.md
 2. Decoration mechanism:      standalone extension, wikilink/wikiLinkLivePreview.ts — NOT
                               inlineLivePreviewParticipants.ts/delimitedInlineRenderer; its own
                               ViewPlugin, own traversal, own engagement widening

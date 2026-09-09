@@ -8,12 +8,10 @@ import {
   type PluginValue,
   type ViewUpdate,
 } from '@codemirror/view';
-import type { EditorState } from '@codemirror/state';
 import type { SyntaxNode, SyntaxNodeRef } from '@lezer/common';
 
 import { isTokenEngaged, type TokenNodeRange } from '../semanticToken/tokenEngagement';
 import { renderWikiLink } from './wikiLinkDecorations';
-import { scanWikiLink } from './wikiLinkScanner';
 import type { ResolveWikiLink } from './wikiLinkResolution';
 
 /**
@@ -64,77 +62,34 @@ function widenToEnclosingLivePreviewRegion(node: SyntaxNodeRef): TokenNodeRange 
 
 /**
  * WikiLink's own, standalone visibility mechanism — deliberately outside
- * `inlineLivePreviewRegion.ts`. At rest: identical to a retired participant
- * entry would have been — `renderWikiLink` (unchanged) produces the same
- * at-rest widget, atomic exactly as before. Engaged: the complete raw
- * source (`[[`, the full folder-qualified path if any, filename, `|alias`
- * if present, `]]`) renders as plain, unstyled, editable text — not
- * atomic, so Backspace/Delete work character-by-character. This matches
- * the ordinary reveal-on-engagement contract every other construct in this
+ * `inlineLivePreviewRegion.ts`. At rest: `renderWikiLink` produces the
+ * compact at-rest widget, atomic. Engaged: nothing is decorated at all —
+ * the complete raw source (`[[`, the full folder-qualified path if any,
+ * filename, `|alias` if present, `]]`) is ordinary, undecorated document
+ * text, so CM6's own default cursor motion, selection, and Backspace/
+ * Delete apply with no interception of any kind. This matches the
+ * ordinary reveal-on-engagement contract every other construct in this
  * codebase follows (Tag, Date, headings, emphasis, ...): engaged means the
- * actual document text, in full, with nothing concealed.
+ * actual document text, in full, with nothing concealed and nothing
+ * wrapped.
  *
- * **Folder-path concealment while engaged was tried and reverted
- * (2026-09-09).** A prior version of this file concealed the
- * folder-qualified path segment (e.g. `Projects/Design/` in
- * `[[Projects/Design/My Note]]`) even while engaged, paired with a bespoke
- * `wikiLinkConcealedPrefixNavigation.ts` ArrowLeft/ArrowRight keymap to
- * compensate for the resulting silent, invisible-caret-position keystrokes
- * CM6's default motion produced stepping through that hidden text. Both
- * were removed: WikiLink was the only construct in the codebase whose
- * engaged state didn't show real source, and the keymap it required was
- * exactly the kind of bespoke cursor-interception
- * docs/editor-architecture-decisions.md's "CodeMirror owns cursor and
- * selection behavior" entry already rejects by default. See that file's
- * WikiLink section for the full reversal record.
- *
- * The engaged text is always wrapped in one `Decoration.mark({})` spanning
- * the whole node (`ENGAGED_WIKILINK_MARK`, below) — unstyled, never
- * atomic, purely a stable DOM element boundary. This is not optional
- * decoration: confirmed via live instrumentation (arrow-key-stuck-at-`[[`
- * investigation) that on WebKit/Tauri, when this branch previously
- * returned `[]` for a slash-free path, the just-revealed text landed as a
- * bare Text node directly adjacent to the paragraph's own preceding bare
- * Text node with no element between them — and WebKit's native
- * caret-advance fails to cross that specific bare-text/bare-text seam,
- * permanently losing the native selection onto the line's own container
- * `<div>` (confirmed via `document.getSelection()` vs `EditorState.selection`
- * comparison: the model position kept advancing correctly the entire time;
- * only the browser's rendered caret froze). Every sibling participant in
- * `inlineLivePreviewParticipants.ts` (`delimitedInlineRenderer`,
- * `linkRenderer`, even `urlRenderer` for a URL that never changes on
- * engage) already always wraps its revealed content in a `Decoration.mark`
- * for exactly this reason — WikiLink's slash-free branch was the only
- * participant in the codebase that skipped it. No `class`/`attributes`: a
- * `Decoration.mark` never needs one to produce a real wrapping element —
- * `MarkDecoration` defaults `tagName` to `"span"` regardless. This part is
- * unrelated to folder-path concealment and is unaffected by its removal.
+ * **History, kept for context (full record in
+ * docs/editor-architecture-decisions.md): two workarounds were tried here
+ * and both were removed once shown unnecessary.** (1) Folder-path
+ * concealment while engaged, paired with a bespoke ArrowLeft/ArrowRight
+ * keymap to hop over the hidden text — removed 2026-09-09 once an audit
+ * found WikiLink was the only construct whose engaged state didn't show
+ * real source. (2) A `Decoration.mark({})` wrapping the engaged text,
+ * added to work around a suspected WebKit/Tauri native-caret desync at the
+ * bare-text/bare-text seam next to a freshly-revealed slash-free WikiLink
+ * — removed once confirmed there is no longer any caret problem to work
+ * around: with no concealment left anywhere in this file, the mark had no
+ * class, no attributes, and no styling — nothing left for it to do.
  *
  * Reuses `isTokenEngaged` unchanged (imported, never modified) — the exact
  * same containment check every other construct uses, just evaluated from
  * this file's own tree scan instead of the shared traversal's.
  */
-const ENGAGED_WIKILINK_MARK = Decoration.mark({});
-
-function buildEngagedDecorations(node: SyntaxNodeRef, state: EditorState): Range<Decoration>[] {
-  if (node.to > state.doc.lineAt(node.from).to) {
-    // The scanner (wikiLinkScanner.ts) never emits a WikiLink node crossing
-    // a physical line break, but this guards the CM6 invariant directly —
-    // a Decoration.replace() spanning a line break from this ViewPlugin
-    // would throw "Decorations that replace line breaks may not be
-    // specified via plugins". Leave the text undecorated rather than crash.
-    return [];
-  }
-
-  const raw = state.sliceDoc(node.from, node.to);
-  if (!scanWikiLink(raw, 0)) {
-    // Stale tree — next reparse corrects it, same as the at-rest branch.
-    return [];
-  }
-
-  return [ENGAGED_WIKILINK_MARK.range(node.from, node.to)];
-}
-
 function buildDecorations(
   view: EditorView,
   getResolver: () => ResolveWikiLink | undefined
@@ -152,14 +107,18 @@ function buildDecorations(
         }
 
         if (node.to > view.state.doc.lineAt(node.from).to) {
-          // See the identical guard in buildEngagedDecorations above — the
-          // scanner already prevents this, this is belt-and-suspenders
-          // against the CM6 line-break-replace invariant.
+          // A Decoration.replace() spanning a line break from this
+          // ViewPlugin would throw "Decorations that replace line breaks
+          // may not be specified via plugins" — the scanner
+          // (wikiLinkScanner.ts) never emits a WikiLink node crossing a
+          // physical line break, but this guards the invariant directly.
           return;
         }
 
         if (isTokenEngaged(view.state, widenToEnclosingLivePreviewRegion(node))) {
-          ranges.push(...buildEngagedDecorations(node, view.state));
+          // Engaged: decorate nothing. The raw source is left as ordinary,
+          // undecorated document text — see this function's own doc
+          // comment above.
           return;
         }
 
