@@ -234,18 +234,33 @@ describe('wikiLinkLivePreview', () => {
       expect(visibleText(view)).toBe(doc);
     });
 
-    it('engaged text is left completely undecorated — no wrapping element around the revealed source at all', () => {
+    it('engaged text is raw source with only its own [[ ]] punctuation marker-colored (marker-color unification) — the path/title content stays undecorated', () => {
       const doc = 'before [[Note title]] after';
       const nodeFrom = 'before '.length;
       const view = mountViewWithSelection(doc, nodeFrom, resolvedAs('Note title'));
 
       const line = view.dom.querySelector('.cm-line');
       expect(line).not.toBeNull();
-      // No Decoration.mark wrapper means there is no element boundary at
-      // all around the revealed text: with nothing decorated on this line,
-      // CM6 renders it as a single bare Text node, indistinguishable from
-      // any other ordinary, undecorated line.
-      expect(Array.from(line!.childNodes).every((n) => n.nodeType === Node.TEXT_NODE)).toBe(true);
+      const markers = Array.from(line!.querySelectorAll('.cm-marker'));
+      expect(markers.map((el) => ({ text: el.textContent, cls: el.className }))).toEqual([
+        { text: '[[', cls: 'cm-marker cm-wikilink-marker' },
+        { text: ']]', cls: 'cm-marker cm-wikilink-marker' },
+      ]);
+      // No `tok-*` content classing anywhere — only the punctuation itself
+      // is decorated, the same "conceal/color markers, never the content"
+      // contract every other marker-hiding construct already follows.
+      expect(line!.querySelector('[class*="tok-"]')).toBeNull();
+      expect(visibleText(view)).toBe(doc);
+    });
+
+    it('engaged with an alias: the | separator is marker-colored alongside [[ ]], the path/alias text stays undecorated', () => {
+      const doc = 'before [[Project A|Display name]] after';
+      const nodeFrom = 'before '.length;
+      const view = mountViewWithSelection(doc, nodeFrom, resolvedAs('Display name'));
+
+      const line = view.dom.querySelector('.cm-line');
+      const markers = Array.from(line!.querySelectorAll('.cm-marker'));
+      expect(markers.map((el) => el.textContent)).toEqual(['[[', '|', ']]']);
       expect(visibleText(view)).toBe(doc);
     });
 

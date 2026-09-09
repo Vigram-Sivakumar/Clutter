@@ -19,7 +19,7 @@ import {
 import { getImageUiState, imageUiStateField } from '../image/imageUiState';
 import { resolveEmbedAliasFields } from '../mediaPresentation/mediaPresentationUpdate';
 import { resolveImagePresentation, resolvePdfPresentation } from '../mediaPresentation/mediaPresentationModel';
-import { scanEmbed } from './embedScanner';
+import { getEmbedMarkerRanges, scanEmbed } from './embedScanner';
 import { findEmbedAt, isEngaged } from './embedEngagement';
 import type { ResolveEmbedImage } from './embedImageResolution';
 import { classifyEmbedTargetExtension } from './embedTargetKind';
@@ -259,6 +259,19 @@ function buildDecorations(
           return;
         }
 
+        // Marker-color unification: Embed's own `![[`/`|`/`]]` punctuation,
+        // as absolute-position decoration ranges — reused at every point
+        // below where this node's raw source stays visible document text
+        // (pending-first-leave, an explicit Edit-source reveal, or a
+        // permanently-unwidgeted resolution like `'non-image'`), never at
+        // a point where the node is fully replaced by a widget
+        // (`Decoration.replace` over `[node.from, node.to)` conceals the
+        // marker text along with everything else, so there is nothing to
+        // paint there).
+        const markerRanges = getEmbedMarkerRanges(raw).map(({ from, to }) =>
+          Decoration.mark({ class: 'cm-marker cm-embed-marker' }).range(node.from + from, node.from + to)
+        );
+
         const baseUi = getImageUiState(view.state, node.from, node.to);
 
         if (baseUi.pendingFirstLeave && isEngaged(view.state, node) && !baseUi.revealed) {
@@ -275,6 +288,7 @@ function buildDecorations(
           // own `to` (also "engaged") because `embedCompletionSource.ts`'s
           // own `apply()` explicitly writes `pendingFirstLeave: false` in
           // the same transaction as the insert.
+          ranges.push(...markerRanges);
           return;
         }
 
@@ -314,6 +328,7 @@ function buildDecorations(
             );
 
             if (baseUi.revealed) {
+              ranges.push(...markerRanges);
               ranges.push(Decoration.widget({ widget: pdfWidget, side: 1 }).range(node.to));
             } else {
               const range = Decoration.replace({ widget: pdfWidget }).range(node.from, node.to);
@@ -353,7 +368,10 @@ function buildDecorations(
 
           if (resolution.status === 'non-image') {
             // A real, resolved non-PDF, non-image resource — out of scope
-            // for both widget families, same as before this fix.
+            // for both widget families, same as before this fix. Raw
+            // source stays visible permanently in this state, so its own
+            // marker punctuation still gets colored.
+            ranges.push(...markerRanges);
             return;
           }
 
@@ -375,6 +393,7 @@ function buildDecorations(
             // "unsupported file" card, not a guess at either type.
             const widget = new UnknownEmbedWidget(match.path, { ...baseUi, broken: true }, node.from, node.to);
             if (baseUi.revealed) {
+              ranges.push(...markerRanges);
               ranges.push(Decoration.widget({ widget, side: 1 }).range(node.to));
             } else {
               const range = Decoration.replace({ widget }).range(node.from, node.to);
@@ -438,6 +457,7 @@ function buildDecorations(
                 // source's whole purpose); at rest, the card replaces the
                 // raw text outright.
                 if (baseUi.revealed) {
+                  ranges.push(...markerRanges);
                   ranges.push(Decoration.widget({ widget, side: 1 }).range(node.to));
                 } else {
                   const range = Decoration.replace({ widget }).range(node.from, node.to);
@@ -470,6 +490,7 @@ function buildDecorations(
                 getOnOpenNoteEmbedMenu ?? (() => undefined)
               );
               if (baseUi.revealed) {
+                ranges.push(...markerRanges);
                 ranges.push(Decoration.widget({ widget, side: 1 }).range(node.to));
               } else {
                 const range = Decoration.replace({ widget }).range(node.from, node.to);
@@ -516,6 +537,7 @@ function buildDecorations(
         );
 
         if (ui.revealed) {
+          ranges.push(...markerRanges);
           ranges.push(Decoration.widget({ widget, side: 1 }).range(node.to));
         } else {
           const range = Decoration.replace({ widget }).range(node.from, node.to);

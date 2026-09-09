@@ -99,3 +99,33 @@ export function scanImage(raw: string): ImageMatch | null {
 
   return { alt, url, presentationTokens };
 }
+
+/**
+ * Marker-color unification: Image's `![`/`]`/`(`/`)` punctuation, as
+ * node-relative `[from, to)` ranges, for painting via the shared
+ * `cm-marker` contract while its raw source is revealed. Image is a flat
+ * leaf node reusing the native `Image` node type (`imageSyntax.ts`, no
+ * dedicated mark children) — its punctuation positions exist only inside
+ * `scanImage`'s own match, mirroring `getWikiLinkMarkerRanges`'s identical
+ * reasoning for the same node shape. Only the four required bracket/paren
+ * characters are marked; an optional link title and its surrounding quotes
+ * are left unstyled as ordinary content, matching `scanImage`'s own scope
+ * (title recognized and discarded, never surfaced as a separate range).
+ */
+export function getImageMarkerRanges(raw: string): readonly { from: number; to: number }[] {
+  if (!raw.startsWith('![') || !raw.endsWith(')')) {
+    return [];
+  }
+
+  const labelClose = raw.indexOf('](', 2);
+  if (labelClose === -1) {
+    return [];
+  }
+
+  return [
+    { from: 0, to: 2 },
+    { from: labelClose, to: labelClose + 1 },
+    { from: labelClose + 1, to: labelClose + 2 },
+    { from: raw.length - 1, to: raw.length },
+  ];
+}

@@ -42,3 +42,33 @@ export function renderWikiLink(
   const resolution = resolver?.(match.path, match.alias) ?? fallbackWikiLinkResolution(match.path);
   return new WikiLinkWidget(match.path, match.alias, resolution);
 }
+
+/**
+ * Marker-color unification: WikiLink's `[[`/`|`/`]]` punctuation, as
+ * node-relative `[from, to)` ranges, for painting via the shared
+ * `cm-marker` contract while engaged (raw source revealed). WikiLink is a
+ * flat leaf node (`wikiLinkSyntax.ts`'s `defineNodes: ['WikiLink']`, no
+ * mark child nodes at all) — unlike Emphasis/Link/Autolink, its punctuation
+ * positions exist only inside `scanWikiLink`'s own match, never as tree
+ * children, so this reuses that same scan (already run once per occurrence
+ * for the at-rest widget) rather than introducing a second, independent
+ * notion of where WikiLink's brackets are.
+ *
+ * `match.pipeIndex` is `null` when the WikiLink carries no local alias — no
+ * separator range in that case, matching every other marker set's "only
+ * emit a range for punctuation that's actually present" convention (e.g.
+ * `getHeadingMarkRanges`'s own optional separator-space range).
+ */
+export function getWikiLinkMarkerRanges(raw: string): readonly { from: number; to: number }[] {
+  const match = scanWikiLink(raw, 0);
+  if (!match) {
+    return [];
+  }
+
+  const ranges = [{ from: 0, to: 2 }];
+  if (match.pipeIndex !== null) {
+    ranges.push({ from: match.pipeIndex, to: match.pipeIndex + 1 });
+  }
+  ranges.push({ from: match.end - 2, to: match.end });
+  return ranges;
+}

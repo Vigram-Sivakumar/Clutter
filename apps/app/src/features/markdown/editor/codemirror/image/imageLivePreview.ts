@@ -17,7 +17,7 @@ import {
   type OnImageClick,
   type OnOpenImageMenu,
 } from './ImageWidget';
-import { scanImage } from './imageScanner';
+import { getImageMarkerRanges, scanImage } from './imageScanner';
 import { findEnclosingImageNode, getImageUiState, imageUiStateField } from './imageUiState';
 import { resolveImagePresentation } from '../mediaPresentation/mediaPresentationModel';
 import type { ResolveImageSrc } from './imageSrcResolution';
@@ -141,7 +141,6 @@ function buildDecorations(
         }
 
         const ui = getImageUiState(view.state, node.from, node.to);
-        console.log(`[imageLivePreview.buildDecorations] node.from=${node.from} node.to=${node.to} getImageUiState.displayMode=${ui.displayMode} revealed=${ui.revealed}`);
 
         if (ui.pendingFirstLeave && !ui.revealed && isTokenEngaged(view.state, node)) {
           // Still being typed/pasted for the first time — no widget at
@@ -156,6 +155,15 @@ function buildDecorations(
           // construct-span extension is needed for it to stay raw while
           // being typed; it's just more characters of the one node
           // that's already engaged.
+          //
+          // Marker-color unification: raw source visible here too, so its
+          // `![`/`]`/`(`/`)` punctuation is colored the same as the
+          // `ui.revealed` branch below.
+          for (const { from, to } of getImageMarkerRanges(raw)) {
+            ranges.push(
+              Decoration.mark({ class: 'cm-marker cm-image-marker' }).range(node.from + from, node.from + to)
+            );
+          }
           return;
         }
 
@@ -173,7 +181,6 @@ function buildDecorations(
         const copyUrl = resolution?.status === 'resolved' ? resolution.copyUrl : undefined;
 
         const presentation = resolveImagePresentation(match.presentationTokens);
-        console.log(`[imageLivePreview] creating widget node.from=${node.from} ui.displayMode=${ui.displayMode} presentation.mode=${presentation.mode}`);
         const widget = new ImageWidget(
           match.alt,
           url,
@@ -188,6 +195,17 @@ function buildDecorations(
         );
 
         if (ui.revealed) {
+          // Marker-color unification: the raw `![alt](url)` source shown
+          // below the rendered image (see the block-widget push right
+          // below) keeps its `![`/`]`/`(`/`)` punctuation styled via the
+          // shared `cm-marker` contract, same treatment WikiLink/Embed's
+          // own revealed-source branches now get — additive only, no
+          // change to which text is editable.
+          for (const { from, to } of getImageMarkerRanges(raw)) {
+            ranges.push(
+              Decoration.mark({ class: 'cm-marker cm-image-marker' }).range(node.from + from, node.from + to)
+            );
+          }
           // Deliberately NOT `block: true` — CM6 forbids block decorations
           // from a ViewPlugin source ("Block decorations may not be
           // specified via plugins," only a StateField-provided decoration

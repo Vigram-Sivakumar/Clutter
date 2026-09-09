@@ -433,15 +433,17 @@ describe('inlineLivePreviewRegion', () => {
       ]);
     });
 
-    it('a non-marker-contract engaged node (Link) is unaffected: no cm-marker spans, no crash', () => {
-      // Link is deliberately out of MARKER_CONSTRUCTS' scope for this
-      // slice — engaging it must fall back to exactly today's behavior
-      // (fully raw source, no marker spans at all), not error or produce
-      // spurious markers.
+    it('Link is a marker-contract construct (marker-color unification): engaging it reveals [ ] ( ) as cm-marker spans, label/url stay unstyled raw text', () => {
       const doc = 'x [label](https://example.com) y';
       const engaged = mountViewWithSelection(doc, doc.indexOf('label'));
 
-      expect(engaged.dom.querySelector('.cm-marker')).toBeNull();
+      expect(markerSpans(engaged)).toEqual([
+        { text: '[', cls: 'cm-link-marker', concealed: false },
+        { text: ']', cls: 'cm-link-marker', concealed: false },
+        { text: '(', cls: 'cm-link-marker', concealed: false },
+        { text: ')', cls: 'cm-link-marker', concealed: false },
+      ]);
+      expect(engaged.dom.querySelector('[class*="tok-"]')).toBeNull();
       expect(visibleText(engaged)).toBe(doc);
     });
   });

@@ -15,37 +15,47 @@ describe('scanEmbed — successful matches', () => {
   it('parses a simple filename', () => {
     const text = '![[image.png]]';
     const match = scanEmbed(text, 0);
-    expect(match).toEqual({ path: 'image.png', alias: null, end: text.length });
+    expect(match).toEqual({ path: 'image.png', alias: null, end: text.length, pipeIndex: null });
   });
 
   it('parses a nested path', () => {
     const text = '![[folder/image.png]]';
     const match = scanEmbed(text, 0);
-    expect(match).toEqual({ path: 'folder/image.png', alias: null, end: text.length });
+    expect(match).toEqual({ path: 'folder/image.png', alias: null, end: text.length, pipeIndex: null });
   });
 
   it('parses a path containing spaces', () => {
     const text = '![[My Folder/My Image.png]]';
     const match = scanEmbed(text, 0);
-    expect(match).toEqual({ path: 'My Folder/My Image.png', alias: null, end: text.length });
+    expect(match).toEqual({
+      path: 'My Folder/My Image.png',
+      alias: null,
+      end: text.length,
+      pipeIndex: null,
+    });
   });
 
   it('an escaped pipe is not a separator — reuses scanWikiLink\'s own escaping rule', () => {
     const text = '![[notes \\| ideas.png]]';
     const match = scanEmbed(text, 0);
-    expect(match).toEqual({ path: 'notes | ideas.png', alias: null, end: text.length });
+    expect(match).toEqual({ path: 'notes | ideas.png', alias: null, end: text.length, pipeIndex: null });
   });
 
   it('an unescaped pipe splits path from alias, if the syntax happens to carry one — the underlying grammar permits it even though this milestone builds no alias-editing affordance for it', () => {
     const text = '![[hero.png|caption]]';
     const match = scanEmbed(text, 0);
-    expect(match).toEqual({ path: 'hero.png', alias: 'caption', end: text.length });
+    expect(match).toEqual({
+      path: 'hero.png',
+      alias: 'caption',
+      end: text.length,
+      pipeIndex: text.indexOf('|'),
+    });
   });
 
   it('a doubled-escaped bracket pair produces a literal ]] inside the path', () => {
     const text = '![[A\\]\\]B.png]]';
     const match = scanEmbed(text, 0);
-    expect(match).toEqual({ path: 'A]]B.png', alias: null, end: text.length });
+    expect(match).toEqual({ path: 'A]]B.png', alias: null, end: text.length, pipeIndex: null });
   });
 
   it('the leading ! is consumed and never appears in the parsed path', () => {

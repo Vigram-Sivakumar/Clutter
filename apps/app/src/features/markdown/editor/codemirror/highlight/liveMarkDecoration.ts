@@ -212,9 +212,19 @@ function buildDecorations(
   view: EditorView,
   isConstructNode: TokenNodePredicate,
   getMarkRanges: MarkRangeSelector,
-  engagementMode: MarkEngagementMode
+  engagementMode: MarkEngagementMode,
+  markerClass: string | undefined
 ): DecorationSet {
   const collapsed: MarkRange[] = [];
+  // Engaged counterpart to `collapsed` — only populated when a
+  // `markerClass` is supplied (see `liveMarkDecoration`'s own doc comment
+  // addition below). Kept as a separate array, merged into the same
+  // `Decoration.set` call as `collapsed`, rather than emitting a second
+  // decoration source: both are the same shared "which ranges within an
+  // unengaged/engaged construct are marker punctuation" fact
+  // `getMarkRanges` already supplies, just rendered two different ways
+  // depending on engagement.
+  const revealed: MarkRange[] = [];
 
   for (const { from, to } of view.visibleRanges) {
     syntaxTree(view.state).iterate({
@@ -227,6 +237,9 @@ function buildDecorations(
 
         for (const mark of getMarkRanges(node, view.state)) {
           if (isMarkEngaged(view.state, node, getMarkRanges, engagementMode, mark)) {
+            if (markerClass) {
+              revealed.push(mark);
+            }
             continue;
           }
 
@@ -240,34 +253,60 @@ function buildDecorations(
   // visitation order via RangeSetBuilder: a nested construct's outer marks
   // are visited before its inner construct's own (earlier-positioned)
   // marks, which RangeSetBuilder's strictly-ascending insertion rejects.
-  return Decoration.set(
-    collapsed.map(({ from, to, widget }) =>
+  const ranges = [
+    ...collapsed.map(({ from, to, widget }) =>
       (widget ? Decoration.replace({ widget }) : Decoration.replace({})).range(from, to)
     ),
-    true
-  );
+    ...revealed.map(({ from, to }) =>
+      Decoration.mark({ class: `cm-marker ${markerClass}` }).range(from, to)
+    ),
+  ];
+  return Decoration.set(ranges, true);
 }
 
 interface LiveMarkPlugin extends PluginValue {
   decorations: DecorationSet;
 }
 
+/**
+ * `markerClass` (marker-color unification): when supplied, an *engaged*
+ * marker range (one `getMarkRanges` returns but `isMarkEngaged` says is
+ * currently revealed, not collapsed) is painted `Decoration.mark({class:
+ * 'cm-marker <markerClass>'})` instead of receiving no decoration at all —
+ * the same `cm-marker` → `--marker-foreground` contract every inline
+ * marker-hiding participant already uses
+ * (`inlineLivePreviewParticipants.ts`'s `revealedMarkerRanges`), just
+ * reached from this file's own block/line-scoped mechanism instead. Omitted
+ * (`undefined`), a construct's engaged markers render exactly as before
+ * this parameter existed: plain, undecorated document text. This is a
+ * shared-mechanism change, not heading-specific — any future construct
+ * routed through `liveMarkDecoration` gets engaged marker coloring for
+ * free by simply passing this argument, the same "one entry, no per-
+ * construct plumbing" property `MARKER_CONSTRUCTS` already has.
+ */
 export function liveMarkDecoration(
   isConstructNode: TokenNodePredicate,
   getMarkRanges: MarkRangeSelector,
-  engagementMode: MarkEngagementMode = 'node-range'
+  engagementMode: MarkEngagementMode = 'node-range',
+  markerClass?: string
 ): Extension {
   const decorations = ViewPlugin.fromClass<LiveMarkPlugin>(
     class implements LiveMarkPlugin {
       decorations: DecorationSet;
 
       constructor(view: EditorView) {
-        this.decorations = buildDecorations(view, isConstructNode, getMarkRanges, engagementMode);
+        this.decorations = buildDecorations(view, isConstructNode, getMarkRanges, engagementMode, markerClass);
       }
 
       update(update: ViewUpdate) {
         if (update.docChanged || update.viewportChanged || update.selectionSet) {
-          this.decorations = buildDecorations(update.view, isConstructNode, getMarkRanges, engagementMode);
+          this.decorations = buildDecorations(
+            update.view,
+            isConstructNode,
+            getMarkRanges,
+            engagementMode,
+            markerClass
+          );
         }
       }
     },

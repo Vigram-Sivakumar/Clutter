@@ -90,5 +90,13 @@ const getHeadingMarkRanges: MarkRangeSelector = (node, state) => {
 };
 
 export function headingMarkerDecoration(): Extension {
-  return liveMarkDecoration(isHeadingNode, getHeadingMarkRanges, 'physical-line');
+  // 'cm-heading-marker': marker-color unification — while engaged, the
+  // `#`/Setext underline now paints via the shared `cm-marker` contract
+  // instead of falling back to plain document text (which previously
+  // inherited the enclosing `tok-heading#` span's own size/color; see
+  // `inlineLivePreviewRegion.ts`'s `HEADING_CLASS_BY_NODE_NAME` wrapper,
+  // unchanged by this — the marker mark nests inside it and its own
+  // explicit `color` wins for that element, same as any other nested
+  // marker-in-heading composition already relied on).
+  return liveMarkDecoration(isHeadingNode, getHeadingMarkRanges, 'physical-line', 'cm-heading-marker');
 }

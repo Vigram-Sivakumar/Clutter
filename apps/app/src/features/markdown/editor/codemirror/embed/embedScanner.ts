@@ -5,6 +5,8 @@ export interface EmbedMatch {
   readonly alias: string | null;
   /** Index one past the closing `]]`, within the `text` passed to {@link scanEmbed} — includes the leading `!`. */
   readonly end: number;
+  /** Raw-buffer offset of the alias-separator `|`, or `null` when there is no alias — see {@link WikiLinkMatch.pipeIndex}, delegated unchanged. */
+  readonly pipeIndex: number | null;
 }
 
 /**
@@ -35,5 +37,29 @@ export function scanEmbed(text: string, startIndex: number): EmbedMatch | null {
     return null;
   }
 
-  return { path: match.path, alias: match.alias, end: match.end };
+  return { path: match.path, alias: match.alias, end: match.end, pipeIndex: match.pipeIndex };
+}
+
+/**
+ * Marker-color unification: Embed's `![[`/`|`/`]]` punctuation, as
+ * node-relative `[from, to)` ranges, for painting via the shared
+ * `cm-marker` contract whenever the raw source stays visible (pending
+ * first leave, or an explicit Edit-source reveal). Same reasoning and
+ * shape as `getWikiLinkMarkerRanges` — Embed is a flat leaf node with no
+ * mark children — with one difference: the opening run is three
+ * characters (`![[`), not two, since `scanEmbed` consumes the leading `!`
+ * before delegating to `scanWikiLink`.
+ */
+export function getEmbedMarkerRanges(raw: string): readonly { from: number; to: number }[] {
+  const match = scanEmbed(raw, 0);
+  if (!match) {
+    return [];
+  }
+
+  const ranges = [{ from: 0, to: 3 }];
+  if (match.pipeIndex !== null) {
+    ranges.push({ from: match.pipeIndex, to: match.pipeIndex + 1 });
+  }
+  ranges.push({ from: match.end - 2, to: match.end });
+  return ranges;
 }

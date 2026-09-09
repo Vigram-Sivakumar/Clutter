@@ -101,10 +101,13 @@ describe('heading content classing (inlineLivePreviewRegion)', () => {
     expect(view.dom.textContent).toContain('Heading');
   });
 
-  it('revealed marker still renders wrapped in tok-heading1, matching prior TreeHighlighter parity', () => {
+  it('revealed marker still renders wrapped in tok-heading1, with its own `#`/separator now painted via the shared cm-marker contract (marker-color unification)', () => {
     const view = mountView('# Heading\n\nOther', 1);
     const line = view.dom.querySelector('.cm-line');
-    expect(line?.innerHTML).toBe('<span class="tok-heading1"># Heading</span>');
+    expect(line?.innerHTML).toBe(
+      '<span class="tok-heading1"><span class="cm-marker cm-heading-marker">#</span>' +
+        '<span class="cm-marker cm-heading-marker"> </span>Heading</span>'
+    );
   });
 
   it('#tag is not styled as a heading — parser never tags it heading1-6', () => {

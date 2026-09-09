@@ -3,6 +3,15 @@ export interface WikiLinkMatch {
   readonly alias: string | null;
   /** Index one past the closing `]]`, within the `text` passed to {@link scanWikiLink}. */
   readonly end: number;
+  /**
+   * Raw-buffer offset (within the `text` passed to {@link scanWikiLink}) of
+   * the alias-separator `|`, or `null` when there is no alias. Marker-color
+   * consumers (`wikiLinkDecorations.ts`'s marker-range helper) need this
+   * exact raw position to paint the separator itself — `path`/`alias` are
+   * decoded (escapes resolved), so their string lengths alone can't recover
+   * it once escaping is involved.
+   */
+  readonly pipeIndex: number | null;
 }
 
 /**
@@ -180,6 +189,7 @@ export function scanWikiLink(text: string, startIndex: number): WikiLinkMatch | 
   const path = pathScan.text;
   let alias: string | null = null;
   let closeStart: number;
+  const pipeIndex = pathScan.stoppedOnPipe ? pathScan.stoppedAt : null;
 
   if (pathScan.stoppedOnPipe) {
     const aliasScan = scanSegment(text, pathScan.stoppedAt + 1, false);
@@ -198,5 +208,5 @@ export function scanWikiLink(text: string, startIndex: number): WikiLinkMatch | 
     return null;
   }
 
-  return { path, alias, end };
+  return { path, alias, end, pipeIndex };
 }

@@ -96,9 +96,16 @@ function markerRanges(node: SyntaxNode, state: EditorState): TokenNodeRange[] {
   return ranges;
 }
 
-const MARKER_MARK = Decoration.mark({ class: 'cm-quote-marker' });
+// `cm-marker` (marker-color unification): the same universal color hook
+// every other marker in the editor carries, composed here rather than a
+// second, duplicated `color: var(--marker-foreground)` declaration on
+// `.cm-quote-marker` itself (MarkdownEditor.css). The concealed variant
+// carries it too — harmless, since `.cm-quote-marker--concealed`'s own
+// `color: transparent` rule is declared later in the stylesheet and wins
+// the cascade at equal specificity, exactly as it already did.
+const MARKER_MARK = Decoration.mark({ class: 'cm-marker cm-quote-marker' });
 const MARKER_MARK_CONCEALED = Decoration.mark({
-  class: 'cm-quote-marker cm-quote-marker--concealed',
+  class: 'cm-marker cm-quote-marker cm-quote-marker--concealed',
 });
 const CONTENT_MARK = Decoration.mark({ class: 'cm-quote' });
 

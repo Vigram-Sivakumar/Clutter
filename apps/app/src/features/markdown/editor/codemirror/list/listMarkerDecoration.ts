@@ -83,14 +83,15 @@ import type { SyntaxNode } from '@lezer/common';
  *
  * The marker carries its own construct-specific class
  * (`cm-bullet-list-marker`, `MarkdownEditor.css`) styled identically to
- * blockquote's own marker (`--marker-width`/`--marker-foreground`,
- * `text-indent: 0`) for visual consistency with every other marker in the
- * editor — a color tint and a predictable column width, never a
- * character substitution. It deliberately does not carry the shared
- * `cm-marker`/`cm-list-marker` naming-contract hooks: those exist for a
- * different (currently unused) global-marker-color feature and would
- * double-apply the same tint redundantly, not for any product reason
- * specific to this construct.
+ * blockquote's own marker (`--marker-width`/`text-indent: 0`) for visual
+ * consistency with every other marker in the editor — a color tint and a
+ * predictable column width, never a character substitution. It carries the
+ * shared `cm-marker` naming-contract hook directly (marker-color
+ * unification, superseding the note this comment used to carry about that
+ * hook being "currently unused") — but not `cm-list-marker`, since that
+ * class also supplies box-geometry (`display: inline-flex`) the bullet
+ * marker's own `inline-block` box doesn't want; composing `cm-marker`
+ * alone avoids pulling in geometry meant for a different marker shape.
  *
  * Enter/Backspace/Tab behavior is unaffected by this migration — confirmed
  * directly, not assumed: `insertNewlineContinueMarkupCommand` and
@@ -309,16 +310,26 @@ export function firstSameLineListMark(state: EditorState, pos: number): ListMark
  * `::before` rule for the flush-left/transparent mechanism, rather than a
  * separate `content: '-'`/`content: '+'`/`content: '•'` rule per kind.
  */
+// `cm-marker` (marker-color unification): composed alongside the existing
+// structural classes, same as blockquote's own marker — see
+// MarkdownEditor.css's `.cm-bullet-list-marker` doc comment for why this
+// carries `cm-marker` directly rather than the shared `cm-list-marker`
+// tint class. Visually a no-op today (the real, now-`cm-marker`-colored
+// text is still painted `color: transparent` by `--glyph`, with the
+// substitute glyph's own color coming from a separate `::before` rule that
+// can't itself carry a class), but keeps this element's color sourced from
+// the same single contract as every other marker in the editor rather than
+// carrying no color hook of its own.
 const MARKER_MARK_DASH = Decoration.mark({
-  class: 'cm-bullet-list-marker cm-bullet-list-marker--glyph cm-bullet-list-marker--dash',
+  class: 'cm-marker cm-bullet-list-marker cm-bullet-list-marker--glyph cm-bullet-list-marker--dash',
   attributes: { 'data-marker-glyph': '-' },
 });
 const MARKER_MARK_PLUS = Decoration.mark({
-  class: 'cm-bullet-list-marker cm-bullet-list-marker--glyph cm-bullet-list-marker--plus',
+  class: 'cm-marker cm-bullet-list-marker cm-bullet-list-marker--glyph cm-bullet-list-marker--plus',
   attributes: { 'data-marker-glyph': '+' },
 });
 const MARKER_MARK_DOT = Decoration.mark({
-  class: 'cm-bullet-list-marker cm-bullet-list-marker--glyph cm-bullet-list-marker--dot',
+  class: 'cm-marker cm-bullet-list-marker cm-bullet-list-marker--glyph cm-bullet-list-marker--dot',
   attributes: { 'data-marker-glyph': '•' },
 });
 
@@ -341,7 +352,7 @@ function bulletMarkerMark(raw: string): Decoration {
  * every width, so there is nothing per-instance to parameterize.
  */
 const MARKER_MARK_ORDERED = Decoration.mark({
-  class: 'cm-list-marker cm-ordered-list-marker',
+  class: 'cm-marker cm-list-marker cm-ordered-list-marker',
 });
 
 /**

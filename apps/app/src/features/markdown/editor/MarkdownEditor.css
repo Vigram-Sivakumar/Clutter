@@ -186,13 +186,15 @@
 
 /*
  * Inline marker DOM (docs/markdown-dom-structure-agreement.md §7, first
- * slice — Emphasis/StrongEmphasis/Strikethrough/Highlight/InlineCode).
- * Every marker span (`inlineLivePreviewParticipants.ts`'s
- * `revealedMarkerRanges`, for the *engaged* state only — see below) carries
- * the universal `cm-marker` hook plus its own `cm-{construct}-marker`
- * class — one global color rule here, no enumerated per-construct selector
- * list (the exact pattern the retired `.tok-mark`-based rule below already
- * shows the cost of not having).
+ * slice — Emphasis/StrongEmphasis/Strikethrough/Highlight/InlineCode;
+ * later extended to Link/Autolink, and — via `liveMarkDecoration.ts`,
+ * `wikiLinkLivePreview.ts`, `imageLivePreview.ts`, `embedLivePreview.ts`,
+ * and blockquote/list's own decorations — to headings, WikiLink, images,
+ * embeds, blockquote, and list markers too, per the marker-color
+ * unification pass). Every marker span carries the universal `cm-marker`
+ * hook plus its own construct-specific class — one global color rule here,
+ * no enumerated per-construct selector list (the exact pattern the retired
+ * `.tok-mark`-based rule, since removed, used to require).
  *
  * **`cm-marker--concealed` is now an empty placeholder widget's own class,
  * not a CSS-suppressed real marker (2026-08-27) — see docs/editor-
@@ -400,6 +402,11 @@
  * ordinary text — this is what the DOM looks like while the line is
  * engaged (caret on it).
  *
+ * Color (marker-color unification): `blockquoteMarkerDecoration.ts` now
+ * carries `cm-marker` alongside this class, so the tint comes from the
+ * shared `.cm-marker` rule above, not a rule declared here — this class
+ * supplies only geometry (`display`/`width`/`text-align`/`text-indent`).
+ *
  * `text-indent: 0` (2026-08-28, added alongside the hanging-indent
  * reinstatement above): `text-indent` is an inherited property, and
  * because this element is itself `display: inline-block` — establishing
@@ -417,7 +424,6 @@
 .cm-editor .cm-quote-marker {
   display: inline-block;
   width: var(--marker-width);
-  color: var(--marker-foreground);
   text-align: end;
   text-indent: 0;
 }
@@ -469,16 +475,32 @@
  * shared class rather than introduce a new one, per this file's own
  * "extend before adding" convention.
  *
+ * **Marker-color unification (out of scope for the still-dormant
+ * `emojiListMarkDecoration.ts`, not touched by that change): this rule no
+ * longer declares its own `color`** — it now composes the shared
+ * `.cm-marker` rule above instead (see `listMarkerDecoration.ts`'s ordered
+ * marker, which was updated to carry `cm-marker` alongside `cm-list-marker`
+ * for exactly this). `emojiListMarkDecoration.ts`'s own `Decoration.mark`
+ * was deliberately left unchanged (still `cm-list-marker cm-emoji-list-
+ * marker`, no `cm-marker`) per this task's scope boundary — whoever wires
+ * that construct into the active extension list should add `cm-marker` to
+ * its class at the same time, or its marker will render uncolored.
+ *
  * `listMarkerDecoration.ts`'s bullet marker (`cm-bullet-list-marker`,
- * below) deliberately does NOT carry this class (2026-08-29): this shared
- * rule's `color: var(--marker-foreground)` tint would itself be a visual
- * change from plain, undecorated source text — the bullet marker's own
- * explicit product requirement is to render exactly as written
- * (`- Bullet`, never tinted, never `• Bullet`), unlike ordered-list
- * numbers or a future emoji-list marker where a styling tint is wanted.
+ * below) does not carry this class — it carries the universal `cm-marker`
+ * hook directly instead (marker-color unification), since its own
+ * `--glyph` variant already needs its own geometry rule regardless (the
+ * real marker text is rendered `color: transparent`, with a substitute
+ * glyph painted via a `::before` pseudo-element that cannot itself carry a
+ * class — see `.cm-bullet-list-marker--glyph::before` below for why that
+ * one rule keeps its own explicit `color: var(--marker-foreground)`
+ * declaration rather than composing this class).
+ *
+ * Color: composed from the shared `.cm-marker` rule above —
+ * `listMarkerDecoration.ts`'s ordered-marker decoration now carries
+ * `cm-marker` alongside this class, so no `color` is declared here.
  */
 .cm-editor .cm-list-marker {
-  color: var(--marker-foreground);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -503,17 +525,22 @@
  * widget that rendered a `•` glyph in its place; see that file's own doc
  * comment for the caret-boundary defect this fixed and the live
  * verification performed). Styled identically to `.cm-quote-marker` above
- * (same `--marker-width`/`--marker-foreground` tokens, same
- * `text-indent: 0` reset) for visual consistency with every other marker
- * in the editor — this only tints/positions the real characters, it never
- * substitutes a different glyph for them: `- Bullet` still reads `-`
- * followed by the separator and the content, just colored and given a
- * predictable column width like every other marker kind.
+ * (same `--marker-width` token, same `text-indent: 0` reset) for visual
+ * consistency with every other marker in the editor — this only
+ * tints/positions the real characters, it never substitutes a different
+ * glyph for them: `- Bullet` still reads `-` followed by the separator and
+ * the content, just colored and given a predictable column width like
+ * every other marker kind.
+ *
+ * Color (marker-color unification): `listMarkerDecoration.ts`'s bullet
+ * decorations now carry `cm-marker` directly (not `cm-list-marker` — see
+ * that class's own doc comment above for why), so this rule declares no
+ * `color` of its own; every bullet variant's `--glyph` modifier still wins
+ * the cascade with its own `color: transparent`, unaffected by this.
  */
 .cm-editor .cm-bullet-list-marker {
   display: inline-block;
   width: var(--marker-width);
-  color: var(--marker-foreground);
   text-align: center;
   text-indent: 0;
 }
@@ -1240,36 +1267,6 @@
   cursor: default;
 }
 
-/*
- * Live Preview marker hiding — heading, WikiLink, emphasis, strikethrough,
- * and inline-code markers are all hidden at rest via `Decoration.replace({})`
- * in their respective decoration layers (`headingMarkerDecoration.ts`,
- * `wikiLinkDecorations.ts`, `emphasisMarkerDecoration.ts`,
- * `strikethroughMarkerDecoration.ts`, `inlineCodeMarkerDecoration.ts`; the
- * shared mechanism behind all but WikiLink is `highlight/liveMarkDecoration.ts`),
- * not CSS. An unengaged marker
- * has no DOM node at all to style — deliberately: styling it invisible
- * with `display: none` was tried first and confirmed, by direct browser
- * reproduction, to corrupt native click hit-testing and word-selection
- * right at the hidden/visible boundary (see `liveMarkDecoration.ts`'s doc
- * comment for the full reproduction). The rules below only ever apply to
- * a marker that *is* currently rendered — i.e. its construct is engaged —
- * and exist purely to color it, at uniform node-level granularity for
- * every construct, no `.cm-activeLine` special-casing needed anymore.
- */
-.cm-editor .tok-heading1.tok-mark,
-.cm-editor .tok-heading2.tok-mark,
-.cm-editor .tok-heading3.tok-mark,
-.cm-editor .tok-heading4.tok-mark,
-.cm-editor .tok-heading5.tok-mark,
-.cm-editor .tok-heading6.tok-mark,
-.cm-editor .tok-emphasis.tok-mark,
-.cm-editor .tok-strong.tok-mark,
-.cm-editor .tok-strike.tok-mark,
-.cm-editor .tok-code.tok-mark,
-.cm-editor .tok-wikilink-mark.tok-mark {
-  color: var(--marker-foreground);
-}
 
 /*
  * `width: 10px` (not `min-width`) is load-bearing, not cosmetic. Left

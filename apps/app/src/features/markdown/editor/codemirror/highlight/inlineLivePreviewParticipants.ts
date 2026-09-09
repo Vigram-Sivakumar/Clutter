@@ -179,12 +179,17 @@ function delimitedInlineRenderer(
  * `TaskMarker`, each owned by its own line-scoped decoration source:
  * `headingMarkerDecoration.ts`/`blockquoteMarkerDecoration.ts`/
  * `listMarkerDecoration.ts`) are structurally unreachable here, not just
- * excluded by convention. Scoped to exactly the five constructs already
- * migrated to the marker-DOM contract (docs/markdown-dom-structure-
- * agreement.md §7.1's first slice) — same scope as
- * `delimitedInlineRenderer`'s own registrations below. Adding a construct
- * is one entry in this map, same shape as the `participants` map itself;
- * it never requires touching another construct's entry.
+ * excluded by convention. Originally scoped to exactly the five constructs
+ * first migrated to the marker-DOM contract (docs/markdown-dom-structure-
+ * agreement.md §7.1's first slice); extended to `Link`/`Autolink` once the
+ * marker-color audit confirmed both already parse with real `LinkMark`
+ * child nodes (`[label](url)` → `LinkMark, ...label..., LinkMark, LinkMark,
+ * URL, LinkTitle?, LinkMark` — confirmed directly against
+ * `@lezer/markdown`'s own `finishLink` source) — this loop already walks
+ * "however many direct children carry the registered mark node name," so
+ * no new logic was needed, only registration. Adding a construct is one
+ * entry in this map, same shape as the `participants` map itself; it never
+ * requires touching another construct's entry.
  */
 const MARKER_CONSTRUCTS: ReadonlyMap<string, { readonly markNodeName: string; readonly markerClass: string }> =
   new Map([
@@ -193,6 +198,8 @@ const MARKER_CONSTRUCTS: ReadonlyMap<string, { readonly markNodeName: string; re
     ['Strikethrough', { markNodeName: 'StrikethroughMark', markerClass: 'cm-strike-marker' }],
     ['Highlight', { markNodeName: 'HighlightMark', markerClass: 'cm-highlight-marker' }],
     ['InlineCode', { markNodeName: 'CodeMark', markerClass: 'cm-code-marker' }],
+    ['Link', { markNodeName: 'LinkMark', markerClass: 'cm-link-marker' }],
+    ['Autolink', { markNodeName: 'LinkMark', markerClass: 'cm-link-marker' }],
   ]);
 
 /**
@@ -473,11 +480,12 @@ export function createInlineLivePreviewParticipants(
     // 2-same-named-mark-child shape exactly (`Autolink > [LinkMark, URL,
     // LinkMark]`) — reused unmodified, no Autolink-specific renderer
     // needed. Conceals `<`/`>`, classes the URL content `tok-link` — same
-    // class Link's own label already uses. No `markerClass` — deliberately
-    // out of scope for this migration slice (docs/markdown-dom-structure-
-    // agreement.md §7.1): Autolink keeps its exact current
-    // `Decoration.replace({})` marker behavior, unchanged.
-    ['Autolink', delimitedInlineRenderer('LinkMark', 'tok-link')],
+    // class Link's own label already uses. `markerClass` now passed (marker-
+    // color unification): at rest this only affects which class the
+    // (invisible) `ConcealedMarkerWidget` carries for test-query continuity;
+    // engaged, it's what makes `revealedMarkerRanges` paint `<`/`>` via the
+    // shared `cm-marker` contract, matching `Link`'s own registration above.
+    ['Autolink', delimitedInlineRenderer('LinkMark', 'tok-link', 'cm-link-marker')],
     ['URL', urlRenderer],
     ['Tag', widgetReplaceRenderer((raw) => renderTag(raw, resolvers.resolveTag))],
     ['Date', widgetReplaceRenderer((raw) => renderDate(raw, resolvers.resolveDate))],

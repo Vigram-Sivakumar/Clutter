@@ -11,7 +11,7 @@ import {
 import type { SyntaxNode, SyntaxNodeRef } from '@lezer/common';
 
 import { isTokenEngaged, type TokenNodeRange } from '../semanticToken/tokenEngagement';
-import { renderWikiLink } from './wikiLinkDecorations';
+import { getWikiLinkMarkerRanges, renderWikiLink } from './wikiLinkDecorations';
 import type { ResolveWikiLink } from './wikiLinkResolution';
 
 /**
@@ -116,9 +116,19 @@ function buildDecorations(
         }
 
         if (isTokenEngaged(view.state, widenToEnclosingLivePreviewRegion(node))) {
-          // Engaged: decorate nothing. The raw source is left as ordinary,
-          // undecorated document text — see this function's own doc
-          // comment above.
+          // Engaged: the raw source stays ordinary, undecorated document
+          // text — see this function's own doc comment above — except for
+          // its own `[[`/`|`/`]]` punctuation, which now paints via the
+          // shared `cm-marker` contract (marker-color unification), the
+          // same treatment Emphasis/Link/Autolink's engaged marks already
+          // get. This is additive only: no widget, no atomic range, no
+          // change to which text is real vs. concealed.
+          const raw = view.state.sliceDoc(node.from, node.to);
+          for (const { from, to } of getWikiLinkMarkerRanges(raw)) {
+            ranges.push(
+              Decoration.mark({ class: 'cm-marker cm-wikilink-marker' }).range(node.from + from, node.from + to)
+            );
+          }
           return;
         }
 

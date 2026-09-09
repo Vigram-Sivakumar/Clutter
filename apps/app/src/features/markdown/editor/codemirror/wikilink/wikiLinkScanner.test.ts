@@ -14,7 +14,7 @@ describe('scanWikiLink — successful matches', () => {
   it('parses a bare path with no alias', () => {
     const text = '[[Projects/Project A]]';
     const match = scanWikiLink(text, 0);
-    expect(match).toEqual({ path: 'Projects/Project A', alias: null, end: text.length });
+    expect(match).toEqual({ path: 'Projects/Project A', alias: null, end: text.length, pipeIndex: null });
   });
 
   it('parses a path with a local alias', () => {
@@ -24,13 +24,14 @@ describe('scanWikiLink — successful matches', () => {
       path: 'Projects/Project A',
       alias: '2026 project',
       end: text.length,
+      pipeIndex: text.indexOf('|'),
     });
   });
 
   it('an escaped pipe is not a separator — the whole thing is one path segment', () => {
     const text = '[[Notes \\| Ideas]]';
     const match = scanWikiLink(text, 0);
-    expect(match).toEqual({ path: 'Notes | Ideas', alias: null, end: text.length });
+    expect(match).toEqual({ path: 'Notes | Ideas', alias: null, end: text.length, pipeIndex: null });
   });
 
   it('an unescaped pipe is the separator, even surrounded by spaces — raw, untrimmed text is preserved', () => {
@@ -40,43 +41,48 @@ describe('scanWikiLink — successful matches', () => {
     // separator, and a leading space after it, are preserved exactly.
     const text = '[[Notes | Ideas]]';
     const match = scanWikiLink(text, 0);
-    expect(match).toEqual({ path: 'Notes ', alias: ' Ideas', end: text.length });
+    expect(match).toEqual({ path: 'Notes ', alias: ' Ideas', end: text.length, pipeIndex: text.indexOf('|') });
   });
 
   it('an escaped pipe inside the alias resolves to a literal pipe in the alias value', () => {
     const text = '[[Notes | Ideas \\| 2026]]';
     const match = scanWikiLink(text, 0);
-    expect(match).toEqual({ path: 'Notes ', alias: ' Ideas | 2026', end: text.length });
+    expect(match).toEqual({
+      path: 'Notes ',
+      alias: ' Ideas | 2026',
+      end: text.length,
+      pipeIndex: text.indexOf('|'),
+    });
   });
 
   it('only the first unescaped pipe is a separator — [[A|B|C]] means path=A, alias=B|C', () => {
     const text = '[[A|B|C]]';
     const match = scanWikiLink(text, 0);
-    expect(match).toEqual({ path: 'A', alias: 'B|C', end: text.length });
+    expect(match).toEqual({ path: 'A', alias: 'B|C', end: text.length, pipeIndex: text.indexOf('|') });
   });
 
   it('[[foo||bar]] resolves via the same rule with no special-casing: path=foo, alias=|bar', () => {
     const text = '[[foo||bar]]';
     const match = scanWikiLink(text, 0);
-    expect(match).toEqual({ path: 'foo', alias: '|bar', end: text.length });
+    expect(match).toEqual({ path: 'foo', alias: '|bar', end: text.length, pipeIndex: text.indexOf('|') });
   });
 
   it('a doubled-escaped bracket pair produces a literal ]] inside the path', () => {
     const text = '[[A\\]\\]B]]';
     const match = scanWikiLink(text, 0);
-    expect(match).toEqual({ path: 'A]]B', alias: null, end: text.length });
+    expect(match).toEqual({ path: 'A]]B', alias: null, end: text.length, pipeIndex: null });
   });
 
   it('an escape of a non-punctuation character is not recognized — both characters stay literal', () => {
     const text = '[[foo\\q]]';
     const match = scanWikiLink(text, 0);
-    expect(match).toEqual({ path: 'foo\\q', alias: null, end: text.length });
+    expect(match).toEqual({ path: 'foo\\q', alias: null, end: text.length, pipeIndex: null });
   });
 
   it('a literal backslash is written doubled', () => {
     const text = '[[A\\\\B]]';
     const match = scanWikiLink(text, 0);
-    expect(match).toEqual({ path: 'A\\B', alias: null, end: text.length });
+    expect(match).toEqual({ path: 'A\\B', alias: null, end: text.length, pipeIndex: null });
   });
 });
 
@@ -92,7 +98,7 @@ describe('scanWikiLink — continuation lookahead defers to Link/Image', () => {
   it('a plain trailing character with no continuation is claimed normally', () => {
     const text = '[[foo]] bar';
     const match = scanWikiLink(text, 0);
-    expect(match).toEqual({ path: 'foo', alias: null, end: 7 });
+    expect(match).toEqual({ path: 'foo', alias: null, end: 7, pipeIndex: null });
   });
 });
 
@@ -116,7 +122,7 @@ describe('scanWikiLink — all-or-nothing: malformed input never produces a part
   it('[[foo\\]]] (one more bracket) closes correctly with the escaped bracket as literal path content', () => {
     const text = '[[foo\\]]]';
     const match = scanWikiLink(text, 0);
-    expect(match).toEqual({ path: 'foo]', alias: null, end: text.length });
+    expect(match).toEqual({ path: 'foo]', alias: null, end: text.length, pipeIndex: null });
   });
 });
 
