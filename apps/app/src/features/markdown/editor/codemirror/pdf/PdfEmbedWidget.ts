@@ -23,6 +23,7 @@ import { computeFitScale } from '@features/pdf/pdfZoom';
 import { computeEmbedRemovalRange } from '../mediaPresentation/embedRemovalRange';
 import { setImageUiState, type ImageUiState } from '../image/imageUiState';
 import { EDIT_ICON, renderInvalidEmbedCard } from '../mediaPresentation/invalidEmbedCard';
+import { EXPAND_ICON, MORE_ICON } from '../mediaPresentation/embedControlIcons';
 import type { PdfDocumentCache } from './pdfDocumentCache';
 import { applyMediaAlignment, applyMediaWidth, disconnectMediaWidthObserver, type ResizeObserverHolder } from '../mediaPresentation/mediaLayoutStyle';
 import type { PdfPresentation } from '../mediaPresentation/mediaPresentationModel';
@@ -33,30 +34,17 @@ import './PdfEmbedWidget.css';
 // Hand-copied inline SVGs, same raw-DOM-widget convention ImageWidget.ts
 // already establishes (no React tree is available inside a CM6 WidgetType,
 // so the app's real AppIcon component system can't mount here).
-// MORE_ICON/EXPAND_ICON/ARROW_LEFT_ICON/ARROW_RIGHT_ICON are the exact
-// same paths ImageWidget.ts/iconRegistry.ts already use (`more-horizontal.
-// svg`/`expand-diagonal.svg`, the same glyph `iconRegistry.ts` registers
-// as `expandDiagonal`; the arrow icons match `PdfViewer`'s own Previous/
-// Next page glyphs); BROKEN_PDF_ICON is hand-copied from `iconRegistry.ts`'s
+// ARROW_LEFT_ICON/ARROW_RIGHT_ICON match `PdfViewer`'s own Previous/Next
+// page glyphs; BROKEN_PDF_ICON is hand-copied from `iconRegistry.ts`'s
 // own `pdf` entry (`shared/icon/svg/pdf.svg`) — deliberately not
 // `broken-image.svg` (ImageWidget.ts's own `BROKEN_IMAGE_ICON`): a failed
 // PDF embed is still a PDF, not an image, so its broken-state icon stays
-// a PDF glyph rather than borrowing the image family's. The Delete/Edit
-// icons themselves now live in `../mediaPresentation/invalidEmbedCard.ts`,
-// shared with `ImageWidget.ts`'s own equivalents — neither is media-specific.
-
-// Same glyph `iconRegistry.ts` registers as `moreHorizontal` — hand-copied
-// verbatim (no React tree available here) for the More actions control.
-const MORE_ICON =
-  '<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="3.5" cy="8" r="1.25" fill="currentColor"/><circle cx="8" cy="8" r="1.25" fill="currentColor"/><circle cx="12.5" cy="8" r="1.25" fill="currentColor"/></svg>';
-
-// Same glyph `iconRegistry.ts` registers as `expandDiagonal` — hand-copied
-// verbatim (no React tree available here, so `AppIcon icon="expandDiagonal"`
-// itself can't mount) so the Expand control's icon matches the app's own
-// "open in a bigger surface" affordance: a pair of diagonal arrows pointing
-// away from each other, not a bounding square.
-const EXPAND_ICON =
-  '<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3.3887 12.417C2.92818 11.9565 3.00477 10 3.00477 10M3.3887 12.417C3.84922 12.8775 5.80563 12.8009 5.80563 12.8009M3.3887 12.417L7 9" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/><path d="M12.4169 3.38871C11.9564 2.92819 9.99999 3.00478 9.99999 3.00478M12.4169 3.38871C12.8774 3.84923 12.8008 5.80564 12.8008 5.80564M12.4169 3.38871L9 7" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+// a PDF glyph rather than borrowing the image family's. EXPAND_ICON/
+// MORE_ICON now live in `../mediaPresentation/embedControlIcons.ts`,
+// shared with `NoteEmbedWidget.ts`'s own Expand/More actions controls; the
+// Remove/Edit icons live in `../mediaPresentation/invalidEmbedCard.ts`,
+// shared with `ImageWidget.ts`'s own equivalents — none of these three are
+// media-specific.
 
 // Same two glyphs PdfViewer's own Previous/Next page toolbar buttons use
 // (hand-copied — the raw-DOM-widget reason above).

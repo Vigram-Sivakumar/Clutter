@@ -2029,6 +2029,7 @@ body.cm-image-resizing-nesw .cm-image-container {
 .cm-content[contenteditable='false'] .cm-media-controls,
 .cm-content[contenteditable='false'] .cm-media-resize-handle,
 .cm-content[contenteditable='false'] .cm-pdf-control--mutating,
+.cm-content[contenteditable='false'] .cm-note-embed-control--mutating,
 .cm-content[contenteditable='false'] .cm-invalid-embed__controls {
   display: none;
 }
@@ -2039,13 +2040,28 @@ body.cm-image-resizing-nesw .cm-image-container {
 }
 
 /*
- * Note embeds (`![[Page]]`, `NoteEmbedWidget.ts`) — the outer card and its
- * "open source note" header button. The embedded content itself is a real
- * nested `EditorView` (`.cm-content[contenteditable='false']`'s own rules
- * above already hide its mutation-only controls; no separate rule needed
- * here for that).
+ * Note embeds (`![[Page]]`, `NoteEmbedWidget.ts`) — the outer card, its
+ * header (plain-text title + Expand/Edit source/More actions), and the
+ * nested read-only `EditorView` mount. Modeled directly on
+ * `PdfEmbedWidget.css`'s own top-row layout (title left, controls right,
+ * reveal on hover/focus of the whole card) — see that file's own doc
+ * comment for the layout rationale this mirrors.
+ *
+ * The header's own action buttons reuse the shared `.cm-media-control`
+ * button chrome (`MediaFloatingControls.css`) — this file adds only the
+ * note-embed-specific *row* (`.cm-note-embed__controls`): its own
+ * position/reveal behavior, deliberately NOT the shared
+ * `.cm-media-controls` class, because that class is unconditionally
+ * hidden by this same file's `.cm-content[contenteditable='false']` rule
+ * above — Expand must stay visible/interactive inside a nested read-only
+ * note embed (requirement: "Expand remains available"), so the row
+ * itself can't be the thing that rule hides. Only the two mutating
+ * buttons (Edit source, More actions) carry `.cm-note-embed-control
+ * --mutating`, which that same rule does hide — see `NoteEmbedWidget.ts`'s
+ * own class doc comment for the full account.
  */
 .cm-note-embed {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: var(--space-6);
@@ -2057,26 +2073,43 @@ body.cm-image-resizing-nesw .cm-image-container {
 
 .cm-note-embed__header {
   display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-8);
 }
 
-.cm-note-embed__open {
-  align-self: flex-start;
-  border: none;
-  background: none;
-  padding: 0;
+.cm-note-embed__title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: var(--text-label-small);
   font-weight: 600;
   color: var(--foreground-secondary);
-  cursor: pointer;
 }
 
-.cm-note-embed__open:hover:not(:disabled) {
-  color: var(--foreground-primary);
-  text-decoration: underline;
+/* Hidden at rest, revealed on hover/focus of the whole card — same
+ * reveal contract as Image's `.cm-media-controls`/PDF's
+ * `.cm-pdf-controls`, applied to this row instead of either (see this
+ * block's own doc comment for why neither shared class name is reused
+ * directly here). Plain CSS `:hover`/`:focus-within` is enough — unlike
+ * `PdfEmbedWidget.ts`, nothing here mutates the DOM under the pointer
+ * mid-hover, so there's no "sticky hover" quirk to work around with a
+ * JS-tracked hover class.
+ */
+.cm-note-embed__controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 150ms ease;
 }
 
-.cm-note-embed__open:disabled {
-  cursor: default;
+.cm-note-embed:hover .cm-note-embed__controls,
+.cm-note-embed:focus-within .cm-note-embed__controls {
+  opacity: 1;
 }
 
 .cm-note-embed__content .cm-editor {

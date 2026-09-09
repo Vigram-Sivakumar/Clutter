@@ -18,6 +18,8 @@ import { ImageOptionsMenu } from './codemirror/image/ImageOptionsMenu';
 import type { OnImageClick, OnOpenImageMenu } from './codemirror/image/ImageWidget';
 import type { OnOpenPdfMenu, OnPdfEmbedClick } from './codemirror/pdf/PdfEmbedWidget';
 import { PdfEmbedMoreActions, type PdfEmbedMoreActionsAnchor } from './codemirror/pdf/PdfEmbedMoreActions';
+import { NoteEmbedMoreActions, type NoteEmbedMoreActionsAnchor } from './codemirror/embed/NoteEmbedMoreActions';
+import type { OnOpenNoteEmbedMenu } from './codemirror/embed/NoteEmbedWidget';
 import { getImageUiState, presentationOnlyEdit, setImageUiState, type ImageDisplayMode } from './codemirror/image/imageUiState';
 import { getImagePresentation, computeImagePresentationUpdate } from './codemirror/mediaPresentation/mediaPresentationUpdate';
 import { copyTextToClipboard } from '@shared/helpers/copyTextToClipboard';
@@ -374,6 +376,65 @@ export const MarkdownEditor = forwardRef<
     onDownloadPdfResource?.(pdfMenu.resourceId);
   };
 
+  // The inline note embed's own floating "More actions" control — same
+  // bridged-anchor/toggle pattern as pdfMenu above. A note embed has no
+  // backing VaultResource, so this menu (NoteEmbedMoreActions) is only
+  // ever Turn into WikiLink + Remove, never a resource menu.
+  const [noteEmbedMenu, setNoteEmbedMenu] = useState<{
+    anchor: NoteEmbedMoreActionsAnchor;
+    pos: number;
+    to: number;
+  } | null>(null);
+
+  function setNoteEmbedMenuButtonOpen(button: HTMLElement, open: boolean) {
+    button.classList.toggle('cm-media-control--active', open);
+    button.setAttribute('aria-expanded', String(open));
+  }
+
+  const onOpenNoteEmbedMenuRef = useRef<OnOpenNoteEmbedMenu>(({ anchor, pos, to }) => {
+    setNoteEmbedMenu((current) => {
+      const closingSame = current !== null && current.anchor.current === anchor;
+      if (current) {
+        setNoteEmbedMenuButtonOpen(current.anchor.current, false);
+      }
+      if (!closingSame) {
+        setNoteEmbedMenuButtonOpen(anchor, true);
+      }
+      return closingSame ? null : { anchor: { current: anchor }, pos, to };
+    });
+  });
+
+  const closeNoteEmbedMenu = () => {
+    if (noteEmbedMenu) {
+      setNoteEmbedMenuButtonOpen(noteEmbedMenu.anchor.current, false);
+    }
+    setNoteEmbedMenu(null);
+  };
+
+  // "Turn into WikiLink" — strips only the embed's own leading `!`
+  // (`![[Note]]` → `[[Note]]`; `scanEmbed.ts`'s own doc comment confirms
+  // the Embed node's `from` always points exactly at that `!`), a plain
+  // text edit in the current note. The source note is never touched.
+  const handleTurnNoteEmbedIntoWikiLink = () => {
+    const view = viewRef.current;
+    if (!noteEmbedMenu || !view) {
+      return;
+    }
+    view.dispatch({ changes: { from: noteEmbedMenu.pos, to: noteEmbedMenu.pos + 1, insert: '' } });
+  };
+
+  // "Remove" — only ever edits this note's own Markdown text (never the
+  // underlying source note); see embedRemovalRange.ts's own doc comment
+  // for the Remove-vs-source-note product rule this enforces.
+  const handleRemoveNoteEmbed = () => {
+    const view = viewRef.current;
+    if (!noteEmbedMenu || !view) {
+      return;
+    }
+    const { from, to } = computeEmbedRemovalRange(view.state, noteEmbedMenu.pos);
+    view.dispatch({ changes: { from, to, insert: '' } });
+  };
+
   const handleSelectImageDisplayMode = (mode: ImageDisplayMode) => {
     const view = viewRef.current;
     if (!imageMenu || !view) {
@@ -550,6 +611,7 @@ export const MarkdownEditor = forwardRef<
         onPdfEmbedClick: () => onPdfEmbedClickRef.current,
         onOpenPdfMenu: () => onOpenPdfMenuRef.current,
         onOpenPage: () => onOpenPageRef.current,
+        onOpenNoteEmbedMenu: () => onOpenNoteEmbedMenuRef.current,
         resolveImageSrc: () => resolveImageSrcRef.current,
         resolveTag: () => resolveTagRef.current,
         getTagSuggestions: () => getTagSuggestionsRef.current,
@@ -741,6 +803,12 @@ export const MarkdownEditor = forwardRef<
         resourceMoveDestinations={resourceMoveDestinations}
         onMoveResource={onMoveResource}
         onCreateFolder={onCreateFolder}
+      />
+      <NoteEmbedMoreActions
+        anchor={noteEmbedMenu?.anchor ?? null}
+        onClose={closeNoteEmbedMenu}
+        onTurnIntoWikiLink={handleTurnNoteEmbedIntoWikiLink}
+        onRemove={handleRemoveNoteEmbed}
       />
     </>
   );

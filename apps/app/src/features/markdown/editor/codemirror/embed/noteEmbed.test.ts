@@ -10,6 +10,7 @@ import type { ResolveEmbedImage } from './embedImageResolution';
 import type { ResolveEmbedPdf } from '../pdf/embedPdfResolution';
 import type { PageEmbedResolution, ResolvePageEmbed } from '../../../render/blocks/pageEmbedResolution';
 import type { NoteEmbedAncestry } from './noteEmbedAncestry';
+import type { OnOpenNoteEmbedMenu } from './NoteEmbedWidget';
 
 /** Every fixture here targets a page (never a real Vault resource) — both resolvers always decline, matching real production wiring. */
 const declineImage: ResolveEmbedImage = () => ({ status: 'unresolved', alt: '' });
@@ -18,7 +19,11 @@ const declinePdf: ResolveEmbedPdf = () => ({ status: 'non-pdf' });
 function mountView(
   doc: string,
   resolvePageEmbed: ResolvePageEmbed,
-  options: { onOpenPage?: (pageId: string) => void; ancestry?: NoteEmbedAncestry } = {}
+  options: {
+    onOpenPage?: (pageId: string) => void;
+    onOpenNoteEmbedMenu?: OnOpenNoteEmbedMenu;
+    ancestry?: NoteEmbedAncestry;
+  } = {}
 ): EditorView {
   const parent = document.createElement('div');
   document.body.appendChild(parent);
@@ -36,6 +41,7 @@ function mountView(
         onOpenPdfMenu: () => undefined,
         resolvePageEmbed: () => resolvePageEmbed,
         onOpenPage: () => options.onOpenPage,
+        onOpenNoteEmbedMenu: () => options.onOpenNoteEmbedMenu,
         ancestry: options.ancestry,
       }),
     ],
@@ -71,13 +77,17 @@ describe('note embeds (embedLivePreview + NoteEmbedWidget)', () => {
 
     const card = view.dom.querySelector('.cm-note-embed');
     expect(card).not.toBeNull();
-    expect(card?.querySelector('.cm-note-embed__open')?.textContent).toBe('Other Note');
+    // The title is plain, non-interactive text — never a button, never
+    // clickable, no navigation behavior of its own.
+    const title = card?.querySelector('.cm-note-embed__title');
+    expect(title?.textContent).toBe('Other Note');
+    expect(title?.tagName).toBe('SPAN');
     // Rendered through a real nested EditorView, not a hand-built DOM copy
     // — the embedded note's own content lives inside `.cm-content`.
     expect(card?.querySelector('.cm-content')?.textContent).toContain('Body text.');
   });
 
-  it('opens the source note when the header button is activated', () => {
+  it('the title has no click handler and does nothing when clicked', () => {
     const onOpenPage = vi.fn();
     const view = mountView(
       '![[Other Note]]',
@@ -87,10 +97,104 @@ describe('note embeds (embedLivePreview + NoteEmbedWidget)', () => {
       { onOpenPage }
     );
 
-    const button = view.dom.querySelector<HTMLButtonElement>('.cm-note-embed__open');
-    button?.click();
+    const title = view.dom.querySelector<HTMLElement>('.cm-note-embed__title')!;
+    title.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+    expect(onOpenPage).not.toHaveBeenCalled();
+  });
+
+  it('Expand opens the source note via the existing page-navigation mechanism', () => {
+    const onOpenPage = vi.fn();
+    const view = mountView(
+      '![[Other Note]]',
+      resolverFor({
+        'Other Note': { status: 'resolved', pageId: 'page-other', title: 'Other Note', markdown: 'Body.' },
+      }),
+      { onOpenPage }
+    );
+
+    const expandButton = view.dom.querySelector<HTMLButtonElement>('.cm-note-embed [aria-label="Expand"]');
+    expect(expandButton).not.toBeNull();
+    expandButton?.click();
 
     expect(onOpenPage).toHaveBeenCalledWith('page-other');
+  });
+
+  it('Edit source reveals the raw ![[Note]] Markdown alongside the rendered card, and Hide source collapses it again', () => {
+    const view = mountView(
+      '![[Other Note]]',
+      resolverFor({
+        'Other Note': { status: 'resolved', pageId: 'page-other', title: 'Other Note', markdown: 'Body.' },
+      })
+    );
+
+    expect(view.dom.textContent).not.toContain('![[Other Note]]');
+
+    const editButton = view.dom.querySelector<HTMLButtonElement>(
+      '.cm-note-embed [aria-label="Edit source"]'
+    )!;
+    editButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+    expect(view.dom.textContent).toContain('![[Other Note]]');
+    expect(view.dom.querySelector('.cm-note-embed')).not.toBeNull();
+
+    const hideButton = view.dom.querySelector<HTMLButtonElement>(
+      '.cm-note-embed [aria-label="Hide source"]'
+    )!;
+    expect(hideButton).not.toBeNull();
+    hideButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+    expect(view.dom.textContent).not.toContain('![[Other Note]]');
+  });
+
+  it('More actions invokes the injected callback with this button as the anchor and the embed’s own node position', () => {
+    const onOpenNoteEmbedMenu = vi.fn();
+    const view = mountView(
+      'x ![[Other Note]]',
+      resolverFor({
+        'Other Note': { status: 'resolved', pageId: 'page-other', title: 'Other Note', markdown: 'Body.' },
+      }),
+      { onOpenNoteEmbedMenu }
+    );
+
+    const moreActionsButton = view.dom.querySelector<HTMLButtonElement>(
+      '.cm-note-embed [aria-label="More actions"]'
+    );
+    expect(moreActionsButton).not.toBeNull();
+    moreActionsButton!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+    expect(onOpenNoteEmbedMenu).toHaveBeenCalledWith({ anchor: moreActionsButton, pos: 2, to: 17 });
+  });
+
+  it('nested inside another read-only note embed: Edit source and More actions carry the read-only mutating marker, Expand does not', () => {
+    const view = mountView(
+      '![[Outer]]',
+      resolverFor({
+        Outer: { status: 'resolved', pageId: 'page-outer', title: 'Outer', markdown: '![[Inner]]' },
+        Inner: { status: 'resolved', pageId: 'page-inner', title: 'Inner', markdown: 'Inner body.' },
+      })
+    );
+
+    const outerCard = view.dom.querySelector('.cm-note-embed')!;
+    const innerCard = outerCard.querySelector('.cm-note-embed')!;
+    expect(innerCard).not.toBeNull();
+
+    const expandButton = innerCard.querySelector('[aria-label="Expand"]')!;
+    const editButton = innerCard.querySelector('[aria-label="Edit source"]')!;
+    const moreActionsButton = innerCard.querySelector('[aria-label="More actions"]')!;
+
+    expect(expandButton.classList.contains('cm-note-embed-control--mutating')).toBe(false);
+    expect(editButton.classList.contains('cm-note-embed-control--mutating')).toBe(true);
+    expect(moreActionsButton.classList.contains('cm-note-embed-control--mutating')).toBe(true);
+
+    // The mutating marker is only meaningful because the nested view's own
+    // `.cm-content` really is `contenteditable="false"` — the same
+    // attribute `MarkdownEditor.css`'s shared rule keys the actual hiding
+    // off (see that rule's own doc comment); confirming both together is
+    // what proves this nested embed's Edit source/More actions are
+    // actually hidden, not just marked.
+    const innerContent = innerCard.querySelector('.cm-content');
+    expect(innerContent?.getAttribute('contenteditable')).toBe('false');
   });
 
   it('never renders an editable embed — the nested view is permanently read-only', () => {

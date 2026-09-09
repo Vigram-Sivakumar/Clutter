@@ -25,7 +25,7 @@ import type { ResolveEmbedImage } from './embedImageResolution';
 import { PdfEmbedWidget, type OnOpenPdfMenu, type OnPdfEmbedClick } from '../pdf/PdfEmbedWidget';
 import type { ResolveEmbedPdf } from '../pdf/embedPdfResolution';
 import { createPdfDocumentCache, type PdfDocumentCache } from '../pdf/pdfDocumentCache';
-import { NoteEmbedWidget } from './NoteEmbedWidget';
+import { NoteEmbedWidget, type OnOpenNoteEmbedMenu } from './NoteEmbedWidget';
 import type { ResolvePageEmbed } from '../../../render/blocks/pageEmbedResolution';
 import {
   checkNoteEmbedAncestry,
@@ -185,8 +185,10 @@ export interface EmbedLivePreviewOptions {
    * rendering as always.
    */
   readonly resolvePageEmbed?: () => ResolvePageEmbed | undefined;
-  /** A resolved note embed's own "open source note" action — see `NoteEmbedWidget.ts`'s doc comment. */
+  /** A resolved note embed's own Expand action (opens the real source note) — see `NoteEmbedWidget.ts`'s doc comment. */
   readonly onOpenPage?: () => ((pageId: string) => void) | undefined;
+  /** A resolved note embed's own "More actions" trigger — see `NoteEmbedWidget.ts`'s/`NoteEmbedMoreActions.tsx`'s doc comments. Stubbed to `() => undefined` for a nested note embed's own recursive extension build, same as `onOpenImageMenu`/`onOpenPdfMenu` are — More actions is hidden entirely for a nested read-only embed (requirement 6), so there is nothing for it to open there anyway. */
+  readonly onOpenNoteEmbedMenu?: () => OnOpenNoteEmbedMenu | undefined;
   /**
    * Threaded through only so a resolved note embed's own nested view
    * (`NoteEmbedWidget`) can be built with the *same* resolvers the
@@ -219,6 +221,7 @@ function buildDecorations(
     onOpenPdfMenu: getOnOpenPdfMenu,
     resolvePageEmbed: getResolvePageEmbed,
     onOpenPage: getOnOpenPage,
+    onOpenNoteEmbedMenu: getOnOpenNoteEmbedMenu,
     resolveWikiLink: getResolveWikiLink,
     resolveTag: getResolveTag,
     resolveDate: getResolveDate,
@@ -380,6 +383,10 @@ function buildDecorations(
                 onPdfEmbedClick: getOnPdfEmbedClick,
                 onOpenPdfMenu: () => undefined,
                 onOpenPage: getOnOpenPage,
+                // More actions is hidden entirely for a nested read-only
+                // note embed (requirement 6) — stubbed the same way
+                // onOpenImageMenu/onOpenPdfMenu are just above.
+                onOpenNoteEmbedMenu: () => undefined,
                 resolveImageSrc: getResolveImageSrc ?? (() => undefined),
                 resolveTag: getResolveTag ?? (() => undefined),
                 resolveDate: getResolveDate ?? (() => undefined),
@@ -387,10 +394,27 @@ function buildDecorations(
                 ancestry: ancestryCheck.ancestry,
                 maxEmbedDepth,
               });
-              const widget = new NoteEmbedWidget(pageResolution, noteExtensions, getOnOpenPage?.());
-              const range = Decoration.replace({ widget }).range(node.from, node.to);
-              ranges.push(range);
-              atomicRanges.push(range);
+              const widget = new NoteEmbedWidget(
+                pageResolution,
+                noteExtensions,
+                baseUi,
+                node.from,
+                node.to,
+                getOnOpenPage ?? (() => undefined),
+                getOnOpenNoteEmbedMenu ?? (() => undefined)
+              );
+              // Same reveal contract Image/PDF already establish: revealed
+              // keeps the raw `![[Note]]` text in place and inserts the
+              // rendered card as a side widget right after it (Edit
+              // source's whole purpose); at rest, the card replaces the
+              // raw text outright.
+              if (baseUi.revealed) {
+                ranges.push(Decoration.widget({ widget, side: 1 }).range(node.to));
+              } else {
+                const range = Decoration.replace({ widget }).range(node.from, node.to);
+                ranges.push(range);
+                atomicRanges.push(range);
+              }
               return;
             }
             // Cycle or depth-limit hit — falls through to the generic

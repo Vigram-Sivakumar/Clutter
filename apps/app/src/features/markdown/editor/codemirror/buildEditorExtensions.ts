@@ -42,6 +42,7 @@ import type { ResolveEmbedPdf } from './pdf/embedPdfResolution';
 import type { ResolvePageEmbed } from '../../render/blocks/pageEmbedResolution';
 import type { GetEmbedHeadingSuggestions, GetEmbedSuggestions } from './embed/embedSuggestion';
 import { ROOT_ANCESTRY, type NoteEmbedAncestry } from './embed/noteEmbedAncestry';
+import type { OnOpenNoteEmbedMenu } from './embed/NoteEmbedWidget';
 
 /**
  * Every getter here follows the same "read fresh per rebuild/per click"
@@ -83,12 +84,15 @@ export interface BuildEditorExtensionsOptions {
   readonly onPdfEmbedClick: () => OnPdfEmbedClick | undefined;
   readonly onOpenPdfMenu: () => OnOpenPdfMenu | undefined;
   /**
-   * A note embed's own "open source note" action (`NoteEmbedWidget.ts`'s
-   * header button) — the only supported way to edit an embedded note's
-   * content, per this milestone's own permanent product rule. Unused
-   * when `resolvePageEmbed` is omitted.
+   * A note embed's own Expand action (`NoteEmbedWidget.ts`'s header
+   * button) — opens the real source note via the existing page-navigation
+   * mechanism, the only supported way to edit an embedded note's content,
+   * per this milestone's own permanent product rule. Unused when
+   * `resolvePageEmbed` is omitted.
    */
   readonly onOpenPage?: () => ((pageId: string) => void) | undefined;
+  /** A note embed's own "More actions" trigger (Turn into WikiLink/Remove) — see `NoteEmbedMoreActions.tsx`'s doc comment. Unused when `resolvePageEmbed` is omitted. */
+  readonly onOpenNoteEmbedMenu?: () => OnOpenNoteEmbedMenu | undefined;
   readonly resolveImageSrc: () => ResolveImageSrc | undefined;
   readonly resolveTag: () => ResolveTag | undefined;
   readonly getTagSuggestions?: () => GetTagSuggestions | undefined;
@@ -144,6 +148,7 @@ export function buildEditorExtensions(options: BuildEditorExtensionsOptions): Ex
     onPdfEmbedClick,
     onOpenPdfMenu,
     onOpenPage,
+    onOpenNoteEmbedMenu,
     resolveImageSrc,
     resolveTag,
     getTagSuggestions,
@@ -173,6 +178,7 @@ export function buildEditorExtensions(options: BuildEditorExtensionsOptions): Ex
       onOpenPdfMenu,
       resolvePageEmbed,
       onOpenPage,
+      onOpenNoteEmbedMenu,
       resolveWikiLink,
       resolveTag,
       resolveDate,
