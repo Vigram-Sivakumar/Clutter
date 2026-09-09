@@ -118,7 +118,7 @@
 .cm-editor .tok-heading4,
 .cm-editor .tok-heading5,
 .cm-editor .tok-heading6 {
-  font-weight: var(--fw-extrabold);
+  font-weight: var(--fw-bold);
   color: var(--foreground-primary);
 }
 
