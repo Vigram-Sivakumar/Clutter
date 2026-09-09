@@ -13,7 +13,7 @@
 
   min-width: 0;
 }
-.note-list .collection-entry__title,
+/* .note-list .collection-entry__title, */
 .note-list .collection-entry__description {
   overflow: hidden;
   min-width: 0;

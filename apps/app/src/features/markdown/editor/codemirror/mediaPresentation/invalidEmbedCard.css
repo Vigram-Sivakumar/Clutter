@@ -198,8 +198,6 @@
   line-height: var(--lh-body-small);
   color: var(--foreground-primary);
   white-space: nowrap;
-  overflow: hidden;
-  /* text-overflow: ellipsis; */
 }
 
 .cm-editor .cm-invalid-embed__source {
