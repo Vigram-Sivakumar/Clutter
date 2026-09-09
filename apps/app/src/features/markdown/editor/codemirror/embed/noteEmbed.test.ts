@@ -218,7 +218,7 @@ describe('note embeds (embedLivePreview + NoteEmbedWidget)', () => {
     expect(nestedView?.state.doc.toString()).toBe('Original content.');
   });
 
-  it('does not render a note embed for a direct self-embed — caught by ancestry, falls back to the generic broken-embed rendering', () => {
+  it('does not render a note embed for a direct self-embed — caught by ancestry, falls back to the shared broken-embed card (NoteEmbedWidget\'s own renderBroken, not the working header/nested-view structure)', () => {
     const view = mountView(
       '![[This Note]]',
       resolverFor({
@@ -227,7 +227,12 @@ describe('note embeds (embedLivePreview + NoteEmbedWidget)', () => {
       { ancestry: { ancestryPageIds: new Set(['page-self']), depth: 0 } }
     );
 
+    // `.cm-note-embed` itself is never present on a broken embed — only
+    // NoteEmbedWidget's own working-state branch adds it (see
+    // `invalidEmbedCard.ts`'s own doc comment for why the shared broken
+    // card never claims a type-specific container identity).
     expect(view.dom.querySelector('.cm-note-embed')).toBeNull();
+    expect(view.dom.querySelector('.cm-note-embed__header')).toBeNull();
     expect(view.dom.querySelector('.cm-invalid-embed')).not.toBeNull();
   });
 
@@ -293,8 +298,108 @@ describe('note embeds (embedLivePreview + NoteEmbedWidget)', () => {
     expect(nestedCard).not.toBeNull();
 
     // ...but A's own attempt to re-embed B is the cycle, caught and
-    // rendered as a broken embed instead of recursing forever.
-    expect(nestedCard?.querySelector('.cm-note-embed')).toBeNull();
-    expect(nestedCard?.querySelector('.cm-invalid-embed')).not.toBeNull();
+    // rendered as a broken embed instead of recursing forever. `cycleCard`
+    // (the note-embed B-again, nested inside A) is found via
+    // `.cm-invalid-embed`, not `.cm-note-embed` — NoteEmbedWidget's own
+    // broken state never carries the latter at all (the shared
+    // `renderInvalidEmbedCard` component never claims a type-specific
+    // container identity; see `invalidEmbedCard.ts`'s own doc comment).
+    const cycleCard = nestedCard?.querySelector('.cm-invalid-embed') ?? null;
+    expect(cycleCard).not.toBeNull();
+    expect(cycleCard?.classList.contains('cm-note-embed')).toBe(false);
+    expect(cycleCard?.querySelector('.cm-note-embed__header')).toBeNull();
+    expect(cycleCard?.querySelector('.cm-editor')).toBeNull();
+  });
+});
+
+/**
+ * Regression coverage for a real, confirmed misclassification bug:
+ * `![[statue.pngs]]` (a typo'd image extension) used to fall all the way
+ * through `embedLivePreview.ts`'s own image → PDF → page resolution chain
+ * unclassified, landing on "Note not found" simply because every other
+ * resolver happened to decline it — a *failed resolution* was silently
+ * deciding the *type*. `embedTargetKind.ts`'s own doc comment has the full
+ * account; these tests establish the deterministic classification rule
+ * directly, target by target, with every resolver wired to decline (the
+ * worst case for misclassification — nothing "helps" by actually
+ * resolving anything).
+ *
+ * Unlike `mountView` above (whose image/PDF resolvers are always the
+ * fixed `declineImage`/`declinePdf` constants), these tests need a real,
+ * extension-aware PDF resolver stub for the `.pdf` case — mounted
+ * directly rather than reusing that shared helper.
+ */
+describe('embed target classification — extension decides type, never a failed resolution', () => {
+  function mountClassificationView(doc: string, resolveEmbedPdf: ResolveEmbedPdf = declinePdf): EditorView {
+    const parent = document.createElement('div');
+    document.body.appendChild(parent);
+    const state = EditorState.create({
+      doc,
+      extensions: [
+        history(),
+        markdownLanguageExtension(),
+        embedLivePreview({
+          resolveEmbedImage: () => declineImage,
+          onImageClick: () => undefined,
+          onOpenImageMenu: () => undefined,
+          resolveEmbedPdf: () => resolveEmbedPdf,
+          onPdfEmbedClick: () => undefined,
+          onOpenPdfMenu: () => undefined,
+          resolvePageEmbed: () => resolverFor({}),
+          onOpenPage: () => undefined,
+          onOpenNoteEmbedMenu: () => undefined,
+        }),
+      ],
+    });
+    return new EditorView({ state, parent });
+  }
+
+  it('![[statue.png]] (recognized image extension, file missing): renders a broken Image, never a Note', () => {
+    const view = mountClassificationView('![[statue.png]]');
+
+    const card = view.dom.querySelector('.cm-invalid-embed');
+    expect(card).not.toBeNull();
+    expect(card?.classList.contains('cm-note-embed')).toBe(false);
+    expect(view.dom.querySelector('.cm-invalid-embed__title')?.textContent).toBe('Unable to load');
+    expect(view.dom.querySelector('.cm-invalid-embed__source')?.textContent).toBe('statue.png');
+  });
+
+  it('![[statue.pngs]] (malformed/unrecognized extension): renders the generic unsupported-file card, never a Note or an Image', () => {
+    const view = mountClassificationView('![[statue.pngs]]');
+
+    const card = view.dom.querySelector('.cm-invalid-embed');
+    expect(card).not.toBeNull();
+    expect(card?.classList.contains('cm-note-embed')).toBe(false);
+    expect(card?.classList.contains('cm-image-container')).toBe(false);
+    expect(view.dom.querySelector('.cm-invalid-embed__title')?.textContent).toBe('Unsupported file');
+    expect(view.dom.querySelector('.cm-invalid-embed__source')?.textContent).toBe('statue.pngs');
+  });
+
+  it('![[notes.docx]] (a real, well-known extension this editor still doesn\'t render): also the generic unsupported-file card, not a Note', () => {
+    const view = mountClassificationView('![[notes.docx]]');
+
+    expect(view.dom.querySelector('.cm-invalid-embed__title')?.textContent).toBe('Unsupported file');
+    expect(view.dom.querySelector('.cm-note-embed')).toBeNull();
+  });
+
+  it('![[Missing Note]] (no extension at all): the only shape resolved as a page — renders "Note not found"', () => {
+    const view = mountClassificationView('![[Missing Note]]');
+
+    const card = view.dom.querySelector('.cm-invalid-embed');
+    expect(card).not.toBeNull();
+    expect(view.dom.querySelector('.cm-invalid-embed__title')?.textContent).toBe('Note not found');
+    expect(view.dom.querySelector('.cm-invalid-embed__source')?.textContent).toBe('Missing Note');
+  });
+
+  it('![[missing.pdf]] (recognized PDF extension, file missing) still classifies as PDF even with resolvePageEmbed wired in — PDF\'s own extension fallback runs before page resolution is ever consulted', () => {
+    const pdfAware: ResolveEmbedPdf = (path) =>
+      path === 'missing.pdf' ? { status: 'unresolved', title: 'missing' } : { status: 'non-pdf' };
+    const view = mountClassificationView('![[missing.pdf]]', pdfAware);
+
+    const card = view.dom.querySelector('.cm-invalid-embed');
+    expect(card).not.toBeNull();
+    expect(card?.classList.contains('cm-note-embed')).toBe(false);
+    expect(view.dom.querySelector('.cm-invalid-embed__title')?.textContent).toBe('Unable to load');
+    expect(view.dom.querySelector('.cm-invalid-embed__source')?.textContent).toBe('missing.pdf');
   });
 });

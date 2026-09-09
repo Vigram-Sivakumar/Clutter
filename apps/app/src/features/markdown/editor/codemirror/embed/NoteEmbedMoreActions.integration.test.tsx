@@ -120,6 +120,62 @@ describe('Note embed "More actions" — Turn into WikiLink / Remove', () => {
     expect(onOpenPage).not.toHaveBeenCalled();
   });
 
+  it('opening the menu sets [data-menu-open] on the card, keeping .cm-note-embed__controls visible the way Image\'s own size menu keeps .cm-media-controls visible — parity with Image/PDF\'s "controls stay visible while More actions is open" behavior', () => {
+    render(
+      <MarkdownEditor
+        pageId="test-page"
+        markdown="![[Other Note]]"
+        resolveEmbedImage={declineImage}
+        resolveEmbedPdf={declinePdf}
+        resolvePageEmbed={resolverFor({
+          'Other Note': { status: 'resolved', pageId: 'page-other', title: 'Other Note', markdown: 'Body.' },
+        })}
+      />
+    );
+    const card = document.querySelector('.cm-note-embed')!;
+    expect(card.getAttribute('data-menu-open')).toBe('false');
+
+    const buttonBeforeOpen = document.querySelector<HTMLButtonElement>(
+      '.cm-note-embed [aria-label="More actions"]'
+    )!;
+    openMoreActionsMenu();
+
+    const buttonAfterOpen = document.querySelector<HTMLButtonElement>(
+      '.cm-note-embed [aria-label="More actions"]'
+    )!;
+    // Same identity-preserving-mutation guarantee Image's own regression
+    // test asserts — the button/card are mutated in place, never swapped.
+    expect(buttonAfterOpen).toBe(buttonBeforeOpen);
+    expect(buttonAfterOpen.isConnected).toBe(true);
+    expect(buttonAfterOpen.getAttribute('aria-expanded')).toBe('true');
+    expect(buttonAfterOpen.classList.contains('cm-media-control--active')).toBe(true);
+    expect(buttonAfterOpen.closest('.cm-note-embed')?.getAttribute('data-menu-open')).toBe('true');
+  });
+
+  it('closing the menu clears [data-menu-open] without touching the button/card identity', () => {
+    render(
+      <MarkdownEditor
+        pageId="test-page"
+        markdown="![[Other Note]]"
+        resolveEmbedImage={declineImage}
+        resolveEmbedPdf={declinePdf}
+        resolvePageEmbed={resolverFor({
+          'Other Note': { status: 'resolved', pageId: 'page-other', title: 'Other Note', markdown: 'Body.' },
+        })}
+      />
+    );
+    openMoreActionsMenu();
+    const card = document.querySelector('.cm-note-embed')!;
+    const button = document.querySelector<HTMLButtonElement>('.cm-note-embed [aria-label="More actions"]')!;
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+
+    expect(document.querySelector('.cm-note-embed [aria-label="More actions"]')).toBe(button);
+    expect(button.getAttribute('aria-expanded')).toBe('false');
+    expect(button.classList.contains('cm-media-control--active')).toBe(false);
+    expect(card.getAttribute('data-menu-open')).toBe('false');
+  });
+
   it('neither Turn into WikiLink nor Remove ever calls onOpenPage — the source note is never opened, navigated to, or otherwise touched', () => {
     const onOpenPage = vi.fn();
     render(

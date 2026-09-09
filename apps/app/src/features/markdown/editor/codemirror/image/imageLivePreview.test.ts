@@ -748,7 +748,11 @@ describe('Edit source: Link/Image lifecycle consistency (source stays visible th
     // matters here, not which of the two representations it is.
     view.dispatch({ changes: { from: closeParen, insert: ')' }, selection: { anchor: closeParen + 1 } });
     expect(getImageUiState(view.state, 0).revealed).toBe(true);
-    expect(view.dom.querySelector('.cm-image-container')).not.toBeNull();
+    // `.cm-media-block`, not `.cm-image-container` — the broken
+    // representation never carries the latter (see `invalidEmbedCard.ts`'s
+    // own doc comment), and per the comment above, which of the two
+    // representations rendered isn't what this assertion cares about.
+    expect(view.dom.querySelector('.cm-media-block')).not.toBeNull();
   });
 
   it('moving the caret outside the image source mid-edit still hides it, consistent with leaving normally', () => {
@@ -1212,9 +1216,9 @@ describe('Image composition / nesting', () => {
  * `position: absolute; right: ...` is only ever correct relative to
  * whatever `.cm-image-container`'s own box actually is.
  */
-describe('MarkdownEditor.css — .cm-image-container', () => {
+describe('ImageWidget.css — .cm-image-container', () => {
   it('shrink-wraps its content (width: fit-content), not display: block\'s implicit full-width stretch', () => {
-    const css = readFileSync(join(__dirname, '..', '..', 'MarkdownEditor.css'), 'utf8');
+    const css = readFileSync(join(__dirname, 'ImageWidget.css'), 'utf8');
     const match = css.match(/\.cm-editor\s+\.cm-image-container\s*\{([^}]*)\}/);
 
     expect(match, '.cm-image-container rule not found').not.toBeNull();
@@ -1235,7 +1239,7 @@ describe('MarkdownEditor.css — .cm-image-container', () => {
   });
 
   it('does NOT declare its own display — governed exclusively by the shared .cm-media-block class (global block-flow contract), never a per-widget inline-flex/block declaration', () => {
-    const css = readFileSync(join(__dirname, '..', '..', 'MarkdownEditor.css'), 'utf8');
+    const css = readFileSync(join(__dirname, 'ImageWidget.css'), 'utf8');
     const match = css.match(/\.cm-editor\s+\.cm-image-container\s*\{([^}]*)\}/);
 
     expect(match, '.cm-image-container rule not found').not.toBeNull();
@@ -1246,7 +1250,7 @@ describe('MarkdownEditor.css — .cm-image-container', () => {
   });
 
   it('no other rule re-overrides .cm-line padding-block for a line containing an image — the exact regression that reintroduced ~12px of extra top+bottom space (6px extra per side) after the inline-flex fix already landed; .cm-line must stay at its own plain padding-block: 3px for every line, image or not', () => {
-    const css = readFileSync(join(__dirname, '..', '..', 'MarkdownEditor.css'), 'utf8');
+    const css = readFileSync(join(__dirname, 'ImageWidget.css'), 'utf8');
 
     expect(css).not.toMatch(/\.cm-line\s*:\s*has\(\s*\.cm-image-container\s*\)\s*\{/);
     expect(css).not.toMatch(/\.cm-image-container[^{]*\{[^}]*padding-block/);
@@ -1274,14 +1278,19 @@ describe('MarkdownEditor.css — .cm-image-container', () => {
  * this same shared contract.
  */
 describe('Global media/embed block-flow contract — every ImageWidget root carries the shared .cm-media-block class', () => {
+  // `.cm-media-block` itself, not `.cm-image-container` — a broken
+  // ImageWidget root never carries `.cm-image-container` (that identity
+  // belongs to the working state alone; see `invalidEmbedCard.ts`'s own
+  // doc comment), but `.cm-media-block` is genuinely universal across
+  // both states, which is exactly what this describe block is testing.
   function getContainer(view: EditorView): HTMLElement {
-    const container = view.dom.querySelector<HTMLElement>('.cm-image-container');
+    const container = view.dom.querySelector<HTMLElement>('.cm-media-block');
     if (!container) throw new Error('image container not found');
     return container;
   }
 
   it('.cm-media-block itself is display: block in the stylesheet — the one shared rule every media widget opts into', () => {
-    const css = readFileSync(join(__dirname, '..', '..', 'MarkdownEditor.css'), 'utf8');
+    const css = readFileSync(join(__dirname, '..', 'mediaPresentation', 'embedLayout.css'), 'utf8');
     const match = css.match(/\.cm-media-block\s*\{([^}]*)\}/);
     expect(match, '.cm-media-block rule not found').not.toBeNull();
     expect(match![1]).toMatch(/display\s*:\s*block\s*;/);
@@ -1515,23 +1524,20 @@ describe('Broken image fallback', () => {
     return button;
   }
 
-  it('MarkdownEditor.css: .cm-invalid-embed fills the available width, minus a deliberate 1px caret-overflow reserve', () => {
+  it('invalidEmbedCard.css: .cm-invalid-embed fills the available width, minus a deliberate 1px caret-overflow reserve', () => {
     // Not a literal 100% — see this rule's own doc comment in
-    // MarkdownEditor.css: at width:100% the container left zero slack for
+    // invalidEmbedCard.css: at width:100% the container left zero slack for
     // CM6's own boundary-caret rendering, which measurably overflowed
     // .cm-content's right edge (confirmed directly) and could flip
     // .cm-scroller into horizontal-scroll mode, shifting the whole editor.
     // `calc(100% - 1px)` is sub-pixel-imperceptible but eliminates the
     // overflow at its source.
-    const css = readFileSync(join(__dirname, '..', '..', 'MarkdownEditor.css'), 'utf8');
-    const match = css.match(/\.cm-editor\s+\.cm-image-container\.cm-invalid-embed\s*\{([^}]*)\}/);
-    expect(match, '.cm-image-container.cm-invalid-embed rule not found').not.toBeNull();
+    const css = readFileSync(join(__dirname, '..', 'mediaPresentation', 'invalidEmbedCard.css'), 'utf8');
+    const match = css.match(/\.cm-editor\s+\.cm-invalid-embed\s*\{([^}]*)\}/);
+    expect(match, '.cm-invalid-embed rule not found').not.toBeNull();
     // `(?<!max-)` is load-bearing, not decorative — regression test for a
     // real bug: `max-width: calc(100% - 1px)` only *caps* the container's
-    // width, it doesn't set it, so with the base `.cm-image-container`
-    // rule's own `width: fit-content` (the widget-buffer spacing fix)
-    // still in effect, the broken bar silently shrink-wrapped to its own
-    // content instead of filling the line. A bare `/width\s*:.../` regex
+    // width, it doesn't set it. A bare `/width\s*:.../` regex
     // (no lookbehind) doesn't catch this — "max-width: calc(...)" still
     // *contains* the substring "width: calc(...)", so the assertion kept
     // passing throughout that regression. Confirmed directly (live
@@ -1827,8 +1833,12 @@ describe('Adjacent images with no separator — each node has fully independent 
     return Array.from(view.dom.querySelectorAll<HTMLImageElement>('img.tok-image'));
   }
 
+  // `.cm-media-block`, not `.cm-image-container` — these tests mix broken
+  // and working images, and only `.cm-media-block` is carried by both
+  // (a broken root never carries `.cm-image-container`; see
+  // `invalidEmbedCard.ts`'s own doc comment).
   function getContainers(view: EditorView): HTMLElement[] {
-    return Array.from(view.dom.querySelectorAll<HTMLElement>('.cm-image-container'));
+    return Array.from(view.dom.querySelectorAll<HTMLElement>('.cm-media-block'));
   }
 
   it('valid + invalid (no separator): only the second image goes broken when its own <img> errors', () => {
@@ -2170,7 +2180,7 @@ describe('Phase 2: pendingFirstLeave lifecycle edge cases (does not accidentally
  * CSS tripwires for the three display modes, same jsdom-cannot-compute-
  * real-layout rationale as `.cm-image-container`'s own tripwire above.
  */
-describe('MarkdownEditor.css — display mode rules', () => {
+describe('ImageWidget.css — display mode rules', () => {
   function ruleBody(css: string, selector: RegExp): string {
     const match = css.match(selector);
     expect(match, `rule not found: ${selector}`).not.toBeNull();
@@ -2178,7 +2188,7 @@ describe('MarkdownEditor.css — display mode rules', () => {
   }
 
   it('.tok-image--fill fills a real 100%-wide, 100%-tall box (of its 400px-tall container) via object-fit: cover (not just a max-height cap)', () => {
-    const css = readFileSync(join(__dirname, '..', '..', 'MarkdownEditor.css'), 'utf8');
+    const css = readFileSync(join(__dirname, 'ImageWidget.css'), 'utf8');
     const body = ruleBody(css, /\.cm-editor\s+\.tok-image\.tok-image--fill\s*\{([^}]*)\}/);
     // A real `height`, not `max-height` — object-fit only has a box to
     // crop into once both dimensions are real sizes, not caps a smaller
@@ -2201,20 +2211,20 @@ describe('MarkdownEditor.css — display mode rules', () => {
   });
 
   it('.tok-image--fill anchors its crop at mathematical center — a real "subject pushed to the bottom edge" bug was a missing height:100% relay on .cm-image-button, not an object-position problem, so center stays correct once the box itself is the right size', () => {
-    const css = readFileSync(join(__dirname, '..', '..', 'MarkdownEditor.css'), 'utf8');
+    const css = readFileSync(join(__dirname, 'ImageWidget.css'), 'utf8');
     const body = ruleBody(css, /\.cm-editor\s+\.tok-image\.tok-image--fill\s*\{([^}]*)\}/);
     expect(body).toMatch(/object-position\s*:\s*center\s*;/);
   });
 
   it('.cm-image-button relays height:100% down to the <img> alongside its existing width:100% relay — the actual root cause of the "subject pushed to the bottom edge" Fill-crop bug: without it, this button (and therefore the height:100% <img> inside it) stayed shrink-wrapped to the image\'s own natural height instead of the container\'s real 400px, so object-fit: cover cropped into the wrong box regardless of object-position', () => {
-    const css = readFileSync(join(__dirname, '..', '..', 'MarkdownEditor.css'), 'utf8');
+    const css = readFileSync(join(__dirname, 'ImageWidget.css'), 'utf8');
     const body = ruleBody(css, /\.cm-editor\s+\.cm-image-button\s*\{([^}]*)\}/);
     expect(body).toMatch(/width\s*:\s*100%\s*;/);
     expect(body).toMatch(/height\s*:\s*100%\s*;/);
   });
 
   it('Fit and Fill both render a full-width container; the image is always width:100%, and Fit never crops or fixes a height', () => {
-    const css = readFileSync(join(__dirname, '..', '..', 'MarkdownEditor.css'), 'utf8');
+    const css = readFileSync(join(__dirname, 'ImageWidget.css'), 'utf8');
     const fitImgBody = ruleBody(css, /\.cm-editor\s+\.tok-image\.tok-image--fit\s*\{([^}]*)\}/);
     expect(fitImgBody).toMatch(/width\s*:\s*100%\s*;/);
     expect(fitImgBody).toMatch(/height\s*:\s*auto\s*;/);
@@ -2231,7 +2241,7 @@ describe('MarkdownEditor.css — display mode rules', () => {
   });
 
   it('.cm-image-container--fill is a full-width, fixed 400px-tall box (minus the same 1px caret-overflow reserve --broken uses), clipping overflow so object-fit: cover has a real box to crop into', () => {
-    const css = readFileSync(join(__dirname, '..', '..', 'MarkdownEditor.css'), 'utf8');
+    const css = readFileSync(join(__dirname, 'ImageWidget.css'), 'utf8');
     const body = ruleBody(css, /\.cm-editor\s+\.cm-image-container--fill\s*\{([^}]*)\}/);
     expect(body).toMatch(/width\s*:\s*calc\(100%\s*-\s*1px\)\s*;/);
     expect(body).toMatch(/height\s*:\s*400px\s*;/);
@@ -2252,7 +2262,7 @@ describe('MarkdownEditor.css — display mode rules', () => {
     // also text-aligned the line's own raw Markdown source once revealed
     // for editing, which is exactly the bug the alignment-UX fix corrects.
     // Alignment must be scoped to the widget container element alone.
-    const css = readFileSync(join(__dirname, '..', '..', 'MarkdownEditor.css'), 'utf8');
+    const css = readFileSync(join(__dirname, 'ImageWidget.css'), 'utf8');
     const centerBody = ruleBody(css, /\.cm-editor\s+\.cm-image-container\[data-align='center'\]\s*\{([^}]*)\}/);
     expect(centerBody).toMatch(/left\s*:\s*50%\s*;/);
     expect(centerBody).toMatch(/transform\s*:\s*translateX\(-50%\)\s*;/);
@@ -2273,7 +2283,7 @@ describe('MarkdownEditor.css — display mode rules', () => {
   });
 
   it('there is no Auto mode class anywhere in the stylesheet', () => {
-    const css = readFileSync(join(__dirname, '..', '..', 'MarkdownEditor.css'), 'utf8');
+    const css = readFileSync(join(__dirname, 'ImageWidget.css'), 'utf8');
     expect(css).not.toMatch(/tok-image--auto/);
   });
 });

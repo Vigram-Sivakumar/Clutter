@@ -270,10 +270,15 @@ describe('embedLivePreview — PDF embeds, rendering (at rest)', () => {
     const view = mountView('x ![[missing.pdf]]', imageResolverFor({}), resolveEmbedPdf);
 
     expect(resolveEmbedPdf).toHaveBeenCalledWith('missing.pdf', null);
-    expect(getPdfEmbed(view)).not.toBeNull(); // PdfEmbedWidget, not ImageWidget
+    // `.cm-pdf-embed` is never present here — the broken card is the
+    // shared, generic `renderInvalidEmbedCard` component
+    // (`invalidEmbedCard.ts`), which never carries any type-specific
+    // container class (Image, PDF, or Note alike; see that module's own
+    // doc comment). "PdfEmbedWidget, not ImageWidget" is instead confirmed
+    // below, purely by the PDF-specific icon/source content this card was
+    // configured with.
     const broken = view.dom.querySelector('.cm-invalid-embed');
     expect(broken).not.toBeNull();
-    expect(broken?.classList.contains('cm-pdf-embed')).toBe(true);
     expect(view.dom.querySelector('.cm-invalid-embed__source')?.textContent).toBe('missing.pdf');
 
     // The PDF-specific icon (`PdfEmbedWidget.ts`'s `BROKEN_PDF_ICON`,

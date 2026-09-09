@@ -241,9 +241,16 @@ export class PdfEmbedWidget extends WidgetType {
   override toDOM(view: EditorView): HTMLElement {
     const container = document.createElement('div');
     // `cm-media-block` — see `ImageWidget.ts`'s own `toDOM` doc comment
-    // and MarkdownEditor.css's own doc comment for the shared global
-    // media/embed block-flow contract this class enforces.
-    container.classList.add('cm-pdf-embed', 'cm-media-block');
+    // and `mediaPresentation/embedLayout.css`'s own doc comment for the
+    // shared global media/embed block-flow contract this class enforces.
+    // Deliberately the ONLY class added before branching below —
+    // `cm-pdf-embed` is added only inside `renderWorking`, never here: a
+    // broken PDF renders through the shared, generic
+    // `renderInvalidEmbedCard` component instead (`invalidEmbedCard.ts`),
+    // which owns its own `.cm-invalid-embed` identity and must never
+    // additionally claim to be a working `.cm-pdf-embed` it isn't — see
+    // that module's own doc comment.
+    container.classList.add('cm-media-block');
     container.dataset.sourceRevealed = String(this.ui.revealed);
 
     if (this.ui.broken) {
@@ -257,7 +264,9 @@ export class PdfEmbedWidget extends WidgetType {
     // Reuses ImageWidget's own broken-card shape via the shared
     // `renderInvalidEmbedCard` component (`invalidEmbedCard.ts`) — no PDF
     // controls, no pagination, no PDF shell: only the icon, delete label,
-    // and hint text are PDF-specific.
+    // and hint text are PDF-specific. `container` stays generic
+    // (`.cm-media-block .cm-invalid-embed`) — never `cm-pdf-embed`, which
+    // `toDOM` above deliberately withheld for exactly this branch.
     renderInvalidEmbedCard(container, {
       icon: BROKEN_PDF_ICON,
       source: this.path,
@@ -282,7 +291,9 @@ export class PdfEmbedWidget extends WidgetType {
   }
 
   private renderWorking(container: HTMLElement, view: EditorView): HTMLElement {
-    container.classList.add('cm-pdf-embed-container');
+    // The working-state container identity — added only here, never in
+    // `toDOM` before branching; see that method's own doc comment for why.
+    container.classList.add('cm-pdf-embed', 'cm-pdf-embed-container');
     applyMediaAlignment(container, this.presentation.alignment);
     applyMediaWidth(container, null, this.presentation.width, view, this.widthObserver);
 

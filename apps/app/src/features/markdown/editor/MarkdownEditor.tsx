@@ -62,6 +62,13 @@ export type { OnPdfEmbedClick } from './codemirror/pdf/PdfEmbedWidget';
 export type { ResolveImageResource } from './codemirror/image/imageResourceResolution';
 export type { ResolveImageSrc, ImageSrcResolution } from './codemirror/image/imageSrcResolution';
 import './MarkdownEditor.css';
+// Shared embed/media CSS — genuinely used by more than one embed widget
+// (Image, PDF, and/or Note), so no single widget's own `.ts` module
+// imports it; imported once, centrally, from here instead. Each widget's
+// own embed-specific CSS is imported directly by that widget's own module
+// (ImageWidget.ts, PdfEmbedWidget.ts, NoteEmbedWidget.ts) instead of here.
+import './codemirror/mediaPresentation/embedLayout.css';
+import './codemirror/mediaPresentation/invalidEmbedCard.css';
 // The inline media widgets' own floating controls (ImageWidget.ts and
 // PdfEmbedWidget.ts's broken/invalid card, raw CM6 DOM) style themselves
 // via `.cm-media-controls`/`.cm-media-control` — MarkdownEditor.css only
@@ -70,7 +77,7 @@ import './MarkdownEditor.css';
 // widgets' styling doesn't depend on whichever other component happens to
 // import it (currently ImageOverlay, but that's an implementation detail
 // this file's own raw-DOM consumers shouldn't rely on transitively).
-import './codemirror/image/MediaFloatingControls.css';
+import './codemirror/mediaPresentation/MediaFloatingControls.css';
 
 /**
  * Walks up from `el` to find the nearest ancestor that's actually the
@@ -389,6 +396,12 @@ export const MarkdownEditor = forwardRef<
   function setNoteEmbedMenuButtonOpen(button: HTMLElement, open: boolean) {
     button.classList.toggle('cm-media-control--active', open);
     button.setAttribute('aria-expanded', String(open));
+    // Same `[data-menu-open]` mechanism as `setImageMenuButtonOpen` above —
+    // keeps `.cm-note-embed__controls` visible for the duration the menu is
+    // open, since `NoteEmbedMoreActions`'s `Overlay` is a portal outside
+    // `.cm-note-embed`'s own DOM subtree, so `:focus-within` alone doesn't
+    // survive focus moving into it.
+    button.closest('.cm-note-embed')?.setAttribute('data-menu-open', String(open));
   }
 
   const onOpenNoteEmbedMenuRef = useRef<OnOpenNoteEmbedMenu>(({ anchor, pos, to }) => {

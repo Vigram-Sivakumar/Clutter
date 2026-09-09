@@ -1,6 +1,7 @@
 import { EditorSelection, type EditorState } from '@codemirror/state';
 import { WidgetType, type EditorView } from '@codemirror/view';
 
+import './ImageWidget.css';
 import { computeEmbedRemovalRange } from '../mediaPresentation/embedRemovalRange';
 import { EDIT_ICON, renderInvalidEmbedCard } from '../mediaPresentation/invalidEmbedCard';
 import {
@@ -428,12 +429,19 @@ export class ImageWidget extends WidgetType {
     console.log(`[ImageWidget.toDOM] pos=${this.pos} displayMode=${this.ui.displayMode} presentation.mode=${this.presentation.mode} revealed=${this.ui.revealed}`);
     const container = document.createElement('div');
     // `cm-media-block` — the shared global media/embed block-flow
-    // contract (MarkdownEditor.css) every media widget opts into: this
-    // element must always occupy its own block position in the document
-    // flow, regardless of its own width or a broken/working state, never
-    // sharing a line with surrounding Markdown text. See that class's
-    // own doc comment for the full rationale/mechanism.
-    container.classList.add('cm-image-container', 'cm-media-block');
+    // contract (`mediaPresentation/embedLayout.css`) every media widget
+    // opts into: this element must always occupy its own block position
+    // in the document flow, regardless of its own width or a broken/
+    // working state, never sharing a line with surrounding Markdown text.
+    // See that class's own doc comment for the full rationale/mechanism.
+    // Deliberately the ONLY class added before branching below —
+    // `cm-image-container` is added only inside `renderWorking`, never
+    // here: a broken image renders through the shared, generic
+    // `renderInvalidEmbedCard` component instead (`invalidEmbedCard.ts`),
+    // which owns its own `.cm-invalid-embed` identity and must never
+    // additionally claim to be a working `.cm-image-container` it isn't —
+    // see that module's own doc comment.
+    container.classList.add('cm-media-block');
     container.dataset.imageSourceRevealed = String(this.ui.revealed);
     // Starts closed unconditionally — a freshly-rendered widget is never
     // mid-open (there is no CM6-tracked "menu is open" state for this to
@@ -457,8 +465,11 @@ export class ImageWidget extends WidgetType {
 
   private renderWorking(container: HTMLElement, view: EditorView): HTMLElement {
     console.log(`[ImageWidget.renderWorking] pos=${this.pos} displayMode=${this.ui.displayMode} applying class: cm-image-container--${this.ui.displayMode}`);
+    // The working-state container identity — added only here, never in
+    // `toDOM` before branching; see that method's own doc comment for why.
+    container.classList.add('cm-image-container');
     // Both modes are a full-width-by-default box (`.cm-image-container
-    // --fill`/`--fit`, MarkdownEditor.css) — they differ only in height:
+    // --fill`/`--fit`, `image/ImageWidget.css`) — they differ only in height:
     // Fill is a fixed 400px cover-cropped box, Fit's height is `auto`,
     // derived by the browser from the `<img>`'s own intrinsic aspect
     // ratio. Neither height is ever computed here — pure CSS. A

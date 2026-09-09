@@ -68,8 +68,14 @@ function mountView(doc: string, anchor = 0): EditorView {
   return view;
 }
 
+// `.cm-media-block`, not `.cm-image-container` — a freshly-concealed image
+// widget may render broken (no synchronous load confirmation yet) just as
+// easily as working, and only `.cm-media-block` is carried by both (a
+// broken root never carries `.cm-image-container`; see
+// `invalidEmbedCard.ts`'s own doc comment). Either representation equally
+// proves "the raw source got concealed," which is all this helper asks.
 function isConcealed(view: EditorView): boolean {
-  return view.dom.querySelector('.cm-image-container') !== null;
+  return view.dom.querySelector('.cm-media-block') !== null;
 }
 
 function rawText(view: EditorView): string {

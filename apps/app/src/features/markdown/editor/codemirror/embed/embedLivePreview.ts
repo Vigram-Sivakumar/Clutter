@@ -22,6 +22,8 @@ import { resolveImagePresentation, resolvePdfPresentation } from '../mediaPresen
 import { scanEmbed } from './embedScanner';
 import { findEmbedAt, isEngaged } from './embedEngagement';
 import type { ResolveEmbedImage } from './embedImageResolution';
+import { classifyEmbedTargetExtension } from './embedTargetKind';
+import { UnknownEmbedWidget } from '../mediaPresentation/UnknownEmbedWidget';
 import { PdfEmbedWidget, type OnOpenPdfMenu, type OnPdfEmbedClick } from '../pdf/PdfEmbedWidget';
 import type { ResolveEmbedPdf } from '../pdf/embedPdfResolution';
 import { createPdfDocumentCache, type PdfDocumentCache } from '../pdf/pdfDocumentCache';
@@ -356,58 +358,117 @@ function buildDecorations(
           }
 
           // resolution.status === 'unresolved' and the PDF resolver
-          // declined too (not a PDF-looking path either) — the one case
-          // where a target might name a page instead of a resource. See
-          // this file's own doc comment and `EmbedLivePreviewOptions`'s
-          // `resolvePageEmbed` field.
-          const resolvePageEmbed = getResolvePageEmbed?.();
-          const pageResolution = resolvePageEmbed?.(match.path);
+          // declined too (not a PDF-looking path either). Classify the
+          // raw target BY ITS OWN EXTENSION before ever asking whether it
+          // names a page — a failed resolution must never itself decide
+          // the type. This is the exact bug `embedTargetKind.ts` fixes:
+          // `![[statue.pngs]]` (a typo'd image extension) used to fall
+          // through unconditionally to page resolution below and render
+          // as "Note not found" simply because nothing else claimed it.
+          // See that module's own doc comment for the full rule.
+          const targetKind = classifyEmbedTargetExtension(match.path);
 
-          if (pageResolution?.status === 'resolved') {
-            const ancestryCheck = checkNoteEmbedAncestry(ancestry, pageResolution.pageId, maxEmbedDepth);
+          if (targetKind === 'unrecognized') {
+            // An extension is present but isn't a recognized image type
+            // (a real `.pdf` target was already fully handled above) —
+            // never presumed to name a page either. The shared, generic
+            // "unsupported file" card, not a guess at either type.
+            const widget = new UnknownEmbedWidget(match.path, { ...baseUi, broken: true }, node.from, node.to);
+            if (baseUi.revealed) {
+              ranges.push(Decoration.widget({ widget, side: 1 }).range(node.to));
+            } else {
+              const range = Decoration.replace({ widget }).range(node.from, node.to);
+              ranges.push(range);
+              atomicRanges.push(range);
+            }
+            return;
+          }
 
-            if (ancestryCheck.ok) {
-              // The nested view's own extensions are built through the
-              // exact same shared factory the top-level editor uses
-              // (`buildEditorExtensions.ts`), `readOnly: true` and the
-              // extended ancestry threaded through so a further-nested
-              // embed inside *this* note is protected identically —
-              // never a duplicated rendering/cycle-check mechanism.
-              const noteExtensions = buildEditorExtensions({
-                resolveWikiLink: getResolveWikiLink ?? (() => undefined),
-                resolveEmbedImage: getResolveEmbedImage,
-                resolveEmbedPdf: getResolveEmbedPdf,
-                resolvePageEmbed: getResolvePageEmbed,
-                onImageClick: getOnImageClick,
-                onOpenImageMenu: () => undefined,
-                onPdfEmbedClick: getOnPdfEmbedClick,
-                onOpenPdfMenu: () => undefined,
-                onOpenPage: getOnOpenPage,
-                // More actions is hidden entirely for a nested read-only
-                // note embed (requirement 6) — stubbed the same way
-                // onOpenImageMenu/onOpenPdfMenu are just above.
-                onOpenNoteEmbedMenu: () => undefined,
-                resolveImageSrc: getResolveImageSrc ?? (() => undefined),
-                resolveTag: getResolveTag ?? (() => undefined),
-                resolveDate: getResolveDate ?? (() => undefined),
-                readOnly: true,
-                ancestry: ancestryCheck.ancestry,
-                maxEmbedDepth,
-              });
+          if (targetKind === 'no-extension') {
+            // The only shape ever presumed to name a page. See this
+            // file's own doc comment and `EmbedLivePreviewOptions`'s
+            // `resolvePageEmbed` field.
+            const resolvePageEmbed = getResolvePageEmbed?.();
+            const pageResolution = resolvePageEmbed?.(match.path);
+
+            if (pageResolution?.status === 'resolved') {
+              const ancestryCheck = checkNoteEmbedAncestry(ancestry, pageResolution.pageId, maxEmbedDepth);
+
+              if (ancestryCheck.ok) {
+                // The nested view's own extensions are built through the
+                // exact same shared factory the top-level editor uses
+                // (`buildEditorExtensions.ts`), `readOnly: true` and the
+                // extended ancestry threaded through so a further-nested
+                // embed inside *this* note is protected identically —
+                // never a duplicated rendering/cycle-check mechanism.
+                const noteExtensions = buildEditorExtensions({
+                  resolveWikiLink: getResolveWikiLink ?? (() => undefined),
+                  resolveEmbedImage: getResolveEmbedImage,
+                  resolveEmbedPdf: getResolveEmbedPdf,
+                  resolvePageEmbed: getResolvePageEmbed,
+                  onImageClick: getOnImageClick,
+                  onOpenImageMenu: () => undefined,
+                  onPdfEmbedClick: getOnPdfEmbedClick,
+                  onOpenPdfMenu: () => undefined,
+                  onOpenPage: getOnOpenPage,
+                  // More actions is hidden entirely for a nested read-only
+                  // note embed (requirement 6) — stubbed the same way
+                  // onOpenImageMenu/onOpenPdfMenu are just above.
+                  onOpenNoteEmbedMenu: () => undefined,
+                  resolveImageSrc: getResolveImageSrc ?? (() => undefined),
+                  resolveTag: getResolveTag ?? (() => undefined),
+                  resolveDate: getResolveDate ?? (() => undefined),
+                  readOnly: true,
+                  ancestry: ancestryCheck.ancestry,
+                  maxEmbedDepth,
+                });
+                const widget = new NoteEmbedWidget(
+                  pageResolution,
+                  match.path,
+                  noteExtensions,
+                  baseUi,
+                  node.from,
+                  node.to,
+                  getOnOpenPage ?? (() => undefined),
+                  getOnOpenNoteEmbedMenu ?? (() => undefined)
+                );
+                // Same reveal contract Image/PDF already establish: revealed
+                // keeps the raw `![[Note]]` text in place and inserts the
+                // rendered card as a side widget right after it (Edit
+                // source's whole purpose); at rest, the card replaces the
+                // raw text outright.
+                if (baseUi.revealed) {
+                  ranges.push(Decoration.widget({ widget, side: 1 }).range(node.to));
+                } else {
+                  const range = Decoration.replace({ widget }).range(node.from, node.to);
+                  ranges.push(range);
+                  atomicRanges.push(range);
+                }
+                return;
+              }
+              // Cycle or depth-limit hit — rendered as a broken note embed
+              // below (`resolvePageEmbed` was supplied and named a real page,
+              // but recursing into it isn't safe) — never constructs the
+              // resolved widget, which is what actually stops the recursion.
+            }
+
+            if (resolvePageEmbed) {
+              // `resolvePageEmbed` was supplied and consulted (whether or not
+              // it actually found a page) — a failed lookup renders as a
+              // broken *note* embed (`NoteEmbedWidget.ts`'s own
+              // `renderBroken`, reusing the exact shared `invalidEmbedCard.ts`
+              // component with a note-specific icon/title) rather than
+              // falling through to the generic broken-image rendering below.
               const widget = new NoteEmbedWidget(
-                pageResolution,
-                noteExtensions,
-                baseUi,
+                null,
+                match.path,
+                [],
+                { ...baseUi, broken: true },
                 node.from,
                 node.to,
                 getOnOpenPage ?? (() => undefined),
                 getOnOpenNoteEmbedMenu ?? (() => undefined)
               );
-              // Same reveal contract Image/PDF already establish: revealed
-              // keeps the raw `![[Note]]` text in place and inserts the
-              // rendered card as a side widget right after it (Edit
-              // source's whole purpose); at rest, the card replaces the
-              // raw text outright.
               if (baseUi.revealed) {
                 ranges.push(Decoration.widget({ widget, side: 1 }).range(node.to));
               } else {
@@ -417,14 +478,15 @@ function buildDecorations(
               }
               return;
             }
-            // Cycle or depth-limit hit — falls through to the generic
-            // broken-embed rendering below, same as any other unresolved
-            // target; never constructs the widget, which is what actually
-            // stops the recursion.
+            // Else: no resolvePageEmbed supplied at all — falls through to
+            // the generic image-broken rendering below, unchanged.
           }
-          // Else: not a page either (ambiguous/unresolved/unresolved-heading,
-          // or no resolvePageEmbed supplied at all) — falls through to the
-          // generic image-broken rendering below, unchanged.
+          // Else: targetKind === 'image' — extension says image, but no
+          // VaultResource was found for it at all (`resolution.status ===
+          // 'unresolved'`). Never consult page resolution for something
+          // whose own extension already says "image" — falls through to
+          // the generic broken-image rendering below, which already
+          // handles this `resolution.status` correctly.
         }
 
         const ui =

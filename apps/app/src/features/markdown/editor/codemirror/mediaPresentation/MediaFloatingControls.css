@@ -8,10 +8,12 @@
      root it's a child of).
    - `.cm-invalid-embed__controls`/`.cm-invalid-embed__control` —
      `invalidEmbedCard.ts`'s shared *broken/invalid* card controls (delete
-     + edit source), used by both `ImageWidget.renderBroken` and
-     `PdfEmbedWidget.renderBroken`. BEM children of that component, named
-     for it specifically — see `invalidEmbedCard.ts`'s own doc comment for
-     why its controls get its own name rather than reusing the generic one.
+     + edit source), used by `ImageWidget.renderBroken`,
+     `PdfEmbedWidget.renderBroken`, and `NoteEmbedWidget.renderBroken`
+     alike. BEM children of that component, named for it specifically —
+     see `invalidEmbedCard.ts`'s own doc comment for why its controls get
+     its own name rather than reusing the generic one (and for why the
+     invalid-embed card never carries any type-specific container class).
    Originally a single image-specific name (`.cm-image-controls`/
    `.cm-image-control`, this file's own former name
    `ImageFloatingControls.css`) before the broken/invalid card started
@@ -23,11 +25,14 @@
    Both families resolve to the exact same visual chrome — this file is
    the single source of truth for it either way, no duplicated CSS.
 
-   MarkdownEditor.css keeps only its own CM6-specific concerns on top of
-   these classes (absolute positioning within `.cm-image-container`, the
-   hover/focus-within/`data-menu-open` opacity toggle for reveal-on-
-   engagement) — everything about the button/container's own appearance
-   lives here instead.
+   Each family's own reveal-on-engagement positioning/opacity toggle lives
+   with its own owner instead of here — `.cm-media-controls`'s own
+   `embedLayout.css` (absolute positioning within `.cm-image-container`,
+   plus `image/ImageWidget.css`'s `[data-menu-open]` variant),
+   `.cm-invalid-embed__controls`'s own `invalidEmbedCard.css` (self-
+   contained, keyed off `.cm-invalid-embed` itself — never a type-specific
+   container class). This file stays scoped to the visual chrome both
+   families share.
 
    ImageOverlay's own "More actions" control (`ImageOverlayMoreActions.tsx`)
    deliberately does NOT reuse either family — see that file's own doc
@@ -38,12 +43,21 @@
 .cm-media-controls,
 .cm-invalid-embed__controls {
   display: flex;
-  padding: var(--space-2);
-  background: var(--surface-primary);
   border-radius: var(--radius-sm);
   overflow: hidden;
+}
 
-  box-shadow: var(--shadow-inset-thin), var(--shadow-lg);
+/* The pill's own background/padding/inset-shadow — `.cm-media-controls`
+   only (Image's own working-state controls), never
+   `.cm-invalid-embed__controls`: the invalid-embed card's controls sit on
+   top of the card's own background (`invalidEmbedCard.css`'s
+   `.cm-invalid-embed__row`), which already supplies the visual surface
+   they need — a second, redundant pill chrome behind them there isn't
+   wanted. */
+.cm-media-controls {
+  background: var(--surface-primary);
+  padding: var(--space-2);
+  box-shadow: var(--shadow-inset-thin);
 }
 
 .cm-media-control,

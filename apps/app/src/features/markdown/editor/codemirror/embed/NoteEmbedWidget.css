@@ -1,0 +1,112 @@
+/*
+ * The inline Markdown Note embed (`NoteEmbedWidget.ts`) — its own card/
+ * header/title/controls CSS. Extracted out of `MarkdownEditor.css`
+ * (2026-09) to match the colocation convention `PdfEmbedWidget.css`
+ * already established — content and behavior unchanged, only the file it
+ * lives in. The shared read-only mutating-control-hide rule this widget
+ * also depends on (`.cm-note-embed-control--mutating`) lives in
+ * `mediaPresentation/embedLayout.css` instead — see that file's own doc
+ * comment.
+ */
+
+/*
+ * Note embeds (`![[Page]]`, `NoteEmbedWidget.ts`) — the outer card, its
+ * header (plain-text title + Expand/Edit source/More actions), and the
+ * nested read-only `EditorView` mount. Modeled directly on
+ * `PdfEmbedWidget.css`'s own top-row layout (title left, controls right,
+ * reveal on hover/focus of the whole card) — see that file's own doc
+ * comment for the layout rationale this mirrors.
+ *
+ * The header's own action buttons reuse the shared `.cm-media-control`
+ * button chrome (`MediaFloatingControls.css`) — this file adds only the
+ * note-embed-specific *row* (`.cm-note-embed__controls`): its own
+ * position/reveal behavior, deliberately NOT the shared
+ * `.cm-media-controls` class, because that class is unconditionally
+ * hidden by `mediaPresentation/embedLayout.css`'s
+ * `.cm-content[contenteditable='false']` rule — Expand must stay visible/interactive inside a nested read-only
+ * note embed (requirement: "Expand remains available"), so the row
+ * itself can't be the thing that rule hides. Only the two mutating
+ * buttons (Edit source, More actions) carry `.cm-note-embed-control
+ * --mutating`, which that same rule does hide — see `NoteEmbedWidget.ts`'s
+ * own class doc comment for the full account.
+ */
+.cm-note-embed {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  border-radius: var(--radius-sm);
+  background: var(--surface-secondary);
+  box-shadow: var(--shadow-inset-thin);
+}
+/* .cm-note-embed .cm-note-embed {
+  box-shadow: none;
+} */
+
+.cm-note-embed__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-8);
+  padding: var(--space-8);
+  padding-left: var(--space-12);
+}
+
+.cm-note-embed__title {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--foreground-secondary);
+  font-size: var(--text-label);
+  font-weight: var(--fw-medium);
+  line-height: var(--lh-label);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+/* Hidden at rest, revealed on hover/focus of the whole card — same
+ * reveal contract as Image's `.cm-media-controls`/PDF's
+ * `.cm-pdf-controls`, applied to this row instead of either (see this
+ * block's own doc comment for why neither shared class name is reused
+ * directly here). Plain CSS `:hover`/`:focus-within` is enough — unlike
+ * `PdfEmbedWidget.ts`, nothing here mutates the DOM under the pointer
+ * mid-hover, so there's no "sticky hover" quirk to work around with a
+ * JS-tracked hover class.
+ */
+.cm-note-embed__controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
+
+.cm-note-embed:hover .cm-note-embed__controls,
+.cm-note-embed:focus-within .cm-note-embed__controls {
+  opacity: 1;
+}
+
+/* "The entire controls area remains visible" while this note embed's own
+ * More actions menu is open — same requirement, same mechanism Image's own
+ * size menu already establishes (`ImageWidget.css`'s own
+ * `[data-menu-open='true']` rule, `MarkdownEditor.tsx`'s
+ * `setImageMenuButtonOpen`/`setNoteEmbedMenuButtonOpen`). Needed as its own
+ * rule, not covered by the `:hover`/`:focus-within` reveal above —
+ * `NoteEmbedMoreActions`'s `Overlay` is a React portal mounted outside this
+ * card's own DOM subtree, so once focus moves into the open menu neither
+ * pseudo-class still matches here. `[data-menu-open="true"]` is set/cleared
+ * by direct DOM mutation on this element (`NoteEmbedWidget.ts`'s `toDOM`
+ * initializes it to `"false"`) rather than a CM6-diffed field, for the same
+ * anchor-staleness reason `imageUiState.ts`'s own doc comment records for
+ * Image's identical mechanism. */
+.cm-note-embed[data-menu-open='true'] .cm-note-embed__controls {
+  opacity: 1;
+}
+.cm-note-embed__content {
+  padding-inline: var(--space-6);
+}
+.cm-note-embed__content .cm-editor {
+  outline: none;
+}

@@ -237,8 +237,8 @@ describe('Fill ↔ Fit container height transition (bidirectional FLIP fix)', ()
     return { width, height, x: 0, y: 0, top: 0, left: 0, right: width, bottom: height, toJSON: () => ({}) } as DOMRect;
   }
 
-  it('MarkdownEditor.css: .cm-image-container transitions height, not just width', () => {
-    const css = readFileSync(join(__dirname, '..', '..', 'MarkdownEditor.css'), 'utf8');
+  it('ImageWidget.css: .cm-image-container transitions height, not just width', () => {
+    const css = readFileSync(join(__dirname, 'ImageWidget.css'), 'utf8');
     const match = css.match(/\.cm-editor\s+\.cm-image-container\s*\{([^}]*)\}/);
     expect(match, '.cm-image-container rule not found').not.toBeNull();
     const body = match![1]!;
