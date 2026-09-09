@@ -1168,7 +1168,7 @@
  * centering isn't baseline-aware). Only the glyph itself is sized down, via
  * `.tok-wikilink__emoji` below. */
 .tok-wikilink__emoji {
-  font-size: 0.8em;
+  transform: scale(0.9);
   line-height: 1;
 }
 

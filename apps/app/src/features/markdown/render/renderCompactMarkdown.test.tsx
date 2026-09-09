@@ -53,7 +53,7 @@ describe('renderCompactMarkdown', () => {
 
   describe('WikiLink resolution', () => {
     it('uses the injected resolver display label and status', () => {
-      const resolution: WikiLinkResolution = { status: 'resolved', displayLabel: 'Project Alpha', activate: () => {} };
+      const resolution: WikiLinkResolution = { status: 'resolved', icon: 'note', emoji: null, displayLabel: 'Project Alpha', activate: () => {} };
       const resolveWikiLink: ResolveWikiLink = vi.fn().mockReturnValue(resolution);
 
       const { container } = render(<>{renderCompactMarkdown('[[Projects/Alpha|Alpha]]', { resolveWikiLink })}</>);

@@ -8,42 +8,20 @@ import { setImageUiState, type ImageUiState } from '../image/imageUiState';
 import { EXPAND_ICON, MORE_ICON } from '../mediaPresentation/embedControlIcons';
 import { EDIT_ICON, renderInvalidEmbedCard } from '../mediaPresentation/invalidEmbedCard';
 import { computeEmbedRemovalRange } from '../mediaPresentation/embedRemovalRange';
+import { PAGE_IDENTITY_ICON_BY_KIND } from '../mediaPresentation/pageIdentityIcons';
 import type { PageEmbedResolution } from '../../../render/blocks/pageEmbedResolution';
 
-// Hand-copied from `shared/icon/svg/note.svg` — the exact same glyph
-// `shared/icon/iconRegistry.ts`'s own `note` entry wraps as a React
-// component (`getPageIcon('note')`'s target, the default every page-list
-// row/breadcrumb/etc. falls back to via `AppIcon.tsx` when a page has no
-// emoji assigned — `buildEntryPresentation.ts`'s own `icon`/`emoji` pair).
-// Hand-copied rather than imported for the same reason `ImageWidget.ts`'s
-// `IMAGE_ICON`/`PdfEmbedWidget.ts`'s `BROKEN_PDF_ICON` are: the
-// real icon system emits React components, which cannot mount inside a
-// `WidgetType`'s plain DOM. Reused for two different meanings depending
-// on where `toDOM` renders it — the broken card's own icon (`renderBroken`)
-// and the working header's default identity icon when the resolved page
-// has no emoji (`toDOM`'s own icon-wrap, mirroring `AppIcon.tsx`'s
-// emoji-or-default rule) — both are genuinely "the standard note glyph,"
-// not two different icons that happen to look alike.
+// Hand-copied from `shared/icon/svg/note.svg` — the broken/"Note not
+// found" card's own icon specifically (`renderBroken`, below). The
+// working header's own default identity icon (no emoji assigned) reuses
+// `PAGE_IDENTITY_ICON_BY_KIND` instead — see that module's own doc
+// comment for why it's centralized rather than a third hand-copy of the
+// same three glyphs. Hand-copied rather than imported for the same reason
+// `ImageWidget.ts`'s `IMAGE_ICON`/`PdfEmbedWidget.ts`'s `BROKEN_PDF_ICON`
+// are: the real icon system emits React components, which cannot mount
+// inside a `WidgetType`'s plain DOM.
 const NOTE_ICON =
   '<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M2 4C2 2.34315 3.34315 1 5 1H11C12.6569 1 14 2.34315 14 4V12C14 13.6569 12.6569 15 11 15H5C3.34315 15 2 13.6569 2 12V4Z" stroke="currentColor" stroke-linecap="round"/><path d="M5 8H11M5 11H11" stroke="currentColor" stroke-linecap="round"/><path d="M5 5H9H5" stroke="currentColor" stroke-linecap="round"/></svg>';
-
-// Hand-copied from `shared/icon/svg/calendar-note.svg`/`calendar-dot.svg`
-// — the two other `getPageIcon()` defaults a resolved page can carry
-// (`resolution.icon`, `PageEmbedResolution`'s own doc comment): a daily
-// note's own icon, today's-date variant (the filled dot) or any other
-// date (the plain calendar). Same hand-copy-for-raw-DOM reason as
-// `NOTE_ICON` above.
-const CALENDAR_NOTE_ICON =
-  '<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 2V1M5 2H11M5 2C3.34315 2 2 3.34315 2 5V11C2 12.6569 3.34315 14 5 14H11C12.6569 14 14 12.6569 14 11V5C14 3.34315 12.6569 2 11 2M11 2V1" stroke="currentColor" stroke-linecap="round"/><path d="M5 5H9M5 8H11M5 11H11" stroke="currentColor" stroke-linecap="round"/></svg>';
-const CALENDAR_DOT_ICON =
-  '<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 2V1M11 2V1M4.75 4.5H11.25M5 2H11C12.6569 2 14 3.34315 14 5V11C14 12.6569 12.6569 14 11 14H5C3.34315 14 2 12.6569 2 11V5C2 3.34315 3.34315 2 5 2Z" stroke="currentColor" stroke-linecap="round"/><circle cx="8" cy="9" r="2.25" fill="currentColor"/></svg>';
-
-/** `resolution.icon`'s three possible values, mapped to their hand-copied SVG. Mirrors `iconRegistry.ts`'s own name→component lookup, just for the raw-DOM subset `NoteEmbedWidget` ever actually needs. */
-const DEFAULT_ICON_BY_KIND: Readonly<Record<'note' | 'calendarNote' | 'calendarDot', string>> = {
-  note: NOTE_ICON,
-  calendarNote: CALENDAR_NOTE_ICON,
-  calendarDot: CALENDAR_DOT_ICON,
-};
 
 /**
  * Strips leading and trailing empty/whitespace-only *lines* from `markdown`
@@ -297,7 +275,7 @@ export class NoteEmbedWidget extends WidgetType {
       iconWrap.classList.add('cm-note-embed__icon-wrap--emoji');
       iconWrap.textContent = resolution.emoji;
     } else {
-      iconWrap.innerHTML = DEFAULT_ICON_BY_KIND[resolution.icon];
+      iconWrap.innerHTML = PAGE_IDENTITY_ICON_BY_KIND[resolution.icon];
       iconWrap.querySelector('svg')?.classList.add('cm-note-embed__icon');
     }
 

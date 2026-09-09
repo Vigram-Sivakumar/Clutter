@@ -2,27 +2,47 @@ import type { Vault } from '@core/vault/models/Vault';
 import type { Page } from '@core/vault/models/Page';
 import type { PageOperations } from '@core/application/page/PageOperations';
 import type { FolderOperations } from '@core/application/folder/FolderOperations';
+import type { EffectivePageState } from '@core/application/page/EffectivePageState';
 import { VaultPath } from '@core/vault/ingest/VaultPath';
 import type { ResolveWikiLink, WikiLinkResolution } from '@features/markdown/editor/MarkdownEditor';
 
+import { resolvePageIdentityIcon } from './resolvePageIdentityIcon';
+
 /**
- * Composes `Vault` + `PageOperations`/`FolderOperations` into the
- * editor's injected `ResolveWikiLink` boundary — the editor itself never
- * imports any of them (docs/editor-architecture-decisions.md,
- * "Editor/persistence boundary"). This is presentation-layer glue in the
- * same vein as `buildBreadcrumbs`/`toResourcePageModel` (both already
- * live under `app/layouts/page/` or `core/presentation/`), not a new
- * navigation or filesystem layer: resolution reads `Vault` directly via
- * its own existing `getPageByPath`/`getFolderByPath` (the same methods
+ * Composes `Vault` + `PageOperations`/`FolderOperations`/
+ * `EffectivePageState` into the editor's injected `ResolveWikiLink`
+ * boundary — the editor itself never imports any of them
+ * (docs/editor-architecture-decisions.md, "Editor/persistence boundary").
+ * This is presentation-layer glue in the same vein as
+ * `buildBreadcrumbs`/`toResourcePageModel` (both already live under
+ * `app/layouts/page/` or `core/presentation/`), not a new navigation or
+ * filesystem layer: resolution reads `Vault` directly via its own
+ * existing `getPageByPath`/`getFolderByPath` (the same methods
  * `Application.openFallbackPage`/`DailyNoteService.ensureFolderChain`
  * already use) plus a linear alias scan over `vault.pages()`, and
  * activation calls the existing `PageOperations.open()`/`.create()` and
  * `FolderOperations.create()` — no new subsystem, no new write path.
+ * `EffectivePageState` (2026-09, "WikiLink identity icon") is consulted
+ * only for a resolved link's own `icon`/`emoji` — the exact same
+ * session-wins-over-committed source `resolvePageEmbed.ts` already reads
+ * for a note embed's identical fields, via the one shared
+ * `resolvePageIdentityIcon()` (see that module's own doc comment); the
+ * display label/activation above remain entirely durable-`Page`-derived,
+ * unchanged. Optional (unlike `resolvePageEmbed.ts`'s own required
+ * `EffectivePageState`, since a note embed always needs it for its live
+ * *content* too): the main editor (`PageHost.tsx`) and
+ * `Sidebar.Notes.tsx` already have one in scope and pass it through for
+ * full session-aware icon resolution; other call sites that don't
+ * (`Sidebar.DailyNotes.tsx`, `Sidebar.Tasks.tsx`) simply omit it rather
+ * than threading a new dependency through for icon resolution alone —
+ * `resolvePageIdentityIcon()` already falls back to the durable
+ * `page.metadata.icon`/`page.type` alone when `effective` is `undefined`.
  */
 export function createWikiLinkResolver(
   vault: Vault,
   pageOperations: PageOperations,
-  folderOperations: FolderOperations
+  folderOperations: FolderOperations,
+  effectivePageState?: EffectivePageState
 ): ResolveWikiLink {
   function resolvedTo(page: Page, localAlias: string | null): WikiLinkResolution {
     // Display-label precedence: local alias > target's primary frontmatter
@@ -31,11 +51,21 @@ export function createWikiLinkResolver(
     // aliases, and display").
     const primaryAlias = page.analysis.aliases[0]?.value;
     const displayLabel = localAlias ?? primaryAlias ?? VaultPath.pageName(page.path);
+    // The single shared source of truth for a resolved page's own
+    // identity icon/emoji — the exact same computation
+    // `resolvePageEmbed.ts`'s own resolved note-embed uses, so the two
+    // constructs can never silently diverge on "what icon does this page
+    // show." `effectivePageState?.getPage()` is synchronous and side-
+    // effect-free (safe to call once per render), same as
+    // `resolvePageEmbed.ts`'s own identical call.
+    const { icon, emoji } = resolvePageIdentityIcon(page, effectivePageState?.getPage(page.id));
 
     return {
       status: 'resolved',
       displayLabel,
       activate: () => void pageOperations.open(page.id),
+      icon,
+      emoji,
     };
   }
 

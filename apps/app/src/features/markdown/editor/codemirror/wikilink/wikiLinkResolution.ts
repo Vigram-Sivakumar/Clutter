@@ -13,9 +13,27 @@
  * access actually lives — the editor never sees a path resolve to
  * anything beyond this one result object, and never computes a display
  * label or a click behavior itself.
+ *
+ * `icon`/`emoji` (2026-09, "WikiLink identity icon") exist only on
+ * `'resolved'` — a resolved WikiLink names a real page, whose own
+ * identity icon/emoji this mirrors exactly (`icon`/`emoji` are the same
+ * pair `PageEmbedResolution`'s own `'resolved'` variant carries, computed
+ * by the exact same shared `resolvePageIdentityIcon()` — see that
+ * module's own doc comment); `unresolved`/`ambiguous` reference no real
+ * page to have one, so this stays purely a rendering concern: never
+ * written into the Markdown (still just `[[Note]]`, `WikiLinkWidget.ts`'s
+ * own `toDOM` doc comment), and never shown once the raw syntax is
+ * revealed (the widget's own DOM disappears entirely on engage — see
+ * `wikiLinkLivePreview.ts`'s own doc comment).
  */
 export type WikiLinkResolution =
-  | { readonly status: 'resolved'; readonly displayLabel: string; readonly activate: () => void }
+  | {
+      readonly status: 'resolved';
+      readonly displayLabel: string;
+      readonly activate: () => void;
+      readonly icon: 'note' | 'calendarNote' | 'calendarDot';
+      readonly emoji: string | null;
+    }
   | { readonly status: 'unresolved'; readonly displayLabel: string; readonly activate: () => void }
   | { readonly status: 'ambiguous'; readonly displayLabel: string; readonly activate: () => void };
 

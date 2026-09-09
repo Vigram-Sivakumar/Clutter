@@ -98,7 +98,7 @@ export function Notes({
   // (resolveTag.ts/resolveWikiLink.ts). Reused here so a row's compact
   // Markdown rendering resolves WikiLinks/Tags identically to the open
   // page, not via a second resolution implementation.
-  const resolveWikiLink = createWikiLinkResolver(vault, pageOperations, folderOperations);
+  const resolveWikiLink = createWikiLinkResolver(vault, pageOperations, folderOperations, effectivePageState);
   const resolveTag = createTagResolver(navigation, vault);
 
   // Single owner of "which row's overflow menu/rename session is open" —

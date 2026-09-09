@@ -96,7 +96,7 @@ function isAtomicAnywhere(view: EditorView): boolean {
 }
 
 const resolvedAs = (displayLabel: string): ResolveWikiLink => () => ({
-  status: 'resolved',
+  status: 'resolved', icon: 'note', emoji: null,
   displayLabel,
   activate: () => {},
 });
@@ -134,7 +134,7 @@ describe('wikiLinkLivePreview', () => {
 
     it('with an alias: shows the alias as the display label', () => {
       const view = mountView('before [[Projects/Project A|Display name]] after', () => ({
-        status: 'resolved',
+        status: 'resolved', icon: 'note', emoji: null,
         displayLabel: 'Display name',
         activate: () => {},
       }));
@@ -275,7 +275,7 @@ describe('wikiLinkLivePreview', () => {
     it('**[[Projects/Project A|Display name]]**: cursor inside reveals the alias alongside the compact reference', () => {
       const doc = '**[[Projects/Project A|Display name]]**';
       const insideWikiLink = doc.indexOf('Project A') + 1;
-      const resolver: ResolveWikiLink = () => ({ status: 'resolved', displayLabel: 'Display name', activate: () => {} });
+      const resolver: ResolveWikiLink = () => ({ status: 'resolved', icon: 'note', emoji: null, displayLabel: 'Display name', activate: () => {} });
       const view = mountViewWithSelection(doc, insideWikiLink, resolver, true);
 
       expect(visibleText(view)).toBe('**[[Project A|Display name]]**');
@@ -452,7 +452,7 @@ describe('wikiLinkLivePreview', () => {
 
     it('with an alias, nesting is unaffected: **[[Page|Alias]]** still wraps tok-strong > tok-wikilink', () => {
       const view = mountView('before **[[Page|Alias]]** after', () => ({
-        status: 'resolved',
+        status: 'resolved', icon: 'note', emoji: null,
         displayLabel: 'Alias',
         activate: () => {},
       }), true);
@@ -563,7 +563,7 @@ describe('wikiLinkLivePreview', () => {
 
     it('with an alias: the same boundary positions engage fully, never an intermediate **Display text** (alias case)', () => {
       const doc = '**[[Projects/Project A|Display name]]**';
-      const resolver: ResolveWikiLink = () => ({ status: 'resolved', displayLabel: 'Display name', activate: () => {} });
+      const resolver: ResolveWikiLink = () => ({ status: 'resolved', icon: 'note', emoji: null, displayLabel: 'Display name', activate: () => {} });
       const view = mountViewWithSelection(doc, 0, resolver, true);
 
       expect(visibleText(view)).toBe('**[[Project A|Display name]]**');
@@ -643,7 +643,7 @@ describe('wikiLinkLivePreview — cross-line WikiLink never crashes the view', (
     // WikiLink node itself starts at position 0 (see the "bare WikiLink"
     // test above), which isn't the case here.
     const view = mountView(doc, (path) => ({
-      status: 'resolved',
+      status: 'resolved', icon: 'note', emoji: null,
       displayLabel: path,
       activate: () => {},
     }));

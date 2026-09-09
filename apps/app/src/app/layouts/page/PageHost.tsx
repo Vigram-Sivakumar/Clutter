@@ -153,7 +153,8 @@ export function PageHost({ application, onOpenResource, onOpenImageOverlay }: Pa
   const resolveWikiLink = createWikiLinkResolver(
     vault,
     application.pageOperations,
-    application.folderOperations
+    application.folderOperations,
+    application.effectivePageState
   );
   // Same per-render, stateless-glue composition as resolveWikiLink above.
   const getWikiLinkSuggestions = createWikiLinkSuggester(
