@@ -210,25 +210,23 @@ describe('wikiLinkLivePreview', () => {
   });
 
   describe('engaged', () => {
-    it('reveals [[, the filename, and ]] — the folder prefix stays concealed', () => {
+    it('reveals the complete raw source — [[, the full folder-qualified path, and ]] — nothing concealed', () => {
       const doc = 'before [[Projects/Project A]] after';
       const nodeFrom = 'before '.length;
       const view = mountViewWithSelection(doc, nodeFrom + 3, resolvedAs('Project A'));
 
-      expect(visibleText(view)).toBe('before [[Project A]] after');
-      expect(visibleText(view)).not.toContain('Projects/');
+      expect(visibleText(view)).toBe(doc);
     });
 
-    it('with an alias: reveals [[filename|alias]] — the folder prefix stays concealed, the alias stays visible', () => {
+    it('with an alias: reveals [[path|alias]] in full — the folder path and the alias are both visible', () => {
       const doc = 'before [[Projects/Project A|Display name]] after';
       const nodeFrom = 'before '.length;
       const view = mountViewWithSelection(doc, nodeFrom + 3, resolvedAs('Display name'));
 
-      expect(visibleText(view)).toBe('before [[Project A|Display name]] after');
-      expect(visibleText(view)).not.toContain('Projects/');
+      expect(visibleText(view)).toBe(doc);
     });
 
-    it('no folder component: the whole reference was already just the filename, nothing to conceal', () => {
+    it('no folder component: the whole reference was already just the filename', () => {
       const doc = 'before [[Project A]] after';
       const nodeFrom = 'before '.length;
       const view = mountViewWithSelection(doc, nodeFrom + 3, resolvedAs('Project A'));
@@ -271,7 +269,7 @@ describe('wikiLinkLivePreview', () => {
       expect(visibleText(view)).toBe(doc);
     });
 
-    it('regression: the stable wrapper is present for a folder-qualified path too, composed correctly with the concealed-prefix decoration', () => {
+    it('regression: the stable wrapper is present for a folder-qualified path too', () => {
       const doc = 'before [[Projects/Project A]] after';
       const nodeFrom = 'before '.length;
       const view = mountViewWithSelection(doc, nodeFrom, resolvedAs('Project A'));
@@ -285,10 +283,9 @@ describe('wikiLinkLivePreview', () => {
       expect(wikiLinkChild!.nodeType).toBe(Node.ELEMENT_NODE);
       expect((wikiLinkChild as Element).tagName).toBe('SPAN');
 
-      // The folder prefix stays concealed exactly as before — the mark is
-      // purely a structural addition, not a visibility change.
-      expect(visibleText(view)).toBe('before [[Project A]] after');
-      expect(visibleText(view)).not.toContain('Projects/');
+      // The mark is purely a structural addition, not a visibility change
+      // — the full raw path is visible, same as any other engaged construct.
+      expect(visibleText(view)).toBe(doc);
     });
 
     it('has no atomic range while engaged', () => {
@@ -305,7 +302,7 @@ describe('wikiLinkLivePreview', () => {
       const view = mountView(doc, resolvedAs('Project A'));
 
       view.dispatch({ selection: { anchor: nodeFrom + 3 } });
-      expect(visibleText(view)).toContain('[[Project A]]');
+      expect(visibleText(view)).toContain('[[Projects/Project A]]');
 
       view.dispatch({ selection: { anchor: 0 } });
       expect(visibleText(view)).toBe('before Project A after');
@@ -323,35 +320,32 @@ describe('wikiLinkLivePreview', () => {
       const insideWikiLink = doc.indexOf('Project A') + 1;
       const view = mountViewWithSelection(doc, insideWikiLink, resolvedAs('Project A'), true);
 
-      expect(visibleText(view)).toBe('**[[Project A]]**');
-      expect(visibleText(view)).not.toContain('Projects/');
+      expect(visibleText(view)).toBe(doc);
     });
 
-    it('**[[Projects/Project A|Display name]]**: cursor inside reveals the alias alongside the compact reference', () => {
+    it('**[[Projects/Project A|Display name]]**: cursor inside reveals the alias alongside the full raw reference', () => {
       const doc = '**[[Projects/Project A|Display name]]**';
       const insideWikiLink = doc.indexOf('Project A') + 1;
       const resolver: ResolveWikiLink = () => ({ status: 'resolved', icon: 'note', emoji: null, displayLabel: 'Display name', activate: () => {} });
       const view = mountViewWithSelection(doc, insideWikiLink, resolver, true);
 
-      expect(visibleText(view)).toBe('**[[Project A|Display name]]**');
-      expect(visibleText(view)).not.toContain('Projects/');
+      expect(visibleText(view)).toBe(doc);
     });
 
-    it('~~[[Projects/Project A]]~~: cursor inside the link reveals the strikethrough marks alongside the compact reference', () => {
+    it('~~[[Projects/Project A]]~~: cursor inside the link reveals the strikethrough marks alongside the full raw reference', () => {
       const doc = '~~[[Projects/Project A]]~~';
       const insideWikiLink = doc.indexOf('Project A') + 1;
       const view = mountViewWithSelection(doc, insideWikiLink, resolvedAs('Project A'), true);
 
-      expect(visibleText(view)).toBe('~~[[Project A]]~~');
+      expect(visibleText(view)).toBe(doc);
     });
 
-    it('**~~[[Projects/Project A]]~~**: nested combination — both outer marks reveal, the reference stays folder-free', () => {
+    it('**~~[[Projects/Project A]]~~**: nested combination — both outer marks reveal, the reference is fully raw', () => {
       const doc = '**~~[[Projects/Project A]]~~**';
       const insideWikiLink = doc.indexOf('Project A') + 1;
       const view = mountViewWithSelection(doc, insideWikiLink, resolvedAs('Project A'), true);
 
-      expect(visibleText(view)).toBe('**~~[[Project A]]~~**');
-      expect(visibleText(view)).not.toContain('Projects/');
+      expect(visibleText(view)).toBe(doc);
     });
 
     it('does not introduce construct-pair logic: StrongEmphasis with no WikiLink inside behaves exactly as it does without wikiLinkLivePreview registered', () => {
@@ -375,7 +369,7 @@ describe('wikiLinkLivePreview', () => {
       expect(view.state.doc.toString()).toBe(text);
     });
 
-    it('Backspace-equivalent deletion at a position inside the concealed folder prefix removes one real character, with no new cursor/keymap logic involved', () => {
+    it('Backspace-equivalent deletion at a position inside the folder path removes one real character, with no custom cursor/keymap logic involved', () => {
       const doc = 'before [[Projects/Project A]] after';
       const nodeFrom = 'before '.length;
       const view = mountView(doc, resolvedAs('Project A'));
@@ -621,8 +615,7 @@ describe('wikiLinkLivePreview', () => {
       const resolver: ResolveWikiLink = () => ({ status: 'resolved', icon: 'note', emoji: null, displayLabel: 'Display name', activate: () => {} });
       const view = mountViewWithSelection(doc, 0, resolver, true);
 
-      expect(visibleText(view)).toBe('**[[Project A|Display name]]**');
-      expect(visibleText(view)).not.toContain('Projects/');
+      expect(visibleText(view)).toBe(doc);
     });
 
     it('a bare WikiLink with no enclosing formatting is unaffected: engagement boundary equals its own node range', () => {
@@ -630,7 +623,7 @@ describe('wikiLinkLivePreview', () => {
       const nodeFrom = 'before '.length;
       const view = mountViewWithSelection(doc, nodeFrom, resolvedAs('Project A'), true);
 
-      expect(visibleText(view)).toBe('before [[Project A]] after');
+      expect(visibleText(view)).toBe(doc);
 
       // One position before the node: must NOT be engaged (no formatting
       // ancestor to widen into) — the fix must not accidentally widen a

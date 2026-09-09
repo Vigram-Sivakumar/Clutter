@@ -177,16 +177,16 @@ export function wikiLinkCompletionSource(
       // real content just past the cursor. Cursor position must not
       // determine whether autocomplete can activate.
       //
-      // Scoped to the *visible* segment only — the folder-prefix portion
-      // (if any) is concealed while engaged (wikiLinkMarkerDecorations.ts),
-      // and the query must match what the user actually sees and edits
-      // ("Note"), never the hidden canonical prefix
-      // ("Projects/Project A/Note") sitting underneath it. Same
-      // `lastUnescapedSlashOffset` split the decoration layer uses — one
-      // definition of "where the visible part starts", not two. The
-      // *replace range* below stays the full zone regardless: accepting a
-      // suggestion must still overwrite the entire canonical reference,
-      // folder included, with the picked suggestion's own full path.
+      // Scoped to the filename segment only — a query should match what a
+      // user is actually typing to search for a page by name ("Note"), not
+      // the folder-qualified canonical path ("Projects/Project A/Note")
+      // sitting in front of it, independent of the editor's own rendering
+      // (the full path is real, visible, editable source once engaged —
+      // see wikiLinkLivePreview.ts). Uses the same `lastUnescapedSlashOffset`
+      // split — one definition of "where the filename segment starts", not
+      // two. The *replace range* below stays the full zone regardless:
+      // accepting a suggestion must still overwrite the entire canonical
+      // reference, folder included, with the picked suggestion's own full path.
       const refText = context.state.sliceDoc(zone.from, zone.to);
       const slashOffset = lastUnescapedSlashOffset(refText);
       const visibleFrom = slashOffset === null ? zone.from : zone.from + slashOffset + 1;

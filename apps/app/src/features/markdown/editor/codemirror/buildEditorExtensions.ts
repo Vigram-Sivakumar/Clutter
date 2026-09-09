@@ -36,7 +36,6 @@ import type { GetWikiLinkSuggestions } from './wikilink/wikiLinkSuggestion';
 import { wikiLinkAutocomplete } from './wikilink/wikiLinkAutocomplete';
 import { embedAutocomplete } from './embed/embedAutocomplete';
 import { wikiLinkLivePreview } from './wikilink/wikiLinkLivePreview';
-import { wikiLinkConcealedPrefixNavigation } from './wikilink/wikiLinkConcealedPrefixNavigation';
 import { wikiLinkMouseHandlers } from './wikilink/wikiLinkMouseHandlers';
 import type { ResolveEmbedImage } from './embed/embedImageResolution';
 import type { ResolveEmbedPdf } from './pdf/embedPdfResolution';
@@ -169,7 +168,6 @@ export function buildEditorExtensions(options: BuildEditorExtensionsOptions): Ex
       })
     ),
     wikiLinkLivePreview(resolveWikiLink),
-    wikiLinkConcealedPrefixNavigation(),
     imageLivePreview(onImageClick, onOpenImageMenu, resolveImageSrc),
     embedLivePreview({
       resolveEmbedImage,

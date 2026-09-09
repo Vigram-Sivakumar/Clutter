@@ -120,10 +120,10 @@ export function splitAtFirstUnescapedPipe(text: string): WikiLinkQuerySplit {
  * Raw-buffer offset (not decoded) of the last unescaped `/` within a
  * WikiLink's reference text (e.g. `"Projects/Project A/Note"`), or `null`
  * if it has no folder component. Used to find the boundary between the
- * folder prefix — concealed while the WikiLink is engaged, per the
- * editing-representation UX — and the filename, which always stays
- * visible; a raw offset because it feeds directly into a
- * `Decoration.replace` range, not a decoded display string.
+ * folder prefix and the filename — used to scope autocomplete queries to
+ * the filename segment (`wikiLinkCompletionSource.ts`); a raw offset
+ * because it feeds directly into buffer slicing, not a decoded display
+ * string.
  *
  * Deliberately narrower than {@link scanSegment}'s general escape
  * handling: it only needs to skip a backslash-escaped pair so an escaped

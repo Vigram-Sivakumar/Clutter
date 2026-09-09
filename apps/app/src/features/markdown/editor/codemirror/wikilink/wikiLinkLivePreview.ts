@@ -13,7 +13,7 @@ import type { SyntaxNode, SyntaxNodeRef } from '@lezer/common';
 
 import { isTokenEngaged, type TokenNodeRange } from '../semanticToken/tokenEngagement';
 import { renderWikiLink } from './wikiLinkDecorations';
-import { lastUnescapedSlashOffset, scanWikiLink, splitAtFirstUnescapedPipe } from './wikiLinkScanner';
+import { scanWikiLink } from './wikiLinkScanner';
 import type { ResolveWikiLink } from './wikiLinkResolution';
 
 /**
@@ -64,28 +64,29 @@ function widenToEnclosingLivePreviewRegion(node: SyntaxNodeRef): TokenNodeRange 
 
 /**
  * WikiLink's own, standalone visibility mechanism — deliberately outside
- * `inlineLivePreviewRegion.ts`. WikiLink no longer implements that shared
- * mechanism's contract ("engaged region reveals raw source"): the required
- * behavior here is that the folder-qualified path must never be visible,
- * in either state, while the rest of the WikiLink syntax (`[[`, filename,
- * `|alias`, `]]`) becomes plain editable text once engaged. That's a
- * genuinely different per-node contract than every other participant in
- * `inlineLivePreviewParticipants.ts` shares — Tag and Date keep the
- * ordinary reveal-on-engage contract unchanged, so they stay there.
+ * `inlineLivePreviewRegion.ts`. At rest: identical to a retired participant
+ * entry would have been — `renderWikiLink` (unchanged) produces the same
+ * at-rest widget, atomic exactly as before. Engaged: the complete raw
+ * source (`[[`, the full folder-qualified path if any, filename, `|alias`
+ * if present, `]]`) renders as plain, unstyled, editable text — not
+ * atomic, so Backspace/Delete work character-by-character. This matches
+ * the ordinary reveal-on-engagement contract every other construct in this
+ * codebase follows (Tag, Date, headings, emphasis, ...): engaged means the
+ * actual document text, in full, with nothing concealed.
  *
- * At rest: identical to the retired participant entry — `renderWikiLink`
- * (unchanged) produces the same at-rest widget, atomic exactly as before.
- *
- * Engaged: `[[`, the filename, `|alias` (if present), and `]]` all render
- * as plain, unstyled, editable text — not atomic, per the explicit
- * requirement that Backspace/Delete work character-by-character rather
- * than risk one keystroke deleting the whole reference. Only the
- * folder-prefix substring (up to and including the last unescaped `/`) is
- * concealed. `lastUnescapedSlashOffset`/`splitAtFirstUnescapedPipe` are
- * reused unchanged from `wikiLinkScanner.ts` — the same primitives
- * `wikiLinkCompletionSource.ts` already uses to scope its own query to
- * "the visible segment", so there is exactly one definition of where the
- * visible part starts, not two.
+ * **Folder-path concealment while engaged was tried and reverted
+ * (2026-09-09).** A prior version of this file concealed the
+ * folder-qualified path segment (e.g. `Projects/Design/` in
+ * `[[Projects/Design/My Note]]`) even while engaged, paired with a bespoke
+ * `wikiLinkConcealedPrefixNavigation.ts` ArrowLeft/ArrowRight keymap to
+ * compensate for the resulting silent, invisible-caret-position keystrokes
+ * CM6's default motion produced stepping through that hidden text. Both
+ * were removed: WikiLink was the only construct in the codebase whose
+ * engaged state didn't show real source, and the keymap it required was
+ * exactly the kind of bespoke cursor-interception
+ * docs/editor-architecture-decisions.md's "CodeMirror owns cursor and
+ * selection behavior" entry already rejects by default. See that file's
+ * WikiLink section for the full reversal record.
  *
  * The engaged text is always wrapped in one `Decoration.mark({})` spanning
  * the whole node (`ENGAGED_WIKILINK_MARK`, below) — unstyled, never
@@ -106,65 +107,14 @@ function widenToEnclosingLivePreviewRegion(node: SyntaxNodeRef): TokenNodeRange 
  * for exactly this reason — WikiLink's slash-free branch was the only
  * participant in the codebase that skipped it. No `class`/`attributes`: a
  * `Decoration.mark` never needs one to produce a real wrapping element —
- * `MarkDecoration` defaults `tagName` to `"span"` regardless.
- *
- * The concealed folder-prefix range computed below (`computeConcealedFolderPrefixRange`,
- * exported) is reused by `wikiLinkConcealedPrefixNavigation.ts` — a
- * narrowly-scoped ArrowLeft/ArrowRight keymap that hops over exactly this
- * concealed run in one keystroke when the caret sits at its edge, so
- * crossing a folder-qualified path doesn't cost one silent, invisible
- * keystroke per hidden character. That keymap is the one place in this
- * codebase that reopens docs/editor-architecture-decisions.md's
- * "CodeMirror owns cursor and selection behavior" entry, per that entry's
- * own reservation clause — see that file's doc comment for the full
- * justification and its strict scope (Arrow keys only, only at this exact
- * concealed range's boundary; Backspace/Delete/typing/click/drag-selection
- * are entirely untouched, still ordinary CM6 defaults over non-atomic
- * decorations, exactly as before).
+ * `MarkDecoration` defaults `tagName` to `"span"` regardless. This part is
+ * unrelated to folder-path concealment and is unaffected by its removal.
  *
  * Reuses `isTokenEngaged` unchanged (imported, never modified) — the exact
  * same containment check every other construct uses, just evaluated from
  * this file's own tree scan instead of the shared traversal's.
  */
 const ENGAGED_WIKILINK_MARK = Decoration.mark({});
-
-/**
- * The folder-prefix substring (up to and including the last unescaped
- * `/`) that stays concealed even while engaged — the one part of a
- * WikiLink's raw syntax that never becomes visible, per this file's own
- * "folder-qualified path must never be visible, in either state"
- * requirement (above). Extracted from `buildEngagedDecorations` and
- * exported so `wikiLinkConcealedPrefixNavigation.ts` computes hop targets
- * from the exact same range this file decorates — one definition of
- * "where the concealed run is," not two.
- */
-export function computeConcealedFolderPrefixRange(
-  node: TokenNodeRange,
-  state: EditorState
-): TokenNodeRange | null {
-  if (node.to > state.doc.lineAt(node.from).to) {
-    return null;
-  }
-
-  const raw = state.sliceDoc(node.from, node.to);
-  if (!scanWikiLink(raw, 0)) {
-    return null;
-  }
-
-  const middleStart = node.from + 2;
-  const middleEnd = node.to - 2;
-  const middleRaw = state.sliceDoc(middleStart, middleEnd);
-  const { pipeIndex } = splitAtFirstUnescapedPipe(middleRaw);
-  const pathRawEnd = pipeIndex === null ? middleEnd : middleStart + pipeIndex;
-  const pathRaw = state.sliceDoc(middleStart, pathRawEnd);
-
-  const slashOffset = lastUnescapedSlashOffset(pathRaw);
-  if (slashOffset === null) {
-    return null;
-  }
-
-  return { from: middleStart, to: middleStart + slashOffset + 1 };
-}
 
 function buildEngagedDecorations(node: SyntaxNodeRef, state: EditorState): Range<Decoration>[] {
   if (node.to > state.doc.lineAt(node.from).to) {
@@ -182,14 +132,7 @@ function buildEngagedDecorations(node: SyntaxNodeRef, state: EditorState): Range
     return [];
   }
 
-  const decorations: Range<Decoration>[] = [ENGAGED_WIKILINK_MARK.range(node.from, node.to)];
-
-  const concealedPrefix = computeConcealedFolderPrefixRange(node, state);
-  if (concealedPrefix) {
-    decorations.push(Decoration.replace({}).range(concealedPrefix.from, concealedPrefix.to));
-  }
-
-  return decorations;
+  return [ENGAGED_WIKILINK_MARK.range(node.from, node.to)];
 }
 
 function buildDecorations(

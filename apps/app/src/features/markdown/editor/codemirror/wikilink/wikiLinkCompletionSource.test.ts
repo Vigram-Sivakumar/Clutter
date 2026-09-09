@@ -241,11 +241,11 @@ describe('wikiLinkCompletionSource — reactivating inside an already-closed Wik
 
   it('still offers completions for the reference of an at-rest link that has no alias at all, querying only the visible filename', () => {
     // "x [[Projects/Page]] y" — no "|", so the whole path is the reference
-    // zone, but the query must be scoped to the visible (post-folder)
-    // segment "Page" — the folder prefix is concealed while engaged
-    // (wikiLinkMarkerDecorations.ts) and must never be exposed to search
-    // either. The *replace range* (result.to) still covers the whole
-    // reference zone, folder included — that's unaffected by query scoping.
+    // zone, but the query must be scoped to the filename segment "Page",
+    // not the folder-qualified path — searching by filename is the point
+    // of this scoping, independent of how the editor renders the text.
+    // The *replace range* (result.to) still covers the whole reference
+    // zone, folder included — that's unaffected by query scoping.
     const view = mountView('x [[Projects/Page]] y');
     const getSuggestions: GetWikiLinkSuggestions = vi.fn(() => [
       { kind: 'page' as const, path: 'Projects/Page', title: 'Page', breadcrumb: 'Projects' },

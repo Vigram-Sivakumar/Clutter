@@ -306,9 +306,11 @@ Every claim sourced directly from current files. All seven constructs below curr
 ```text
 1. Exact current DOM:        at rest — fully opaque widget (compact alias/filename render); `[[`/`]]`
                               do not exist as separate DOM nodes at all, concealed or otherwise
-                              engaged — `[[`, filename, `|alias` (if present), `]]` all render as plain,
-                              bare, unclassed text (wikiLinkLivePreview.ts:76-98); only the folder-prefix
-                              substring is concealed (Decoration.replace({}))
+                              engaged — the complete raw source (`[[`, full folder-qualified path if
+                              any, filename, `|alias` if present, `]]`) renders as plain text wrapped
+                              in one Decoration.mark span (wikiLinkLivePreview.ts) — nothing concealed
+                              (folder-prefix concealment while engaged was tried and reverted 2026-09-09,
+                              see docs/editor-architecture-decisions.md)
 2. Decoration mechanism:      standalone extension, wikilink/wikiLinkLivePreview.ts — NOT
                               inlineLivePreviewParticipants.ts/delimitedInlineRenderer; its own
                               ViewPlugin, own traversal, own engagement widening
@@ -327,11 +329,11 @@ Every claim sourced directly from current files. All seven constructs below curr
                               migration, and this audit confirms why: WikiLink's at-rest form has no
                               real `[[`/`]]` text at all to turn into a marker span (it's a single
                               opaque widget) — a marker DOM contract only has meaning for its *engaged*
-                              state, which is architecturally different from every other construct in
-                              this family (WikiLink already deliberately opted out of the shared
-                              reveal-on-engage contract once, per docs/editor-architecture-decisions.md's
-                              "WikiLink-specific rationale" section, precisely because its contract is
-                              genuinely different). Concretely: is a `cm-marker cm-wikilink-marker` span
+                              state. (Historical note, kept for record: between 2026-09-09's two entries
+                              same day, WikiLink's engaged contract briefly diverged further — concealing
+                              its folder-prefix even while engaged — before being reverted to match every
+                              other construct's ordinary reveal-on-engage contract; see
+                              docs/editor-architecture-decisions.md.) Concretely: is a `cm-marker cm-wikilink-marker` span
                               wanted only in the engaged state (the only state where `[[`/`]]` exist as
                               real, position-addressable text), with the at-rest widget staying exactly
                               as it is? That is a real product/architecture question to answer
