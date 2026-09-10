@@ -2,7 +2,14 @@
    (now `MenuTitle`, `@components/menu/MenuTitle.css`), row styling
    (`MenuItem`) — comes from the shared `Menu`/`MenuItem`/`MenuTitle`
    components, reused directly for both the Actions and language views.
-   Only the empty-state row is specific to this file. */
+   Only the results list's own scroll cap and the empty-state row are
+   specific to this file. */
+
+.fenced-code-language-picker__list {
+  max-height: 264px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
 
 .fenced-code-language-picker__empty {
   padding: var(--space-8) var(--space-12);

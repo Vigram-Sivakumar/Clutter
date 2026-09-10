@@ -307,19 +307,26 @@ function LanguagePickerContent({
         placeholder="Search languages"
       />
 
-      {filteredDescriptions.map((description) => (
-        <MenuItem
-          key={description.name}
-          id={description.name}
-          selected={description.name === currentName}
-          onClick={() => onSelect(description.name)}
-        >
-          {description.name}
-        </MenuItem>
-      ))}
-      {filteredDescriptions.length === 0 && (
-        <div className="fenced-code-language-picker__empty">No matching languages</div>
-      )}
+      {/* Capped independently of `.menu`'s own `max-height` (which still
+          bounds the whole menu, title/search included) — `MenuItem`'s
+          `useMenuKeyboard` lookup queries by `[role="menuitem"]` via
+          `querySelectorAll`, so this extra wrapper doesn't affect keyboard
+          navigation at all. */}
+      <div className="fenced-code-language-picker__list">
+        {filteredDescriptions.map((description) => (
+          <MenuItem
+            key={description.name}
+            id={description.name}
+            selected={description.name === currentName}
+            onClick={() => onSelect(description.name)}
+          >
+            {description.name}
+          </MenuItem>
+        ))}
+        {filteredDescriptions.length === 0 && (
+          <div className="fenced-code-language-picker__empty">No matching languages</div>
+        )}
+      </div>
     </>
   );
 }
