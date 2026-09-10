@@ -50,7 +50,8 @@ html.theme-transitioning [data-themeable] *::after {
   --marker-foreground: var(--foreground-placeholder);
   --link-foreground: var(--foreground-primary);
   --cm-link-underline: var(--link-underline);
-  --tag-foreground: orange;
+  --tag-foreground: var(--foreground-secondary);
+  --tag-surface: var(--surface-tertiary);
   --date-foreground: #999999;
   --resize-handle: rgba(244, 244, 244, 0.5);
   --resize-handle-img: rgba(244, 244, 244, 0.7);
