@@ -10,6 +10,9 @@ import { orderedListStructuralNormalization } from './list/orderedListStructural
 import { formatShortcutsKeymap } from './format/formatShortcutsKeymap';
 import { blockquoteLineDecoration } from './highlight/blockquoteLineDecoration';
 import { blockquoteMarkerDecoration } from './highlight/blockquoteMarkerDecoration';
+import { fencedCodeBlockLineDecoration } from './highlight/fencedCodeBlockLineDecoration';
+import { fencedCodeCopyButtonDecoration } from './highlight/fencedCodeCopyButtonDecoration';
+import { fencedCodeLanguageLabelDecoration } from './highlight/fencedCodeLanguageLabelDecoration';
 import { fencedCodeMarkerDecoration } from './highlight/fencedCodeMarkerDecoration';
 import { headingMarkerDecoration } from './highlight/headingMarkerDecoration';
 import { createInlineLivePreviewParticipants } from './highlight/inlineLivePreviewParticipants';
@@ -198,7 +201,10 @@ export function buildEditorExtensions(options: BuildEditorExtensionsOptions): Ex
     blockquoteMarkerDecoration(),
     blockquoteLineDecoration(),
     headingMarkerDecoration(),
+    fencedCodeBlockLineDecoration(),
     fencedCodeMarkerDecoration(),
+    fencedCodeLanguageLabelDecoration(),
+    fencedCodeCopyButtonDecoration(),
     horizontalRuleDecoration(),
     leadingIndentDecoration(),
     wikiLinkMouseHandlers(resolveWikiLink),
