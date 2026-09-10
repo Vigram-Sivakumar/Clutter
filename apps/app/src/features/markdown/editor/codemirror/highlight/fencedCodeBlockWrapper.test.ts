@@ -29,20 +29,18 @@ describe('fencedCodeBlockWrapper', () => {
     expect(lines).toHaveLength(4);
   });
 
-  it('never attaches fenced-code-specific classes or inline layout styles to .cm-line itself', () => {
+  it('the wrapper element itself never carries a line-level visual class — grouping and visual card stay on separate elements', () => {
     const view = mountView(jsFence);
 
-    const lines = view.dom.querySelectorAll('.cm-line');
-    lines.forEach((line) => {
-      expect(line.classList.contains('cm-code-block')).toBe(false);
-      expect(line.classList.contains('cm-code-block-line')).toBe(false);
-      expect(line.classList.contains('cm-code-block-line--first')).toBe(false);
-      expect(line.classList.contains('cm-code-block-line--last')).toBe(false);
-      // No margin/padding ever set inline on the line itself by our code —
-      // this decoration doesn't touch `.cm-line` at all, so its style
-      // attribute (if any) is whatever CM6 itself puts there, never ours.
-      expect((line as HTMLElement).style.margin).toBe('');
-    });
+    const wrapper = view.dom.querySelector('.cm-code-block')!;
+    expect(wrapper.classList.contains('cm-code-block-line')).toBe(false);
+    expect(wrapper.tagName).toBe('DIV');
+    // No inline style of any kind — this extension only ever provides a
+    // class attribute via BlockWrapper, never touches style directly (the
+    // actual background/border/padding all live in MarkdownEditor.css,
+    // never inline, so there's nothing here for jsdom to assert against
+    // beyond "we didn't set one ourselves").
+    expect(wrapper.getAttribute('style')).toBeNull();
   });
 
   it('gives two back-to-back blocks (no blank line between them) two independent wrappers, not one merged run', () => {

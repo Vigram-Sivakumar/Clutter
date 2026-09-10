@@ -3,38 +3,46 @@ import type { Extension, Range } from '@codemirror/state';
 import { BlockWrapper, EditorView } from '@codemirror/view';
 
 /**
- * Per-block visual container for fenced code — background, border, rounded
- * corners, and external margin — built on `EditorView.blockWrappers`, CM6's
- * native mechanism (confirmed against the installed `@codemirror/view@6.43.9`
- * source and its own changelog, introduced 6.39.0, nesting-rank support
- * added 6.43.0) for wrapping a range of real, editable lines in a genuine
- * DOM parent that CM6 itself creates and manages.
+ * Per-block *structural* grouping for fenced code — built on
+ * `EditorView.blockWrappers`, CM6's native mechanism (confirmed against the
+ * installed `@codemirror/view@6.43.9` source and its own changelog,
+ * introduced 6.39.0, nesting-rank support added 6.43.0) for wrapping a
+ * range of real, editable lines in a genuine DOM parent that CM6 itself
+ * creates and manages.
  *
- * **Supersedes `fencedCodeBlockLineDecoration.ts`'s `Decoration.line`
- * approach entirely — not a refinement of it.** That version applied
- * `cm-code-block-line`/`--first`/`--last` classes, background, border, and
- * (briefly) `margin` directly to `.cm-line` elements. `margin` on `.cm-line`
- * was confirmed to corrupt CM6's own vertical line-geometry bookkeeping
- * (`offsetHeight`-style measurement excludes margin, so CM6's internal
- * position↔pixel mapping and the actual rendered layout silently
- * disagreed), breaking cross-line keyboard/mouse selection — see
- * `docs/editor-architecture-decisions.md`'s investigation entries. The
- * corrected architectural rule this file follows: `.cm-line` is
- * CodeMirror-owned layout/selection infrastructure and must never carry
- * `margin`, custom container geometry, or fenced-code-specific classes at
- * all — not even background/border, now that a real alternative exists.
- * `EditorView.blockWrappers` is that alternative: for a `FencedCode`
- * node's own `[from, to)` range, it makes CM6 render every `.cm-line` (and
- * block widget) that starts inside that range as the actual DOM children
- * of a real wrapper element — `.cm-code-block` — that CM6 itself builds,
- * during the exact same tile-building pass that builds `.cm-line`s. The
- * lines inside are completely untouched: no class, no attribute, no
- * layout-affecting CSS of any kind added to them by this file. `.cm-code-block`
- * is a genuine, separate DOM node, so it can safely carry `margin` (for the
- * external gap between adjacent cards), `background`, `border`,
- * `border-radius`, and `box-shadow` — the same freedom `.cm-invalid-embed`'s
- * own container already has — without touching anything CM6 measures for
- * cursor/selection geometry.
+ * **Deliberately narrow scope, corrected 2026-09-10 (second correction the
+ * same day): `.cm-code-block` owns grouping and spacing only — never the
+ * visual card (background/border/radius).** An earlier version of this
+ * file put the *entire* visual presentation here, on the theory that
+ * `.cm-line` should carry no fenced-code styling of any kind. Real
+ * interactive testing overturned the *margin* half of that theory but not
+ * the rest: `margin` was confirmed to break CM6 cursor/navigation
+ * **even when applied to this wrapper**, not only when applied directly to
+ * `.cm-line` — so `margin` is banned from the fenced-code layout path
+ * entirely, on any element, not just `.cm-line`. `padding`, tested
+ * directly, does not have this problem on either element. The visual card
+ * itself (background/border/first-last radius) is therefore back on
+ * `.cm-line`, via `highlight/fencedCodeBlockLineDecoration.ts`'s
+ * `Decoration.line` classes (`cm-code-block-line`/`--first`/`--last`) — the
+ * same native mechanism blockquote/table/horizontal-rule already use for
+ * their own line-level presentation, confirmed by the architecture
+ * investigation two passes ago to be a legitimate, precedented pattern in
+ * this codebase. This file's only remaining job is what `blockWrappers`
+ * uniquely provides and `Decoration.line` cannot: real, CM6-native
+ * structural grouping — for a `FencedCode` node's own `[from, to)` range,
+ * every `.cm-line` (and block widget) inside it becomes the actual DOM
+ * child of one `<div class="cm-code-block">`, so two independent,
+ * back-to-back `FencedCode` blocks (no blank line between them — legal
+ * CommonMark) are two separate wrapper elements *by construction*, with no
+ * adjacency logic anywhere — the entire class of bug the line-decoration's
+ * own `--first`/`--last` computation would otherwise need to guard against
+ * on its own (and did, in an earlier pass, before this wrapper existed).
+ * `.cm-code-block` may carry `padding-block` for the external gap between
+ * adjacent cards (real, uncollapsed space — unlike margin, `padding` never
+ * collapses between siblings, so a `--space-12` value on each side of two
+ * adjacent wrappers sums to a real, visible gap, not a collapsed single
+ * value) — but never `margin`, and never background/border/radius, which
+ * belong entirely to the line decoration now.
  *
  * **No `ViewPlugin` needed.** `EditorView.blockWrappers`'s facet input type
  * accepts either a `RangeSet<BlockWrapper>` or a `(view: EditorView) =>
@@ -47,17 +55,6 @@ import { BlockWrapper, EditorView } from '@codemirror/view';
  * on its own; CM6 re-invokes it exactly when it needs the current wrapper
  * set, the same recomputation guarantee a `ViewPlugin`'s own `update()`
  * would otherwise have to reimplement by hand.
- *
- * Two independent, back-to-back `FencedCode` blocks (no blank line between
- * them — legal CommonMark) each contribute their own `BlockWrapper.range(from, to)`
- * from their own node's boundaries, so they render as two structurally
- * separate `.cm-code-block` elements with no adjacency logic of any kind —
- * unlike the superseded `Decoration.line` version, which needed a whole
- * `--first`/`--last` mechanism specifically to avoid two adjacent same-class
- * lines reading as one merged run. That entire class of bug does not exist
- * here: a `BlockWrapper` range's own boundaries, not a neighboring line's
- * class, are what CM6 uses to decide where one wrapper ends and the next
- * begins.
  */
 const FENCED_CODE_BLOCK_WRAPPER = BlockWrapper.create({
   tagName: 'div',

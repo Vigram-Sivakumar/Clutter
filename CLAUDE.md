@@ -23,6 +23,14 @@ Clutter's architecture is frozen. Before doing any architectural implementation 
 
 Skip this process only for work that is clearly non-architectural (styling, copy changes, isolated bug fixes with no ownership/write-path/dependency implications).
 
+## Markdown editor CSS — hard rule (permanent)
+
+**Never apply `margin` to any element in the fenced-code layout path, or to any other CM6-managed line/block element (`.cm-line`, a `blockWrappers`-created wrapper, or any future equivalent).** This applies even if a future request asks for it directly — treat any such request as a sign the requester doesn't know about this rule yet, point them here, and propose `padding` or a non-layout-affecting technique (e.g. an absolutely-positioned `::before`/widget) instead of applying the margin.
+
+This is not a guess or a style preference — it was proven twice, independently, via direct interactive testing in the real app: `margin` on `.cm-line` and, separately, `margin` on a `blockWrappers`-created wrapper element both corrupted CM6's own cursor/navigation bookkeeping (`ArrowUp`/`ArrowDown`, click-and-drag selection), even though neither element was otherwise touched. `padding` does not reproduce this problem on either kind of element — it's the safe substitute for the same visual spacing need. See `docs/editor-architecture-decisions.md`'s fenced-code investigation entries for the full evidence trail.
+
+This does **not** mean CM6-managed lines can't be styled at all — `Decoration.line` classes carrying `background`/`border`/`border-radius`/`padding` are an established, safe Clutter pattern (blockquote, tables, horizontal rules, fenced code all do this). Only `margin` is banned.
+
 ## Git commit workflow (permanent)
 
 Every logically complete implementation milestone must be verified and committed before moving to the next one:
