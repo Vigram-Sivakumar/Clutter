@@ -509,10 +509,34 @@
  */
 .cm-editor .cm-code-block-line {
   position: relative;
-  background: var(--surface-secondary);
+  /* EXPERIMENT (not final): semi-transparent, matching CM6's own
+     `.cm-activeLine` pattern (`#cceeff44`/`#99eeff33`, an alpha-channel
+     color) for coexisting with the selection layer's intentional
+     `z-index: -1` — see docs/editor-architecture-decisions.md's
+     selection-visibility investigation. Opaque `var(--surface-secondary)`
+     painted above the negative-z-index selection layer; this uses the
+     same color, mixed down to partial opacity via color-mix(), instead of
+     a new rendering mechanism. Dark theme keeps `--surface-secondary`
+     unchanged (confirmed visually successful there); light theme overrides
+     to `--surface-tertiary` below, since `--surface-secondary` resolves to
+     the exact same value as `--surface-root` in light mode (`#f9f8f7`),
+     making the card indistinguishable from the page background at any
+     alpha — confirmed via direct computed-style comparison, not assumed. */
+  background: color-mix(in srgb, var(--surface-secondary) 55%, transparent);
   border-left: 0.5px solid var(--border-default);
   border-right: 0.5px solid var(--border-default);
   padding-inline: var(--space-12);
+}
+
+/*
+ * Light-theme-only override: `--surface-tertiary` (`neutral-200`,
+ * `#efeeec`) is the existing token one step further from
+ * `--surface-root`/`--surface-secondary` (both `neutral-50`, `#f9f8f7`,
+ * identical to the page background in light mode) — reused as-is, not a
+ * new token, per this experiment's own constraint.
+ */
+[data-theme='light'] .cm-editor .cm-code-block-line {
+  background: color-mix(in srgb, var(--surface-tertiary) 55%, transparent);
 }
 
 .cm-editor .cm-code-block-line--first {
