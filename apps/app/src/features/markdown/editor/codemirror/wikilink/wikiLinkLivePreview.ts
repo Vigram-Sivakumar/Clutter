@@ -12,6 +12,7 @@ import type { SyntaxNodeRef } from '@lezer/common';
 
 import { collectActiveInlineClasses, isDelimitedMarkConstruct } from '../highlight/inlineLivePreviewParticipants';
 import { isTokenEngaged, type TokenNodeRange } from '../semanticToken/tokenEngagement';
+import { isNodeOnCompletedTask, TASK_COMPLETED_CLASS } from '../task/taskEngagement';
 import { getWikiLinkMarkerRanges, renderWikiLink } from './wikiLinkDecorations';
 import type { ResolveWikiLink } from './wikiLinkResolution';
 
@@ -127,7 +128,11 @@ function buildDecorations(
         }
 
         const raw = view.state.sliceDoc(node.from, node.to);
-        const widget = renderWikiLink(raw, getResolver, collectActiveInlineClasses(node));
+        const extraClasses = [
+          ...collectActiveInlineClasses(node),
+          ...(isNodeOnCompletedTask(node, view.state) ? [TASK_COMPLETED_CLASS] : []),
+        ];
+        const widget = renderWikiLink(raw, getResolver, extraClasses);
         if (!widget) {
           return;
         }

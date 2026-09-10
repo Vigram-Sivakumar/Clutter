@@ -5,50 +5,40 @@ import { describe, expect, it } from 'vitest';
 
 /**
  * Regression coverage for docs/editor-architecture-decisions.md's "Inline
- * formatting composition at the token level" entry. Two independent
- * decorating contexts were found to break `.tok-wikilink`'s (and, more
- * generally, any atomic/`display:inline-flex`-boxed widget's)
- * `text-decoration-line`:
- *   - `~~[[Page]]~~` (Strikethrough) — now fixed by the tree-based
- *     composition mechanism (`collectActiveInlineClasses` in
- *     `inlineLivePreviewParticipants.ts`), covered by DOM-level
- *     classList assertions in `inlineLivePreviewRegion.test.ts` (Tag/Date)
- *     and `wikilink/wikiLinkLivePreview.test.ts` (WikiLink) — not
- *     duplicated here, since this file is CSS-source-only (jsdom cannot
- *     compute real paint/layout).
- *   - `- [x] text [[Page]]` (a completed task's own line-level
- *     strikethrough, `.cm-line:has(.cm-task-checkbox
- *     [aria-checked='true'])`) — a genuinely different state source
- *     (line-level, from `taskCheckboxDecoration.ts`, not syntax-tree
- *     ancestry) that the tree-only composition mechanism deliberately
- *     does not cover. This one is still fixed by its own CSS descendant
- *     selector, unchanged, and this file guards that it stays in place.
+ * formatting composition at the token level" entry, extended to
+ * editor/task state: both decorating contexts that used to need their own
+ * `.tok-strike .tok-wikilink` / `.cm-line:has(...) .tok-wikilink`
+ * descendant-selector CSS are now handled by WikiLink/Tag/Date's own
+ * widgets composing the applicable class (`tok-strike`, `cm-task-completed`)
+ * directly onto themselves — see `collectActiveInlineClasses` and
+ * `isNodeOnCompletedTask` in `inlineLivePreviewParticipants.ts`/
+ * `taskEngagement.ts`. Both CSS rules are gone; the generic,
+ * unqualified `.tok-strike`/`.cm-task-completed` rules already apply with
+ * no ancestor selector.
  *
- * What's provable at the CSS-source level, and what would regress
- * silently otherwise:
- *   - the completed-task rule still exists (removing it, on the
- *     assumption the tree-based mechanism "handles strikethrough now,"
- *     would silently reintroduce that regression — they are different
- *     state sources, per the architecture doc entry);
- *   - the superseded `.tok-strike .tok-wikilink` descendant-selector rule
- *     is gone (composition now happens by the widget carrying `tok-strike`
- *     directly, so no ancestor selector should exist for it any more);
- *   - the rejected inherit-chain fix was never reintroduced on the
- *     unrelated `.tok-strong`/`.tok-emphasis`/`.tok-highlight` content-mark
- *     classes.
+ * jsdom cannot compute real paint/layout, so this file is CSS-source-only.
+ * DOM-level proof that a real widget's `classList` ends up composed
+ * correctly (both inline-formatting ancestry and task-completion,
+ * independently and together) lives in `inlineLivePreviewRegion.test.ts`
+ * (Tag/Date), `wikilink/wikiLinkLivePreview.test.ts` (WikiLink), and
+ * `task/taskCompletedContentDecoration.test.ts` (plain text + the shared
+ * `isNodeOnCompletedTask` state source) — not duplicated here.
  */
 describe('MarkdownEditor.css — WikiLink text-decoration composition', () => {
   const css = readFileSync(join(__dirname, 'MarkdownEditor.css'), 'utf8');
+  // Strip comments before checking for selectors — the old :has()-based
+  // rules are still mentioned in surrounding doc comments explaining what
+  // was removed and why; those mentions are prose, not a live selector.
+  const cssWithoutComments = css.replace(/\/\*[\s\S]*?\*\//g, '');
 
-  it('declares text-decoration-line: line-through for .tok-wikilink under a completed-task-line ancestor (independent of the tree-based composition mechanism, still needed)', () => {
-    const match = css.match(
-      /\.cm-editor\s+\.cm-line:has\(\.cm-task-checkbox\[aria-checked='true'\]\)\s+\.tok-wikilink\s*\{([^}]*)\}/
-    );
-    expect(
-      match,
-      ".cm-editor .cm-line:has(.cm-task-checkbox[aria-checked='true']) .tok-wikilink rule not found"
-    ).not.toBeNull();
+  it('declares a plain, unqualified .cm-task-completed rule — no :has() or construct-specific ancestor selector', () => {
+    const match = cssWithoutComments.match(/(?<![\w.-])\.cm-task-completed\s*\{([^}]*)\}/);
+    expect(match, '.cm-task-completed rule not found').not.toBeNull();
     expect(match![1]).toMatch(/text-decoration-line\s*:\s*line-through\s*;/);
+  });
+
+  it('no longer declares any :has()-based completed-task descendant selector', () => {
+    expect(cssWithoutComments).not.toMatch(/:has\(\.cm-task-checkbox/);
   });
 
   it('no longer declares a .tok-strike .tok-wikilink descendant-selector rule — superseded by tree-based class composition', () => {

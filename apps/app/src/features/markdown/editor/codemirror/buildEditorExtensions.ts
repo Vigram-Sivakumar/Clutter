@@ -19,6 +19,7 @@ import { urlMouseHandlers } from './link/urlMouseHandlers';
 import { listMarkerCaretAssoc, listMarkerDecoration } from './list/listMarkerDecoration';
 import { taskCheckboxDecoration } from './task/taskCheckboxDecoration';
 import { taskCheckboxMouseHandlers } from './task/taskCheckboxMouseHandlers';
+import { taskCompletedContentDecoration } from './task/taskCompletedContentDecoration';
 import { taskCompletionMetadataDecoration } from './task/taskCompletionMetadataDecoration';
 import { horizontalRuleDecoration } from './hr/horizontalRuleDecoration';
 import type { OnImageClick, OnOpenImageMenu } from './image/ImageWidget';
@@ -189,6 +190,7 @@ export function buildEditorExtensions(options: BuildEditorExtensionsOptions): Ex
     listMarkerDecoration(),
     listMarkerCaretAssoc(),
     taskCheckboxDecoration(),
+    taskCompletedContentDecoration(),
     taskCompletionMetadataDecoration(),
     blockquoteMarkerDecoration(),
     blockquoteLineDecoration(),

@@ -1276,6 +1276,67 @@ describe('inlineLivePreviewRegion', () => {
   });
 
   // ===================================================================
+  // Editor/task-state composition (docs/editor-architecture-decisions.md's
+  // "Inline formatting composition at the token level", extended):
+  // `cm-task-completed` — a genuinely different, independent state source
+  // from the tree-only `collectActiveInlineClasses` above
+  // (`isNodeOnCompletedTask` in `taskEngagement.ts` additionally reads the
+  // document text of the enclosing Task's own TaskMarker) — composes onto
+  // a widget-family element the same way, alongside its own `tok-*`
+  // class and any enclosing delimited-mark classes. No `taskCheckboxDecoration()`
+  // is mounted here: `isNodeOnCompletedTask` is derived purely from the
+  // syntax tree and document text, never from the checkbox widget's own
+  // rendered DOM.
+  // ===================================================================
+  describe('editor/task-state composition: widget participants carry cm-task-completed when on a completed task line', () => {
+    function widgetClasses(view: EditorView, widgetSelector: string): string[] {
+      const widget = view.dom.querySelector(widgetSelector);
+      expect(widget, `expected to find widget matching ${widgetSelector}`).not.toBeNull();
+      return Array.from(widget!.classList);
+    }
+
+    it('- [x] #tag: the Tag widget carries cm-task-completed', () => {
+      const view = mountView('- [x] #tag');
+      expect(widgetClasses(view, '[data-tag-status]')).toEqual(
+        expect.arrayContaining(['tok-tag', 'cm-task-completed'])
+      );
+    });
+
+    it('- [ ] #tag: an unchecked task never adds cm-task-completed', () => {
+      const view = mountView('- [ ] #tag');
+      expect(widgetClasses(view, '[data-tag-status]')).toEqual(['tok-tag']);
+    });
+
+    it('- [x] @2026-09-10: the Date widget carries cm-task-completed', () => {
+      const view = mountView('- [x] @2026-09-10', {
+        ...noResolvers,
+        resolveDate: () => () => ({ activate: () => {} }),
+      });
+      expect(widgetClasses(view, '[data-date-status]')).toEqual(
+        expect.arrayContaining(['tok-date', 'cm-task-completed'])
+      );
+    });
+
+    it('- [x] ~~**x #tag**~~: task-completion composes alongside inline formatting, regardless of depth/order', () => {
+      const view = mountView('- [x] ~~**x #tag**~~');
+      const classes = widgetClasses(view, '[data-tag-status]');
+      expect(classes).toEqual(
+        expect.arrayContaining(['tok-tag', 'tok-strong', 'tok-strike', 'cm-task-completed'])
+      );
+    });
+
+    it('a Tag outside any task (ordinary paragraph) never carries cm-task-completed', () => {
+      const view = mountView('before #tag after');
+      expect(widgetClasses(view, '[data-tag-status]')).toEqual(['tok-tag']);
+    });
+
+    it('task-completion does not leak onto a Tag on the following, unrelated line', () => {
+      const view = mountView('- [x] Done\n\n#tag on its own paragraph');
+      expect(widgetClasses(view, '[data-tag-status]')).toEqual(['tok-tag']);
+    });
+  });
+
+  // ===================================================================
   // Phase 3 §8 — INVARIANT: atomic ranges are participant-owned facts,
   // produced by the same traversal as decorations, never derived by
   // inspecting the merged decoration set.

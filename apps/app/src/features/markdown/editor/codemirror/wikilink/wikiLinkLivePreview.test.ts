@@ -555,6 +555,45 @@ describe('wikiLinkLivePreview', () => {
   });
 
   // ===================================================================
+  // Editor/task-state composition (docs/editor-architecture-decisions.md's
+  // "Inline formatting composition at the token level", extended):
+  // `cm-task-completed` composes onto the WikiLink widget the same way as
+  // any enclosing delimited-mark's content class, via `isNodeOnCompletedTask`
+  // in `taskEngagement.ts` — a genuinely different, independent state
+  // source (reads the enclosing Task's own TaskMarker text, not the
+  // syntax-tree-only ancestry `collectActiveInlineClasses` walks).
+  // ===================================================================
+  describe('editor/task-state composition: the WikiLink widget carries cm-task-completed when on a completed task line', () => {
+    function widgetClasses(view: EditorView): string[] {
+      const widget = view.dom.querySelector('[data-wikilink-status]');
+      expect(widget, 'expected to find the WikiLink widget').not.toBeNull();
+      return Array.from(widget!.classList);
+    }
+
+    it('- [x] [[Page]]: carries cm-task-completed directly', () => {
+      const view = mountView('- [x] [[Page]]', resolvedAs('Page'));
+      expect(widgetClasses(view)).toEqual(expect.arrayContaining(['tok-wikilink', 'cm-task-completed']));
+    });
+
+    it('- [ ] [[Page]]: an unchecked task never adds cm-task-completed', () => {
+      const view = mountView('- [ ] [[Page]]', resolvedAs('Page'));
+      expect(widgetClasses(view)).toEqual(['tok-wikilink']);
+    });
+
+    it('- [x] **~~[[Page]]~~**: task-completion composes alongside inline formatting, regardless of nesting order', () => {
+      const view = mountView('- [x] **~~[[Page]]~~**', resolvedAs('Page'), true);
+      expect(widgetClasses(view)).toEqual(
+        expect.arrayContaining(['tok-wikilink', 'tok-strong', 'tok-strike', 'cm-task-completed'])
+      );
+    });
+
+    it('a WikiLink outside any task never carries cm-task-completed', () => {
+      const view = mountView('before [[Page]] after', resolvedAs('Page'));
+      expect(widgetClasses(view)).toEqual(['tok-wikilink']);
+    });
+  });
+
+  // ===================================================================
   // Regression: a WikiLink inside a completed task must sit in the same
   // `.cm-line` as the checked `.cm-task-checkbox` — the DOM-ancestry
   // precondition MarkdownEditor.css's
