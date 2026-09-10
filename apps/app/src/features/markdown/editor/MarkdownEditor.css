@@ -466,64 +466,49 @@
 }
 
 /*
- * Fenced code block container (`fencedCodeBlockLineDecoration.ts`) —
- * per-*block* background/border/rounded-corners across every physical
- * line an individual `FencedCode` node owns.
+ * Fenced code block container (`fencedCodeBlockWrapper.ts`) — background,
+ * border, rounded corners, and external margin for an individual
+ * `FencedCode` block, applied to `.cm-code-block`, a **real DOM element
+ * CM6 itself creates** via the native `EditorView.blockWrappers` API
+ * (confirmed against the installed `@codemirror/view@6.43.9` source),
+ * wrapping every `.cm-line` that node owns as actual DOM children.
  *
- * **Superseded technique, corrected 2026-09-10**: an earlier version used
- * one flat `cm-code-block-line` class plus pure CSS sibling adjacency
- * (`.cm-code-block-line + .cm-code-block-line` / `:has(+ ...)`) to derive
- * "first/last line of a run" — correct for `.cm-quote-line` above (DOM
- * adjacency between two quote lines always means "same quote"), but wrong
- * for fenced code: two independent, back-to-back `FencedCode` blocks with
- * no blank line between them are legal Markdown and produce two adjacent
- * same-class lines that are *not* the same block — confirmed directly by
- * reproducing three back-to-back fenced blocks rendering as one merged
- * container. Fixed by deriving first/last from each node's own identity
- * instead of its neighbor's class — see `fencedCodeBlockLineDecoration.ts`'s
- * own doc comment for the full mechanism. Every owned line still carries
- * the shared `cm-code-block-line` class (background + left/right border);
- * `cm-code-block-line--first` (the line containing the owning node's own
- * `.from`) additionally gets the top border and top corners,
- * `cm-code-block-line--last` (the line containing the node's own `.to`)
- * gets the bottom border and bottom corners. A single-line-body block's
- * one line carries both modifiers, which composes correctly (full border,
- * full radius) since the two rules touch disjoint edges.
+ * **Supersedes the `Decoration.line`-based `cm-code-block-line`/`--first`/
+ * `--last` classes entirely — not a refinement of them.** That version put
+ * background, border, and (briefly) `margin` directly on `.cm-line`
+ * elements. `margin` on `.cm-line` was confirmed to corrupt CM6's own
+ * vertical line-geometry bookkeeping (standard `offsetHeight`-style box
+ * measurement excludes margin, so CM6's internal position↔pixel mapping
+ * silently disagreed with the actual rendered layout), breaking cross-line
+ * keyboard and mouse selection — see `docs/editor-architecture-decisions.md`'s
+ * investigation entries for the full trace. The corrected rule: `.cm-line`
+ * is CodeMirror-owned layout/selection infrastructure and must never carry
+ * fenced-code-specific classes, margin, or any other custom container
+ * styling — not even background/border, now that `.cm-code-block` exists
+ * as a genuine, separate DOM node to carry all of it instead, with the
+ * same freedom `.cm-invalid-embed`'s own container already has.
  *
- * `position: relative` scopes `fencedCodeLanguageLabelDecoration.ts`'s
- * language label and `fencedCodeCopyButtonDecoration.ts`'s Copy button —
- * both `position: absolute` (see below) — to this line's own box, not the
- * editor's, the same escape-hatch technique `.cm-quote-line`'s own
- * `::before` bar above already relies on.
+ * No `--first`/`--last` modifier classes, and no adjacency logic of any
+ * kind, unlike the superseded version — a `BlockWrapper`'s own `[from, to)`
+ * range (one per `FencedCode` node) is what CM6 uses to decide where one
+ * wrapper ends and the next begins, so two independent, back-to-back
+ * fenced blocks with no blank line between them (legal CommonMark)
+ * automatically render as two structurally separate `.cm-code-block`
+ * elements — the entire class of "adjacent same-class lines read as one
+ * merged run" bug the superseded version needed a dedicated fix for
+ * cannot occur here.
+ *
+ * `margin-block` is a real, ordinary margin on a real, ordinary block
+ * element — nothing CM6-owned sits inside its margin box, so none of the
+ * `.cm-line`-specific risk applies; this is the same category of property
+ * `.cm-invalid-embed`'s own container already carries safely elsewhere.
  */
-.cm-editor .cm-code-block-line {
+.cm-editor .cm-code-block {
   position: relative;
+  margin-block: var(--space-12);
   background: var(--surface-secondary);
-  border-left: 0.5px solid var(--border-default);
-  border-right: 0.5px solid var(--border-default);
-  padding-inline: var(--space-12);
-}
-
-.cm-editor .cm-code-block-line--first {
-  border-top: 0.5px solid var(--border-default);
-  border-top-left-radius: var(--radius-md);
-  border-top-right-radius: var(--radius-md);
-}
-
-.cm-editor .cm-code-block-line--last {
-  border-bottom: 0.5px solid var(--border-default);
-  border-bottom-left-radius: var(--radius-md);
-  border-bottom-right-radius: var(--radius-md);
-}
-
-/*
- * Reserves room for the language label + Copy button group on the
- * block's first line (`:has()` matching the button's own class — no
- * separate lookup needed) so a long raw fence/info string doesn't render
- * underneath the absolutely-positioned controls once engaged.
- */
-.cm-editor .cm-code-block-line:has(.cm-code-block-copy) {
-  padding-inline-end: var(--space-96);
+  border: 0.5px solid var(--border-default);
+  border-radius: var(--radius-md);
 }
 
 /*
@@ -533,23 +518,18 @@
  * `LanguageDescription.name` — see `fencedCode/fencedCodeLanguages.ts`'s
  * own doc comment). Plain, quiet text — not a pill/badge — matching the
  * restrained, text-only style every other marker-adjacent label in this
- * editor already uses.
- *
- * **Right-aligned, immediately left of the Copy button** (2026-09-10
- * correction — previously rendered in its own natural in-flow position,
- * i.e. wherever `CodeInfo` happens to sit, typically hard against the
- * opening fence on the left): `position: absolute`, anchored from the
- * same line box `.cm-code-block-copy` below anchors from, offset by
+ * editor already uses. Unchanged by the `blockWrappers` migration except
+ * for what it's positioned relative to: `position: absolute`, anchored
+ * against `.cm-code-block`'s own `position: relative` above (previously
+ * the first `.cm-code-block-line`'s own) — same visual result, since the
+ * wrapper's own top edge coincides with the first line's top edge either
+ * way. Right-aligned, immediately left of the Copy button, offset by
  * `.cm-media-control`'s own fixed width (`--height-sm`,
  * `mediaPresentation/MediaFloatingControls.css`) plus a gap — a CSS-only
  * offset, not a shared wrapper/flex-container, since the label and the
- * button stay independent decorations (see
- * `fencedCodeLanguageLabelDecoration.ts`'s own doc comment for why) and
- * `.cm-media-control`'s width is a fixed design-system token, not
- * something that needs runtime measurement to align against. `height`
- * matches `--height-sm` and centers the text against it, so the label
- * sits vertically centered against the button's own icon, not merely
- * top-aligned.
+ * button stay independent decorations. `height` matches `--height-sm` and
+ * centers the text against it, so the label sits vertically centered
+ * against the button's own icon, not merely top-aligned.
  */
 .cm-editor .cm-code-block-language {
   position: absolute;
@@ -571,8 +551,8 @@
  * unchanged; this rule only pulls it out of its inline insertion point
  * (`Decoration.widget`, positioned right after the language text/opening
  * fence on the document's own first physical line) into the container's
- * visual top-right corner, via `position: absolute` scoped to the
- * opening `.cm-code-block-line`'s own `position: relative` above.
+ * visual top-right corner, via `position: absolute` scoped to
+ * `.cm-code-block`'s own `position: relative` above.
  */
 .cm-editor .cm-code-block-copy {
   position: absolute;

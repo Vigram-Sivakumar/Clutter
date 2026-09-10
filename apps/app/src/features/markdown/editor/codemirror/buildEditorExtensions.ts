@@ -10,7 +10,7 @@ import { orderedListStructuralNormalization } from './list/orderedListStructural
 import { formatShortcutsKeymap } from './format/formatShortcutsKeymap';
 import { blockquoteLineDecoration } from './highlight/blockquoteLineDecoration';
 import { blockquoteMarkerDecoration } from './highlight/blockquoteMarkerDecoration';
-import { fencedCodeBlockLineDecoration } from './highlight/fencedCodeBlockLineDecoration';
+import { fencedCodeBlockWrapper } from './highlight/fencedCodeBlockWrapper';
 import { fencedCodeCopyButtonDecoration } from './highlight/fencedCodeCopyButtonDecoration';
 import { fencedCodeLanguageLabelDecoration } from './highlight/fencedCodeLanguageLabelDecoration';
 import { fencedCodeMarkerDecoration } from './highlight/fencedCodeMarkerDecoration';
@@ -201,7 +201,7 @@ export function buildEditorExtensions(options: BuildEditorExtensionsOptions): Ex
     blockquoteMarkerDecoration(),
     blockquoteLineDecoration(),
     headingMarkerDecoration(),
-    fencedCodeBlockLineDecoration(),
+    fencedCodeBlockWrapper(),
     fencedCodeMarkerDecoration(),
     fencedCodeLanguageLabelDecoration(),
     fencedCodeCopyButtonDecoration(),
