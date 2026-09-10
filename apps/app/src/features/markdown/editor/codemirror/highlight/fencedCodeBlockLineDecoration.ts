@@ -11,7 +11,7 @@ import {
 import type { SyntaxNode } from '@lezer/common';
 
 /**
- * Continuous container styling for fenced code blocks — background, left/
+ * Per-block container styling for fenced code blocks — background, left/
  * right borders, and rounded top/bottom corners spanning every physical
  * line a `FencedCode` node owns. Purely presentational: a `Decoration.line`
  * class, no document mutation, no dependency on selection/engagement —
@@ -19,31 +19,59 @@ import type { SyntaxNode } from '@lezer/common';
  * `blockquoteMarkerDecoration.ts` (marker text vs. line presentation are
  * independent decoration sources over disjoint concerns).
  *
- * **One flat class, not a begin/middle/end triple** — deliberately
- * reusing `blockquoteLineDecoration.ts`'s own corner-rounding technique
- * rather than inventing a new one: every owned line gets the exact same
- * `cm-code-block-line` class (see `MarkdownEditor.css`'s own rule for the
- * full explanation), and CSS sibling combinators alone
- * (`.cm-code-block-line + .cm-code-block-line` / `:has(+ ...)`) derive
- * "is this the first/last line of a contiguous run" from plain DOM
- * adjacency — `.cm-content` already renders `.cm-line`s as flat, direct
- * siblings in document order, the same fact blockquote's own rounding
- * (and the table-row rounding it cites) already relies on. No JS-side
- * begin/middle/end computation, no new class per position.
+ * **Superseded design note**: an earlier version of this file used one
+ * flat `cm-code-block-line` class plus pure CSS sibling adjacency
+ * (`.cm-code-block-line + .cm-code-block-line` / `:has(+ ...)`) to derive
+ * "first/last line of a run" — the same technique `blockquoteLineDecoration.ts`
+ * still correctly uses for blockquote. That technique is only correct when
+ * DOM adjacency between two same-class lines *always* means "same logical
+ * construct" — true for blockquote (an adjacent `>` line is, by
+ * construction, always a continuation of the same quote), but **false**
+ * for fenced code: two independent, back-to-back `FencedCode` blocks with
+ * no blank line between them (a real, legal Markdown document — CommonMark
+ * requires no separator between a closing fence and a following opening
+ * fence) produce two adjacent `.cm-code-block-line` elements that are
+ * *not* the same block, and the adjacency rule incorrectly rounded/joined
+ * them into one continuous container. Confirmed directly, not assumed:
+ * reproduced with three back-to-back fenced blocks and observed exactly
+ * one merged container instead of three independent ones.
  *
- * Line-ownership algorithm is a direct reuse of
+ * **Fix: per-node first/last-line identity, computed from each `FencedCode`
+ * node's own `[from, to)` range** — not DOM adjacency, not a generic
+ * "does this line's class match its neighbor's" check. Every owned line
+ * still gets the shared `cm-code-block-line` class (background, left/right
+ * border); the line containing the node's own `.from` additionally gets
+ * `cm-code-block-line--first` (top border + top corners), and the line
+ * containing the node's own `.to` additionally gets `cm-code-block-line--last`
+ * (bottom border + bottom corners) — see `MarkdownEditor.css`'s own rules.
+ * A single-line-body block's one line gets both modifiers at once, which
+ * composes correctly (full border + full radius) since the two modifiers'
+ * CSS rules touch disjoint edges (top-only vs. bottom-only) — no special
+ * casing needed for that overlap. Two back-to-back blocks now each carry
+ * their own `--first`/`--last` pair regardless of what class their
+ * immediate DOM neighbor happens to carry, which is what makes them
+ * render as two independent cards even with zero blank lines between them.
+ *
+ * Line-ownership algorithm (which lines belong to a `FencedCode` at all)
+ * is unchanged from the superseded version, and still a direct reuse of
  * `blockquoteLineDecoration.ts`'s own approach: iterate every visible
  * physical line, probe its first non-whitespace character (or the line's
  * own start, for a genuinely blank line), and ask the syntax tree which
  * `FencedCode` ancestor (if any) owns that position — never walking the
- * `FencedCode` node's own `[from, to)` range directly. This is what
- * correctly includes the code block's own *blank* interior lines (an
- * empty line inside a multi-line fenced body still belongs to the
- * block and must keep the container unbroken there) while correctly
- * excluding lines genuinely outside it.
+ * node's own range directly for *membership*. This is what correctly
+ * includes the block's own blank interior lines while correctly excluding
+ * lines genuinely outside it; only the first/last *modifier* classes are
+ * newly derived from the owning node's own boundary positions.
  */
-function fencedCodeLineMark(): Decoration {
-  return Decoration.line({ attributes: { class: 'cm-code-block-line' } });
+function fencedCodeLineMark(isFirst: boolean, isLast: boolean): Decoration {
+  const classes = ['cm-code-block-line'];
+  if (isFirst) {
+    classes.push('cm-code-block-line--first');
+  }
+  if (isLast) {
+    classes.push('cm-code-block-line--last');
+  }
+  return Decoration.line({ attributes: { class: classes.join(' ') } });
 }
 
 function firstNonWhitespaceOffset(text: string): number {
@@ -72,8 +100,11 @@ function buildFencedCodeLineDecorations(view: EditorView): DecorationSet {
         seenLines.add(line.from);
 
         const probePos = line.from + firstNonWhitespaceOffset(line.text);
-        if (nearestFencedCode(view.state, probePos)) {
-          builder.add(line.from, line.from, fencedCodeLineMark());
+        const owner = nearestFencedCode(view.state, probePos);
+        if (owner) {
+          const isFirst = line.from <= owner.from && owner.from <= line.to;
+          const isLast = line.from <= owner.to && owner.to <= line.to;
+          builder.add(line.from, line.from, fencedCodeLineMark(isFirst, isLast));
         }
       }
 

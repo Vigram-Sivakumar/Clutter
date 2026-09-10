@@ -3,32 +3,22 @@ import { LanguageDescription } from '@codemirror/language';
 import { fencedCodeLanguageDescriptions } from './fencedCodeLanguages';
 
 /**
- * Friendly display name per registered language's canonical `name` — `js`/
- * `javascript` both resolve to the same `LanguageDescription` (`name:
- * 'javascript'`), so this maps from *that* canonical name, not from
- * whatever alias the user actually typed. `LanguageDescription` has no
- * separate "display name" field of its own (confirmed against
- * `@codemirror/language`'s installed types — `name`/`alias`/`extensions`/
- * `filename`/`load`/`support`, nothing else), so this is a small, local
- * lookup table alongside the existing registry, not a gap CM6 already
- * fills.
- */
-const FRIENDLY_NAME_BY_CANONICAL_NAME: ReadonlyMap<string, string> = new Map([
-  ['javascript', 'JavaScript'],
-  ['typescript', 'TypeScript'],
-  ['json', 'JSON'],
-  ['css', 'CSS'],
-  ['html', 'HTML'],
-  ['python', 'Python'],
-]);
-
-/**
  * Resolves a fenced code block's raw `CodeInfo` text to a friendly display
- * label — `js` → `JavaScript`, `py` → `Python`, etc. Matched via
- * `LanguageDescription.matchLanguageName`, the exact same lookup
- * `@codemirror/lang-markdown`'s own `getCodeParser` uses internally to
- * resolve `codeLanguages` (confirmed against its installed source) — never
- * a second, independently-derived alias table.
+ * label — `js` → `JavaScript`, `py` → `Python`, etc. — by matching against
+ * `fencedCodeLanguageDescriptions` (via `LanguageDescription.matchLanguageName`,
+ * the exact same lookup `@codemirror/lang-markdown`'s own `getCodeParser`
+ * uses internally to resolve `codeLanguages`, confirmed against its
+ * installed source) and returning the matched entry's own `name` directly.
+ *
+ * **Deliberately no second alias/display-name table.** `fencedCodeLanguages.ts`'s
+ * own `name` fields are the canonical, properly-cased display form
+ * (`JavaScript`, not `javascript`) for exactly this reason — this registry
+ * is the single source of truth for both what a fence's info string
+ * *parses as* and what it's *displayed as*. An earlier version of this
+ * file kept a separate `canonical name → display string` map alongside
+ * the registry; that was corrected into the registry itself owning its
+ * own display casing, so there is nothing left for this function to look
+ * up beyond the match.
  *
  * `rawInfo` is normalized the same way CM6 itself normalizes it before
  * matching (`getCodeParser`: "strip anything after whitespace") — an info
@@ -55,9 +45,5 @@ export function friendlyLanguageLabel(rawInfo: string): string | null {
     true
   );
 
-  if (matched instanceof LanguageDescription) {
-    return FRIENDLY_NAME_BY_CANONICAL_NAME.get(matched.name) ?? matched.name;
-  }
-
-  return normalized;
+  return matched instanceof LanguageDescription ? matched.name : normalized;
 }

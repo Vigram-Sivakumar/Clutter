@@ -35,7 +35,7 @@ describe('fencedCodeHighlighting — scoped to nested language trees only', () =
   });
 
   it('highlights the JS string literal inside a fenced block (nested parser + highlighter both active)', () => {
-    const jsLanguage = fencedCodeLanguageDescriptions.find((d) => d.name === 'javascript')!
+    const jsLanguage = fencedCodeLanguageDescriptions.find((d) => d.name === 'JavaScript')!
       .support!.language;
     const scoped = HighlightStyle.define(defaultHighlightStyle.specs, { scope: jsLanguage });
 
@@ -48,7 +48,7 @@ describe('fencedCodeHighlighting — scoped to nested language trees only', () =
   });
 
   it('does not highlight Markdown heading text — the scoped highlighter never matches the outer Markdown tree', () => {
-    const jsLanguage = fencedCodeLanguageDescriptions.find((d) => d.name === 'javascript')!
+    const jsLanguage = fencedCodeLanguageDescriptions.find((d) => d.name === 'JavaScript')!
       .support!.language;
     const scoped = HighlightStyle.define(defaultHighlightStyle.specs, { scope: jsLanguage });
 
@@ -57,9 +57,9 @@ describe('fencedCodeHighlighting — scoped to nested language trees only', () =
   });
 
   it('a Python-scoped highlighter does not fire on a JS fenced block, and vice versa', () => {
-    const jsLanguage = fencedCodeLanguageDescriptions.find((d) => d.name === 'javascript')!
+    const jsLanguage = fencedCodeLanguageDescriptions.find((d) => d.name === 'JavaScript')!
       .support!.language;
-    const pyLanguage = fencedCodeLanguageDescriptions.find((d) => d.name === 'python')!.support!
+    const pyLanguage = fencedCodeLanguageDescriptions.find((d) => d.name === 'Python')!.support!
       .language;
     const pyScoped = HighlightStyle.define(defaultHighlightStyle.specs, { scope: pyLanguage });
     const jsScoped = HighlightStyle.define(defaultHighlightStyle.specs, { scope: jsLanguage });

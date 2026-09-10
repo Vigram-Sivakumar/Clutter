@@ -467,88 +467,101 @@
 
 /*
  * Fenced code block container (`fencedCodeBlockLineDecoration.ts`) —
- * continuous background/border/rounded-corners across every physical
- * line a `FencedCode` node owns, entirely via `Decoration.line`'s single
- * `cm-code-block-line` class plus pure CSS sibling adjacency, the exact
- * same technique `.cm-quote-line`'s own rounded-corner rules above
- * already use (and this file's own `.cm-table-row` rounding cites) —
- * deliberately not a begin/middle/end class triple. `.cm-content` renders
- * `.cm-line` elements as flat, direct document-order siblings, so DOM
- * adjacency between two `.cm-code-block-line` elements is already a
- * correct, always-in-sync proxy for "these two physical lines belong to
- * the same contiguous fenced block" — no new class, no change to the
- * decoration that applies it.
+ * per-*block* background/border/rounded-corners across every physical
+ * line an individual `FencedCode` node owns.
  *
- * Base rule: every owned line gets the full border (all four sides) and
- * full corner radius — correct as-is for a single-line block, where
- * neither override below applies. The two override rules then zero out
- * exactly the sides/corners a *non-edge* line in a multi-line block must
- * not have:
- * - `.cm-code-block-line + .cm-code-block-line` (a line immediately
- *   preceded by another) is never the *first* line of its run — its own
- *   top border/radius is zeroed, so it butts directly against the line
- *   above with no visible seam.
- * - `.cm-code-block-line:has(+ .cm-code-block-line)` (a line immediately
- *   followed by another) is never the *last* line of its run — its own
- *   bottom border/radius is zeroed the same way.
- * A true first line matches only the base rule plus the second override
- * (it has a following sibling, so its bottom is zeroed, but nothing
- * precedes it to zero its top) — top border and top corners only, exactly
- * the container's rounded top edge. A true last line is the mirror image.
- * An interior line matches both overrides — left/right border only, no
- * radius, no top/bottom border — reading as a flat continuation of the
- * same box. `position: relative` scopes `fencedCodeLanguageLabelDecoration.ts`'s
- * language label (ordinary inline content, no absolute positioning of its
- * own) and `fencedCodeCopyButtonDecoration.ts`'s Copy button (which does
- * escape into absolute positioning, the same technique `.cm-quote-line`'s
- * own `::before` bar above already relies on) to this line's own box,
- * not the editor's.
+ * **Superseded technique, corrected 2026-09-10**: an earlier version used
+ * one flat `cm-code-block-line` class plus pure CSS sibling adjacency
+ * (`.cm-code-block-line + .cm-code-block-line` / `:has(+ ...)`) to derive
+ * "first/last line of a run" — correct for `.cm-quote-line` above (DOM
+ * adjacency between two quote lines always means "same quote"), but wrong
+ * for fenced code: two independent, back-to-back `FencedCode` blocks with
+ * no blank line between them are legal Markdown and produce two adjacent
+ * same-class lines that are *not* the same block — confirmed directly by
+ * reproducing three back-to-back fenced blocks rendering as one merged
+ * container. Fixed by deriving first/last from each node's own identity
+ * instead of its neighbor's class — see `fencedCodeBlockLineDecoration.ts`'s
+ * own doc comment for the full mechanism. Every owned line still carries
+ * the shared `cm-code-block-line` class (background + left/right border);
+ * `cm-code-block-line--first` (the line containing the owning node's own
+ * `.from`) additionally gets the top border and top corners,
+ * `cm-code-block-line--last` (the line containing the node's own `.to`)
+ * gets the bottom border and bottom corners. A single-line-body block's
+ * one line carries both modifiers, which composes correctly (full border,
+ * full radius) since the two rules touch disjoint edges.
+ *
+ * `position: relative` scopes `fencedCodeLanguageLabelDecoration.ts`'s
+ * language label and `fencedCodeCopyButtonDecoration.ts`'s Copy button —
+ * both `position: absolute` (see below) — to this line's own box, not the
+ * editor's, the same escape-hatch technique `.cm-quote-line`'s own
+ * `::before` bar above already relies on.
  */
 .cm-editor .cm-code-block-line {
   position: relative;
-  background: var(--surface-subtle);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
+  background: var(--surface-secondary);
+  border-left: 0.5px solid var(--border-default);
+  border-right: 0.5px solid var(--border-default);
   padding-inline: var(--space-12);
 }
 
+.cm-editor .cm-code-block-line--first {
+  border-top: 0.5px solid var(--border-default);
+  border-top-left-radius: var(--radius-md);
+  border-top-right-radius: var(--radius-md);
+}
+
+.cm-editor .cm-code-block-line--last {
+  border-bottom: 0.5px solid var(--border-default);
+  border-bottom-left-radius: var(--radius-md);
+  border-bottom-right-radius: var(--radius-md);
+}
+
 /*
- * Reserves room for the Copy button on the one line that actually renders
- * it (`:has()` matching the widget's own class — no separate "is this the
- * first line" class needed, same "derive it from what's already there"
- * approach the corner-rounding rules above use) so a long `CodeInfo`/raw
- * fence doesn't render underneath the absolutely-positioned button.
+ * Reserves room for the language label + Copy button group on the
+ * block's first line (`:has()` matching the button's own class — no
+ * separate lookup needed) so a long raw fence/info string doesn't render
+ * underneath the absolutely-positioned controls once engaged.
  */
 .cm-editor .cm-code-block-line:has(.cm-code-block-copy) {
-  padding-inline-end: var(--space-32);
-}
-
-.cm-editor .cm-code-block-line + .cm-code-block-line {
-  border-top: none;
-  border-start-start-radius: 0;
-  border-start-end-radius: 0;
-}
-
-.cm-editor .cm-code-block-line:has(+ .cm-code-block-line) {
-  border-bottom: none;
-  border-end-start-radius: 0;
-  border-end-end-radius: 0;
+  padding-inline-end: var(--space-96);
 }
 
 /*
  * Friendly language label (`fencedCodeLanguageLabelDecoration.ts`,
  * `FencedCodeLanguageLabelWidget`) — the at-rest replacement for a fenced
- * code block's raw `CodeInfo` text (`js` → `JavaScript`). Plain, quiet
- * text — not a pill/badge — matching the restrained, text-only style
- * every other marker-adjacent label in this editor already uses (`.cm-marker`
- * itself carries no background, only a color), rather than introducing a
- * new "badge" visual language this codebase doesn't otherwise have.
+ * code block's raw `CodeInfo` text (`js` → `JavaScript`, the canonical
+ * `LanguageDescription.name` — see `fencedCode/fencedCodeLanguages.ts`'s
+ * own doc comment). Plain, quiet text — not a pill/badge — matching the
+ * restrained, text-only style every other marker-adjacent label in this
+ * editor already uses.
+ *
+ * **Right-aligned, immediately left of the Copy button** (2026-09-10
+ * correction — previously rendered in its own natural in-flow position,
+ * i.e. wherever `CodeInfo` happens to sit, typically hard against the
+ * opening fence on the left): `position: absolute`, anchored from the
+ * same line box `.cm-code-block-copy` below anchors from, offset by
+ * `.cm-media-control`'s own fixed width (`--height-sm`,
+ * `mediaPresentation/MediaFloatingControls.css`) plus a gap — a CSS-only
+ * offset, not a shared wrapper/flex-container, since the label and the
+ * button stay independent decorations (see
+ * `fencedCodeLanguageLabelDecoration.ts`'s own doc comment for why) and
+ * `.cm-media-control`'s width is a fixed design-system token, not
+ * something that needs runtime measurement to align against. `height`
+ * matches `--height-sm` and centers the text against it, so the label
+ * sits vertically centered against the button's own icon, not merely
+ * top-aligned.
  */
 .cm-editor .cm-code-block-language {
+  position: absolute;
+  top: var(--space-4);
+  right: calc(var(--height-sm) + var(--space-8));
+  height: var(--height-sm);
+  display: flex;
+  align-items: center;
   color: var(--foreground-tertiary);
-  font-size: 0.85em;
-  text-transform: uppercase;
+  font-size: var(--text-label-small);
   letter-spacing: 0.02em;
+  white-space: nowrap;
 }
 
 /*
@@ -559,10 +572,7 @@
  * (`Decoration.widget`, positioned right after the language text/opening
  * fence on the document's own first physical line) into the container's
  * visual top-right corner, via `position: absolute` scoped to the
- * opening `.cm-code-block-line`'s own `position: relative` above — the
- * same escape-hatch technique `.cm-quote-line`'s own `::before` bar
- * already uses to render as a block-spanning visual element without a
- * wrapper element anywhere.
+ * opening `.cm-code-block-line`'s own `position: relative` above.
  */
 .cm-editor .cm-code-block-copy {
   position: absolute;
@@ -1416,7 +1426,6 @@
   opacity: var(--opacity-medium);
   cursor: default;
 }
-
 
 /*
  * `width: 10px` (not `min-width`) is load-bearing, not cosmetic. Left
