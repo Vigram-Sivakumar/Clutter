@@ -60,6 +60,30 @@ describe('fencedCodeFormatButtonDecoration', () => {
     }
   });
 
+  it('renders no Format button for any language in the first expansion batch — syntax support does not imply formatter support', () => {
+    // Deliberate: this batch adds parsing/highlighting only. None of these
+    // have an established formatter wired into `codeFormatting.ts`'s
+    // `PRETTIER_PARSER_BY_LANGUAGE` (Prettier itself has no C/C++/Java/Go/
+    // Rust/Shell parser, and SQL/YAML/XML were deliberately left out of
+    // scope for this batch, not merely unsupported by Prettier) — this
+    // guards against that boundary being crossed silently later.
+    const cases = [
+      ['yaml', 'key: value'],
+      ['xml', '<a>1</a>'],
+      ['sql', 'SELECT 1;'],
+      ['sh', 'echo hi'],
+      ['c', 'int main(){}'],
+      ['cpp', 'int main(){}'],
+      ['java', 'class A {}'],
+      ['go', 'func main(){}'],
+      ['rust', 'fn main(){}'],
+    ];
+    for (const [lang, code] of cases) {
+      const view = mountView(['```' + lang, code, '```'].join('\n'));
+      expect(view.dom.querySelectorAll('.cm-code-block-format')).toHaveLength(0);
+    }
+  });
+
   it('renders no Format button for an unsupported language (Python)', () => {
     const view = mountView(['```py', 'x = 1', '```'].join('\n'));
     expect(view.dom.querySelectorAll('.cm-code-block-format')).toHaveLength(0);

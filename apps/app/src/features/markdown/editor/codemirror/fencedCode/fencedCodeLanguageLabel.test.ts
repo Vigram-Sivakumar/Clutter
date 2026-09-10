@@ -19,6 +19,26 @@ describe('friendlyLanguageLabel', () => {
     expect(friendlyLanguageLabel('python')).toBe('Python');
   });
 
+  it('maps the first expansion batch (lazy languages) to their friendly label without needing them loaded first', () => {
+    // The label resolves purely from `fencedCodeLanguageDescriptions`'
+    // static name/alias metadata (`LanguageDescription.matchLanguageName`)
+    // — it never touches `.support`, so this must work identically
+    // whether or not the language's parser has actually loaded yet.
+    expect(friendlyLanguageLabel('yaml')).toBe('YAML');
+    expect(friendlyLanguageLabel('yml')).toBe('YAML');
+    expect(friendlyLanguageLabel('xml')).toBe('XML');
+    expect(friendlyLanguageLabel('sql')).toBe('SQL');
+    expect(friendlyLanguageLabel('sh')).toBe('Shell');
+    expect(friendlyLanguageLabel('bash')).toBe('Shell');
+    expect(friendlyLanguageLabel('zsh')).toBe('Shell');
+    expect(friendlyLanguageLabel('c')).toBe('C');
+    expect(friendlyLanguageLabel('cpp')).toBe('C++');
+    expect(friendlyLanguageLabel('c++')).toBe('C++');
+    expect(friendlyLanguageLabel('java')).toBe('Java');
+    expect(friendlyLanguageLabel('go')).toBe('Go');
+    expect(friendlyLanguageLabel('rust')).toBe('Rust');
+  });
+
   it('is case-insensitive', () => {
     expect(friendlyLanguageLabel('JS')).toBe('JavaScript');
     expect(friendlyLanguageLabel('Python')).toBe('Python');
@@ -30,7 +50,7 @@ describe('friendlyLanguageLabel', () => {
 
   it('falls back to the raw, trimmed text for an unrecognized language', () => {
     expect(friendlyLanguageLabel('not-a-real-language')).toBe('not-a-real-language');
-    expect(friendlyLanguageLabel('  rust  ')).toBe('rust');
+    expect(friendlyLanguageLabel('  cobol  ')).toBe('cobol');
   });
 
   it('returns null for an empty or whitespace-only info string', () => {

@@ -1,5 +1,6 @@
-import type { Extension } from '@codemirror/state';
-import { HighlightStyle, syntaxHighlighting } from '@codemirror/language';
+import { Compartment, type Extension } from '@codemirror/state';
+import { HighlightStyle, LanguageDescription, syntaxHighlighting, syntaxTree } from '@codemirror/language';
+import { EditorView, ViewPlugin, type ViewUpdate } from '@codemirror/view';
 import { tags } from '@lezer/highlight';
 
 import { fencedCodeLanguageDescriptions } from './fencedCodeLanguages';
@@ -152,7 +153,7 @@ export const fencedCodeHighlightSpecs = [
  * registered language, built from `fencedCodeHighlightSpecs` above — see
  * `docs/editor-architecture-decisions.md`'s fenced-code entry.
  */
-export function fencedCodeHighlighting(): Extension[] {
+function buildFencedCodeHighlighters(): Extension[] {
   return fencedCodeLanguageDescriptions
     .filter((description) => description.support !== undefined)
     .map((description) =>
@@ -162,4 +163,102 @@ export function fencedCodeHighlighting(): Extension[] {
         })
       )
     );
+}
+
+/**
+ * Reconciles `fencedCodeLanguages.ts`'s lazily-loaded (`load`) entries with
+ * the fact that `buildFencedCodeHighlighters` above needs each language's
+ * concrete `Language` object *synchronously* to build its `scope`. Parsing
+ * itself needs no equivalent fix — `@codemirror/lang-markdown`'s own
+ * `getCodeParser` already calls `LanguageDescription.load()` and reparses
+ * once it resolves, natively (`ParseContext.getSkippingParser`, confirmed
+ * against its installed source) — this Compartment exists solely because
+ * *highlighting* has no equivalent built-in deferral mechanism.
+ *
+ * `Compartment.reconfigure()` is CM6's own native mechanism for swapping
+ * which extensions are active without touching document/selection/undo
+ * state — not a custom loader, just the standard tool for "this set of
+ * extensions needs to change after setup."
+ */
+const fencedCodeHighlightingCompartment = new Compartment();
+
+/**
+ * Scans currently-visible fenced blocks for a language that's registered
+ * but not yet loaded, and starts loading it — `LanguageDescription.load()`
+ * itself caches the in-flight/resolved promise on the instance (confirmed
+ * against the installed `@codemirror/language` source: `this.loading ||
+ * (this.loading = this.loadFunc().then(support => this.support = support))`),
+ * so calling it redundantly here (it's already been triggered once,
+ * internally, by `getCodeParser` parsing the same block) never triggers a
+ * second dynamic import, and multiple fences of the same new language
+ * across the document only ever load it once.
+ *
+ * Scoped to `view.visibleRanges`, matching every other fenced-code
+ * decoration in this codebase (`fencedCodeLanguageLabelDecoration.ts`,
+ * `fencedCodeCopyButtonDecoration.ts`) — a language referenced only by an
+ * off-screen block loads once that block scrolls into view, not before.
+ */
+function ensureVisibleLanguagesLoaded(view: EditorView): void {
+  const pending: Promise<unknown>[] = [];
+
+  for (const { from, to } of view.visibleRanges) {
+    syntaxTree(view.state).iterate({
+      from,
+      to,
+      enter: (node) => {
+        if (node.name !== 'FencedCode') {
+          return;
+        }
+        const codeInfo = node.node.getChild('CodeInfo');
+        if (!codeInfo) {
+          return;
+        }
+        const raw = view.state.sliceDoc(codeInfo.from, codeInfo.to);
+        const normalized = /^\s*(\S*)/.exec(raw)?.[1] ?? '';
+        if (!normalized) {
+          return;
+        }
+        const matched = LanguageDescription.matchLanguageName(
+          fencedCodeLanguageDescriptions,
+          normalized,
+          true
+        );
+        if (matched instanceof LanguageDescription && matched.support === undefined) {
+          pending.push(matched.load());
+        }
+      },
+    });
+  }
+
+  if (pending.length === 0) {
+    return;
+  }
+  Promise.all(pending).then(() => {
+    view.dispatch({
+      effects: fencedCodeHighlightingCompartment.reconfigure(buildFencedCodeHighlighters()),
+    });
+  });
+}
+
+function fencedCodeLanguageLoader(): Extension {
+  return ViewPlugin.fromClass(
+    class {
+      constructor(view: EditorView) {
+        ensureVisibleLanguagesLoaded(view);
+      }
+
+      update(update: ViewUpdate) {
+        if (update.docChanged || update.viewportChanged) {
+          ensureVisibleLanguagesLoaded(update.view);
+        }
+      }
+    }
+  );
+}
+
+export function fencedCodeHighlighting(): Extension[] {
+  return [
+    fencedCodeHighlightingCompartment.of(buildFencedCodeHighlighters()),
+    fencedCodeLanguageLoader(),
+  ];
 }

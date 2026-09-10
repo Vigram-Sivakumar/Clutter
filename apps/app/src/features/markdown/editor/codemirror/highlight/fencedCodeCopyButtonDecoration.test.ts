@@ -84,6 +84,20 @@ describe('fencedCodeCopyButtonDecoration', () => {
     expect(view.state.selection.main.head).toBe(3);
   });
 
+  it('Copy works identically for a first-expansion-batch language, independent of whether its parser has loaded — Rust', () => {
+    // Copy reads `CodeText` directly from the tree regardless of which
+    // (or whether any) nested language parser is mounted — it never
+    // depends on `LanguageDescription.support`/`.load()`, so a lazily
+    // registered language must copy correctly even before its parser has
+    // resolved.
+    const view = mountView(['```rust', 'fn main() {}', '```'].join('\n'));
+    const button = view.dom.querySelector<HTMLButtonElement>('.cm-code-block-copy');
+
+    button!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+    expect(writeText).toHaveBeenCalledWith('fn main() {}');
+  });
+
   it('tilde fences also get a Copy button', () => {
     const view = mountView(['~~~py', 'print("hi")', '~~~'].join('\n'));
     expect(view.dom.querySelectorAll('.cm-code-block-copy')).toHaveLength(1);

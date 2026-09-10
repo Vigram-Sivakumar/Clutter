@@ -1,6 +1,9 @@
+// @vitest-environment jsdom
 import { HighlightStyle, defaultHighlightStyle } from '@codemirror/language';
+import { EditorState } from '@codemirror/state';
+import { EditorView } from '@codemirror/view';
 import { highlightTree } from '@lezer/highlight';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { markdownLanguageExtension } from '../markdownLanguage';
 import { fencedCodeHighlightSpecs, fencedCodeHighlighting } from './fencedCodeHighlighting';
@@ -11,6 +14,30 @@ const jsFence = ['```js', 'const greeting = "Hello";', '```'].join('\n');
 function parse(text: string) {
   return markdownLanguageExtension().language.parser.parse(text);
 }
+
+function mountView(doc: string): EditorView {
+  const parent = document.createElement('div');
+  document.body.appendChild(parent);
+  const state = EditorState.create({
+    doc,
+    extensions: [markdownLanguageExtension(), ...fencedCodeHighlighting()],
+  });
+  return new EditorView({ state, parent });
+}
+
+async function flushMicrotasks() {
+  // Dynamic language-package imports resolve through the real module
+  // loader, not a plain microtask — same real-macrotask-delay polling
+  // `fencedCodeFormatButtonDecoration.test.ts` already uses for exactly
+  // this reason.
+  for (let i = 0; i < 50; i++) {
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+}
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 /**
  * Exercises the exact mechanism `@lezer/highlight`'s own `highlightTree`
@@ -30,8 +57,12 @@ function highlightedSpans(text: string, highlighter: HighlightStyle): { from: nu
 }
 
 describe('fencedCodeHighlighting — scoped to nested language trees only', () => {
-  it('registers one syntaxHighlighting extension per registered language', () => {
-    expect(fencedCodeHighlighting()).toHaveLength(fencedCodeLanguageDescriptions.length);
+  it('returns the Compartment-wrapped highlighter set plus the lazy-language loader — two extensions, not one per language', () => {
+    // The eager languages' highlighters are all folded into a single
+    // Compartment instance (reconfigured as lazy languages load), not one
+    // top-level extension per language the way this used to work before
+    // any language here was lazy — see this file's own doc comment.
+    expect(fencedCodeHighlighting()).toHaveLength(2);
   });
 
   it('highlights the JS string literal inside a fenced block (nested parser + highlighter both active)', () => {
@@ -115,5 +146,91 @@ describe('fencedCodeHighlightSpecs — wired to design-system/syntax-tokens.css 
     // At least the def/return keywords and the string/number literals
     // should have picked up a highlighter class.
     expect(allClasses.length).toBeGreaterThan(0);
+  });
+});
+
+describe('fencedCodeHighlighting — lazily-loaded languages', () => {
+  it('a lazily-registered language becomes highlightable through the same shared spec table once LanguageDescription.load() resolves', async () => {
+    const goDescription = fencedCodeLanguageDescriptions.find((d) => d.name === 'Go')!;
+    expect(goDescription.support).toBeUndefined();
+
+    await goDescription.load();
+
+    expect(goDescription.support).toBeDefined();
+    const scoped = HighlightStyle.define(fencedCodeHighlightSpecs, {
+      scope: goDescription.support!.language,
+    });
+    const goFence = ['```go', 'func main() {}', '```'].join('\n');
+    expect(highlightedSpans(goFence, scoped).length).toBeGreaterThan(0);
+  });
+
+  it('two fences of the same not-yet-loaded language in one document trigger exactly one underlying dynamic import', async () => {
+    // The loader plugin re-scans on every docChanged/viewportChanged
+    // update and calls `.load()` again each time it finds an unresolved
+    // match — that's expected and fine, since `LanguageDescription.load()`
+    // itself (`this.loading || (this.loading = this.loadFunc()...)`)
+    // caches the in-flight/resolved promise. The actual guarantee this
+    // test protects is on `loadFunc` (the dynamic `import()` itself), not
+    // on how many times `.load()` gets called. Must run before the
+    // `it.each` below, which loads every one of these languages itself —
+    // this test needs Java genuinely unloaded at the start.
+    const javaDescription = fencedCodeLanguageDescriptions.find((d) => d.name === 'Java')!;
+    expect(javaDescription.support).toBeUndefined();
+    // `loadFunc` (the actual `import()` call `LanguageDescription.of`'s own
+    // `load` spec becomes) is a real runtime field but not part of
+    // `LanguageDescription`'s public `.d.ts` surface — cast narrowly, only
+    // for this spy, rather than widening the whole file to `any`.
+    const loadFuncSpy = vi.spyOn(javaDescription as unknown as { loadFunc: () => unknown }, 'loadFunc');
+
+    const doc = ['```java', 'class A {}', '```', '', '```java', 'class B {}', '```'].join('\n');
+    mountView(doc);
+    await flushMicrotasks();
+
+    expect(loadFuncSpy).toHaveBeenCalledTimes(1);
+    expect(javaDescription.support).toBeDefined();
+  });
+
+  it.each([
+    ['YAML', 'yaml', 'key: value\nlist:\n  - one\n  - two'],
+    ['XML', 'xml', '<root attr="1"><child>text</child></root>'],
+    ['SQL', 'sql', "SELECT id, name FROM users WHERE id = 1;"],
+    ['Shell', 'sh', 'echo "hello $USER"'],
+    ['C', 'c', '// comment\nint main() { return 0; }'],
+    ['C++', 'cpp', 'class Foo { public: int x = 1; };'],
+    ['Java', 'java', 'class Foo { void bar() { return; } }'],
+    ['Go', 'go', 'func main() { x := 1 }'],
+    ['Rust', 'rust', 'fn main() { let x: i32 = 1; }'],
+  ] satisfies [string, string, string][])(
+    'produces real highlight spans through fencedCodeHighlightSpecs for %s, using a representative sample',
+    async (name, fence, code) => {
+      const description = fencedCodeLanguageDescriptions.find((d) => d.name === name)!;
+      await description.load();
+
+      const scoped = HighlightStyle.define(fencedCodeHighlightSpecs, {
+        scope: description.support!.language,
+      });
+      const text = ['```' + fence, code, '```'].join('\n');
+      const spans = highlightedSpans(text, scoped);
+
+      expect(spans.length).toBeGreaterThan(0);
+      // Every color this shared spec table ever produces is a
+      // `var(--syntax-*)` reference (already asserted generically for the
+      // whole table below) — for a genuinely new grammar, the real risk is
+      // a tag this table doesn't cover at all producing zero spans
+      // silently, which the length assertion above already guards.
+    }
+  );
+
+  it('a mounted editor eventually highlights a fenced block in a lazily-loaded language, with no page reload or Compartment wiring from the caller', async () => {
+    const view = mountView(['```rust', 'fn main() {}', '```'].join('\n'));
+
+    // Reconfiguring the highlighting Compartment happens asynchronously,
+    // once the dynamic import resolves — this is the actual behavior the
+    // Compartment/loader mechanism exists for, not just its pieces in
+    // isolation (the two tests above/below).
+    await flushMicrotasks();
+
+    const highlighted = view.dom.querySelectorAll('.cm-line [class*="ͼ"]');
+    expect(highlighted.length).toBeGreaterThan(0);
   });
 });

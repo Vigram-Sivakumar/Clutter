@@ -52,6 +52,40 @@ describe('Fenced code "More actions" — Change Language', () => {
     );
   });
 
+  it('also lists the first expansion batch (YAML, XML, SQL, Shell, C, C++, Java, Go, Rust) — menu listing needs no loaded parser', () => {
+    // The submenu is built purely from registry metadata
+    // (`fencedCodeLanguageDescriptions.map(...)`) — it must list every
+    // lazy entry exactly like the eager ones, without triggering or
+    // waiting on `.load()` for any of them.
+    render(<MarkdownEditor pageId="test-page" markdown={['```js', 'const x = 1;', '```'].join('\n')} />);
+    openChangeLanguageSubmenu();
+
+    const labels = Array.from(document.querySelectorAll<HTMLElement>('[role="menuitem"]')).map(
+      (el) => el.textContent
+    );
+    expect(labels).toEqual(
+      expect.arrayContaining(['YAML', 'XML', 'SQL', 'Shell', 'C', 'C++', 'Java', 'Go', 'Rust'])
+    );
+  });
+
+  it('a `rust` fence shows Rust as the checked entry, and selecting Go rewrites the fence to `go`', () => {
+    const onEdit = vi.fn();
+    render(
+      <MarkdownEditor
+        pageId="test-page"
+        markdown={['```rust', 'fn main() {}', '```'].join('\n')}
+        onEdit={onEdit}
+      />
+    );
+    openChangeLanguageSubmenu();
+
+    expect(menuItemFor('Rust').classList.contains('entry-selected')).toBe(true);
+
+    fireEvent.click(menuItemFor('Go'));
+
+    expect(onEdit).toHaveBeenCalledWith(['```go', 'fn main() {}', '```'].join('\n'));
+  });
+
   it('a fence manually written as `jsx` shows JSX (not JavaScript) as the checked entry', () => {
     render(<MarkdownEditor pageId="test-page" markdown={['```jsx', 'const x = <div />;', '```'].join('\n')} />);
     openChangeLanguageSubmenu();
