@@ -12,7 +12,7 @@
   background: var(--surface-secondary);
   border-radius: var(--radius-xxl);
 
-  padding: var(--space-4);
+  padding: var(--space-6);
 
   box-shadow: var(--shadow-inset-default), var(--shadow-md);
 }
@@ -40,4 +40,8 @@
   margin: var(--space-4) calc(var(--space-4) * -1);
   margin-inline: var(--space-8);
   background: var(--border-default);
+}
+
+.menu .input {
+  margin-block: var(--space-6);
 }
