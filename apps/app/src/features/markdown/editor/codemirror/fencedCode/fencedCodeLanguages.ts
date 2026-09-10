@@ -38,28 +38,45 @@ import { python } from '@codemirror/lang-python';
  * returned by a successful match changes, from the lowercase id to the
  * proper display casing.
  *
- * **JSX and TSX intentionally have no distinct entry of their own** — `jsx`
- * is registered as an *alias* of the `JavaScript` entry (parsed with
- * `javascript({ jsx: true })`), `tsx` as an alias of `TypeScript`
- * (`javascript({ jsx: true, typescript: true })`). This registry's own
- * structure is therefore the answer to "what's the canonical label for
- * JSX/TSX": `` ```jsx `` displays as **JavaScript**, `` ```tsx `` as
- * **TypeScript** — not a separate "JSX"/"TSX" label — because there is no
- * separate `LanguageDescription` for either to name one. Introducing
- * distinct `JSX`/`TSX` entries later would be a legitimate registry change
- * (a real product decision, not a display-layer fix), not something
- * `fencedCodeLanguageLabel.ts` should special-case around this registry's
- * current shape.
+ * **JSX and TSX are first-class entries, not aliases of JavaScript/TypeScript
+ * — a deliberate reversal of this registry's earlier design, made once a
+ * larger language catalog made "these display as JavaScript/TypeScript"
+ * a real, user-visible cost** (no way to select "JSX" from Change
+ * Language; a manually-typed `` ```jsx `` displayed and re-saved as
+ * `javascript`, silently discarding what the user wrote). `jsx`/`tsx` were
+ * removed from `JavaScript`/`TypeScript`'s own alias lists — each alias
+ * string has exactly one owning entry, never two, so
+ * `LanguageDescription.matchLanguageName` can't ambiguously match either.
+ *
+ * **Deliberately not copying `@codemirror/language-data`'s JSX/TSX
+ * shape.** That catalog's plain `JavaScript` entry has no `jsx: true` —
+ * only its separate `JSX` entry does — which would regress Clutter's
+ * existing, more permissive behavior (a bare `` ```js `` block containing
+ * embedded JSX parses correctly today, and must keep doing so). So here,
+ * `JavaScript`'s and `TypeScript`'s own `support` are unchanged
+ * (`jsx: true` stays on both); `JSX`/`TSX` are separate entries with their
+ * *own* identity but the exact same `support` construction — the only
+ * thing that changes is what a fence labeled `jsx`/`tsx` is called and
+ * whether it can be explicitly selected, never how it parses or
+ * highlights.
  */
 export const fencedCodeLanguageDescriptions: LanguageDescription[] = [
   LanguageDescription.of({
     name: 'JavaScript',
-    alias: ['js', 'jsx', 'mjs', 'cjs'],
+    alias: ['js', 'mjs', 'cjs'],
+    support: javascript({ jsx: true }),
+  }),
+  LanguageDescription.of({
+    name: 'JSX',
     support: javascript({ jsx: true }),
   }),
   LanguageDescription.of({
     name: 'TypeScript',
-    alias: ['ts', 'tsx'],
+    alias: ['ts'],
+    support: javascript({ jsx: true, typescript: true }),
+  }),
+  LanguageDescription.of({
+    name: 'TSX',
     support: javascript({ jsx: true, typescript: true }),
   }),
   LanguageDescription.of({

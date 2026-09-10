@@ -78,6 +78,36 @@ describe('fenced code — codeLanguages nested parsing', () => {
     expect(names).toContain('FunctionDefinition');
   });
 
+  it('`jsx` resolves to its own JSX-capable nested parser (JSX elements parse, not just plain JS)', () => {
+    const text = ['```jsx', 'const el = <div className="x">hi</div>;', '```'].join('\n');
+    const names = ancestorNamesAt(text, text.indexOf('div'));
+    expect(names).toContain('JSXElement');
+    expect(names).toContain('FencedCode');
+  });
+
+  it('`tsx` resolves to its own JSX+TypeScript-capable nested parser', () => {
+    const text = [
+      '```tsx',
+      'const el: JSX.Element = <div className="x">hi</div>;',
+      '```',
+    ].join('\n');
+    const names = ancestorNamesAt(text, text.indexOf('div'));
+    expect(names).toContain('JSXElement');
+    expect(names).toContain('FencedCode');
+  });
+
+  it('plain `js` still parses embedded JSX correctly — JavaScript stays permissive, unlike @codemirror/language-data', () => {
+    const text = ['```js', 'const el = <div>hi</div>;', '```'].join('\n');
+    const names = ancestorNamesAt(text, text.indexOf('div'));
+    expect(names).toContain('JSXElement');
+  });
+
+  it('plain `ts` still parses embedded TSX/JSX correctly', () => {
+    const text = ['```ts', 'const el = <div>hi</div>;', '```'].join('\n');
+    const names = ancestorNamesAt(text, text.indexOf('div'));
+    expect(names).toContain('JSXElement');
+  });
+
   it('an unknown language leaves CodeText unmounted — no nested tree, no crash', () => {
     const text = ['```not-a-real-language', 'whatever content', '```'].join('\n');
     const names = nodeNames(text);

@@ -6,9 +6,12 @@ describe('friendlyLanguageLabel', () => {
   it('maps canonical and aliased names to their friendly label', () => {
     expect(friendlyLanguageLabel('js')).toBe('JavaScript');
     expect(friendlyLanguageLabel('javascript')).toBe('JavaScript');
-    expect(friendlyLanguageLabel('jsx')).toBe('JavaScript');
+    // JSX/TSX are first-class identities, not JavaScript/TypeScript aliases
+    // — a fence labeled `jsx`/`tsx` displays as its own language, not the
+    // one it happens to share a parser with.
+    expect(friendlyLanguageLabel('jsx')).toBe('JSX');
     expect(friendlyLanguageLabel('ts')).toBe('TypeScript');
-    expect(friendlyLanguageLabel('tsx')).toBe('TypeScript');
+    expect(friendlyLanguageLabel('tsx')).toBe('TSX');
     expect(friendlyLanguageLabel('json')).toBe('JSON');
     expect(friendlyLanguageLabel('css')).toBe('CSS');
     expect(friendlyLanguageLabel('html')).toBe('HTML');

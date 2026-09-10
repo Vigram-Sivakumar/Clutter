@@ -10,6 +10,14 @@ import { fencedCodeLanguageDescriptions } from './fencedCodeLanguages';
  * product decision this stays unformattable rather than pulling in a
  * second formatting dependency (e.g. a Ruff/WASM build) for one language.
  *
+ * `JSX`/`TSX` reuse the exact same parsers as `JavaScript`/`TypeScript`
+ * (`babel`/`typescript`) — both already parse JSX syntax unconditionally
+ * regardless of which registry entry resolved to them (confirmed against
+ * Prettier's own source: `typescript-estree`, behind the `typescript`
+ * parser, parses JSX the same way for `.ts`/`.tsx` alike). No new Prettier
+ * plugin, no new `formatCode` branch below — JSX/TSX becoming their own
+ * registry identity changes nothing about how they format.
+ *
  * Uses `fencedCodeLanguageDescriptions`' own canonical `name` as the key —
  * the same registry `fencedCodeLanguageLabel.ts` reads for display, so
  * "is this language formattable" and "what does it display as" share one
@@ -17,7 +25,9 @@ import { fencedCodeLanguageDescriptions } from './fencedCodeLanguages';
  */
 const PRETTIER_PARSER_BY_LANGUAGE: Readonly<Record<string, string>> = {
   JavaScript: 'babel',
+  JSX: 'babel',
   TypeScript: 'typescript',
+  TSX: 'typescript',
   JSON: 'json',
   CSS: 'css',
   HTML: 'html',

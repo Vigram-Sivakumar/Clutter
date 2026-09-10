@@ -49,6 +49,17 @@ describe('fencedCodeFormatButtonDecoration', () => {
     }
   });
 
+  it('renders a Format button for JSX and TSX — first-class identities, reusing the JavaScript/TypeScript Prettier parsers', () => {
+    const cases = [
+      ['jsx', 'const x = <div />;'],
+      ['tsx', 'const x: JSX.Element = <div />;'],
+    ];
+    for (const [lang, code] of cases) {
+      const view = mountView(['```' + lang, code, '```'].join('\n'));
+      expect(view.dom.querySelectorAll('.cm-code-block-format')).toHaveLength(1);
+    }
+  });
+
   it('renders no Format button for an unsupported language (Python)', () => {
     const view = mountView(['```py', 'x = 1', '```'].join('\n'));
     expect(view.dom.querySelectorAll('.cm-code-block-format')).toHaveLength(0);
@@ -154,6 +165,30 @@ describe('fencedCodeFormatButtonDecoration', () => {
 
     expect(view.state.doc.toString()).toBe(doc);
     expect(button!.classList.contains('cm-code-block-format--error')).toBe(true);
+  });
+
+  it('formats a `jsx` block through the babel parser, same as plain JavaScript', async () => {
+    const doc = ['```jsx', 'const x=<div className="a">hi</div>', '```'].join('\n');
+    const view = mountView(doc);
+    const button = view.dom.querySelector<HTMLButtonElement>('.cm-code-block-format');
+
+    button!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await flushMicrotasks();
+
+    expect(view.state.doc.toString()).toBe(
+      ['```jsx', 'const x = <div className="a">hi</div>;', '```'].join('\n')
+    );
+  });
+
+  it('formats a `tsx` block through the typescript parser, same as plain TypeScript', async () => {
+    const doc = ['```tsx', 'const x:number=1', '```'].join('\n');
+    const view = mountView(doc);
+    const button = view.dom.querySelector<HTMLButtonElement>('.cm-code-block-format');
+
+    button!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await flushMicrotasks();
+
+    expect(view.state.doc.toString()).toBe(['```tsx', 'const x: number = 1;', '```'].join('\n'));
   });
 
   it('does not throw for an unclosed fence while typing', () => {
