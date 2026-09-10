@@ -25,7 +25,15 @@ export function FolderPicker({ items, onSelect, onCreate }: FolderPickerProps) {
   // <Menu> itself isn't reused here — it also focuses its own container
   // on mount, which would fight this picker's own requirement to focus
   // the search input instead (see the focus effect below).
-  const keyboard = useMenuKeyboard(listRef);
+  //
+  // `preferredActiveId: null` — this picker has no "selected" folder to
+  // prefer (you're always picking a *new* destination), just "always
+  // highlight the first navigable row" — the hook's own generic
+  // preferred-or-first-navigable-item resolution already gives exactly
+  // that for free, including across search-filtering, once there's no
+  // actual id to prefer. This replaced this file's own hand-rolled
+  // `useEffect` doing the identical thing (see below).
+  const keyboard = useMenuKeyboard(listRef, { preferredActiveId: null });
   // Every folder starts collapsed — an id lands here only once the user
   // actually expands it. Local to this component instance (not
   // Workspace.isFolderExpanded, the sidebar tree's persisted expansion
@@ -88,27 +96,14 @@ export function FolderPicker({ items, onSelect, onCreate }: FolderPickerProps) {
 
   // A search with zero matches offers creating a new folder by that exact
   // name instead — never shown for an exact (or partial) existing match,
-  // since filteredItems' substring match already succeeds for one.
+  // since filteredItems' substring match already succeeds for one. When
+  // this is true, `visibleItems` is always empty (see `visibleItems`'s
+  // own derivation) — the Create row below is the *only* menuitem
+  // rendered, which is exactly why `useMenuKeyboard`'s own
+  // first-navigable-item fallback (via `preferredActiveId: null` above)
+  // resolves to it automatically, with no special-casing needed here.
   const showCreate =
     isSearching && filteredItems.length === 0 && Boolean(onCreate);
-
-  // Resets the highlighted item to the first visible result whenever the
-  // visible set actually changes (a new search query, or an
-  // expand/collapse) — same "first item becomes active" expectation
-  // OverflowMenu's <Menu> establishes for ArrowDown from no selection,
-  // applied proactively here since a picker (unlike a static menu) has a
-  // result set that changes while it's open. The Create row participates
-  // in the exact same reset — it's just another menuitem in this list, so
-  // it becomes the active item whenever it's the only thing showing.
-  useEffect(() => {
-    keyboard.setActiveId(
-      visibleItems[0]?.id ?? (showCreate ? CREATE_ITEM_ID : undefined)
-    );
-    // keyboard.setActiveId has a stable identity (useState setter) and
-    // deliberately isn't in the dependency list — only a real change to
-    // the visible result set should reset the highlight.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visibleItems, showCreate]);
 
   function handleSearchKeyDown(event: KeyboardEvent<HTMLInputElement>) {
     // useMenuKeyboard treats Space as "activate the current item" — the

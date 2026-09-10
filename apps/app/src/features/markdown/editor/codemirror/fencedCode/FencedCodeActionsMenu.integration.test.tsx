@@ -194,6 +194,78 @@ describe('Fenced code "More actions" — Change Language is a view swap, not a n
     expect(document.activeElement).toBe(screen.getByPlaceholderText('Search languages'));
   });
 
+  it('opening the picker with TypeScript selected highlights TypeScript, not JavaScript', () => {
+    render(<MarkdownEditor pageId="test-page" markdown={['```ts', 'const x: number = 1;', '```'].join('\n')} />);
+    openChangeLanguageSubmenu();
+
+    expect(screen.getByPlaceholderText('Search languages').getAttribute('aria-activedescendant')).toBe(
+      'TypeScript'
+    );
+    expect(menuItemFor('TypeScript').classList.contains('entry-force-hover')).toBe(true);
+    expect(menuItemFor('JavaScript').classList.contains('entry-force-hover')).toBe(false);
+  });
+
+  it('searching away from the selected language falls back to the first filtered result', () => {
+    render(<MarkdownEditor pageId="test-page" markdown={['```ts', 'const x: number = 1;', '```'].join('\n')} />);
+    openChangeLanguageSubmenu();
+    expect(screen.getByPlaceholderText('Search languages').getAttribute('aria-activedescendant')).toBe(
+      'TypeScript'
+    );
+
+    // "ja" matches JavaScript/JSX but not TypeScript (its own alias list
+    // has no substring overlap with "ja") -- TypeScript drops out of the
+    // filtered results entirely.
+    fireEvent.change(screen.getByPlaceholderText('Search languages'), { target: { value: 'ja' } });
+
+    expect(screen.getByPlaceholderText('Search languages').getAttribute('aria-activedescendant')).toBe(
+      'JavaScript'
+    );
+  });
+
+  it('clearing the search restores the selected language as the active item', () => {
+    render(<MarkdownEditor pageId="test-page" markdown={['```ts', 'const x: number = 1;', '```'].join('\n')} />);
+    openChangeLanguageSubmenu();
+
+    fireEvent.change(screen.getByPlaceholderText('Search languages'), { target: { value: 'ja' } });
+    expect(screen.getByPlaceholderText('Search languages').getAttribute('aria-activedescendant')).toBe(
+      'JavaScript'
+    );
+
+    fireEvent.change(screen.getByPlaceholderText('Search languages'), { target: { value: '' } });
+
+    expect(screen.getByPlaceholderText('Search languages').getAttribute('aria-activedescendant')).toBe(
+      'TypeScript'
+    );
+  });
+
+  it('a query matching nothing clears the active item entirely', () => {
+    render(<MarkdownEditor pageId="test-page" markdown={['```ts', 'const x: number = 1;', '```'].join('\n')} />);
+    openChangeLanguageSubmenu();
+
+    fireEvent.change(screen.getByPlaceholderText('Search languages'), {
+      target: { value: 'not-a-real-language' },
+    });
+
+    expect(
+      screen.getByPlaceholderText('Search languages').getAttribute('aria-activedescendant')
+    ).toBeNull();
+  });
+
+  it('keyboard navigation continues to work normally after opening on a selected language', () => {
+    render(<MarkdownEditor pageId="test-page" markdown={['```ts', 'const x: number = 1;', '```'].join('\n')} />);
+    openChangeLanguageSubmenu();
+    expect(screen.getByPlaceholderText('Search languages').getAttribute('aria-activedescendant')).toBe(
+      'TypeScript'
+    );
+
+    fireEvent.keyDown(screen.getByPlaceholderText('Search languages'), { key: 'ArrowDown' });
+
+    // TypeScript -> TSX, the next row in registry order.
+    expect(screen.getByPlaceholderText('Search languages').getAttribute('aria-activedescendant')).toBe(
+      'TSX'
+    );
+  });
+
   it('has exactly one back-navigation control, in the language view\'s own header, not a separate control in the Actions view', () => {
     render(<MarkdownEditor pageId="test-page" markdown={['```js', 'const x = 1;', '```'].join('\n')} />);
     openFencedCodeMenu();

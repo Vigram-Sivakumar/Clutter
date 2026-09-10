@@ -34,6 +34,8 @@ interface MenuProps extends HTMLAttributes<HTMLDivElement> {
    * target-ref API would solve a need nobody has yet.
    */
   autoFocus?: boolean;
+  /** Forwarded verbatim to `useMenuKeyboard`'s own option of the same name — see its doc comment for the full `undefined`-vs-`null`-vs-a-real-id contract. Omitted (the default) for every existing caller. */
+  preferredActiveId?: string | null;
 }
 
 export function Menu({
@@ -43,12 +45,13 @@ export function Menu({
   onArrowRight,
   onArrowLeft,
   autoFocus = true,
+  preferredActiveId,
   ...props
 }: MenuProps) {
   const internalMenuRef = useRef<HTMLDivElement>(null);
   const menuRef = externalMenuRef ?? internalMenuRef;
 
-  const keyboard = useMenuKeyboard(menuRef, { onArrowRight, onArrowLeft });
+  const keyboard = useMenuKeyboard(menuRef, { onArrowRight, onArrowLeft, preferredActiveId });
 
   useEffect(() => {
     if (autoFocus) {

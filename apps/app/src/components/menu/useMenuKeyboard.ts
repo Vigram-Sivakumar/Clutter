@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { KeyboardEvent, RefObject } from 'react';
 
 const MENU_ITEM_SELECTOR = '[role="menuitem"]';
@@ -50,6 +50,34 @@ interface UseMenuKeyboardOptions {
    * Menu instance.
    */
   onArrowLeft?: () => void;
+  /**
+   * Keeps the active item resolved to this id whenever it's among the
+   * currently navigable (non-`aria-disabled`) items, falling back to the
+   * first navigable item otherwise, or clearing entirely when there are
+   * none — recomputed automatically whenever the navigable item *set*
+   * itself changes (e.g. a caller re-filtering a searchable list), never
+   * on every render and never overriding an in-progress Arrow-key/hover
+   * navigation within a set that hasn't changed. See this hook's own
+   * internal effect for exactly how "changed" is detected.
+   *
+   * **Omitting this option (the default) preserves the exact prior
+   * behavior for every existing caller**: `activeId` starts `undefined`
+   * and is only ever set by an explicit Arrow keypress or a caller's own
+   * `setActiveId` call — nothing here runs unless a caller opts in by
+   * passing this.
+   *
+   * Pass `null` (not just omitting the option) to opt in with "no current
+   * preference" — e.g. an unrecognized selection — which still resolves
+   * to the first navigable item rather than leaving `activeId` untouched.
+   * `undefined` and `null` are deliberately distinct: `undefined` means
+   * "this caller doesn't use this feature at all," `null` means "this
+   * caller uses it, but has no specific id to prefer right now."
+   *
+   * Deliberately generic — this hook has no notion of what "preferred"
+   * means to any particular caller (a selected language, a currently-open
+   * folder, ...); it only ever compares plain DOM element ids.
+   */
+  preferredActiveId?: string | null;
 }
 
 interface UseMenuKeyboardResult {
@@ -60,7 +88,7 @@ interface UseMenuKeyboardResult {
 
 export function useMenuKeyboard(
   menuRef: RefObject<HTMLDivElement | null>,
-  { onArrowRight, onArrowLeft }: UseMenuKeyboardOptions = {}
+  { onArrowRight, onArrowLeft, preferredActiveId }: UseMenuKeyboardOptions = {}
 ): UseMenuKeyboardResult {
   const [activeId, setActiveId] = useState<string>();
 
@@ -69,6 +97,51 @@ export function useMenuKeyboard(
       menuRef.current?.querySelectorAll<HTMLElement>(MENU_ITEM_SELECTOR) ?? []
     );
   }, [menuRef]);
+
+  // Resolves `preferredActiveId` against the *navigable* (non-disabled)
+  // item set — recomputed after every render, but only ever acts when
+  // that set (or `preferredActiveId` itself) has genuinely changed since
+  // the last time this ran, tracked via `resolutionKeyRef`. This is what
+  // makes it safe to run unconditionally on every render (no dependency
+  // array): a render caused by the user's own Arrow-key/hover navigation
+  // doesn't change the navigable id set, so the key comparison below
+  // bails out immediately and never stomps on that navigation — only a
+  // render that actually adds/removes/reorders navigable items (a caller
+  // re-filtering a searchable list) or changes `preferredActiveId` itself
+  // triggers a real re-resolution. `undefined` (the default,
+  // `preferredActiveId` omitted entirely) skips this whole mechanism, so
+  // every existing caller that doesn't pass it keeps `activeId` starting
+  // `undefined` and changing only via explicit Arrow/hover/`setActiveId`
+  // calls, exactly as before this option existed.
+  const resolutionKeyRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (preferredActiveId === undefined) {
+      return;
+    }
+
+    const navigableItems = getMenuItems().filter(
+      (item) => item.getAttribute('aria-disabled') !== 'true'
+    );
+    // A space can't appear in a real DOM id, so joining ids with it
+    // and appending the preferred value can't collide across different
+    // item-id/preferred-value splits.
+    const resolutionKey =
+      navigableItems.map((item) => item.id).join(' ') + '|' + String(preferredActiveId);
+    if (resolutionKey === resolutionKeyRef.current) {
+      return;
+    }
+    resolutionKeyRef.current = resolutionKey;
+
+    const firstNavigableItem = navigableItems[0];
+    if (!firstNavigableItem) {
+      setActiveId(undefined);
+      return;
+    }
+
+    const preferredIsNavigable =
+      preferredActiveId !== null && navigableItems.some((item) => item.id === preferredActiveId);
+    setActiveId(preferredIsNavigable ? preferredActiveId! : firstNavigableItem.id);
+  });
 
   const handleKeyDown = useCallback(
     (event: KeyboardEvent<HTMLDivElement>) => {

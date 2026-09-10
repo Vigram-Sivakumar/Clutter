@@ -72,12 +72,24 @@ type MenuView = 'actions' | 'language';
  * virtually-navigated list below it) — not a newly-invented pattern.
  *
  * **`useMenuContext()` (the same hook `MenuItem` itself uses internally)
- * is called directly by `LanguagePickerContent` below** — the only way to
- * reach `Menu`'s own `{activeId, setActiveId}` from outside `MenuItem` is
- * to be a React descendant of `Menu`'s own `MenuContext.Provider`, which
- * requires this content to render *inside* `<Menu>`, not the other way
- * around; this is why the language view's content is its own small
- * component rather than inline JSX in `FencedCodeActionsMenu` itself.
+ * is called directly by `LanguagePickerContent` below, just to *read*
+ * `activeId`** (for the `Search` input's own `aria-activedescendant`) —
+ * the only way to reach `Menu`'s context from outside `MenuItem` is to be
+ * a React descendant of `Menu`'s own `MenuContext.Provider`, which is why
+ * the language view's content is its own small component rather than
+ * inline JSX in `FencedCodeActionsMenu` itself.
+ *
+ * **The active row itself — preferring the fence's current language,
+ * falling back to the first filtered result, clearing on no results — is
+ * `useMenuKeyboard`'s own generic `preferredActiveId` option, not
+ * anything this file resolves by hand.** `FencedCodeActionsMenu` passes
+ * `currentName` straight through as `<Menu preferredActiveId={...}>`; the
+ * shared hook has no notion of "language" or "selected" at all, it only
+ * ever compares plain DOM element ids against the currently-rendered
+ * `[role="menuitem"]` set (see `useMenuKeyboard.ts`'s own doc comment).
+ * "What counts as preferred" (`currentName`) stays this file's own
+ * business logic — only the *mechanism* for keeping one row resolved to
+ * it, including across search-filtering, is shared.
  *
  * **Search matches against `LanguageDescription.alias` — the exact array
  * `codeLanguages`' own fence-info resolution uses — not a second,
@@ -179,7 +191,20 @@ export function FencedCodeActionsMenu({
       side="bottom"
       alignment="end"
     >
-      <Menu size="medium" autoFocus={view === 'actions'}>
+      <Menu
+        size="medium"
+        autoFocus={view === 'actions'}
+        // `undefined` while on the Actions view — that view's two items
+        // (Change Language, Remove) never auto-highlight on open, exactly
+        // as before this option existed. While on the language view, this
+        // is always either the current language's name or `null` (never
+        // omitted), which is what tells `useMenuKeyboard` to actively
+        // resolve an active row (current language if still present after
+        // filtering, else the first result, else none) instead of leaving
+        // `activeId` untouched — see that hook's own doc comment for the
+        // full `undefined`-vs-`null`-vs-a-real-id contract this relies on.
+        preferredActiveId={view === 'language' ? (currentName ?? null) : undefined}
+      >
         {view === 'actions' ? (
           <>
             <MenuItem
@@ -246,19 +271,14 @@ function LanguagePickerContent({
   onSelect,
   onDismiss,
 }: LanguagePickerContentProps) {
-  const { activeId, setActiveId } = useMenuContext();
-
-  // Highlights the first result as the active (keyboard-navigable) row
-  // whenever the filtered set changes — the same behavior
-  // `FolderPicker.tsx` establishes for its own search results, reused
-  // here for consistency, not coincidence.
-  useEffect(() => {
-    setActiveId(filteredDescriptions[0]?.name);
-    // setActiveId has a stable identity (useState setter) and is
-    // deliberately omitted — only a real change to the filtered set
-    // should reset which row is highlighted.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filteredDescriptions]);
+  // `setActiveId` is intentionally not destructured here — resolving the
+  // active row (preferring `currentName`, falling back to the first
+  // filtered result, clearing on no results) is now `useMenuKeyboard`'s
+  // own generic `preferredActiveId` mechanism, driven by the prop
+  // `FencedCodeActionsMenu` passes to `<Menu>` above. This component only
+  // needs to *read* `activeId`, for the `Search` input's own
+  // `aria-activedescendant`.
+  const { activeId } = useMenuContext();
 
   return (
     <>
