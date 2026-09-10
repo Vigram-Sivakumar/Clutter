@@ -5,6 +5,7 @@ import { LanguageDescription } from '@codemirror/language';
 import { Overlay } from '@components/overlay/Overlay';
 import { Menu } from '@components/menu/Menu';
 import { MenuItem } from '@components/menu/MenuItem';
+import { MenuTitle } from '@components/menu/MenuTitle';
 import { Search } from '@components/search/Search';
 import { Button } from '@components/button/Button';
 import { AppIcon } from '@shared/icon';
@@ -88,14 +89,15 @@ type MenuView = 'actions' | 'language';
  * why `js` finds JavaScript (name aliased) and JSX (its own `jsx` alias)
  * with the exact same query.
  *
- * **No Back button, and deliberately no back-navigation mechanism of any
- * kind.** *Locked.* The language view has no way to return to the Actions
- * view short of closing the whole menu (Escape, the backdrop, or the
- * dismiss button in the language view's own header) and reopening it —
- * `Overlay`'s `onClose` always fully closes, the same for both views.
- * Reopening always lands back on the Actions view (see the render-phase
- * reset below), which is what makes this an acceptable simplification:
- * going back costs one close-plus-reopen, not a rebuilt language choice.
+ * **Exactly one back-navigation control: the language view's own header
+ * button.** *Locked.* Clicking it calls `setView('actions')` — it does
+ * NOT close the menu. Escape and the backdrop click are deliberately
+ * unaffected: both still go straight to `Overlay`'s own `onClose` and
+ * fully close the menu from either view, the same as before. There is no
+ * dedicated "Back" control in the Actions view itself (Change Language
+ * remains the only way in); reopening always lands back on the Actions
+ * view regardless (see the render-phase reset below), so a fully-closed
+ * menu never resumes on the language view.
  */
 export function FencedCodeActionsMenu({
   anchor,
@@ -210,7 +212,7 @@ export function FencedCodeActionsMenu({
             filteredDescriptions={filteredDescriptions}
             currentName={currentName}
             onSelect={selectLanguage}
-            onClose={onClose}
+            onDismiss={() => setView('actions')}
           />
         )}
       </Menu>
@@ -225,7 +227,8 @@ interface LanguagePickerContentProps {
   readonly filteredDescriptions: readonly LanguageDescription[];
   readonly currentName: string | null;
   readonly onSelect: (name: string) => void;
-  readonly onClose: () => void;
+  /** Returns to the Actions view — does NOT close the whole menu. Escape/the backdrop still close the whole menu directly (`Overlay`'s own `onClose`, unaffected). */
+  readonly onDismiss: () => void;
 }
 
 /**
@@ -241,7 +244,7 @@ function LanguagePickerContent({
   filteredDescriptions,
   currentName,
   onSelect,
-  onClose,
+  onDismiss,
 }: LanguagePickerContentProps) {
   const { activeId, setActiveId } = useMenuContext();
 
@@ -259,19 +262,22 @@ function LanguagePickerContent({
 
   return (
     <>
-      <div className="fenced-code-language-picker__header">
-        <span className="fenced-code-language-picker__title">Change Language</span>
-        <Button
-          aria-label="Close"
-          onClick={onClose}
-          isIconOnly
-          variant="ghost"
-          interaction="subtle"
-          size="small"
-        >
-          <AppIcon icon="dismiss" />
-        </Button>
-      </div>
+      <MenuTitle
+        trailing={
+          <Button
+            aria-label="Back to actions"
+            onClick={onDismiss}
+            isIconOnly
+            variant="ghost"
+            interaction="subtle"
+            size="small"
+          >
+            <AppIcon icon="dismiss" />
+          </Button>
+        }
+      >
+        Change Language
+      </MenuTitle>
 
       <Search
         ref={searchRef}

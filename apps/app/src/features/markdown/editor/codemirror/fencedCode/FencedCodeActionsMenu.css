@@ -1,23 +1,8 @@
-/* Everything about the container itself — background, border-radius,
-   shadow, width, scroll/max-height — now comes from the shared
-   `.menu`/`.menu--medium` classes (`Menu.tsx`, reused directly for both
-   the Actions and language views). Only the language view's own header
-   (title + dismiss button) and empty-state row are specific to this
-   file. */
-
-.fenced-code-language-picker__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  /* Aligns with `.entry`'s own `padding-left: var(--space-6)` (at
-     tree-level 0), so the title sits flush with the language rows below
-     it rather than at some independently-chosen inset. */
-  padding: var(--space-4) var(--space-4) var(--space-4) var(--space-6);
-}
-
-.fenced-code-language-picker__title {
-  color: var(--foreground-primary);
-}
+/* Everything else — container styling, the language view's own header
+   (now `MenuTitle`, `@components/menu/MenuTitle.css`), row styling
+   (`MenuItem`) — comes from the shared `Menu`/`MenuItem`/`MenuTitle`
+   components, reused directly for both the Actions and language views.
+   Only the empty-state row is specific to this file. */
 
 .fenced-code-language-picker__empty {
   padding: var(--space-8) var(--space-12);

@@ -1,3 +1,23 @@
 .menu__item {
   color: var(--foreground-primary);
 }
+
+/* A menu row's highlight must be driven exclusively by the shared roving
+ * `activeId` (`forceHover` -> `.entry-force-hover`) — never by native
+ * `:hover` on its own. `Entry.css`'s own rule paints the same background
+ * for *either* `:hover` *or* `.entry-force-hover` (a plain comma-OR), so
+ * without this override, resting the real mouse cursor on one row and
+ * then pressing ArrowUp/Down to move `activeId` to a different row left
+ * both rows visibly highlighted at once — the row under the stationary
+ * pointer via native `:hover`, the keyboard-active row via
+ * `.entry-force-hover`. `MenuItem`'s own `onMouseEnter` already updates
+ * `activeId` to whatever the pointer moves onto, so ordinary mouse-only
+ * use is unaffected by this rule (native `:hover` and `.entry-force-hover`
+ * already coincide on the same row the instant the mouse actually moves)
+ * — this only removes the stale leftover highlight once keyboard input
+ * moves `activeId` away without the mouse also moving, restoring the
+ * single-active-item invariant `useMenuKeyboard`'s model already assumes.
+ */
+.menu__item.entry-interactive:hover:not(.entry-force-hover) {
+  background: transparent;
+}

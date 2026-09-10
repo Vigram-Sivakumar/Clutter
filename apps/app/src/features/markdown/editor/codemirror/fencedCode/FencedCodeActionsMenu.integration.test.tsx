@@ -194,12 +194,13 @@ describe('Fenced code "More actions" — Change Language is a view swap, not a n
     expect(document.activeElement).toBe(screen.getByPlaceholderText('Search languages'));
   });
 
-  it('has no Back button or any other back-navigation control — closing and reopening is the only way out of the language view', () => {
+  it('has exactly one back-navigation control, in the language view\'s own header, not a separate control in the Actions view', () => {
     render(<MarkdownEditor pageId="test-page" markdown={['```js', 'const x = 1;', '```'].join('\n')} />);
-    openChangeLanguageSubmenu();
-
+    openFencedCodeMenu();
     expect(screen.queryByLabelText('Back to actions')).toBeNull();
-    expect(screen.queryByLabelText(/back/i)).toBeNull();
+
+    fireEvent.click(screen.getByText('Change Language'));
+    expect(screen.queryByLabelText('Back to actions')).not.toBeNull();
   });
 
   it('the Actions view\'s Change Language row shows a trailing affordance chevron', () => {
@@ -210,15 +211,16 @@ describe('Fenced code "More actions" — Change Language is a view swap, not a n
     expect(row.querySelector('.entry__trailing')).not.toBeNull();
   });
 
-  it('the language view has a dismiss button that closes the whole menu directly', () => {
+  it('the language view\'s header button returns to the Actions view — it does not close the whole menu', () => {
     render(<MarkdownEditor pageId="test-page" markdown={['```js', 'const x = 1;', '```'].join('\n')} />);
     openChangeLanguageSubmenu();
 
-    fireEvent.click(screen.getByLabelText('Close'));
+    fireEvent.click(screen.getByLabelText('Back to actions'));
 
-    expect(screen.queryByText('Change Language')).toBeNull();
+    expect(screen.queryByText('Remove')).not.toBeNull();
+    expect(screen.queryByPlaceholderText('Search languages')).toBeNull();
     expect(document.querySelector('.cm-code-block-actions')?.getAttribute('aria-expanded')).toBe(
-      'false'
+      'true'
     );
   });
 
