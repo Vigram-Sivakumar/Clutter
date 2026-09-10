@@ -1,5 +1,6 @@
 import { markdown } from '@codemirror/lang-markdown';
 
+import { fencedCodeLanguageDescriptions } from './fencedCode/fencedCodeLanguages';
 import { markdownGrammarExtensions } from './markdownGrammarExtensions';
 
 /**
@@ -41,6 +42,14 @@ import { markdownGrammarExtensions } from './markdownGrammarExtensions';
  * is deliberately the first, not a generalized "AtSyntax" for all of
  * them, per the "leave an extension point, don't build the coordinator"
  * posture already applied to Tag.
+ *
+ * `codeLanguages: fencedCodeLanguageDescriptions` is `@codemirror/lang-markdown`'s
+ * own native option for resolving a fenced code block's info string to a
+ * nested language parser (via `@lezer/markdown`'s `parseCode`) — see
+ * `fencedCode/fencedCodeLanguages.ts` for the registered set and
+ * `fencedCode/fencedCodeHighlighting.ts` (wired separately, in
+ * `buildEditorExtensions.ts`) for how the resulting nested trees get
+ * highlighted without recoloring Markdown's own tags.
  */
 /**
  * `addKeymap: false`: this returns the language and grammar only, with no
@@ -61,5 +70,6 @@ export function markdownLanguageExtension() {
   return markdown({
     extensions: markdownGrammarExtensions,
     addKeymap: false,
+    codeLanguages: fencedCodeLanguageDescriptions,
   });
 }
