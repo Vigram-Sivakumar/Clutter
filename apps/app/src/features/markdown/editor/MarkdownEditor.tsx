@@ -456,9 +456,11 @@ export const MarkdownEditor = forwardRef<
   };
 
   // A fenced code block's own floating "More actions" control — same
-  // bridged-anchor/toggle pattern as noteEmbedMenu above. Only Remove
-  // today; see `FencedCodeActionsMenu.tsx`'s own doc comment for why
-  // Change Language isn't in this menu yet.
+  // bridged-anchor/toggle pattern as noteEmbedMenu above. Offers Change
+  // Language (submenu, `handleChangeFencedCodeLanguage` below) and Remove
+  // (`handleRemoveFencedCode` below); see `FencedCodeActionsMenu.tsx`'s
+  // own doc comment for why Copy/Format stay their own dedicated buttons
+  // instead of living in this menu.
   const [fencedCodeMenu, setFencedCodeMenu] = useState<{
     anchor: FencedCodeActionsMenuAnchor;
     nodeFrom: number;
