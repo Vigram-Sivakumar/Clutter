@@ -13,7 +13,8 @@ import { TagWidget } from './TagWidget';
  */
 export function renderTag(
   raw: string,
-  getResolver: () => ResolveTag | undefined
+  getResolver: () => ResolveTag | undefined,
+  extraClasses: readonly string[] = []
 ): WidgetType | null {
   const match = scanTag(raw, 0);
   if (!match) {
@@ -22,5 +23,5 @@ export function renderTag(
 
   const resolver = getResolver();
   const resolution = resolver?.(match.name) ?? fallbackTagResolution(match.name);
-  return new TagWidget(raw, resolution);
+  return new TagWidget(raw, resolution, extraClasses);
 }

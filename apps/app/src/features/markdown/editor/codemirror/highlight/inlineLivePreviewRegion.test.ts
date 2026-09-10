@@ -1207,6 +1207,75 @@ describe('inlineLivePreviewRegion', () => {
   });
 
   // ===================================================================
+  // Inline formatting composition at the token level (docs/editor-
+  // architecture-decisions.md) — superseding the DOM-ancestry-only
+  // invariant above: a widget-family participant's own root element must
+  // also *carry* every enclosing delimited-mark construct's content class
+  // directly (`collectActiveInlineClasses` in `inlineLivePreviewParticipants.ts`),
+  // not merely sit inside an ancestor with that class. This is what lets
+  // a plain, unqualified `.tok-strike` CSS rule apply to `.tok-wikilink`/
+  // `.tok-tag`/`.tok-date` with no descendant selector, regardless of
+  // nesting depth, order, or combination — proven here structurally
+  // (never one test per construct-pair), for Tag/Date; WikiLink's own
+  // coverage is in wikiLinkLivePreview.test.ts since it isn't a
+  // participant of this shared traversal.
+  // ===================================================================
+  describe('inline formatting composition: widget participants carry every enclosing construct\'s class directly, not just ancestrally', () => {
+    function widgetClasses(view: EditorView, widgetSelector: string): string[] {
+      const widget = view.dom.querySelector(widgetSelector);
+      expect(widget, `expected to find widget matching ${widgetSelector}`).not.toBeNull();
+      return Array.from(widget!.classList);
+    }
+
+    it('#tag with no enclosing formatting carries only its own class', () => {
+      const view = mountView('before #tag after');
+      expect(widgetClasses(view, '[data-tag-status]')).toEqual(['tok-tag']);
+    });
+
+    it('**x #tag**: the Tag widget\'s own element carries tok-strong directly', () => {
+      const view = mountView('before **x #tag** after');
+      expect(widgetClasses(view, '[data-tag-status]')).toEqual(expect.arrayContaining(['tok-tag', 'tok-strong']));
+    });
+
+    it('~~**x #tag**~~: two levels deep, the Tag widget carries both tok-strong and tok-strike', () => {
+      const view = mountView('before ~~**x #tag**~~ after');
+      const classes = widgetClasses(view, '[data-tag-status]');
+      expect(classes).toEqual(expect.arrayContaining(['tok-tag', 'tok-strong', 'tok-strike']));
+    });
+
+    it('**~~x #tag~~**: the reverse nesting order composes identically', () => {
+      const view = mountView('before **~~x #tag~~** after');
+      const classes = widgetClasses(view, '[data-tag-status]');
+      expect(classes).toEqual(expect.arrayContaining(['tok-tag', 'tok-strong', 'tok-strike']));
+    });
+
+    it('~~==**x #tag**==~~: three levels deep composes tok-strong, tok-highlight, and tok-strike together', () => {
+      const view = mountView('before ~~==**x #tag**==~~ after');
+      const classes = widgetClasses(view, '[data-tag-status]');
+      expect(classes).toEqual(
+        expect.arrayContaining(['tok-tag', 'tok-strong', 'tok-highlight', 'tok-strike'])
+      );
+    });
+
+    it('~~x @2026-01-01~~: the Date widget composes the same way as Tag', () => {
+      const view = mountView('before ~~x @2026-01-01~~ after', {
+        ...noResolvers,
+        resolveDate: () => () => ({ activate: () => {} }),
+      });
+      const classes = widgetClasses(view, '[data-date-status]');
+      expect(classes).toEqual(expect.arrayContaining(['tok-date', 'tok-strike']));
+    });
+
+    it('a sibling formatted region does not leak its class onto an unrelated Tag', () => {
+      // #tag sits outside **bold**'s own range entirely — composition
+      // must be scoped to actual ancestry, never "anything active on the
+      // line."
+      const view = mountView('**bold** #tag');
+      expect(widgetClasses(view, '[data-tag-status]')).toEqual(['tok-tag']);
+    });
+  });
+
+  // ===================================================================
   // Phase 3 §8 — INVARIANT: atomic ranges are participant-owned facts,
   // produced by the same traversal as decorations, never derived by
   // inspecting the merged decoration set.

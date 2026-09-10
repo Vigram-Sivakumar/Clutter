@@ -8,8 +8,9 @@ import {
   type PluginValue,
   type ViewUpdate,
 } from '@codemirror/view';
-import type { SyntaxNode, SyntaxNodeRef } from '@lezer/common';
+import type { SyntaxNodeRef } from '@lezer/common';
 
+import { collectActiveInlineClasses, isDelimitedMarkConstruct } from '../highlight/inlineLivePreviewParticipants';
 import { isTokenEngaged, type TokenNodeRange } from '../semanticToken/tokenEngagement';
 import { getWikiLinkMarkerRanges, renderWikiLink } from './wikiLinkDecorations';
 import type { ResolveWikiLink } from './wikiLinkResolution';
@@ -19,15 +20,14 @@ import type { ResolveWikiLink } from './wikiLinkResolution';
  * enclosing chain of delimited-inline-formatting ancestors (Emphasis,
  * StrongEmphasis, Strikethrough, Highlight, InlineCode — every construct
  * `delimitedInlineRenderer` in `inlineLivePreviewParticipants.ts` handles),
- * without naming any of them: every one of those, and only those, parses
- * with exactly two identically-named children whose name ends in `Mark`
- * bracketing the content (already asserted generically by
- * `inlineLivePreviewRegion.test.ts`'s "node shape" test) — the same
- * structural fact `delimitedInlineRenderer` itself keys off (`firstChild`/
- * `lastChild` same-name check). Reusing that fact here, rather than a list
- * of node names, is what keeps this generic: it composes with any current
- * or future participant following the same grammar convention with zero
- * new knowledge added about what that participant is.
+ * without naming any of them: `isDelimitedMarkConstruct` (imported from
+ * `inlineLivePreviewParticipants.ts`, shared with `collectActiveInlineClasses`'s
+ * own ancestor walk below) is the same structural fact `delimitedInlineRenderer`
+ * itself keys off (`firstChild`/`lastChild` same-name check). Reusing that
+ * fact here, rather than a list of node names, is what keeps this generic:
+ * it composes with any current or future participant following the same
+ * grammar convention with zero new knowledge added about what that
+ * participant is.
  *
  * Stops at the first ancestor that doesn't match — ordinary block
  * containers (Paragraph, Document, ListItem, TableCell, ...) never have
@@ -44,12 +44,6 @@ import type { ResolveWikiLink } from './wikiLinkResolution';
  * other via `inlineLivePreviewRegion.ts`'s own short-circuit — just
  * computed bottom-up here, since WikiLink sits outside that traversal.
  */
-function isDelimitedMarkConstruct(node: SyntaxNode): boolean {
-  const first = node.firstChild;
-  const last = node.lastChild;
-  return !!first && !!last && first !== last && first.name === last.name && first.name.endsWith('Mark');
-}
-
 function widenToEnclosingLivePreviewRegion(node: SyntaxNodeRef): TokenNodeRange {
   let widest: TokenNodeRange = { from: node.from, to: node.to };
   let ancestor = node.node.parent;
@@ -133,7 +127,7 @@ function buildDecorations(
         }
 
         const raw = view.state.sliceDoc(node.from, node.to);
-        const widget = renderWikiLink(raw, getResolver);
+        const widget = renderWikiLink(raw, getResolver, collectActiveInlineClasses(node));
         if (!widget) {
           return;
         }

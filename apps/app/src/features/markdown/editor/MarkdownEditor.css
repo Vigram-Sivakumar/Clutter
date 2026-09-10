@@ -1172,30 +1172,36 @@
 /* `inline-flex` above makes `.tok-wikilink` an atomic inline-level box, and
  * `text-decoration-line` does not paint through such a box from an
  * ancestor — e.g. `~~[[Page]]~~` struck through "normal link" but not the
- * WikiLink widget itself (see docs/editor-architecture-decisions.md,
- * "Atomic inline widgets and text-decoration composition"). Each rule
- * below fixes one decorating ancestor at the widget boundary rather than
- * teaching that ancestor's own class (`.tok-strong`/`.tok-emphasis`/
- * `.tok-highlight`, or the completed-task `.cm-line` rule) to relay the
- * value: a plain descendant selector matches `.tok-wikilink` under the
- * named ancestor at any depth (`~~**[[Page]]**~~`, `~~==**[[Page]]**==~~`,
- * ...) regardless of what sits in between, because CSS descendant
- * combinators ignore intermediate elements entirely — unlike
- * `text-decoration-line: inherit`, which only reads the immediate
- * parent's computed value and so breaks as soon as one intervening mark
- * (e.g. `.tok-strong`) doesn't itself carry the decoration. Verified live
- * across every nesting order/depth and both decorating contexts tried;
- * see the architecture doc entry for the full comparison. */
-.cm-editor .tok-strike .tok-wikilink {
-  text-decoration-line: line-through;
-}
-
-/* Second decorating ancestor, same fix: a completed task's own
- * line-level strikethrough (`.cm-line:has(.cm-task-checkbox
- * [aria-checked='true'])`, below) is a separate mechanism from `~~~~`
- * Strikethrough — not routed through `.tok-strike` at all — so it needs
- * its own rule; `.tok-wikilink` composes with each decorating ancestor it
- * actually appears under, not just the first one found. */
+ * WikiLink widget itself. **Superseded by inline-formatting composition
+ * at the token level (see docs/editor-architecture-decisions.md, "Inline
+ * formatting composition at the token level")**: a `.tok-strike .tok-wikilink`
+ * (and, before it, a `.tok-strike .tok-tag`/`.tok-strike .tok-date`)
+ * descendant-selector rule used to live here, one per decorating ancestor —
+ * itself already an improvement over teaching `.tok-strong`/`.tok-emphasis`/
+ * `.tok-highlight` to relay the value, but still a construct-specific
+ * workaround that would need a new rule for every future widget. WikiLink/
+ * Tag/Date's own widgets now carry every enclosing delimited-mark
+ * construct's content class (e.g. `tok-strike`) directly on their own root
+ * element (`collectActiveInlineClasses` in `inlineLivePreviewParticipants.ts`),
+ * so the plain, unqualified `.tok-strike` rule above already applies to them
+ * with no ancestor selector at all — correct at any nesting depth or order
+ * by construction, not by enumeration. Verified live across
+ * `~~[[Page]]~~`/`~~**[[Page]]**~~`/`**~~[[Page]]~~**`/`~~==**[[Page]]**==~~`
+ * (WikiLink) and the equivalent Tag/Date cases.
+ *
+ * The completed-task case below is a **separate, independent** decorating
+ * context — task-completion is line-level state
+ * (`.cm-line:has(.cm-task-checkbox[aria-checked='true'])`), not a
+ * syntax-tree ancestor, so it is deliberately *not* folded into
+ * `collectActiveInlineClasses` (which stays pure: syntax node in, ancestor
+ * formatting classes out, no `EditorState`/`EditorView`). This selector
+ * still targets `.tok-wikilink` specifically and is kept exactly as-is —
+ * removing it would reintroduce the completed-task regression, since the
+ * tree-based composition mechanism has no way to know about it. A
+ * corresponding fix for Tag/Date under a completed task has not yet been
+ * added (no report of that combination breaking) — see the architecture
+ * doc entry for the open question of whether/how to generalize this to a
+ * line-state composition mechanism later. */
 .cm-editor .cm-line:has(.cm-task-checkbox[aria-checked='true']) .tok-wikilink {
   text-decoration-line: line-through;
 }

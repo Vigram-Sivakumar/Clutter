@@ -31,7 +31,8 @@ import { WikiLinkWidget } from './WikiLinkWidget';
  */
 export function renderWikiLink(
   raw: string,
-  getResolver: () => ResolveWikiLink | undefined
+  getResolver: () => ResolveWikiLink | undefined,
+  extraClasses: readonly string[] = []
 ): WidgetType | null {
   const match = scanWikiLink(raw, 0);
   if (!match || !match.path.trim()) {
@@ -40,7 +41,7 @@ export function renderWikiLink(
 
   const resolver = getResolver();
   const resolution = resolver?.(match.path, match.alias) ?? fallbackWikiLinkResolution(match.path);
-  return new WikiLinkWidget(match.path, match.alias, resolution);
+  return new WikiLinkWidget(match.path, match.alias, resolution, extraClasses);
 }
 
 /**

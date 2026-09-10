@@ -498,6 +498,63 @@ describe('wikiLinkLivePreview', () => {
   });
 
   // ===================================================================
+  // Inline formatting composition at the token level (docs/editor-
+  // architecture-decisions.md) — supersedes the WikiLink-specific
+  // `.tok-strike .tok-wikilink` CSS descendant selector (removed): the
+  // WikiLink widget's own root element must carry every enclosing
+  // delimited-mark construct's content class directly
+  // (`collectActiveInlineClasses` in `inlineLivePreviewParticipants.ts`),
+  // so a plain, unqualified `.tok-strike` rule already applies to it with
+  // no ancestor selector, at any nesting depth/order. The DOM-ancestry
+  // assertions above (`expectNestedAncestry`) still hold and are
+  // unaffected — this is an additional fact about the widget's own
+  // classList, not a replacement for the nesting shape.
+  // ===================================================================
+  describe('inline formatting composition: the WikiLink widget\'s own element carries every enclosing construct\'s class directly', () => {
+    function widgetClasses(view: EditorView): string[] {
+      const widget = view.dom.querySelector('[data-wikilink-status]');
+      expect(widget, 'expected to find the WikiLink widget').not.toBeNull();
+      return Array.from(widget!.classList);
+    }
+
+    it('[[Page]] with no enclosing formatting carries only its own class', () => {
+      const view = mountView('before [[Page]] after', resolvedAs('Page'));
+      expect(widgetClasses(view)).toEqual(['tok-wikilink']);
+    });
+
+    it('~~[[Page]]~~: carries tok-strike directly', () => {
+      const view = mountView('before ~~[[Page]]~~ after', resolvedAs('Page'), true);
+      expect(widgetClasses(view)).toEqual(expect.arrayContaining(['tok-wikilink', 'tok-strike']));
+    });
+
+    it('~~**[[Page]]**~~: two levels deep composes tok-strong and tok-strike together', () => {
+      const view = mountView('before ~~**[[Page]]**~~ after', resolvedAs('Page'), true);
+      expect(widgetClasses(view)).toEqual(
+        expect.arrayContaining(['tok-wikilink', 'tok-strong', 'tok-strike'])
+      );
+    });
+
+    it('**~~[[Page]]~~**: the reverse nesting order composes identically', () => {
+      const view = mountView('before **~~[[Page]]~~** after', resolvedAs('Page'), true);
+      expect(widgetClasses(view)).toEqual(
+        expect.arrayContaining(['tok-wikilink', 'tok-strong', 'tok-strike'])
+      );
+    });
+
+    it('~~==**[[Page]]**==~~: three levels deep composes tok-strong, tok-highlight, and tok-strike together', () => {
+      const view = mountView('before ~~==**[[Page]]**==~~ after', resolvedAs('Page'), true);
+      expect(widgetClasses(view)).toEqual(
+        expect.arrayContaining(['tok-wikilink', 'tok-strong', 'tok-highlight', 'tok-strike'])
+      );
+    });
+
+    it('a sibling ~~struck~~ region does not leak its class onto an unrelated WikiLink', () => {
+      const view = mountView('~~struck~~ [[Page]]', resolvedAs('Page'), true);
+      expect(widgetClasses(view)).toEqual(['tok-wikilink']);
+    });
+  });
+
+  // ===================================================================
   // Regression: a WikiLink inside a completed task must sit in the same
   // `.cm-line` as the checked `.cm-task-checkbox` — the DOM-ancestry
   // precondition MarkdownEditor.css's

@@ -21,11 +21,21 @@ import type { TagResolution } from './tagResolution';
  * `tok-tag` is the class hook for styling; `status` is additionally
  * exposed as its own `data-` attribute, mirroring `WikiLinkWidget`'s
  * `data-wikilink-status` pattern.
+ *
+ * `extraClasses` (inline-formatting composition — see
+ * `collectActiveInlineClasses` in `inlineLivePreviewParticipants.ts` and
+ * docs/editor-architecture-decisions.md's "Inline formatting composition
+ * at the token level"): the content class of every enclosing delimited-mark
+ * construct (e.g. `tok-strike` for `~~#tag~~`), applied directly onto this
+ * widget's own root element so its CSS (e.g. `.tok-strike`'s
+ * `text-decoration-line`) is declared on, and painted by, this element
+ * itself — never relied upon to propagate in from an ancestor `<span>`.
  */
 export class TagWidget extends WidgetType {
   constructor(
     readonly raw: string,
-    readonly resolution: TagResolution
+    readonly resolution: TagResolution,
+    readonly extraClasses: readonly string[] = []
   ) {
     super();
   }
@@ -34,13 +44,15 @@ export class TagWidget extends WidgetType {
     return (
       this.raw === other.raw &&
       this.resolution.status === other.resolution.status &&
-      this.resolution.displayLabel === other.resolution.displayLabel
+      this.resolution.displayLabel === other.resolution.displayLabel &&
+      this.extraClasses.length === other.extraClasses.length &&
+      this.extraClasses.every((cls, i) => cls === other.extraClasses[i])
     );
   }
 
   override toDOM(): HTMLElement {
     const span = document.createElement('span');
-    span.classList.add('tok-tag');
+    span.classList.add('tok-tag', ...this.extraClasses);
     // A tag's activation filters/opens a tag-scoped view, closer to a
     // toggle/filter control than a hyperlink — "button", not "link"
     // (docs/editor-research/clutter-editor-shared-token-interaction-contract.md's

@@ -11,7 +11,8 @@ import { DateWidget } from './DateWidget';
  */
 export function renderDate(
   raw: string,
-  getResolver: () => ResolveDate | undefined
+  getResolver: () => ResolveDate | undefined,
+  extraClasses: readonly string[] = []
 ): WidgetType | null {
   const match = scanDate(raw, 0);
   if (!match) {
@@ -20,5 +21,5 @@ export function renderDate(
 
   const resolver = getResolver();
   const resolution = resolver?.(match.isoDate) ?? fallbackDateResolution();
-  return new DateWidget(match.isoDate, resolution);
+  return new DateWidget(match.isoDate, resolution, extraClasses);
 }

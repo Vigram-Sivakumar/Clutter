@@ -29,11 +29,16 @@ import type { DateResolution } from './dateResolution';
  * without ever adding an `@`, which is exactly why the prefix has to live
  * here and not inside the shared formatter — two different presentations
  * of the same underlying label, not two different labels.
+ *
+ * `extraClasses` — same inline-formatting composition contract as
+ * `TagWidget`'s own `extraClasses` (see that class's doc comment and
+ * `collectActiveInlineClasses` in `inlineLivePreviewParticipants.ts`).
  */
 export class DateWidget extends WidgetType {
   constructor(
     readonly isoDate: string,
-    readonly resolution: DateResolution
+    readonly resolution: DateResolution,
+    readonly extraClasses: readonly string[] = []
   ) {
     super();
   }
@@ -51,12 +56,16 @@ export class DateWidget extends WidgetType {
   }
 
   override eq(other: DateWidget): boolean {
-    return this.isoDate === other.isoDate;
+    return (
+      this.isoDate === other.isoDate &&
+      this.extraClasses.length === other.extraClasses.length &&
+      this.extraClasses.every((cls, i) => cls === other.extraClasses[i])
+    );
   }
 
   override toDOM(): HTMLElement {
     const span = document.createElement('span');
-    span.classList.add('tok-date');
+    span.classList.add('tok-date', ...this.extraClasses);
     span.setAttribute('role', 'button');
     span.setAttribute('aria-label', `date: @${this.label}`);
     span.dataset.dateStatus = this.valid ? 'valid' : 'invalid';

@@ -17,12 +17,24 @@ import type { WikiLinkResolution } from './wikiLinkResolution';
  * (`wikiLinkKeymap.ts`). This widget's only responsibility toward that
  * mechanism is `ignoreEvent()` below, which must let `mousedown` through
  * (see its own comment for why that's not just an implementation detail).
+ *
+ * `extraClasses` — inline-formatting composition (see
+ * `collectActiveInlineClasses` in `inlineLivePreviewParticipants.ts` and
+ * docs/editor-architecture-decisions.md's "Inline formatting composition
+ * at the token level"): the content class of every enclosing delimited-mark
+ * construct (`~~[[Page]]~~` → `tok-strike`, arbitrary depth/order), applied
+ * directly onto this widget's own root element. This is what lets
+ * `.tok-strike`'s plain, non-descendant `text-decoration-line` rule apply
+ * to a WikiLink correctly despite `.tok-wikilink` being an atomic
+ * (`display: inline-flex`) box that an ancestor's decoration line cannot
+ * otherwise paint through — no CSS ancestor selector is needed or used.
  */
 export class WikiLinkWidget extends WidgetType {
   constructor(
     readonly path: string,
     readonly alias: string | null,
-    readonly resolution: WikiLinkResolution
+    readonly resolution: WikiLinkResolution,
+    readonly extraClasses: readonly string[] = []
   ) {
     super();
   }
@@ -35,13 +47,15 @@ export class WikiLinkWidget extends WidgetType {
       this.resolution.displayLabel === other.resolution.displayLabel &&
       (this.resolution.status !== 'resolved' ||
         other.resolution.status !== 'resolved' ||
-        (this.resolution.icon === other.resolution.icon && this.resolution.emoji === other.resolution.emoji))
+        (this.resolution.icon === other.resolution.icon && this.resolution.emoji === other.resolution.emoji)) &&
+      this.extraClasses.length === other.extraClasses.length &&
+      this.extraClasses.every((cls, i) => cls === other.extraClasses[i])
     );
   }
 
   override toDOM(): HTMLElement {
     const span = document.createElement('span');
-    span.classList.add('tok-wikilink');
+    span.classList.add('tok-wikilink', ...this.extraClasses);
     // Baseline accessibility hook (§6) — not a final ARIA design. Whether
     // "link" is the right role for every status, and the exact wording of
     // the accessible name, is a deferred, deliberately unresolved question

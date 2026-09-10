@@ -171,6 +171,88 @@ function delimitedInlineRenderer(
 }
 
 /**
+ * Structural (not name-based) test for "does this node parse as an
+ * ordinary delimited-mark construct" — exactly two children whose own
+ * name is identical and ends in `Mark`, bracketing the content. Every
+ * `delimitedInlineRenderer` participant (Emphasis, StrongEmphasis,
+ * Strikethrough, Highlight, InlineCode, Autolink) and `Link` itself
+ * (whose own `firstChild`/`lastChild` are both `LinkMark`, per
+ * `linkRenderer`'s own doc comment) satisfy this by construction; ordinary
+ * block containers (Paragraph, Document, ListItem, TableCell, ...) never
+ * do, so a walk built on this check naturally stops at a paragraph
+ * boundary without needing to name any container type.
+ *
+ * Originally local to `wikiLinkLivePreview.ts` (`widenToEnclosingLivePreviewRegion`'s
+ * own engagement-boundary walk); promoted here, unchanged, so
+ * `collectActiveInlineClasses` below can reuse the identical structural
+ * fact rather than re-deriving or duplicating it.
+ */
+export function isDelimitedMarkConstruct(node: SyntaxNode): boolean {
+  const first = node.firstChild;
+  const last = node.lastChild;
+  return !!first && !!last && first !== last && first.name === last.name && first.name.endsWith('Mark');
+}
+
+/**
+ * The rendered CSS class each delimited-mark construct's own content
+ * carries — the exact same class each one's own `delimitedInlineRenderer`/
+ * `linkRenderer` registration below already passes as `contentClass`.
+ * Kept as one small lookup, rather than re-deriving it from the
+ * registration closures (which erase this fact once built), so
+ * `collectActiveInlineClasses` can answer "what class does this ancestor
+ * contribute" without executing or inspecting a renderer.
+ */
+const INLINE_CONTENT_CLASS_BY_NODE_NAME: ReadonlyMap<string, string> = new Map([
+  ['Emphasis', 'tok-emphasis'],
+  ['StrongEmphasis', 'tok-strong'],
+  ['Strikethrough', 'tok-strike'],
+  ['Highlight', 'tok-highlight'],
+  ['InlineCode', 'tok-code'],
+  ['Link', 'tok-link'],
+  ['Autolink', 'tok-link'],
+]);
+
+/**
+ * Inline-formatting composition for widget-family constructs (WikiLink,
+ * Tag, Date, and any future inline widget): walks a node's ancestors and
+ * collects the content class of every enclosing delimited-mark construct,
+ * innermost first, stopping at the first ancestor that doesn't structurally
+ * qualify (`isDelimitedMarkConstruct`) — the same termination `widenToEnclosingLivePreviewRegion`
+ * already relies on.
+ *
+ * Per docs/editor-architecture-decisions.md's "Inline formatting
+ * composition at the token level": a widget-family participant applies
+ * these classes directly onto its own rendered root element (alongside its
+ * own `tok-*` class), so an ancestor's CSS (e.g. `.tok-strike`'s
+ * `text-decoration-line`) is declared on — and therefore painted by — the
+ * widget's own element, never relied upon to propagate in from outside.
+ * This is why it works regardless of nesting depth
+ * (`~~==**[[Note]]**==~~`), order (`**~~[[Note]]~~**` vs `~~**[[Note]]**~~`),
+ * or whether the widget is an atomic (`display: inline-flex`) box: nothing
+ * here asks CSS to cross an element boundary at all.
+ *
+ * Deliberately pure and tree-only — no `EditorState`/`EditorView` parameter,
+ * no knowledge of engagement, selection, or any other state source (e.g.
+ * completed-task line state, which is a *different*, independently-solved
+ * concern — see `docs/editor-architecture-decisions.md`). Adding a new
+ * delimited-mark construct never requires touching this function: it only
+ * needs a `contentClass` entry above, the same one its own participant
+ * registration already needs.
+ */
+export function collectActiveInlineClasses(node: SyntaxNodeRef): readonly string[] {
+  const classes: string[] = [];
+  let ancestor = node.node.parent;
+  while (ancestor && isDelimitedMarkConstruct(ancestor)) {
+    const contentClass = INLINE_CONTENT_CLASS_BY_NODE_NAME.get(ancestor.name);
+    if (contentClass) {
+      classes.push(contentClass);
+    }
+    ancestor = ancestor.parent;
+  }
+  return classes;
+}
+
+/**
  * Which node names are marker-contract constructs for the *engaged*
  * subtree walk (`revealedMarkerRanges` below), and which node name each
  * one's own direct marker children carry. Deliberately explicit and
@@ -263,18 +345,20 @@ export function revealedMarkerRanges(root: SyntaxNode): readonly Range<Decoratio
  * describe the exact same at-rest occurrence — there is never a case
  * where one applies without the other.
  *
- * `render` receives only the node's raw matched text — every renderer
- * registered through this factory today (`renderWikiLink`/`renderTag`/
- * `renderDate`) only ever needed `raw` and a resolver getter, never
- * `view` or the node itself (confirmed by inspecting each: their `_view`/
- * `_node` parameters were unused), so this factory doesn't thread through
- * anything that has no real consumer.
+ * `render` receives the node's raw matched text plus `collectActiveInlineClasses(node)` —
+ * every renderer registered through this factory (`renderWikiLink`/
+ * `renderTag`/`renderDate`) threads this straight into its widget's
+ * constructor so the widget's own root element carries its enclosing
+ * delimited-mark ancestors' classes directly (see that function's own doc
+ * comment). Nothing else about `node`/`view` is needed by any of them
+ * (confirmed by inspecting each), so this factory doesn't thread through
+ * anything else.
  */
 function widgetReplaceRenderer(
-  render: (raw: string) => WidgetType | null
+  render: (raw: string, extraClasses: readonly string[]) => WidgetType | null
 ): ParticipantRenderer {
   return (node, state) => {
-    const widget = render(state.sliceDoc(node.from, node.to));
+    const widget = render(state.sliceDoc(node.from, node.to), collectActiveInlineClasses(node));
     if (!widget) {
       return { decorations: [] };
     }
@@ -487,8 +571,8 @@ export function createInlineLivePreviewParticipants(
     // shared `cm-marker` contract, matching `Link`'s own registration above.
     ['Autolink', delimitedInlineRenderer('LinkMark', 'tok-link', 'cm-link-marker')],
     ['URL', urlRenderer],
-    ['Tag', widgetReplaceRenderer((raw) => renderTag(raw, resolvers.resolveTag))],
-    ['Date', widgetReplaceRenderer((raw) => renderDate(raw, resolvers.resolveDate))],
+    ['Tag', widgetReplaceRenderer((raw, extraClasses) => renderTag(raw, resolvers.resolveTag, extraClasses))],
+    ['Date', widgetReplaceRenderer((raw, extraClasses) => renderDate(raw, resolvers.resolveDate, extraClasses))],
     // Image is deliberately NOT a participant here (unlike Phase 1) — it
     // has its own standalone visibility mechanism instead
     // (image/imageLivePreview.ts), for the same kind of reason WikiLink
