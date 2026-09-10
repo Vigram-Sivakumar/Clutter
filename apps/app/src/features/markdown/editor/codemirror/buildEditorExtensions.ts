@@ -10,6 +10,7 @@ import { orderedListStructuralNormalization } from './list/orderedListStructural
 import { formatShortcutsKeymap } from './format/formatShortcutsKeymap';
 import { blockquoteLineDecoration } from './highlight/blockquoteLineDecoration';
 import { blockquoteMarkerDecoration } from './highlight/blockquoteMarkerDecoration';
+import { fencedCodeMarkerDecoration } from './highlight/fencedCodeMarkerDecoration';
 import { headingMarkerDecoration } from './highlight/headingMarkerDecoration';
 import { createInlineLivePreviewParticipants } from './highlight/inlineLivePreviewParticipants';
 import { inlineLivePreviewRegion } from './highlight/inlineLivePreviewRegion';
@@ -197,6 +198,7 @@ export function buildEditorExtensions(options: BuildEditorExtensionsOptions): Ex
     blockquoteMarkerDecoration(),
     blockquoteLineDecoration(),
     headingMarkerDecoration(),
+    fencedCodeMarkerDecoration(),
     horizontalRuleDecoration(),
     leadingIndentDecoration(),
     wikiLinkMouseHandlers(resolveWikiLink),
