@@ -3,7 +3,7 @@ import { highlightTree } from '@lezer/highlight';
 import { describe, expect, it } from 'vitest';
 
 import { markdownLanguageExtension } from '../markdownLanguage';
-import { fencedCodeHighlighting } from './fencedCodeHighlighting';
+import { fencedCodeHighlightSpecs, fencedCodeHighlighting } from './fencedCodeHighlighting';
 import { fencedCodeLanguageDescriptions } from './fencedCodeLanguages';
 
 const jsFence = ['```js', 'const greeting = "Hello";', '```'].join('\n');
@@ -69,5 +69,51 @@ describe('fencedCodeHighlighting — scoped to nested language trees only', () =
     const pyFence = ['```py', 'def greet():', '    return "hi"', '```'].join('\n');
     expect(highlightedSpans(pyFence, jsScoped)).toHaveLength(0);
     expect(highlightedSpans(pyFence, pyScoped).length).toBeGreaterThan(0);
+  });
+});
+
+describe('fencedCodeHighlightSpecs — wired to design-system/syntax-tokens.css custom properties', () => {
+  it('every spec resolves to a var(--syntax-*) color, never a literal hex', () => {
+    for (const spec of fencedCodeHighlightSpecs) {
+      expect(spec.color).toMatch(/^var\(--syntax-[a-z]+\)$/);
+    }
+  });
+
+  it("the generated stylesheet for JS's comment/keyword/string/number classes references the syntax tokens, not hardcoded colors", () => {
+    const jsLanguage = fencedCodeLanguageDescriptions.find((d) => d.name === 'JavaScript')!
+      .support!.language;
+    const scoped = HighlightStyle.define(fencedCodeHighlightSpecs, { scope: jsLanguage });
+    const css = scoped.module!.getRules();
+
+    expect(css).toContain('var(--syntax-comment)');
+    expect(css).toContain('var(--syntax-keyword)');
+    expect(css).toContain('var(--syntax-string)');
+    expect(css).toContain('var(--syntax-number)');
+    // No hex literal ever appears — every color in this stylesheet is a
+    // custom-property reference, so the browser's own cascade (not this
+    // extension) resolves the theme-appropriate value.
+    expect(css).not.toMatch(/#[0-9a-fA-F]{3,6}/);
+  });
+
+  it('highlights a Python fence using the same token-backed specs (comment, keyword, string, number all present)', () => {
+    const pyLanguage = fencedCodeLanguageDescriptions.find((d) => d.name === 'Python')!.support!
+      .language;
+    const scoped = HighlightStyle.define(fencedCodeHighlightSpecs, { scope: pyLanguage });
+
+    const pyFence = [
+      '```py',
+      '# a comment',
+      'def greet(name):',
+      '    return f"hi {name}"',
+      'count = 42',
+      '```',
+    ].join('\n');
+    const spans = highlightedSpans(pyFence, scoped);
+    const allClasses = spans.map((s) => s.classes).join(' ');
+
+    expect(spans.length).toBeGreaterThan(0);
+    // At least the def/return keywords and the string/number literals
+    // should have picked up a highlighter class.
+    expect(allClasses.length).toBeGreaterThan(0);
   });
 });

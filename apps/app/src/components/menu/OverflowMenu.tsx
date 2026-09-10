@@ -19,6 +19,8 @@ export interface OverflowMenuSubmenuItemConfig {
   label: string;
   /** Rendered but non-interactive — never omitted from the submenu. */
   disabled?: boolean;
+  /** For a submenu representing a single current choice (e.g. "Change Language"), the option matching that choice — passed straight through to the leaf `MenuItem`'s own native `selected` prop (`Entry`'s `entry-selected` highlighted-row treatment, `ImageOptionsMenu.tsx`'s `MODE_ITEMS.map` is the precedent this mirrors), not a separate indicator. At most one leaf should set this per submenu; nothing enforces that here, it's the caller's own data. */
+  selected?: boolean;
 }
 
 export interface OverflowMenuItemConfig {
@@ -376,6 +378,7 @@ function OverflowSubmenuTrigger({
             <MenuItem
               key={leaf.id}
               disabled={leaf.disabled}
+              selected={leaf.selected}
               onClick={(event) => {
                 event.stopPropagation();
                 onSelectLeaf(leaf.id);

@@ -20,6 +20,13 @@ import type { OnOpenPdfMenu, OnPdfEmbedClick } from './codemirror/pdf/PdfEmbedWi
 import { PdfEmbedMoreActions, type PdfEmbedMoreActionsAnchor } from './codemirror/pdf/PdfEmbedMoreActions';
 import { NoteEmbedMoreActions, type NoteEmbedMoreActionsAnchor } from './codemirror/embed/NoteEmbedMoreActions';
 import type { OnOpenNoteEmbedMenu } from './codemirror/embed/NoteEmbedWidget';
+import { FencedCodeActionsMenu, type FencedCodeActionsMenuAnchor } from './codemirror/fencedCode/FencedCodeActionsMenu';
+import type { OnOpenFencedCodeMenu } from './codemirror/fencedCode/FencedCodeActionsButtonWidget';
+import { computeFencedCodeRemovalRange } from './codemirror/fencedCode/fencedCodeRemovalRange';
+import {
+  resolveFencedCodeInfoRange,
+  resolveFencedCodeBlockWrapper,
+} from './codemirror/fencedCode/fencedCodeInfoRange';
 import { getImageUiState, presentationOnlyEdit, setImageUiState, type ImageDisplayMode } from './codemirror/image/imageUiState';
 import { getImagePresentation, computeImagePresentationUpdate } from './codemirror/mediaPresentation/mediaPresentationUpdate';
 import { copyTextToClipboard } from '@shared/helpers/copyTextToClipboard';
@@ -448,6 +455,129 @@ export const MarkdownEditor = forwardRef<
     view.dispatch({ changes: { from, to, insert: '' } });
   };
 
+  // A fenced code block's own floating "More actions" control — same
+  // bridged-anchor/toggle pattern as noteEmbedMenu above. Only Remove
+  // today; see `FencedCodeActionsMenu.tsx`'s own doc comment for why
+  // Change Language isn't in this menu yet.
+  const [fencedCodeMenu, setFencedCodeMenu] = useState<{
+    anchor: FencedCodeActionsMenuAnchor;
+    nodeFrom: number;
+    nodeTo: number;
+    currentRawInfo: string;
+  } | null>(null);
+
+  // Re-resolves the wrapper and its Actions/Copy/Format buttons fresh
+  // from `fencedCodeFrom` (via `resolveFencedCodeBlockWrapper`'s
+  // `view.domAtPos`) on every call — never a DOM node captured earlier.
+  // This is the fix for a real bug (not speculative hardening): the
+  // button widgets all render at the same computed position
+  // (`CodeInfo.to`), so any edit to the info string — exactly what
+  // "Change Language" does — moves that position, and CM6 tears down
+  // and rebuilds the widget DOM there rather than migrating it, even
+  // when `WidgetType.eq()` says the widget is unchanged. A previous
+  // version of this function took the already-clicked button element
+  // directly and walked up via `.closest('.cm-code-block')`; confirmed
+  // live (via a temporary trace) that the anchor captured when the menu
+  // opened had `isConnected: false` immediately after a language change,
+  // so that cleanup silently found nothing and Copy stayed stuck visible
+  // forever. See `resolveFencedCodeBlockWrapper`'s own doc comment for
+  // the full trace.
+  function setFencedCodeMenuButtonOpen(view: EditorView, fencedCodeFrom: number, open: boolean) {
+    const wrapper = resolveFencedCodeBlockWrapper(view, fencedCodeFrom);
+    const actionsButton = wrapper?.querySelector<HTMLElement>('.cm-code-block-actions');
+    actionsButton?.classList.toggle('cm-media-control--active', open);
+    actionsButton?.setAttribute('aria-expanded', String(open));
+    // Keeps Copy/Format visible too (not just Actions) for the duration
+    // the menu is open — `FencedCodeActionsMenu`'s `Overlay` is a portal
+    // outside `.cm-code-block`'s own DOM subtree, so
+    // `:hover`/`:focus-within` alone doesn't survive the pointer/focus
+    // moving into it.
+    wrapper
+      ?.querySelector('.cm-code-block-copy')
+      ?.classList.toggle('cm-code-block-copy--menu-open', open);
+    wrapper
+      ?.querySelector('.cm-code-block-format')
+      ?.classList.toggle('cm-code-block-format--menu-open', open);
+  }
+
+  const onOpenFencedCodeMenuRef = useRef<OnOpenFencedCodeMenu>(({ anchor, nodeFrom, nodeTo }) => {
+    setFencedCodeMenu((current) => {
+      // Compared by stable position, not DOM identity — see
+      // `setFencedCodeMenuButtonOpen`'s own doc comment for why a raw
+      // element reference can't be trusted here.
+      const closingSame = current !== null && current.nodeFrom === nodeFrom;
+      const view = viewRef.current;
+      if (current && view) {
+        setFencedCodeMenuButtonOpen(view, current.nodeFrom, false);
+      }
+      if (!closingSame && view) {
+        setFencedCodeMenuButtonOpen(view, nodeFrom, true);
+      }
+      if (closingSame) {
+        return null;
+      }
+      // Resolved fresh right now, at open time, purely to seed the
+      // Change Language submenu's checkmark — re-resolved again,
+      // independently, at actual selection time (see
+      // `handleChangeFencedCodeLanguage` below), never trusted as still
+      // current by then.
+      const info = view ? resolveFencedCodeInfoRange(view.state, nodeFrom) : null;
+      return { anchor: { current: anchor }, nodeFrom, nodeTo, currentRawInfo: info?.rawInfo ?? '' };
+    });
+  });
+
+  const closeFencedCodeMenu = () => {
+    const view = viewRef.current;
+    if (fencedCodeMenu && view) {
+      setFencedCodeMenuButtonOpen(view, fencedCodeMenu.nodeFrom, false);
+    }
+    setFencedCodeMenu(null);
+  };
+
+  // "Remove" — deletes the entire fenced code block (opening marker,
+  // content, closing marker); see `fencedCodeRemovalRange.ts`'s own doc
+  // comment for the exact range/blank-line rule. Plain CM6 undo restores
+  // it, same as every other edit.
+  const handleRemoveFencedCode = () => {
+    const view = viewRef.current;
+    if (!fencedCodeMenu || !view) {
+      return;
+    }
+    const { from, to } = computeFencedCodeRemovalRange(
+      view.state,
+      fencedCodeMenu.nodeFrom,
+      fencedCodeMenu.nodeTo
+    );
+    view.dispatch({ changes: { from, to, insert: '' } });
+  };
+
+  // "Change Language" — rewrites only the info string (`CodeInfo`, e.g.
+  // `js` in ` ```js `), never the code content. Re-resolves the exact
+  // range fresh from `fencedCodeMenu.nodeFrom` rather than trusting
+  // anything captured when the menu opened (the document may well have
+  // changed since — same "never trust a captured range" contract every
+  // other fenced-code control follows). Writes the lowercase canonical
+  // name (`javascript`, not `JavaScript`) — ordinary Markdown fence-info
+  // convention, and still an exact match for
+  // `fencedCodeLanguageDescriptions` either way
+  // (`LanguageDescription.of` lowercases its own alias list internally).
+  // The existing `codeLanguages`/highlighting/label machinery picks up
+  // the new language automatically on the next parse — nothing else to
+  // wire.
+  const handleChangeFencedCodeLanguage = (languageName: string) => {
+    const view = viewRef.current;
+    if (!fencedCodeMenu || !view) {
+      return;
+    }
+    const info = resolveFencedCodeInfoRange(view.state, fencedCodeMenu.nodeFrom);
+    if (!info) {
+      return;
+    }
+    view.dispatch({
+      changes: { from: info.from, to: info.to, insert: languageName.toLowerCase() },
+    });
+  };
+
   const handleSelectImageDisplayMode = (mode: ImageDisplayMode) => {
     const view = viewRef.current;
     if (!imageMenu || !view) {
@@ -625,6 +755,7 @@ export const MarkdownEditor = forwardRef<
         onOpenPdfMenu: () => onOpenPdfMenuRef.current,
         onOpenPage: () => onOpenPageRef.current,
         onOpenNoteEmbedMenu: () => onOpenNoteEmbedMenuRef.current,
+        onOpenFencedCodeMenu: () => onOpenFencedCodeMenuRef.current,
         resolveImageSrc: () => resolveImageSrcRef.current,
         resolveTag: () => resolveTagRef.current,
         getTagSuggestions: () => getTagSuggestionsRef.current,
@@ -822,6 +953,13 @@ export const MarkdownEditor = forwardRef<
         onClose={closeNoteEmbedMenu}
         onTurnIntoWikiLink={handleTurnNoteEmbedIntoWikiLink}
         onRemove={handleRemoveNoteEmbed}
+      />
+      <FencedCodeActionsMenu
+        anchor={fencedCodeMenu?.anchor ?? null}
+        onClose={closeFencedCodeMenu}
+        currentRawInfo={fencedCodeMenu?.currentRawInfo}
+        onChangeLanguage={handleChangeFencedCodeLanguage}
+        onRemove={handleRemoveFencedCode}
       />
     </>
   );

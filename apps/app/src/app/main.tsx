@@ -8,6 +8,7 @@ import { App } from './App';
 
 import '../design-system/tokens.css';
 import '../design-system/theme.css';
+import '../design-system/syntax-tokens.css';
 import '../design-system/styles/base.css';
 import '../design-system/styles/font.css';
 import '../design-system/styles/utilities.css';

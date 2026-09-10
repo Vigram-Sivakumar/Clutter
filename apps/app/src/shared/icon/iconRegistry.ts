@@ -11,8 +11,9 @@ import ArrowLeftSmallHead from './svg/arrow-left-small-head.svg?react';
 import ArrowRight from './svg/arrow-right.svg?react';
 import ArrowRightSmallHead from './svg/arrow-right-small-head.svg?react';
 import BookshelfBox from './svg/bookshelf-box.svg?react';
-import Butterfly from './svg/butterfly.svg?react';
 import BrokenImage from './svg/broken-image.svg?react';
+import Brush from './svg/brush.svg?react';
+import Butterfly from './svg/butterfly.svg?react';
 import CalendarBlank from './svg/calendar-blank.svg?react';
 import CalendarDot from './svg/calendar-dot.svg?react';
 import CalendarDots from './svg/calendar-dots.svg?react';
@@ -36,6 +37,7 @@ import Check from './svg/check.svg?react';
 import Copy from './svg/copy.svg?react';
 import CircleDashed from './svg/circle-dashed.svg?react';
 import Clock from './svg/clock.svg?react';
+import Code from './svg/code.svg?react';
 import Dismiss from './svg/dismiss.svg?react';
 import Download from './svg/download.svg?react';
 import Edit from './svg/edit.svg?react';
@@ -107,6 +109,7 @@ export const iconRegistry = {
   arrowRightSmallHead: ArrowRightSmallHead,
   bookshelfBox: BookshelfBox,
   brokenImage: BrokenImage,
+  brush: Brush,
   butterfly: Butterfly,
   calendar: CalendarBlank,
   calendarDot: CalendarDot,
@@ -132,6 +135,7 @@ export const iconRegistry = {
   copy: Copy,
   circleDashed: CircleDashed,
   clock: Clock,
+  code: Code,
   dismiss: Dismiss,
   download: Download,
   edit: Edit,

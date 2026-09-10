@@ -488,6 +488,11 @@
  */
 .cm-editor .cm-code-block {
   padding-block: var(--space-6);
+  font-family:
+    Roboto Mono,
+    monospace;
+  font-size: var(--text-label);
+  line-height: 24px;
 }
 
 /*
@@ -523,8 +528,8 @@
      making the card indistinguishable from the page background at any
      alpha — confirmed via direct computed-style comparison, not assumed. */
   background: color-mix(in srgb, var(--surface-secondary) 55%, transparent);
-  border-left: 0.5px solid var(--border-default);
-  border-right: 0.5px solid var(--border-default);
+  border-left: 1px solid var(--border-default);
+  border-right: 1px solid var(--border-default);
   padding-inline: var(--space-12);
 }
 
@@ -540,22 +545,34 @@
 }
 
 .cm-editor .cm-code-block-line--first {
-  border-top: 0.5px solid var(--border-default);
+  border-top: 1px solid var(--border-default);
   border-top-left-radius: var(--radius-md);
   border-top-right-radius: var(--radius-md);
 }
 
 .cm-editor .cm-code-block-line--last {
-  border-bottom: 0.5px solid var(--border-default);
+  border-bottom: 1px solid var(--border-default);
   border-bottom-left-radius: var(--radius-md);
   border-bottom-right-radius: var(--radius-md);
 }
+.cm-editor
+  .cm-code-block-line:not(.cm-code-block-line--first):not(
+    .cm-code-block-line--last
+  ) {
+  padding-block: 0;
+}
 
 /*
- * Reserves room for the language label + Copy button group on the block's
- * first line (`:has()` matching the button's own class — no separate
- * lookup needed) so a long raw fence/info string doesn't render underneath
- * the absolutely-positioned controls once engaged.
+ * Reserves room for Copy, Format (when present), and Actions in the
+ * block's first line (`:has()` matching Copy's own class — the widest
+ * case, all three present, is what the row needs room for; no separate
+ * lookup per button needed) so a long raw fence/info string doesn't
+ * render underneath them once engaged and hovered at the same time. Kept
+ * unconditional (not gated on `:hover`) so the buttons' reveal-on-hover
+ * below never shifts surrounding text. All three sit side by side inside
+ * the same `--space-96` inset (Format, Copy, Actions — left to right, see
+ * below), not stacked, so the reserved width doesn't need to grow per
+ * button.
  */
 .cm-editor .cm-code-block-line:has(.cm-code-block-copy) {
   padding-inline-end: var(--space-96);
@@ -568,27 +585,22 @@
  * `LanguageDescription.name` — see `fencedCode/fencedCodeLanguages.ts`'s
  * own doc comment). Plain, quiet text — not a pill/badge — matching the
  * restrained, text-only style every other marker-adjacent label in this
- * editor already uses. `position: absolute`, anchored against the owning
- * `.cm-code-block-line`'s own `position: relative` above. Right-aligned,
- * immediately left of the Copy button, offset by `.cm-media-control`'s own
- * fixed width (`--height-sm`, `mediaPresentation/MediaFloatingControls.css`)
- * plus a gap — a CSS-only offset, not a shared wrapper/flex-container,
- * since the label and the button stay independent decorations. `height`
- * matches `--height-sm` and centers the text against it, so the label sits
- * vertically centered against the button's own icon, not merely
- * top-aligned.
+ * editor already uses.
+ *
+ * **Left-aligned, in normal inline flow (2026-09-10 correction) — no
+ * `position`, no offset.** The widget already replaces `CodeInfo` at its
+ * own real document position (`fencedCodeLanguageLabelDecoration.ts`
+ * never moved) — right where the user originally typed the language, just
+ * after the (concealed) opening fence. The previous version pulled it out
+ * to the top-right via `position: absolute` to sit next to the Copy
+ * button; this reverts that positioning only, leaving the widget's own
+ * insertion point and the fence-conceal/reveal behavior around it
+ * untouched.
  */
 .cm-editor .cm-code-block-language {
-  position: absolute;
-  top: var(--space-4);
-  right: calc(var(--height-sm) + var(--space-8));
-  height: var(--height-sm);
-  display: flex;
-  align-items: center;
   color: var(--foreground-tertiary);
   font-size: var(--text-label-small);
   letter-spacing: 0.02em;
-  white-space: nowrap;
 }
 
 /*
@@ -598,17 +610,140 @@
  * unchanged; this rule only pulls it out of its inline insertion point
  * (`Decoration.widget`, positioned right after the language text/opening
  * fence on the document's own first physical line) into the card's visual
- * top-right corner, via `position: absolute` scoped to the owning
- * `.cm-code-block-line`'s own `position: relative` above.
+ * top-right area, via `position: absolute` scoped to the owning
+ * `.cm-code-block-line`'s own `position: relative` above. Sits between
+ * Format (further left) and Actions (rightmost, closest to the corner) —
+ * one button-width in from the edge.
+ *
+ * **Hidden at rest, revealed on hover/focus (2026-09-10)** — `opacity`/
+ * `pointer-events` only, no new element and no new container: the
+ * existing `.cm-code-block` wrapper (`fencedCodeBlockWrapper.ts`,
+ * `EditorView.blockWrappers`) already contains every line of this block,
+ * so `.cm-code-block:hover`/`:focus-within` reaching down to the button
+ * via an ordinary descendant selector needs nothing new. `:focus-within`
+ * (not just `:hover`) keeps the button visible while it — or anything
+ * else inside the block — has focus, so it doesn't vanish mid-interaction
+ * (e.g. right after a click, before the pointer has moved) even though
+ * the resting state stays fully hidden. `pointer-events: none` at rest
+ * keeps the invisible button from intercepting clicks meant for the code
+ * beneath it; it doesn't block keyboard `Tab` focus, so a keyboard user
+ * can still reach and activate it, which is what triggers `:focus-within`
+ * for them in the first place.
+ *
+ * **Also stays visible while Actions' menu is open** —
+ * `.cm-code-block-copy--menu-open`, toggled directly on this button by
+ * `MarkdownEditor.tsx`'s `setFencedCodeMenuButtonOpen` (a class on the
+ * button itself, not a `[data-menu-open]` attribute on the `.cm-code-block`
+ * wrapper — that was tried first and found unreliable live, since the
+ * wrapper is a `blockWrappers`-managed element `fencedCodeBlockWrapper.ts`
+ * can recompute on view updates, unlike this button's own more stable,
+ * `eq()`-guarded widget lifecycle). Needed because `FencedCodeActionsMenu`'s
+ * `Overlay` is a portal rendered outside this wrapper's own DOM subtree —
+ * once focus moves into it, `:focus-within` here no longer holds, so
+ * without this the row would collapse to just the Actions button (the one
+ * control with its own `--active` state) the moment its menu opened.
  */
 .cm-editor .cm-code-block-copy {
   position: absolute;
   top: var(--space-4);
-  right: var(--space-4);
+  right: calc(var(--space-4) + var(--height-sm) + var(--space-4));
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease;
+}
+
+.cm-editor .cm-code-block:hover .cm-code-block-copy,
+.cm-editor .cm-code-block:focus-within .cm-code-block-copy,
+.cm-editor .cm-code-block-copy.cm-code-block-copy--menu-open {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .cm-editor .cm-code-block-copy--copied {
   color: var(--foreground-primary);
+}
+
+/*
+ * Format control (`fencedCodeFormatButtonDecoration.ts`,
+ * `FencedCodeFormatButtonWidget`) — same `.cm-media-control` chrome,
+ * same absolute-positioned/hover-reveal treatment as Copy above, sits
+ * one button-width further from the edge (`--height-sm`, the fixed
+ * width `.cm-media-control` itself sets, plus one more `--space-4` gap)
+ * so the two sit side by side instead of overlapping — leftmost of the
+ * three controls (Copy, then Actions, sit progressively closer to the
+ * corner). Only ever present for a block whose language
+ * `codeFormatting.ts` recognizes as formattable — there is no "disabled"
+ * variant, an unsupported language
+ * simply has no Format button at all (`fencedCodeFormatButtonDecoration.ts`
+ * never emits the decoration for it), so no separate hidden/disabled
+ * state needs styling here.
+ */
+.cm-editor .cm-code-block-format {
+  position: absolute;
+  top: var(--space-4);
+  right: calc(
+    var(--space-4) + var(--height-sm) + var(--space-4) + var(--height-sm) + var(--space-4)
+  );
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease;
+}
+
+.cm-editor .cm-code-block:hover .cm-code-block-format,
+.cm-editor .cm-code-block:focus-within .cm-code-block-format,
+.cm-editor .cm-code-block-format.cm-code-block-format--menu-open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/*
+ * Brief error indicator when Prettier rejects the block's current content
+ * (invalid/incomplete code for its declared language) — same timed
+ * icon-swap-then-revert shape as `.cm-code-block-copy--copied` above, just
+ * the `--error` semantic status token (`theme.css`) instead of
+ * `--foreground-primary`, so a failed format attempt is visibly distinct
+ * from a successful one rather than indistinguishable silence.
+ */
+.cm-editor .cm-code-block-format--error {
+  color: var(--error);
+}
+
+/*
+ * "More actions" control (`fencedCodeActionsButtonDecoration.ts`,
+ * `FencedCodeActionsButtonWidget`) — same `.cm-media-control` chrome, same
+ * absolute-positioned/hover-reveal treatment as Copy/Format. Sits at the
+ * card's actual top-right corner (`right: var(--space-4)`, no added
+ * offset) — the rightmost of the three, with Copy and then Format
+ * stepping one button-width further left each (Format, Copy, Actions —
+ * left to right; see both rules above). Unconditional, like Copy — every
+ * fenced block gets this button, regardless of language, since Remove
+ * applies to all of them.
+ *
+ * `--active` (shared with every other "More actions" trigger in this
+ * editor, `MediaFloatingControls.css`'s `.cm-media-control--active`) is
+ * toggled by `MarkdownEditor.tsx`'s `setFencedCodeMenuButtonOpen` while
+ * its portal menu is open, and — since `:hover`/`:focus-within` alone
+ * wouldn't otherwise keep it visible once focus moves into that portal —
+ * also forces the button visible for that duration, the same
+ * `[data-menu-open]`-style reasoning `NoteEmbedWidget.ts`'s own more-
+ * actions button already establishes (here as a direct rule on the
+ * `--active` class itself, since this button has no wrapping
+ * `[data-menu-open]`-bearing container of its own to key off).
+ */
+.cm-editor .cm-code-block-actions {
+  position: absolute;
+  top: var(--space-4);
+  right: var(--space-4);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease;
+}
+
+.cm-editor .cm-code-block:hover .cm-code-block-actions,
+.cm-editor .cm-code-block:focus-within .cm-code-block-actions,
+.cm-editor .cm-code-block-actions.cm-media-control--active {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 /*

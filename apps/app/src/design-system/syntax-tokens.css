@@ -1,0 +1,87 @@
+/**
+ * Code syntax-highlighting color tokens — deliberately independent from
+ * theme.css's UI semantic tokens (--foreground-*, --accent, --success, ...).
+ * Syntax color is its own visual subsystem: it colors *language* content
+ * (keywords, strings, comments) inside a fenced code block, not app chrome,
+ * and its source of truth is VS Code's own built-in Dark+/Light+ default
+ * themes, not this app's brand palette. Consumed by
+ * `fencedCode/fencedCodeHighlighting.ts`'s `HighlightStyle`.
+ *
+ * Two layers, same shape as tokens.css → theme.css:
+ *   1. Static Dark+/Light+ palette constants (both defined unconditionally
+ *      in :root — these never change, they're just data).
+ *   2. Theme-reactive `--syntax-*` aliases, switched per [data-theme] the
+ *      same way theme.css's own semantic tokens already are — so
+ *      HighlightStyle's generated CSS (`.cmt-*` rules referencing
+ *      `var(--syntax-keyword)`, etc.) updates automatically on theme change
+ *      with zero JS involvement; the extension itself never needs rebuilding.
+ *
+ * Category coverage: matches exactly the color-bearing tag groups
+ * `@codemirror/language`'s own `defaultHighlightStyle` defines (the
+ * highlighter `fencedCodeHighlighting.ts` used before this change) —
+ * comment/keyword/string/regexp/number/variable/type/function/invalid.
+ * `defaultHighlightStyle` also carries a `tags.meta` color and several
+ * decoration-only specs (link/heading/emphasis/strong/strikethrough —
+ * text-decoration/font-style, no color) that are Markdown-tree concerns,
+ * not code syntax, and don't fire inside a nested JS/Python parse tree in
+ * practice; deliberately not ported here — see
+ * `fencedCode/fencedCodeHighlighting.ts` for where the new spec list lives.
+ */
+
+:root {
+  /* VS Code Dark+ (Default Dark) */
+  --syntax-dark-comment: #6a9955;
+  --syntax-dark-keyword: #569cd6;
+  --syntax-dark-string: #ce9178;
+  --syntax-dark-regexp: #d16969;
+  --syntax-dark-number: #b5cea8;
+  --syntax-dark-variable: #9cdcfe;
+  --syntax-dark-type: #4ec9b0;
+  --syntax-dark-function: #dcdcaa;
+  --syntax-dark-invalid: #f44747;
+  /* Color literals (CSS `#ff0000`) — coincides with --syntax-dark-string
+     in Dark+ (`support.constant.color` is also #CE9178 there), but do not
+     assume symmetry: Light+ gives this its own distinct value below. */
+  --syntax-dark-color: #ce9178;
+
+  /* VS Code Light+ (Default Light) */
+  --syntax-light-comment: #008000;
+  --syntax-light-keyword: #0000ff;
+  --syntax-light-string: #a31515;
+  --syntax-light-regexp: #811f3f;
+  --syntax-light-number: #098658;
+  --syntax-light-variable: #001080;
+  --syntax-light-type: #267f99;
+  --syntax-light-function: #795e26;
+  --syntax-light-invalid: #cd3131;
+  /* Genuinely distinct from --syntax-light-string (#A31515) — Light+'s
+     `support.constant.color` is its own dedicated blue, confirmed against
+     light_plus.json directly (not assumed symmetric with Dark+). */
+  --syntax-light-color: #0451a5;
+}
+
+[data-theme='dark'] {
+  --syntax-comment: var(--syntax-dark-comment);
+  --syntax-keyword: var(--syntax-dark-keyword);
+  --syntax-string: var(--syntax-dark-string);
+  --syntax-regexp: var(--syntax-dark-regexp);
+  --syntax-number: var(--syntax-dark-number);
+  --syntax-variable: var(--syntax-dark-variable);
+  --syntax-type: var(--syntax-dark-type);
+  --syntax-function: var(--syntax-dark-function);
+  --syntax-invalid: var(--syntax-dark-invalid);
+  --syntax-color: var(--syntax-dark-color);
+}
+
+[data-theme='light'] {
+  --syntax-comment: var(--syntax-light-comment);
+  --syntax-keyword: var(--syntax-light-keyword);
+  --syntax-string: var(--syntax-light-string);
+  --syntax-regexp: var(--syntax-light-regexp);
+  --syntax-number: var(--syntax-light-number);
+  --syntax-variable: var(--syntax-light-variable);
+  --syntax-type: var(--syntax-light-type);
+  --syntax-function: var(--syntax-light-function);
+  --syntax-invalid: var(--syntax-light-invalid);
+  --syntax-color: var(--syntax-light-color);
+}
