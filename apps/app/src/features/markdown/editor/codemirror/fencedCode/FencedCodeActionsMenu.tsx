@@ -1,15 +1,14 @@
-import type { RefObject } from 'react';
+import type { KeyboardEvent, RefObject } from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { LanguageDescription } from '@codemirror/language';
 
 import { Overlay } from '@components/overlay/Overlay';
 import { Menu } from '@components/menu/Menu';
 import { MenuItem } from '@components/menu/MenuItem';
-import { Entry } from '@components/entry/Entry';
 import { Search } from '@components/search/Search';
 import { Button } from '@components/button/Button';
 import { AppIcon } from '@shared/icon';
-import { useMenuKeyboard } from '@components/menu/useMenuKeyboard';
+import { useMenuContext } from '@components/menu/Menu.context';
 
 import { fencedCodeLanguageDescriptions } from './fencedCodeLanguages';
 
@@ -35,29 +34,49 @@ type MenuView = 'actions' | 'language';
 /**
  * The fenced-code-block "More actions" menu.
  *
- * **Change Language swaps this same Overlay's content in place — it does
- * NOT open a nested submenu/second Overlay.** *Locked, replaces the prior
- * `OverflowMenuBody`+submenu design.* The submenu mechanism
- * (`OverflowSubmenuTrigger` in `OverflowMenu.tsx`) is a real, second,
- * independently-anchored `Overlay`, which is the correct shape for a
- * short, static leaf list ("Copy path" → 2 options) but doesn't scale to
- * a list that grows into the dozens and needs search — a hover-opened
- * popout has no room for a search input and no natural "how many can fit"
- * ceiling. Deliberately NOT built on `OverflowMenuBody`/`OverflowMenu` at
- * all (this menu only ever has two top-level items, so nothing about the
- * generic item-config/submenu machinery is actually needed) — `Menu`/
- * `MenuItem` are composed directly instead, exactly as they already are
- * inside `OverflowMenuBody` itself, just without the layer that only
- * exists to support hover-opened submenus.
+ * **Change Language swaps this same `Menu`'s content in place — it does
+ * NOT open a nested submenu/second `Overlay`, and it is NOT a separate,
+ * custom menu container either.** *Locked, replaces both the original
+ * `OverflowMenuBody`+submenu design and this file's own first view-swap
+ * pass (which built a standalone `.fenced-code-language-picker` div
+ * instead of reusing `Menu`).* One shared `<Menu size="medium">` renders
+ * either the Actions items or the language list — both views get
+ * identical container styling, sizing, border/radius/shadow, and
+ * keyboard navigation for free, and `MenuItem` (not a hand-rolled
+ * `Entry` + manual `forceHover`/`onMouseEnter` wiring) drives every row
+ * in both views identically.
  *
- * **The language view is `FolderPicker.tsx`'s pattern, reused directly,
- * not reinvented**: a `Search` input holding real DOM focus, a plain
- * `useMenuKeyboard(listRef)` (not a real `<Menu>`, which would fight the
- * search input for focus-on-mount the same way `FolderPicker.tsx`'s own
- * doc comment already explains), and `Entry role="menuitem"` rows with
- * `forceHover` standing in for the "keyboard-active row looks hovered"
- * convention `MenuItem` itself uses. Verified against `FolderPicker.tsx`
- * before writing this rather than assumed.
+ * **`Menu`'s own `autoFocus` prop (added for this feature — see its own
+ * doc comment) is what makes this possible.** `Menu` always focuses its
+ * own container on mount; a search input needs that focus instead. This
+ * is investigated and confirmed as the *only* actual conflict — the
+ * keyboard/roving-active-item system (`useMenuKeyboard`, `MenuContext`)
+ * and `MenuItem` themselves have no assumption baked in about what holds
+ * real DOM focus, confirmed by reading `Menu.tsx`/`MenuItem.tsx`/
+ * `useMenuKeyboard.ts` directly before this pass, not assumed. With
+ * `autoFocus={false}` and `Search` rendered as a direct DOM child of
+ * `Menu`'s own container, keydown events bubble to `Menu`'s own
+ * `onKeyDown={keyboard.handleKeyDown}` natively — no manual
+ * event-forwarding needed (the standalone-container version of this file
+ * had to do exactly that manually, precisely because it wasn't a `Menu`
+ * descendant).
+ *
+ * **`aria-activedescendant` follows real DOM focus, not blindly copied
+ * onto the `Search` input.** `Menu`'s own container still carries its own
+ * `aria-activedescendant` (unconditionally, unchanged) — but since real
+ * focus lives on `Search` while the language view is showing, `Search`
+ * itself also carries `aria-activedescendant` pointing at the same
+ * `activeId`, matching the exact convention `FolderPicker.tsx` already
+ * established for this precise situation (a focused text input owning a
+ * virtually-navigated list below it) — not a newly-invented pattern.
+ *
+ * **`useMenuContext()` (the same hook `MenuItem` itself uses internally)
+ * is called directly by `LanguagePickerContent` below** — the only way to
+ * reach `Menu`'s own `{activeId, setActiveId}` from outside `MenuItem` is
+ * to be a React descendant of `Menu`'s own `MenuContext.Provider`, which
+ * requires this content to render *inside* `<Menu>`, not the other way
+ * around; this is why the language view's content is its own small
+ * component rather than inline JSX in `FencedCodeActionsMenu` itself.
  *
  * **Search matches against `LanguageDescription.alias` — the exact array
  * `codeLanguages`' own fence-info resolution uses — not a second,
@@ -71,14 +90,12 @@ type MenuView = 'actions' | 'language';
  *
  * **No Back button, and deliberately no back-navigation mechanism of any
  * kind.** *Locked.* The language view has no way to return to the Actions
- * view short of closing the whole menu and reopening it — Escape and the
- * backdrop click both go straight to `onClose` (`Overlay`'s existing,
- * unmodified single-callback contract), the same as the Actions view
- * itself. Reopening always lands back on the Actions view (the `anchor`
- * effect below resets `view` on every fresh open), which is what makes
- * this an acceptable simplification rather than a dead end: going back
- * costs one click-to-close plus one click-to-reopen, not a rebuild of the
- * fence's language choice.
+ * view short of closing the whole menu (Escape, the backdrop, or the
+ * dismiss button in the language view's own header) and reopening it —
+ * `Overlay`'s `onClose` always fully closes, the same for both views.
+ * Reopening always lands back on the Actions view (see the render-phase
+ * reset below), which is what makes this an acceptable simplification:
+ * going back costs one close-plus-reopen, not a rebuilt language choice.
  */
 export function FencedCodeActionsMenu({
   anchor,
@@ -90,8 +107,6 @@ export function FencedCodeActionsMenu({
   const [view, setView] = useState<MenuView>('actions');
   const [query, setQuery] = useState('');
   const searchRef = useRef<HTMLInputElement>(null);
-  const listRef = useRef<HTMLDivElement>(null);
-  const keyboard = useMenuKeyboard(listRef);
 
   // Every fresh open must start on the Actions view with an empty search
   // — `FencedCodeActionsMenu` itself never unmounts between opens (only
@@ -149,14 +164,6 @@ export function FencedCodeActionsMenu({
     );
   }, [normalizedQuery]);
 
-  useEffect(() => {
-    keyboard.setActiveId(filteredDescriptions[0]?.name);
-    // keyboard.setActiveId has a stable identity (useState setter) and is
-    // deliberately omitted — only a real change to the filtered set should
-    // reset which row is highlighted.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filteredDescriptions]);
-
   function selectLanguage(name: string) {
     onChangeLanguage?.(name);
     onClose();
@@ -170,81 +177,143 @@ export function FencedCodeActionsMenu({
       side="bottom"
       alignment="end"
     >
-      {view === 'actions' ? (
-        <Menu size="medium">
-          <MenuItem
-            leading={<AppIcon icon="code" />}
-            trailing={<AppIcon icon="chevronRight" />}
-            onClick={(event) => {
-              event.stopPropagation();
-              setView('language');
-            }}
-          >
-            Change Language
-          </MenuItem>
-          <div className="menu__divider" role="separator" />
-          <MenuItem
-            leading={<AppIcon icon="trash" />}
-            onClick={(event) => {
-              event.stopPropagation();
-              onRemove?.();
-              onClose();
-            }}
-          >
-            Remove
-          </MenuItem>
-        </Menu>
-      ) : (
-        <div className="fenced-code-language-picker">
-          <div className="fenced-code-language-picker__header">
-            <span className="fenced-code-language-picker__title">Change Language</span>
-            <Button
-              aria-label="Close"
-              onClick={onClose}
-              isIconOnly
-              variant="ghost"
-              interaction="subtle"
-              size="small"
+      <Menu size="medium" autoFocus={view === 'actions'}>
+        {view === 'actions' ? (
+          <>
+            <MenuItem
+              leading={<AppIcon icon="code" />}
+              trailing={<AppIcon icon="chevronRight" />}
+              onClick={(event) => {
+                event.stopPropagation();
+                setView('language');
+              }}
             >
-              <AppIcon icon="dismiss" />
-            </Button>
-          </div>
-
-          <Search
-            ref={searchRef}
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === ' ') {
-                return;
-              }
-              keyboard.handleKeyDown(event as unknown as React.KeyboardEvent<HTMLDivElement>);
-            }}
-            aria-activedescendant={keyboard.activeId}
-            placeholder="Search languages"
+              Change Language
+            </MenuItem>
+            <div className="menu__divider" role="separator" />
+            <MenuItem
+              leading={<AppIcon icon="trash" />}
+              onClick={(event) => {
+                event.stopPropagation();
+                onRemove?.();
+                onClose();
+              }}
+            >
+              Remove
+            </MenuItem>
+          </>
+        ) : (
+          <LanguagePickerContent
+            searchRef={searchRef}
+            query={query}
+            onQueryChange={setQuery}
+            filteredDescriptions={filteredDescriptions}
+            currentName={currentName}
+            onSelect={selectLanguage}
+            onClose={onClose}
           />
-
-          <div className="fenced-code-language-picker__list" ref={listRef}>
-            {filteredDescriptions.map((description) => (
-              <Entry
-                key={description.name}
-                id={description.name}
-                role="menuitem"
-                tabIndex={-1}
-                selected={description.name === currentName}
-                forceHover={keyboard.activeId === description.name}
-                onMouseEnter={() => keyboard.setActiveId(description.name)}
-                onClick={() => selectLanguage(description.name)}
-              >
-                {description.name}
-              </Entry>
-            ))}
-            {filteredDescriptions.length === 0 && (
-              <div className="fenced-code-language-picker__empty">No matching languages</div>
-            )}
-          </div>
-        </div>
-      )}
+        )}
+      </Menu>
     </Overlay>
+  );
+}
+
+interface LanguagePickerContentProps {
+  readonly searchRef: RefObject<HTMLInputElement>;
+  readonly query: string;
+  readonly onQueryChange: (query: string) => void;
+  readonly filteredDescriptions: readonly LanguageDescription[];
+  readonly currentName: string | null;
+  readonly onSelect: (name: string) => void;
+  readonly onClose: () => void;
+}
+
+/**
+ * Rendered as `Menu`'s own child — `useMenuContext()` (the same hook
+ * `MenuItem` itself calls) is only reachable from inside `Menu`'s own
+ * `MenuContext.Provider`, which is why this can't be inlined into
+ * `FencedCodeActionsMenu`'s own render body one level up.
+ */
+function LanguagePickerContent({
+  searchRef,
+  query,
+  onQueryChange,
+  filteredDescriptions,
+  currentName,
+  onSelect,
+  onClose,
+}: LanguagePickerContentProps) {
+  const { activeId, setActiveId } = useMenuContext();
+
+  // Highlights the first result as the active (keyboard-navigable) row
+  // whenever the filtered set changes — the same behavior
+  // `FolderPicker.tsx` establishes for its own search results, reused
+  // here for consistency, not coincidence.
+  useEffect(() => {
+    setActiveId(filteredDescriptions[0]?.name);
+    // setActiveId has a stable identity (useState setter) and is
+    // deliberately omitted — only a real change to the filtered set
+    // should reset which row is highlighted.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filteredDescriptions]);
+
+  return (
+    <>
+      <div className="fenced-code-language-picker__header">
+        <span className="fenced-code-language-picker__title">Change Language</span>
+        <Button
+          aria-label="Close"
+          onClick={onClose}
+          isIconOnly
+          variant="ghost"
+          interaction="subtle"
+          size="small"
+        >
+          <AppIcon icon="dismiss" />
+        </Button>
+      </div>
+
+      <Search
+        ref={searchRef}
+        value={query}
+        onChange={(event) => onQueryChange(event.target.value)}
+        onKeyDown={(event: KeyboardEvent<HTMLInputElement>) => {
+          // `useMenuKeyboard` treats Space as "activate the current
+          // item" — correct for a non-text-input menu, but this input
+          // must keep Space as a literal character (e.g. searching
+          // "Objective C"). Stopping propagation here keeps it from
+          // reaching `Menu`'s own `onKeyDown` (a sibling/ancestor
+          // synthetic listener); every other key (ArrowUp/Down/Home/
+          // End/Enter) is deliberately left to bubble there unchanged —
+          // `Search` is a real DOM child of `Menu`'s own container, so
+          // native bubbling delivers them without any manual forwarding.
+          if (event.key === ' ') {
+            event.stopPropagation();
+          }
+        }}
+        // `Menu`'s own container also carries `aria-activedescendant`
+        // unconditionally (unchanged) — but real DOM focus lives here
+        // while this view is showing, so this input carries it too,
+        // matching `FolderPicker.tsx`'s own established convention for
+        // exactly this shape (a focused text input virtually owning a
+        // list below it), not a newly-invented pattern.
+        aria-activedescendant={activeId}
+        placeholder="Search languages"
+      />
+
+      {filteredDescriptions.map((description) => (
+        <MenuItem
+          key={description.name}
+          id={description.name}
+          selected={description.name === currentName}
+          onClick={() => onSelect(description.name)}
+        >
+          {description.name}
+        </MenuItem>
+      ))}
+      {filteredDescriptions.length === 0 && (
+        <div className="fenced-code-language-picker__empty">No matching languages</div>
+      )}
+    </>
   );
 }

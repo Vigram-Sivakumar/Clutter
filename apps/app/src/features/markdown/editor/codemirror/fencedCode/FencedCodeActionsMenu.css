@@ -1,17 +1,9 @@
-.fenced-code-language-picker {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-8);
-
-  width: 220px;
-  max-height: calc(100dvh - 16px);
-
-  background: var(--surface-secondary);
-  border-radius: var(--radius-xxl);
-  padding: var(--space-8);
-
-  box-shadow: var(--shadow-inset-default), var(--shadow-md);
-}
+/* Everything about the container itself — background, border-radius,
+   shadow, width, scroll/max-height — now comes from the shared
+   `.menu`/`.menu--medium` classes (`Menu.tsx`, reused directly for both
+   the Actions and language views). Only the language view's own header
+   (title + dismiss button) and empty-state row are specific to this
+   file. */
 
 .fenced-code-language-picker__header {
   display: flex;
@@ -25,14 +17,6 @@
 
 .fenced-code-language-picker__title {
   color: var(--foreground-primary);
-}
-
-.fenced-code-language-picker__list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  overflow: auto;
-  overscroll-behavior: contain;
 }
 
 .fenced-code-language-picker__empty {
