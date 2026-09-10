@@ -194,34 +194,42 @@ describe('Fenced code "More actions" — Change Language is a view swap, not a n
     expect(document.activeElement).toBe(screen.getByPlaceholderText('Search languages'));
   });
 
-  it('the Back button returns to the Actions menu without closing the whole menu', () => {
+  it('has no Back button or any other back-navigation control — closing and reopening is the only way out of the language view', () => {
     render(<MarkdownEditor pageId="test-page" markdown={['```js', 'const x = 1;', '```'].join('\n')} />);
     openChangeLanguageSubmenu();
 
-    fireEvent.click(screen.getByLabelText('Back to actions'));
+    expect(screen.queryByLabelText('Back to actions')).toBeNull();
+    expect(screen.queryByLabelText(/back/i)).toBeNull();
+  });
 
-    expect(screen.queryByText('Remove')).not.toBeNull();
+  it('the Actions view\'s Change Language row shows a trailing affordance chevron', () => {
+    render(<MarkdownEditor pageId="test-page" markdown={['```js', 'const x = 1;', '```'].join('\n')} />);
+    openFencedCodeMenu();
+
+    const row = menuItemFor('Change Language');
+    expect(row.querySelector('.entry__trailing')).not.toBeNull();
+  });
+
+  it('the language view has a dismiss button that closes the whole menu directly', () => {
+    render(<MarkdownEditor pageId="test-page" markdown={['```js', 'const x = 1;', '```'].join('\n')} />);
+    openChangeLanguageSubmenu();
+
+    fireEvent.click(screen.getByLabelText('Close'));
+
+    expect(screen.queryByText('Change Language')).toBeNull();
+    expect(document.querySelector('.cm-code-block-actions')?.getAttribute('aria-expanded')).toBe(
+      'false'
+    );
+  });
+
+  it('Escape from the language view closes the whole menu directly — no intermediate back state', () => {
+    render(<MarkdownEditor pageId="test-page" markdown={['```js', 'const x = 1;', '```'].join('\n')} />);
+    openChangeLanguageSubmenu();
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+
+    expect(screen.queryByText('Change Language')).toBeNull();
     expect(screen.queryByPlaceholderText('Search languages')).toBeNull();
-  });
-
-  it('Escape while in the language view goes back to the Actions menu, not a full close', () => {
-    render(<MarkdownEditor pageId="test-page" markdown={['```js', 'const x = 1;', '```'].join('\n')} />);
-    openChangeLanguageSubmenu();
-
-    fireEvent.keyDown(document, { key: 'Escape' });
-
-    expect(screen.queryByText('Remove')).not.toBeNull();
-    expect(screen.queryByText('Change Language')).not.toBeNull();
-  });
-
-  it('a second Escape, now on the Actions menu, closes the whole menu', () => {
-    render(<MarkdownEditor pageId="test-page" markdown={['```js', 'const x = 1;', '```'].join('\n')} />);
-    openChangeLanguageSubmenu();
-
-    fireEvent.keyDown(document, { key: 'Escape' });
-    fireEvent.keyDown(document, { key: 'Escape' });
-
-    expect(screen.queryByText('Remove')).toBeNull();
     expect(document.querySelector('.cm-code-block-actions')?.getAttribute('aria-expanded')).toBe(
       'false'
     );
@@ -231,12 +239,11 @@ describe('Fenced code "More actions" — Change Language is a view swap, not a n
     render(<MarkdownEditor pageId="test-page" markdown={['```js', 'const x = 1;', '```'].join('\n')} />);
     openChangeLanguageSubmenu();
     fireEvent.change(screen.getByPlaceholderText('Search languages'), { target: { value: 'py' } });
-    fireEvent.keyDown(document, { key: 'Escape' }); // back to Actions
-    fireEvent.keyDown(document, { key: 'Escape' }); // full close
+    fireEvent.keyDown(document, { key: 'Escape' }); // full close, no back step
 
     openFencedCodeMenu();
 
-    expect(screen.queryByText('Change Language')).not.toBeNull();
+    expect(screen.queryByText('Remove')).not.toBeNull();
     expect(screen.queryByPlaceholderText('Search languages')).toBeNull();
   });
 

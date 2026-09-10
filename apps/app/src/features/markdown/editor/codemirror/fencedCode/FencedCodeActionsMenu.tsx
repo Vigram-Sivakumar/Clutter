@@ -69,14 +69,16 @@ type MenuView = 'actions' | 'language';
  * why `js` finds JavaScript (name aliased) and JSX (its own `jsx` alias)
  * with the exact same query.
  *
- * **Escape and the backdrop share one `onClose`, which goes back before it
- * closes — no change to `Overlay`/`useEscape` needed.** Both already funnel
- * into a single `onClose` prop on `Overlay`; `handleRequestClose` below
- * checks the current view first, so the *first* Escape (or backdrop click)
- * while the language view is open returns to the Actions view, and only a
- * second one (already back on the Actions view) actually closes the menu —
- * consistent with `Overlay`'s existing single-callback contract, not a
- * second dismissal mechanism layered on top of it.
+ * **No Back button, and deliberately no back-navigation mechanism of any
+ * kind.** *Locked.* The language view has no way to return to the Actions
+ * view short of closing the whole menu and reopening it — Escape and the
+ * backdrop click both go straight to `onClose` (`Overlay`'s existing,
+ * unmodified single-callback contract), the same as the Actions view
+ * itself. Reopening always lands back on the Actions view (the `anchor`
+ * effect below resets `view` on every fresh open), which is what makes
+ * this an acceptable simplification rather than a dead end: going back
+ * costs one click-to-close plus one click-to-reopen, not a rebuild of the
+ * fence's language choice.
  */
 export function FencedCodeActionsMenu({
   anchor,
@@ -91,16 +93,39 @@ export function FencedCodeActionsMenu({
   const listRef = useRef<HTMLDivElement>(null);
   const keyboard = useMenuKeyboard(listRef);
 
-  // Every fresh open starts on the Actions view with an empty search —
-  // `FencedCodeActionsMenu` itself never unmounts between opens (only its
-  // `Overlay` does), so without this a reopen would silently resume
+  // Every fresh open must start on the Actions view with an empty search
+  // — `FencedCodeActionsMenu` itself never unmounts between opens (only
+  // its `Overlay` does), so `view`/`query` would otherwise resume
   // wherever the previous open left off.
-  useEffect(() => {
-    if (anchor) {
+  //
+  // **Deliberately reset here, during render, not in a `useEffect`.** An
+  // effect-based reset (`useEffect(() => { if (anchor) setView('actions')
+  // }, [anchor])`, this file's own earlier version) runs *after* React
+  // has already committed and painted a frame with the stale `view` —
+  // reopening the menu right after leaving it on the language view
+  // visibly flashed the language picker for one frame before the effect
+  // corrected it a moment later. This is React's own documented pattern
+  // for "adjust state when a prop changes, no flash" instead: calling
+  // `setState` unconditionally during render, guarded so it only fires on
+  // the actual open transition, makes React re-render with the corrected
+  // state *before* committing anything to the screen — no intermediate
+  // frame with the old view is ever painted.
+  // `wasOpen` is `useState`, not `useRef` — React's own rule against
+  // reading/writing a ref during render (it isn't part of React's
+  // render-phase state model, and can double-fire under Strict Mode's
+  // deliberate double-invocation) is exactly why the sanctioned "adjust
+  // state during render" pattern tracks the previous value as state.
+  const [wasOpen, setWasOpen] = useState(anchor !== null);
+  const isOpen = anchor !== null;
+  if (isOpen !== wasOpen) {
+    setWasOpen(isOpen);
+    if (isOpen && view !== 'actions') {
       setView('actions');
+    }
+    if (isOpen && query !== '') {
       setQuery('');
     }
-  }, [anchor]);
+  }
 
   useEffect(() => {
     if (view === 'language') {
@@ -137,26 +162,19 @@ export function FencedCodeActionsMenu({
     onClose();
   }
 
-  function handleRequestClose() {
-    if (view === 'language') {
-      setView('actions');
-      return;
-    }
-    onClose();
-  }
-
   return (
     <Overlay
       open={anchor !== null}
-      onClose={handleRequestClose}
+      onClose={onClose}
       anchorRef={(anchor ?? { current: null }) as RefObject<HTMLElement>}
       side="bottom"
       alignment="end"
     >
       {view === 'actions' ? (
-        <Menu size="small">
+        <Menu size="medium">
           <MenuItem
             leading={<AppIcon icon="code" />}
+            trailing={<AppIcon icon="chevronRight" />}
             onClick={(event) => {
               event.stopPropagation();
               setView('language');
@@ -179,17 +197,17 @@ export function FencedCodeActionsMenu({
       ) : (
         <div className="fenced-code-language-picker">
           <div className="fenced-code-language-picker__header">
+            <span className="fenced-code-language-picker__title">Change Language</span>
             <Button
-              aria-label="Back to actions"
-              onClick={() => setView('actions')}
+              aria-label="Close"
+              onClick={onClose}
               isIconOnly
               variant="ghost"
               interaction="subtle"
               size="small"
             >
-              <AppIcon icon="chevronLeft" />
+              <AppIcon icon="dismiss" />
             </Button>
-            <span className="fenced-code-language-picker__title">Change Language</span>
           </div>
 
           <Search
