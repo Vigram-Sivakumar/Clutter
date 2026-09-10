@@ -194,47 +194,6 @@ describe('Fenced code "More actions" — Change Language is a view swap, not a n
     expect(document.activeElement).toBe(screen.getByPlaceholderText('Search languages'));
   });
 
-  it('initializes the active row to the currently selected language, not the first row in the list', () => {
-    render(<MarkdownEditor pageId="test-page" markdown={['```ts', 'const x: number = 1;', '```'].join('\n')} />);
-    openChangeLanguageSubmenu();
-
-    // TypeScript is well past JavaScript/JSX in the registry's own order
-    // — this only passes if the active row is genuinely resolved from
-    // the current fence, not defaulted to the first entry.
-    expect(screen.getByPlaceholderText('Search languages').getAttribute('aria-activedescendant')).toBe(
-      'TypeScript'
-    );
-    expect(menuItemFor('TypeScript').classList.contains('entry-force-hover')).toBe(true);
-    expect(menuItemFor('JavaScript').classList.contains('entry-force-hover')).toBe(false);
-  });
-
-  it('falls back to the first row when the current fence has no recognized language', () => {
-    render(
-      <MarkdownEditor pageId="test-page" markdown={['```not-a-real-language', 'x', '```'].join('\n')} />
-    );
-    openChangeLanguageSubmenu();
-
-    expect(screen.getByPlaceholderText('Search languages').getAttribute('aria-activedescendant')).toBe(
-      'JavaScript'
-    );
-  });
-
-  it('typing a search query still resets the active row to the first match, even though the picker opened on a selected language', () => {
-    render(<MarkdownEditor pageId="test-page" markdown={['```ts', 'const x: number = 1;', '```'].join('\n')} />);
-    openChangeLanguageSubmenu();
-    expect(screen.getByPlaceholderText('Search languages').getAttribute('aria-activedescendant')).toBe(
-      'TypeScript'
-    );
-
-    fireEvent.change(screen.getByPlaceholderText('Search languages'), { target: { value: 'py' } });
-
-    // Once searching, "first match" is correct — it must not snap back to
-    // TypeScript just because that's what the picker originally opened on.
-    expect(screen.getByPlaceholderText('Search languages').getAttribute('aria-activedescendant')).toBe(
-      'Python'
-    );
-  });
-
   it('has exactly one back-navigation control, in the language view\'s own header, not a separate control in the Actions view', () => {
     render(<MarkdownEditor pageId="test-page" markdown={['```js', 'const x = 1;', '```'].join('\n')} />);
     openFencedCodeMenu();

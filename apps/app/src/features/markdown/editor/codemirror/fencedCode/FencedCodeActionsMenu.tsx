@@ -248,35 +248,15 @@ function LanguagePickerContent({
 }: LanguagePickerContentProps) {
   const { activeId, setActiveId } = useMenuContext();
 
-  // On first entering this view (this component mounts fresh every time
-  // `view` swaps to 'language', since it's the alternate branch of a
-  // ternary — never kept alive across the swap), the active row should be
-  // the fence's *currently selected* language when it's present in the
-  // list, not always the first row — deliberately not pushed down into
-  // `useMenuKeyboard`/`Menu` itself: "what counts as selected" (`currentName`)
-  // is this consumer's own business logic, not a capability the shared
-  // menu system should know about (no other `Menu`/`MenuItem` consumer
-  // with a `selected` leaf — e.g. `OverflowSubmenuTrigger`'s own submenus —
-  // has ever auto-highlighted it on open either, confirmed before writing
-  // this). Every *subsequent* filter change (the user typing a search
-  // query) still resets to the first filtered result, unchanged — once
-  // the user is actively searching, "first match" is the right default,
-  // not "snap back to whatever was originally selected."
-  const hasInitializedRef = useRef(false);
+  // Highlights the first result as the active (keyboard-navigable) row
+  // whenever the filtered set changes — the same behavior
+  // `FolderPicker.tsx` establishes for its own search results, reused
+  // here for consistency, not coincidence.
   useEffect(() => {
-    if (!hasInitializedRef.current) {
-      hasInitializedRef.current = true;
-      const preferred = filteredDescriptions.find((description) => description.name === currentName);
-      setActiveId((preferred ?? filteredDescriptions[0])?.name);
-      return;
-    }
     setActiveId(filteredDescriptions[0]?.name);
     // setActiveId has a stable identity (useState setter) and is
     // deliberately omitted — only a real change to the filtered set
-    // should reset which row is highlighted. `currentName` never changes
-    // across this component's own lifetime (a language change closes the
-    // menu entirely), so it's read fresh inside the effect rather than
-    // listed as a dependency.
+    // should reset which row is highlighted.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filteredDescriptions]);
 
