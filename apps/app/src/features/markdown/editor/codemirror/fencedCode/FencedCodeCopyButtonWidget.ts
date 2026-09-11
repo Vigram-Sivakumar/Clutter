@@ -1,4 +1,7 @@
 import { WidgetType } from '@codemirror/view';
+import type { Rect } from '@codemirror/view';
+
+import { coordsAtFencedCodeControlWidget } from './fencedCodeControlWidgetCoords';
 
 const COPY_ICON = `<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="5" y="5" width="9" height="9" rx="1.5" stroke="currentColor"/><path d="M11 5V3.5C11 2.67157 10.3284 2 9.5 2H3.5C2.67157 2 2 2.67157 2 3.5V9.5C2 10.3284 2.67157 11 3.5 11H5" stroke="currentColor"/></svg>`;
 const CHECK_ICON = `<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 8.5L6.2 12L13 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
@@ -91,5 +94,15 @@ export class FencedCodeCopyButtonWidget extends WidgetType {
 
   override ignoreEvent(): boolean {
     return false;
+  }
+
+  // See `fencedCodeControlWidgetCoords.ts`'s own doc comment: this
+  // button's `position: absolute` (MarkdownEditor.css) means its own DOM
+  // rect is the wrong answer for "where is the document caret" whenever
+  // the caret sits exactly at this widget's shared anchor position —
+  // without this override, CM6's default `coordsAt` fallback would use
+  // that displaced rect instead.
+  override coordsAt(dom: HTMLElement): Rect | null {
+    return coordsAtFencedCodeControlWidget(dom);
   }
 }

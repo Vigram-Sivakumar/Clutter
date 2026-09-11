@@ -1,6 +1,8 @@
 import { EditorView, WidgetType } from '@codemirror/view';
+import type { Rect } from '@codemirror/view';
 
 import { formatCode } from './codeFormatting';
+import { coordsAtFencedCodeControlWidget } from './fencedCodeControlWidgetCoords';
 
 // Same glyph as `iconRegistry.ts`'s `brush` entry (`shared/icon/svg/brush.svg`)
 // — hand-copied, not imported, since this button lives in raw CM6
@@ -112,5 +114,15 @@ export class FencedCodeFormatButtonWidget extends WidgetType {
 
   override ignoreEvent(): boolean {
     return false;
+  }
+
+  // See `fencedCodeControlWidgetCoords.ts`'s own doc comment: this
+  // button's `position: absolute` (MarkdownEditor.css) means its own DOM
+  // rect is the wrong answer for "where is the document caret" whenever
+  // the caret sits exactly at this widget's shared anchor position —
+  // without this override, CM6's default `coordsAt` fallback would use
+  // that displaced rect instead.
+  override coordsAt(dom: HTMLElement): Rect | null {
+    return coordsAtFencedCodeControlWidget(dom);
   }
 }

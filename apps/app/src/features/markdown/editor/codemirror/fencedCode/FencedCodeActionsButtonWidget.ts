@@ -1,6 +1,8 @@
 import { WidgetType } from '@codemirror/view';
+import type { Rect } from '@codemirror/view';
 
 import { MORE_ICON } from '../mediaPresentation/embedControlIcons';
+import { coordsAtFencedCodeControlWidget } from './fencedCodeControlWidgetCoords';
 
 export interface OpenFencedCodeMenuParams {
   readonly anchor: HTMLElement;
@@ -70,5 +72,15 @@ export class FencedCodeActionsButtonWidget extends WidgetType {
 
   override ignoreEvent(): boolean {
     return false;
+  }
+
+  // See `fencedCodeControlWidgetCoords.ts`'s own doc comment: this
+  // button's `position: absolute` (MarkdownEditor.css) means its own DOM
+  // rect is the wrong answer for "where is the document caret" whenever
+  // the caret sits exactly at this widget's shared anchor position —
+  // without this override, CM6's default `coordsAt` fallback would use
+  // that displaced rect instead.
+  override coordsAt(dom: HTMLElement): Rect | null {
+    return coordsAtFencedCodeControlWidget(dom);
   }
 }
