@@ -25,11 +25,14 @@ import type { OnOpenFencedCodeMenu } from './codemirror/fencedCode/FencedCodeAct
 import { computeFencedCodeRemovalRange } from './codemirror/fencedCode/fencedCodeRemovalRange';
 import {
   resolveFencedCodeInfoRange,
+  resolveFencedCodeText,
   resolveFencedCodeBlockWrapper,
 } from './codemirror/fencedCode/fencedCodeInfoRange';
+import { resolveFileExtension } from './codemirror/fencedCode/fencedCodeFileExtension';
 import { getImageUiState, presentationOnlyEdit, setImageUiState, type ImageDisplayMode } from './codemirror/image/imageUiState';
 import { getImagePresentation, computeImagePresentationUpdate } from './codemirror/mediaPresentation/mediaPresentationUpdate';
 import { copyTextToClipboard } from '@shared/helpers/copyTextToClipboard';
+import { downloadTextFile } from '@shared/helpers/downloadTextFile';
 import type {
   MarkdownEditorHandle,
   MarkdownEditorProps,
@@ -580,6 +583,36 @@ export const MarkdownEditor = forwardRef<
     });
   };
 
+  // "Download code" — exports only the block's own `CodeText` (never the
+  // fences or the info string) via the native Save dialog. The filename
+  // suggestion (language → extension, `code.js`/`code.py`/... or `.txt`
+  // when unrecognized) is resolved once, synchronously, up front — it's
+  // only ever a courtesy default the Save dialog itself lets the user
+  // rename, so there's no staleness concern computing it before the
+  // dialog opens, unlike the code content itself: `downloadTextFile`'s own
+  // `getContent` callback isn't invoked until after the user has actually
+  // picked a destination, and re-reads `viewRef.current` fresh at that
+  // point too, not just the document position — the same "never trust
+  // anything captured before an async gap" contract
+  // `resolveFencedCodeBlockWrapper`'s own doc comment established applies
+  // to the view instance itself, not only DOM nodes: the dialog can stay
+  // open for as long as the user takes to choose a destination, during
+  // which the editor could in principle be torn down (e.g. switching
+  // notes) and `view` would otherwise be a stale reference.
+  const handleDownloadFencedCode = () => {
+    const view = viewRef.current;
+    if (!fencedCodeMenu || !view) {
+      return;
+    }
+    const nodeFrom = fencedCodeMenu.nodeFrom;
+    const info = resolveFencedCodeInfoRange(view.state, nodeFrom);
+    const extension = resolveFileExtension(info?.rawInfo ?? '');
+    void downloadTextFile(() => {
+      const currentView = viewRef.current;
+      return currentView ? resolveFencedCodeText(currentView.state, nodeFrom) : '';
+    }, `code${extension}`);
+  };
+
   const handleSelectImageDisplayMode = (mode: ImageDisplayMode) => {
     const view = viewRef.current;
     if (!imageMenu || !view) {
@@ -961,6 +994,7 @@ export const MarkdownEditor = forwardRef<
         onClose={closeFencedCodeMenu}
         currentRawInfo={fencedCodeMenu?.currentRawInfo}
         onChangeLanguage={handleChangeFencedCodeLanguage}
+        onDownload={handleDownloadFencedCode}
         onRemove={handleRemoveFencedCode}
       />
     </>

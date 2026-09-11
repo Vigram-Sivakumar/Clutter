@@ -26,6 +26,8 @@ export interface FencedCodeActionsMenuProps {
   readonly currentRawInfo?: string;
   /** Rewrites only the block's info string to `languageName` (one of `fencedCodeLanguageDescriptions`' own canonical `name`s, lowercased) — never touches the code content. See `fencedCodeInfoRange.ts`'s own doc comment for the exact range this replaces. */
   readonly onChangeLanguage?: (languageName: string) => void;
+  /** Exports the block's own `CodeText` (never the fences or the info string) to a user-chosen destination via the native Save dialog. See `downloadTextFile.ts`'s own doc comment for the download mechanism and `fencedCodeFileExtension.ts` for the language → extension mapping. */
+  readonly onDownload?: () => void;
   /** Deletes the entire fenced code block — opening marker, all content, closing marker. See `fencedCodeRemovalRange.ts`'s own doc comment for the exact range/blank-line rule. Plain CM6 undo restores it. */
   readonly onRemove?: () => void;
 }
@@ -116,6 +118,7 @@ export function FencedCodeActionsMenu({
   onClose,
   currentRawInfo,
   onChangeLanguage,
+  onDownload,
   onRemove,
 }: FencedCodeActionsMenuProps) {
   const [view, setView] = useState<MenuView>('actions');
@@ -194,9 +197,10 @@ export function FencedCodeActionsMenu({
       <Menu
         size="medium"
         autoFocus={view === 'actions'}
-        // `undefined` while on the Actions view — that view's two items
-        // (Change Language, Remove) never auto-highlight on open, exactly
-        // as before this option existed. While on the language view, this
+        // `undefined` while on the Actions view — that view's items
+        // (Change Language, Download code, Remove) never auto-highlight on
+        // open, exactly as before this option existed. While on the
+        // language view, this
         // is always either the current language's name or `null` (never
         // omitted), which is what tells `useMenuKeyboard` to actively
         // resolve an active row (current language if still present after
@@ -216,6 +220,16 @@ export function FencedCodeActionsMenu({
               }}
             >
               Change Language
+            </MenuItem>
+            <MenuItem
+              leading={<AppIcon icon="download" />}
+              onClick={(event) => {
+                event.stopPropagation();
+                onDownload?.();
+                onClose();
+              }}
+            >
+              Download code
             </MenuItem>
             <div className="menu__divider" role="separator" />
             <MenuItem

@@ -169,14 +169,14 @@ describe('Fenced code "More actions" — Change Language', () => {
 });
 
 describe('Fenced code "More actions" — Change Language is a view swap, not a nested submenu/overlay', () => {
-  it('the initial Actions menu shows only Change Language and Remove, with no language list yet', () => {
+  it('the initial Actions menu shows Change Language, Download code, and Remove, with no language list yet', () => {
     render(<MarkdownEditor pageId="test-page" markdown={['```js', 'const x = 1;', '```'].join('\n')} />);
     openFencedCodeMenu();
 
     const labels = Array.from(document.querySelectorAll<HTMLElement>('[role="menuitem"]')).map(
       (el) => el.textContent
     );
-    expect(labels).toEqual(['Change Language', 'Remove']);
+    expect(labels).toEqual(['Change Language', 'Download code', 'Remove']);
   });
 
   it('entering the language view replaces the Actions menu content in place — exactly one open overlay surface, not two', () => {

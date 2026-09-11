@@ -8,7 +8,11 @@ import { markdownLanguageExtension } from '../markdownLanguage';
 import { fencedCodeBlockWrapper } from '../highlight/fencedCodeBlockWrapper';
 import { fencedCodeCopyButtonDecoration } from '../highlight/fencedCodeCopyButtonDecoration';
 import { fencedCodeActionsButtonDecoration } from '../highlight/fencedCodeActionsButtonDecoration';
-import { resolveFencedCodeBlockWrapper, resolveFencedCodeInfoRange } from './fencedCodeInfoRange';
+import {
+  resolveFencedCodeBlockWrapper,
+  resolveFencedCodeInfoRange,
+  resolveFencedCodeText,
+} from './fencedCodeInfoRange';
 
 function mountView(doc: string): EditorView {
   const parent = document.createElement('div');
@@ -60,6 +64,35 @@ describe('resolveFencedCodeInfoRange', () => {
 
     expect(info?.rawInfo).toBe('');
     expect(info?.from).toBe(info?.to);
+  });
+});
+
+describe('resolveFencedCodeText', () => {
+  it('resolves the CodeText content, excluding the fences and the info string', () => {
+    const view = mountView(jsFence);
+    const text = resolveFencedCodeText(view.state, fencedCodeFrom(view));
+
+    expect(text).toBe('const hello = "world";');
+  });
+
+  it('resolves multi-line content verbatim, including a blank interior line', () => {
+    const doc = ['```js', 'const a = 1;', '', 'const b = 2;', '```'].join('\n');
+    const view = mountView(doc);
+    const text = resolveFencedCodeText(view.state, fencedCodeFrom(view));
+
+    expect(text).toBe('const a = 1;\n\nconst b = 2;');
+  });
+
+  it('returns an empty string for a genuinely empty fenced block (no CodeText child at all)', () => {
+    const view = mountView(['```js', '```'].join('\n'));
+    const text = resolveFencedCodeText(view.state, fencedCodeFrom(view));
+
+    expect(text).toBe('');
+  });
+
+  it('returns an empty string when the given position does not start a FencedCode block', () => {
+    const view = mountView(jsFence);
+    expect(resolveFencedCodeText(view.state, 9999)).toBe('');
   });
 });
 

@@ -1,6 +1,7 @@
 import { syntaxTree } from '@codemirror/language';
 import type { EditorState } from '@codemirror/state';
 import type { EditorView } from '@codemirror/view';
+import type { SyntaxNode } from '@lezer/common';
 
 export interface FencedCodeInfoRange {
   /** The `CodeInfo` node's own range, or — when there's no info string at all — the zero-width insertion point right after the opening fence marker. */
@@ -11,12 +12,28 @@ export interface FencedCodeInfoRange {
 }
 
 /**
+ * Re-resolves the live `FencedCode` node itself fresh from the syntax
+ * tree, given only its own stable `.from` — the "never trust a captured
+ * range, re-resolve at click/select time" contract every fenced-code
+ * control in this codebase follows (`fencedCodeCopyButtonDecoration.ts`'s
+ * own `nearestFencedCodeFrom` established the identical resolve-then-
+ * walk-up shape first). Shared by every resolver in this file so the walk
+ * itself is written once, not once per resolver.
+ */
+function resolveFencedCodeNode(state: EditorState, fencedCodeFrom: number): SyntaxNode | null {
+  let node = syntaxTree(state).resolveInner(fencedCodeFrom + 1, 1);
+  for (; node; node = node.parent!) {
+    if (node.name === 'FencedCode' && node.from === fencedCodeFrom) {
+      return node;
+    }
+  }
+  return null;
+}
+
+/**
  * Re-resolves a fenced code block's `CodeInfo` (language identifier) range
  * fresh from the live syntax tree, given only the block's own stable
- * `FencedCode.from` — the same "never trust a captured range, re-resolve
- * at click/select time" contract `fencedCodeCopyButtonDecoration.ts`'s own
- * `nearestFencedCodeFrom` already establishes, reused here via the
- * identical resolve-then-walk-up shape.
+ * `FencedCode.from`.
  *
  * Used by `FencedCodeActionsMenu.tsx`'s "Change Language" submenu, both to
  * read the block's *current* language (for the submenu's checkmark) and,
@@ -29,12 +46,7 @@ export function resolveFencedCodeInfoRange(
   state: EditorState,
   fencedCodeFrom: number
 ): FencedCodeInfoRange | null {
-  let node = syntaxTree(state).resolveInner(fencedCodeFrom + 1, 1);
-  for (; node; node = node.parent!) {
-    if (node.name === 'FencedCode' && node.from === fencedCodeFrom) {
-      break;
-    }
-  }
+  const node = resolveFencedCodeNode(state, fencedCodeFrom);
   if (!node) {
     return null;
   }
@@ -49,6 +61,26 @@ export function resolveFencedCodeInfoRange(
     return { from: codeInfo.from, to: codeInfo.to, rawInfo: state.sliceDoc(codeInfo.from, codeInfo.to) };
   }
   return { from: openMark.to, to: openMark.to, rawInfo: '' };
+}
+
+/**
+ * Re-resolves a fenced code block's own code content — the `CodeText`
+ * node, never the fences or the info string — fresh from the live syntax
+ * tree, given only the block's own stable `FencedCode.from`. Mirrors
+ * `fencedCodeCopyButtonDecoration.ts`'s own `getCode` closure exactly (the
+ * same "one contiguous `CodeText` node, no fence, no info string, no
+ * trailing newline before the closing fence" fact that closure's own doc
+ * comment already established), factored out here so "Download code"
+ * doesn't duplicate that resolution a second time. Returns `''` for a
+ * `FencedCode` node with no `CodeText` child at all (a genuinely empty
+ * block, or one whose fence is never closed) — never `null`; unlike the
+ * info range, there is no meaningful "block not found" distinction a
+ * caller needs to react to differently than "no content."
+ */
+export function resolveFencedCodeText(state: EditorState, fencedCodeFrom: number): string {
+  const node = resolveFencedCodeNode(state, fencedCodeFrom);
+  const codeText = node?.getChild('CodeText');
+  return codeText ? state.sliceDoc(codeText.from, codeText.to) : '';
 }
 
 /**
