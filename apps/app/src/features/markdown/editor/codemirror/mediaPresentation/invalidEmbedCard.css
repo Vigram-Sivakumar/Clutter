@@ -70,7 +70,6 @@
 .cm-editor .cm-invalid-embed {
   width: calc(100% - 1px);
   overflow: hidden;
-  margin-block: var(--space-4);
 }
 
 /* The one row `renderInvalidEmbedCard` builds — content (icon + title/

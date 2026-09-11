@@ -515,12 +515,13 @@
  * is the external gap between adjacent cards, via `padding-block`.
  */
 .cm-editor .cm-code-block {
-  padding-block: var(--space-6);
   font-family:
     Roboto Mono,
     monospace;
   font-size: var(--text-label);
+  border-radius: var(--radius-md);
   line-height: 24px;
+  box-shadow: var(--shadow-md);
   /* Line-number gutter (2026-09-11) — one native CSS counter per block,
      reset here so every block numbers its own lines starting at 1,
      independent of any other block or the document's own line numbers.
@@ -581,9 +582,13 @@
      confirmed via direct computed-style comparison, not assumed), so this
      one rule covers both themes with no separate light-mode override
      needed (see `syntax-tokens.css`'s own token definition for that split). */
-  background: color-mix(in srgb, var(--syntax-code-background) 55%, transparent);
-  border-left: 1px solid var(--syntax-code-border);
-  border-right: 1px solid var(--syntax-code-border);
+  background: color-mix(
+    in srgb,
+    var(--syntax-code-background) 55%,
+    transparent
+  );
+  border-left: 0.5px solid var(--border-strong);
+  border-right: 0.5px solid var(--border-strong);
   padding-inline: var(--space-12);
   /* Line-number gutter (2026-09-11) — reserves a column, sized to this
      block's own largest number (`--code-gutter-digits`, set per-block on
@@ -628,7 +633,10 @@
  * included, so the card's left edge stays flush across the label row, the
  * numbered body, and the closing row.
  */
-.cm-editor .cm-code-block-line:not(.cm-code-block-line--first):not(.cm-code-block-line--last) {
+.cm-editor
+  .cm-code-block-line:not(.cm-code-block-line--first):not(
+    .cm-code-block-line--last
+  ) {
   counter-increment: cm-code-block-line;
 }
 
@@ -696,16 +704,17 @@
 .cm-editor .cm-code-block-line--first,
 .cm-editor .cm-code-block-line--last {
   padding-inline-start: var(--space-12);
+  padding-block: var(--space-6);
 }
 
 .cm-editor .cm-code-block-line--first {
-  border-top: 1px solid var(--syntax-code-border);
+  border-top: 0.5px solid var(--border-strong);
   border-top-left-radius: var(--radius-md);
   border-top-right-radius: var(--radius-md);
 }
 
 .cm-editor .cm-code-block-line--last {
-  border-bottom: 1px solid var(--syntax-code-border);
+  border-bottom: 0.5px solid var(--border-strong);
   border-bottom-left-radius: var(--radius-md);
   border-bottom-right-radius: var(--radius-md);
 }

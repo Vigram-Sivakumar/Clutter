@@ -2,7 +2,7 @@
 import { HighlightStyle, defaultHighlightStyle } from '@codemirror/language';
 import { EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
-import { highlightTree } from '@lezer/highlight';
+import { highlightTree, tags } from '@lezer/highlight';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { markdownLanguageExtension } from '../markdownLanguage';
@@ -126,6 +126,53 @@ describe('fencedCodeHighlightSpecs — wired to design-system/syntax-tokens.css 
     expect(css).not.toMatch(/#[0-9a-fA-F]{3,6}/);
   });
 
+  it('maps a plain, unmodified variableName to --syntax-variable — the cross-language gap this file was audited against', () => {
+    // Direct style resolution, not a parse — this is the exact check that
+    // found the gap in the first place: `HighlightStyle.style([tags.variableName])`
+    // returned `null` before this rule existed, meaning every plain
+    // identifier reference (a CSS custom-property use/declaration, an
+    // ordinary JS/Python/Go/Rust/C/Java variable read, a SQL column name)
+    // rendered with no color at all across every registered language,
+    // since they all share this one @lezer/highlight tag.
+    const style = HighlightStyle.define(fencedCodeHighlightSpecs);
+    expect(style.style([tags.variableName])).toBeTruthy();
+  });
+
+  it('a CSS custom property — both the declaration and a var() reference — is highlighted once correctly scoped inside a rule', () => {
+    const cssLanguage = fencedCodeLanguageDescriptions.find((d) => d.name === 'CSS')!.support!
+      .language;
+    const scoped = HighlightStyle.define(fencedCodeHighlightSpecs, { scope: cssLanguage });
+
+    const cssFence = [
+      '```css',
+      ':root {',
+      '  --brand-color: #ff0000;',
+      '}',
+      '.x {',
+      '  color: var(--brand-color);',
+      '}',
+      '```',
+    ].join('\n');
+    const spans = highlightedSpans(cssFence, scoped);
+
+    const declPos = cssFence.indexOf('--brand-color:');
+    const refPos = cssFence.lastIndexOf('--brand-color');
+    expect(spans.some((s) => s.from <= declPos && s.to >= declPos + 1)).toBe(true);
+    expect(spans.some((s) => s.from <= refPos && s.to >= refPos + 1)).toBe(true);
+  });
+
+  it('a plain JS variable reference (not a definition, not a call) is highlighted', () => {
+    const jsLanguage = fencedCodeLanguageDescriptions.find((d) => d.name === 'JavaScript')!
+      .support!.language;
+    const scoped = HighlightStyle.define(fencedCodeHighlightSpecs, { scope: jsLanguage });
+
+    const doc = ['```js', 'function greet(name) {', '  return name;', '}', '```'].join('\n');
+    const spans = highlightedSpans(doc, scoped);
+
+    const refPos = doc.lastIndexOf('name');
+    expect(spans.some((s) => s.from <= refPos && s.to >= refPos + 1)).toBe(true);
+  });
+
   it('highlights a Python fence using the same token-backed specs (comment, keyword, string, number all present)', () => {
     const pyLanguage = fencedCodeLanguageDescriptions.find((d) => d.name === 'Python')!.support!
       .language;
@@ -146,6 +193,51 @@ describe('fencedCodeHighlightSpecs — wired to design-system/syntax-tokens.css 
     // At least the def/return keywords and the string/number literals
     // should have picked up a highlighter class.
     expect(allClasses.length).toBeGreaterThan(0);
+  });
+});
+
+describe('fencedCodeHighlightSpecs — shell builtin command names', () => {
+  it('resolves variableName.standard (tags.standard(tags.variableName)) to the same class as a function call, not a plain variable', () => {
+    // `@codemirror/legacy-modes`' shell mode tags builtin command names
+    // (`echo`, `cd`, `cat`, ...) as the string token type `"builtin"`,
+    // which `@codemirror/language`'s own fixed legacy-mode token table
+    // maps to `variableName.standard` — confirmed directly against the
+    // installed source, not assumed. Left unmapped, this would fall back
+    // via the tag hierarchy to the plain `variableName` rule (added
+    // above) and render variable-blue. Explicitly grouped with the
+    // function-color rules instead, matching the standard TextMate/VS
+    // Code convention of scoping shell builtins as
+    // `support.function.builtin.shell` (inheriting `support.function`'s
+    // color, the same one every other function name in this table uses).
+    const style = HighlightStyle.define(fencedCodeHighlightSpecs);
+
+    const builtinClass = style.style([tags.standard(tags.variableName)]);
+    const functionCallClass = style.style([tags.function(tags.variableName)]);
+    const plainVariableClass = style.style([tags.variableName]);
+
+    expect(builtinClass).toBeTruthy();
+    expect(builtinClass).toBe(functionCallClass);
+    expect(builtinClass).not.toBe(plainVariableClass);
+  });
+
+  it('a real shell fence colors a builtin command name (echo) differently from a plain variable reference ($NAME)', async () => {
+    const shellDescription = fencedCodeLanguageDescriptions.find((d) => d.name === 'Shell')!;
+    await shellDescription.load();
+
+    const scoped = HighlightStyle.define(fencedCodeHighlightSpecs, {
+      scope: shellDescription.support!.language,
+    });
+    const doc = ['```sh', 'echo "hi $NAME"', '```'].join('\n');
+    const spans = highlightedSpans(doc, scoped);
+
+    const echoPos = doc.indexOf('echo');
+    const namePos = doc.indexOf('$NAME');
+    const echoSpan = spans.find((s) => s.from <= echoPos && s.to >= echoPos + 1);
+    const nameSpan = spans.find((s) => s.from <= namePos && s.to >= namePos + 1);
+
+    expect(echoSpan?.classes).toBeTruthy();
+    expect(nameSpan?.classes).toBeTruthy();
+    expect(echoSpan?.classes).not.toBe(nameSpan?.classes);
   });
 });
 

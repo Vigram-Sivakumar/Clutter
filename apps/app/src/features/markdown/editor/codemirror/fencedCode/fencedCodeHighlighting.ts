@@ -101,6 +101,25 @@ export const fencedCodeHighlightSpecs = [
     ],
     color: 'var(--syntax-variable)',
   },
+  // Plain, unmodified `variableName` — an ordinary identifier *reference*
+  // (reading a variable, a CSS custom-property use/declaration, a SQL
+  // column/table name — not a definition and not a call site, both of
+  // which are already covered by the composed rule above). Confirmed
+  // missing via direct audit: `HighlightStyle.style([tags.variableName])`
+  // returned `null` before this rule existed, meaning every plain
+  // identifier reference across every registered language rendered with
+  // no color at all (inherited/default text color) — not merely a CSS
+  // issue, since `variableName` is the shared @lezer/highlight tag
+  // JavaScript/TypeScript, CSS, Python, C/C++, Java, Rust, Go, and SQL
+  // all use identically for this exact construct (each language's own
+  // `highlight.js` was read directly to confirm this, not assumed).
+  // `defaultHighlightStyle` has the same gap — this isn't a regression
+  // from that baseline, it's a real fix beyond it. Reuses
+  // `--syntax-variable` (the same token the composed variant above
+  // already uses) rather than a new token, since a plain reference and a
+  // definition are the same semantic category, just different moments in
+  // a variable's lifecycle.
+  { tag: tags.variableName, color: 'var(--syntax-variable)' },
   {
     tag: [tags.typeName, tags.namespace, tags.className],
     color: 'var(--syntax-type)',
@@ -129,6 +148,22 @@ export const fencedCodeHighlightSpecs = [
       // the plain `propertyName` rule above and rendered variable-blue
       // until this was added).
       tags.function(tags.propertyName),
+      // Shell builtin command names (`echo`, `cd`, `cat`, ...) —
+      // `@codemirror/legacy-modes`' own shell mode tags these as the
+      // string token type `"builtin"`, which `@codemirror/language`'s
+      // fixed legacy-mode token table (confirmed directly against its
+      // installed source) maps to `variableName.standard`, i.e.
+      // `tags.standard(tags.variableName)`. Left unmapped, this falls
+      // back (via the tag hierarchy) to the plain `variableName` rule
+      // above — variable-blue. Explicitly overridden to function-color
+      // instead: a builtin command name is "a well-known callable being
+      // invoked," the same category as every other entry in this group,
+      // not "a piece of data being referenced" — matching the standard
+      // TextMate/VS Code convention of scoping shell builtins as
+      // `support.function.builtin.shell`, which inherits `support.function`'s
+      // coloring (the same cream/olive already used for every other
+      // function name here), not `variable`'s.
+      tags.standard(tags.variableName),
     ],
     color: 'var(--syntax-function)',
   },
