@@ -538,20 +538,20 @@
  */
 .cm-editor .cm-code-block-line {
   position: relative;
-  /* EXPERIMENT (not final): semi-transparent, matching CM6's own
-     `.cm-activeLine` pattern (`#cceeff44`/`#99eeff33`, an alpha-channel
-     color) for coexisting with the selection layer's intentional
-     `z-index: -1` — see docs/editor-architecture-decisions.md's
-     selection-visibility investigation. Opaque `var(--syntax-code-background)`
-     painted above the negative-z-index selection layer; this uses the
-     same color, mixed down to partial opacity via color-mix(), instead of
-     a new rendering mechanism. `--syntax-code-background` already resolves
+  /* Semi-transparent, matching CM6's own `.cm-activeLine` pattern
+     (`#cceeff44`/`#99eeff33`, an alpha-channel color) so it coexists with
+     the selection layer's intentional `z-index: -1` — see
+     docs/editor-architecture-decisions.md's selection-visibility
+     investigation. Opaque `var(--syntax-code-background)` painted above
+     the negative-z-index selection layer; this uses the same color,
+     mixed down to partial opacity via color-mix(), instead of a new
+     rendering mechanism. `--syntax-code-background` already resolves
      differently per theme (dark: `--surface-secondary`; light:
      `--surface-tertiary`, since `--surface-secondary` resolves to the exact
      same value as `--surface-root` in light mode (`#f9f8f7`), making the
      card indistinguishable from the page background at any alpha —
      confirmed via direct computed-style comparison, not assumed), so this
-     one rule now covers both themes with no separate light-mode override
+     one rule covers both themes with no separate light-mode override
      needed (see `syntax-tokens.css`'s own token definition for that split). */
   background: color-mix(in srgb, var(--syntax-code-background) 55%, transparent);
   border-left: 1px solid var(--syntax-code-border);

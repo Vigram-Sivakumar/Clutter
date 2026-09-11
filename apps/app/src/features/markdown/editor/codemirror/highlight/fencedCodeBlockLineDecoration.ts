@@ -118,7 +118,19 @@ function buildFencedCodeLineDecorations(view: EditorView): DecorationSet {
         const owner = nearestFencedCode(view.state, probePos);
         if (owner) {
           const isFirst = line.from <= owner.from && owner.from <= line.to;
-          const isLast = line.from <= owner.to && owner.to <= line.to;
+          // `owner.to` is an exclusive boundary: when the block's closing
+          // fence (or, unclosed, its last content) is immediately followed
+          // by the document's own trailing newline, that boundary coincides
+          // with the `.from`/`.to` of the synthetic empty line CM6 always
+          // adds after a final `\n` — a line the syntax tree itself assigns
+          // no `FencedCode` owner. Probing `owner.to` directly against
+          // `line.to` would then match that ownerless phantom line instead
+          // of the block's real last line, leaving no line marked `--last`
+          // at all. Probing one position further back — the block's own
+          // last real character — always lands back inside the real last
+          // line, regardless of whether the doc has a trailing newline.
+          const lastRealPos = owner.to > owner.from ? owner.to - 1 : owner.to;
+          const isLast = line.from <= lastRealPos && lastRealPos <= line.to;
           // Compared by range, not object identity: separate
           // `resolveInner` calls (even against the same immutable syntax
           // tree) aren't guaranteed to hand back the same `SyntaxNode`

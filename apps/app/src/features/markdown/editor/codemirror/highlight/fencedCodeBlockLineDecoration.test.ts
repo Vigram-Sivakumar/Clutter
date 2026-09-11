@@ -76,6 +76,16 @@ describe('fencedCodeBlockLineDecoration (composed with fencedCodeBlockWrapper)',
   it('does not throw for an unclosed fence at document end', () => {
     expect(() => mountView(['before', '```js', 'const x = 1;'].join('\n'))).not.toThrow();
   });
+
+  it('an unclosed fence with only the opening/info line marks that line both --first and --last', () => {
+    const view = mountView('```css');
+    expect(edgeMarks(view)).toEqual(['both']);
+  });
+
+  it('an unclosed opening-only fence followed by the document\'s own trailing newline still marks its one real line both --first and --last', () => {
+    const view = mountView('```css\n');
+    expect(edgeMarks(view)).toEqual(['both', 'plain']);
+  });
 });
 
 function activeLineTexts(view: EditorView): string[] {

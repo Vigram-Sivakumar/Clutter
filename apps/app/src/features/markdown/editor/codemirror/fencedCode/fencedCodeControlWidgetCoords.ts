@@ -46,6 +46,13 @@ import type { Rect } from '@codemirror/view';
  * sibling can be found — this should not normally happen for these three
  * widgets (they're never the first thing on their line), but degrades to
  * the pre-existing behavior rather than throwing.
+ *
+ * **Maintenance note**: the sibling walk below depends on CM6 continuing
+ * to render same-position widgets as adjacent DOM siblings in decoration
+ * order — observed, current behavior, not a documented contract. If this
+ * regresses after a CodeMirror upgrade (the caret jumping to a button
+ * again), check the DOM adjacency/order of same-position widget elements
+ * first, before assuming the bug is elsewhere.
  */
 export function coordsAtFencedCodeControlWidget(dom: HTMLElement): Rect | null {
   let node: ChildNode | null = dom.previousSibling;
