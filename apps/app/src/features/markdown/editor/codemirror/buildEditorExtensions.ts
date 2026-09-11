@@ -33,6 +33,7 @@ import { horizontalRuleDecoration } from './hr/horizontalRuleDecoration';
 import type { OnImageClick, OnOpenImageMenu } from './image/ImageWidget';
 import { imageLivePreview } from './image/imageLivePreview';
 import { embedLivePreview } from './embed/embedLivePreview';
+import { fencedCodeFenceAutoClose } from './fencedCode/fencedCodeFenceAutoClose';
 import { fencedCodeHighlighting } from './fencedCode/fencedCodeHighlighting';
 import type { OnOpenPdfMenu, OnPdfEmbedClick } from './pdf/PdfEmbedWidget';
 import type { ResolveImageSrc } from './image/imageSrcResolution';
@@ -237,6 +238,7 @@ export function buildEditorExtensions(options: BuildEditorExtensionsOptions): Ex
     markdownEnterKeymap(),
     markdownIndentKeymap(),
     orderedListStructuralNormalization(),
+    fencedCodeFenceAutoClose(),
     ...rendering,
     // Mutates the document (replaces a code block's body on click) — kept
     // out of the shared `rendering` array above so a note embed's
