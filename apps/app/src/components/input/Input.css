@@ -4,7 +4,7 @@
   width: 100%;
   box-sizing: border-box;
 
-  height: var(--height-lg);
+  min-height: var(--height-lg);
   border-radius: var(--radius-lg);
   gap: var(--btn-gap-md);
   padding-inline: var(--space-6);
