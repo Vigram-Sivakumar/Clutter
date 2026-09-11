@@ -129,7 +129,6 @@ export function ImageOverlayMoreActions({
         variant="ghost"
         interaction="subtle"
         isIconOnly
-        isActive={open}
         aria-label="More actions"
         aria-haspopup="menu"
         aria-expanded={open}

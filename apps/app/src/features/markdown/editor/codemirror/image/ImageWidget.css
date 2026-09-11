@@ -400,13 +400,14 @@ body.cm-image-resizing-nesw .cm-image-container {
   opacity: 1;
 }
 
-/* Item 5 (2026-09-02 UX baseline): "the menu button may have an
-   active/open state" — the same size button that opens ImageOptionsMenu,
-   styled the same way any other toggled-on control in this codebase is
-   (`--state-selected`, e.g. Breadcrumb.css/ImagePicker.css's own
-   selected-item rules), via the shared `.cm-media-control--active` class
-   (MediaFloatingControls.css). Toggled by the same direct-DOM-mutation
-   mechanism as `[data-menu-open]` above, not a CSS-only `:focus`/`:active`
+/* The same size button that opens ImageOptionsMenu also gets the shared
+   `.cm-media-control--active` class (MediaFloatingControls.css) toggled
+   while that menu is open — carrying no background of its own (2026-09-11
+   canonical-behavior pass: a More-actions trigger does not get a
+   persistent open-state highlight anywhere in the app, matching
+   `OverflowMenu.tsx`'s own trigger), but still needed as the "is my menu
+   open" flag `[data-menu-open]` above depends on, via the same
+   direct-DOM-mutation mechanism, not a CSS-only `:focus`/`:active`
    pseudo-class — the menu itself is a portal-rendered Overlay, so this
    button's own DOM focus state doesn't reliably track "is my menu
    actually open" once focus moves into it. Button chrome itself

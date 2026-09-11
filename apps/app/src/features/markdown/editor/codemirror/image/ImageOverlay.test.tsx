@@ -357,13 +357,13 @@ describe('ImageOverlay', () => {
         expect(button.classList.contains('cm-media-control')).toBe(false);
       });
 
-      it('the button is active while the menu is open, via Button\'s own isActive class, not .cm-media-control--active', () => {
+      it('the button gets no persistent open-state class while the menu is open — no isActive, no .cm-media-control--active (2026-09-11 canonical-behavior pass: no More-actions trigger anywhere in the app keeps a background while open)', () => {
         render(<ImageOverlay image={localImage} onClose={vi.fn()} />);
 
         const button = screen.getByRole('button', { name: 'More actions' });
         fireEvent.click(button);
 
-        expect(button.classList.contains('button--active')).toBe(true);
+        expect(button.classList.contains('button--active')).toBe(false);
         expect(button.classList.contains('cm-media-control--active')).toBe(false);
       });
 
