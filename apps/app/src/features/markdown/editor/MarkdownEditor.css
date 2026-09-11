@@ -14,8 +14,36 @@
   outline: none;
 }
 
+/*
+ * `overflow: visible`, not CM6's own `auto` default — `.cm-scroller` is
+ * never actually the scrolling element in this app's layout. `EditorView.
+ * lineWrapping` (createEditorView.ts) lets the editor's content grow to
+ * its full height, and the page shell's own container (`Page.tsx`'s
+ * `.page__content`, `overflow-y: auto`) is what actually scrolls —
+ * confirmed by direct measurement: scrolling a long document leaves
+ * `.cm-scroller.scrollTop` at `0` throughout while `.page__content.
+ * scrollTop` moves (see `editorHistoryCache.ts`'s `domScrollTop` doc
+ * comment for the original finding, and `MarkdownEditor.tsx`'s
+ * `findScrollableAncestor`, which already depends on this). Horizontal
+ * scrolling is never supported either way — every line wraps
+ * (`lineWrapping` again), including inside fenced code, so `.cm-scroller`
+ * never needs to clip or scroll on that axis.
+ *
+ * With `auto`, `.cm-scroller` still established a clipping box on its
+ * padding edge regardless of whether either axis ever actually
+ * overflowed — CSS `overflow` clips descendants at the element's own box
+ * even when nothing needs to scroll. That silently clipped anything a
+ * descendant painted outside its own layout box, most visibly a fenced
+ * code block's `box-shadow` (`.cm-code-block`, below): the block spans
+ * `.cm-scroller`'s full inline width with no horizontal slack, so the
+ * shadow's blur was cut on the left/right the instant it exceeded the
+ * ~0px gap there, while surviving downward wherever trailing document
+ * content happened to leave the scroller's own bottom edge further away.
+ * `visible` removes that clipping boundary at its source — no spacer DOM,
+ * padding reservation, or shadow-specific workaround needed.
+ */
 .markdown__editor .cm-scroller {
-  overflow: auto;
+  overflow: visible;
 }
 
 .markdown__editor .cm-content {
