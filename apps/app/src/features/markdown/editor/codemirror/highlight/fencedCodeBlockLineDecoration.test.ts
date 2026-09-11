@@ -142,4 +142,22 @@ describe('fencedCodeBlockLineDecoration — active line', () => {
     view.dispatch({ selection: { anchor: from, head: to } });
     expect(activeLineTexts(view)).toEqual(['const b = 2;']);
   });
+
+  it('never marks the opening fence line active, even with the caret on it', () => {
+    const view = mountView(doc);
+    view.dispatch({ selection: { anchor: view.state.doc.line(2).from } }); // "```js"
+    expect(activeLineTexts(view)).toEqual([]);
+  });
+
+  it('never marks the closing fence line active, even with the caret on it', () => {
+    const view = mountView(doc);
+    view.dispatch({ selection: { anchor: view.state.doc.line(5).from } }); // "```"
+    expect(activeLineTexts(view)).toEqual([]);
+  });
+
+  it('never marks a single-line/empty fence (both --first and --last) active', () => {
+    const view = mountView('```css');
+    view.dispatch({ selection: { anchor: view.state.doc.line(1).from } }); // "```css"
+    expect(activeLineTexts(view)).toEqual([]);
+  });
 });

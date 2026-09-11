@@ -43,8 +43,11 @@ import type { SyntaxNode } from '@lezer/common';
  * both modifiers at once, which composes correctly since the two rules
  * touch disjoint edges.
  *
- * **`cm-code-block-line--active` (2026-09-11):** the one line containing
- * `state.selection.main.head`, but only when that position's own nearest
+ * **`cm-code-block-line--active` (2026-09-11, code-content-only 2026-09-12):**
+ * the one *code-content* line containing `state.selection.main.head` —
+ * never the opening (` ```lang`) or closing (` ``` `) fence line, even
+ * while the caret sits on one of them, since those are structural
+ * Markdown syntax, not code — and only when that position's own nearest
  * `FencedCode` ancestor is the *same node* that owns the line being
  * decorated — deliberately head-only, not every line touched by a
  * multi-line selection (a current-line indicator, not a second selection
@@ -137,7 +140,17 @@ function buildFencedCodeLineDecorations(view: EditorView): DecorationSet {
           // object for the same underlying node, only an equivalent one —
           // a `FencedCode` node's own `[from, to)` is a reliable, cheap
           // proxy for "is this the same block" instead.
+          //
+          // `!isFirst && !isLast` (2026-09-12): the opening (` ```lang`)
+          // and closing (` ``` `) fence lines are structural Markdown
+          // syntax, not code content — they never get the active-line
+          // background, even while the caret sits on one of them. A
+          // single-line/empty block (`isFirst && isLast` on its one line,
+          // per the border-composition fix above) has no code-content line
+          // at all, so it's correctly never active either.
           const isActive =
+            !isFirst &&
+            !isLast &&
             line.from === caretLine.from &&
             caretOwner !== null &&
             owner.from === caretOwner.from &&
