@@ -43,6 +43,20 @@ import type { SyntaxNode } from '@lezer/common';
  * both modifiers at once, which composes correctly since the two rules
  * touch disjoint edges.
  *
+ * **`cm-code-block-line--active` (2026-09-11):** the one line containing
+ * `state.selection.main.head`, but only when that position's own nearest
+ * `FencedCode` ancestor is the *same node* that owns the line being
+ * decorated — deliberately head-only, not every line touched by a
+ * multi-line selection (a current-line indicator, not a second selection
+ * highlight; the selection layer already renders the selected range
+ * itself). Reuses this file's own `nearestFencedCode` for the caret's
+ * position, the same "which FencedCode node owns this position" query
+ * already used for line membership, so a caret in one block never marks a
+ * line active in some other block. Recomputed on `selectionSet` in
+ * addition to `docChanged`/`viewportChanged` below — the same trigger
+ * `fencedCodeLanguageLabelDecoration.ts` already uses for its own
+ * per-caret-position recompute.
+ *
  * **No `margin` anywhere in this file** — the external gap between
  * adjacent cards is `fencedCodeBlockWrapper.ts`'s `.cm-code-block`'s own
  * `padding-block`, never a property here.
@@ -57,13 +71,16 @@ import type { SyntaxNode } from '@lezer/common';
  * excluding lines genuinely outside it; only the first/last *modifier*
  * classes are derived from the owning node's own boundary positions.
  */
-function fencedCodeLineMark(isFirst: boolean, isLast: boolean): Decoration {
+function fencedCodeLineMark(isFirst: boolean, isLast: boolean, isActive: boolean): Decoration {
   const classes = ['cm-code-block-line'];
   if (isFirst) {
     classes.push('cm-code-block-line--first');
   }
   if (isLast) {
     classes.push('cm-code-block-line--last');
+  }
+  if (isActive) {
+    classes.push('cm-code-block-line--active');
   }
   return Decoration.line({ attributes: { class: classes.join(' ') } });
 }
@@ -86,6 +103,10 @@ function buildFencedCodeLineDecorations(view: EditorView): DecorationSet {
   const builder = new RangeSetBuilder<Decoration>();
   const seenLines = new Set<number>();
 
+  const caretPos = view.state.selection.main.head;
+  const caretLine = view.state.doc.lineAt(caretPos);
+  const caretOwner = nearestFencedCode(view.state, caretPos);
+
   for (const { from, to } of view.visibleRanges) {
     let pos = from;
     while (pos <= to) {
@@ -98,7 +119,18 @@ function buildFencedCodeLineDecorations(view: EditorView): DecorationSet {
         if (owner) {
           const isFirst = line.from <= owner.from && owner.from <= line.to;
           const isLast = line.from <= owner.to && owner.to <= line.to;
-          builder.add(line.from, line.from, fencedCodeLineMark(isFirst, isLast));
+          // Compared by range, not object identity: separate
+          // `resolveInner` calls (even against the same immutable syntax
+          // tree) aren't guaranteed to hand back the same `SyntaxNode`
+          // object for the same underlying node, only an equivalent one —
+          // a `FencedCode` node's own `[from, to)` is a reliable, cheap
+          // proxy for "is this the same block" instead.
+          const isActive =
+            line.from === caretLine.from &&
+            caretOwner !== null &&
+            owner.from === caretOwner.from &&
+            owner.to === caretOwner.to;
+          builder.add(line.from, line.from, fencedCodeLineMark(isFirst, isLast, isActive));
         }
       }
 
@@ -123,7 +155,7 @@ export function fencedCodeBlockLineDecoration(): Extension {
       }
 
       update(update: ViewUpdate) {
-        if (update.docChanged || update.viewportChanged) {
+        if (update.docChanged || update.viewportChanged || update.selectionSet) {
           this.decorations = buildFencedCodeLineDecorations(update.view);
         }
       }

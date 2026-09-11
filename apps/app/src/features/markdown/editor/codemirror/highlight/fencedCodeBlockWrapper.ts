@@ -55,11 +55,48 @@ import { BlockWrapper, EditorView } from '@codemirror/view';
  * on its own; CM6 re-invokes it exactly when it needs the current wrapper
  * set, the same recomputation guarantee a `ViewPlugin`'s own `update()`
  * would otherwise have to reimplement by hand.
+ *
+ * **`--code-gutter-digits` (2026-09-11): each block's own line-number
+ * gutter width, as a CSS custom property set directly on this wrapper.**
+ * Line numbers themselves are rendered by plain CSS (`counter-reset` here,
+ * `counter-increment`/`::before` per line in `MarkdownEditor.css`) rather
+ * than a per-line JS widget — see this feature's own architecture
+ * investigation: a widget decoration would mean constructing one DOM node
+ * per visible code line purely to hold text a CSS counter already produces
+ * natively, for no benefit (numbering, per-block reset, and blank-line
+ * inclusion all fall out of `counter()` scoping for free). The one thing
+ * CSS counters can't derive on their own is *how wide* the gutter column
+ * needs to be so a 1-digit and a 3-digit block both right-align cleanly —
+ * that's a real per-block fact (this node's own line count), computed once
+ * here (where the node is already being visited) and threaded down via a
+ * custom property, since `BlockWrapper.attributes` is a plain per-instance
+ * object (confirmed against the installed source: `BlockWrapperTile.domAttrs`
+ * returns `wrapper.attributes` directly, applied via `dom.setAttribute`,
+ * and `BlockWrapper.eq` already compares attributes for equality — so a
+ * differing digit count between two renders is correctly detected as a
+ * real DOM update, not silently reused from the old wrapper). Building one
+ * `BlockWrapper` per node (rather than reusing a single shared constant,
+ * as before) is what makes this possible.
  */
-const FENCED_CODE_BLOCK_WRAPPER = BlockWrapper.create({
-  tagName: 'div',
-  attributes: { class: 'cm-code-block' },
-});
+function fencedCodeBlockWrapperFor(view: EditorView, node: { from: number; to: number }): BlockWrapper {
+  const firstLine = view.state.doc.lineAt(node.from).number;
+  const lastLine = view.state.doc.lineAt(node.to).number;
+  // The fence-marker lines themselves (the node's own opening/closing ```
+  // lines) are never numbered — see MarkdownEditor.css's own
+  // `:not(--first):not(--last)` scoping for why — so the largest number
+  // that will actually be displayed is the *content* line count, not the
+  // block's total physical line count. Clamped to at least 1 so a
+  // fence-only/empty block (or the degenerate single-physical-line case,
+  // where the opening and closing fence collapse onto one line) never
+  // computes a zero- or negative-width gutter.
+  const contentLineCount = Math.max(1, lastLine - firstLine + 1 - 2);
+  const digits = String(contentLineCount).length;
+
+  return BlockWrapper.create({
+    tagName: 'div',
+    attributes: { class: 'cm-code-block', style: `--code-gutter-digits: ${digits};` },
+  });
+}
 
 function buildFencedCodeBlockWrappers(view: EditorView): Range<BlockWrapper>[] {
   const ranges: Range<BlockWrapper>[] = [];
@@ -72,7 +109,7 @@ function buildFencedCodeBlockWrappers(view: EditorView): Range<BlockWrapper>[] {
         if (node.name !== 'FencedCode') {
           return;
         }
-        ranges.push(FENCED_CODE_BLOCK_WRAPPER.range(node.from, node.to));
+        ranges.push(fencedCodeBlockWrapperFor(view, node).range(node.from, node.to));
       },
     });
   }

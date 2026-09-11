@@ -493,6 +493,16 @@
     monospace;
   font-size: var(--text-label);
   line-height: 24px;
+  /* Line-number gutter (2026-09-11) — one native CSS counter per block,
+     reset here so every block numbers its own lines starting at 1,
+     independent of any other block or the document's own line numbers.
+     `--code-gutter-digits` is set per-instance on this exact element by
+     `fencedCodeBlockWrapper.ts` (this block's own line count's digit
+     width) and inherits down to every child `.cm-code-block-line` below,
+     sizing the reserved gutter column to fit this block's own largest
+     number without guessing a fixed width that's wrong for either a
+     3-line or a 300-line block. */
+  counter-reset: cm-code-block-line;
 }
 
 /*
@@ -531,6 +541,104 @@
   border-left: 1px solid var(--border-default);
   border-right: 1px solid var(--border-default);
   padding-inline: var(--space-12);
+  /* Line-number gutter (2026-09-11) — reserves a column, sized to this
+     block's own largest number (`--code-gutter-digits`, set per-block on
+     the `.cm-code-block` wrapper above and inherited down to here), plus
+     the same `--space-12` gap the rest of this card's padding already
+     uses on both sides, so the gutter reads as one more `--space-12`-based
+     inset rather than a bespoke width. Overrides only the start side of
+     the `padding-inline` shorthand above — declared after it in this same
+     rule, so source order (not specificity) is what makes it win.
+     `padding`, never `margin`, per this codebase's permanent fenced-code
+     layout rule (see this file's own doc comment above). */
+  padding-inline-start: calc(
+    var(--code-gutter-digits, 2) * 1ch + var(--space-12) * 2
+  );
+}
+
+/*
+ * The line number itself — a `::before` pseudo-element, not a per-line
+ * decoration widget (see `fencedCodeBlockWrapper.ts`'s own doc comment for
+ * why: `counter()` already gives per-block-reset, blank-line-inclusive,
+ * one-per-logical-line numbering for free, with zero JS per line).
+ * Positioned inside the padding the previous rule's own gutter reservation
+ * carves out — `position: absolute` here never affects layout/flow the way
+ * `margin` would, and `.cm-code-block-line`'s own `position: relative`
+ * (declared above) is what scopes it to this exact line's box, the same
+ * mechanism the language label and Copy button already rely on.
+ * `user-select`/`pointer-events: none` keep the number out of clipboard
+ * copies and click-to-position hit-testing, matching how a real gutter's
+ * numbers behave in every editor these reference screenshots came from.
+ *
+ * **Scoped to `:not(--first):not(--last)` — the block's own fence-marker
+ * lines are deliberately never numbered.** `--first`/`--last` mark the
+ * physical lines containing the `FencedCode` node's own opening/closing
+ * ``` marks (the language-label row and the otherwise-empty closing-fence
+ * row) — real document lines this feature's line-ownership already
+ * tracks, but not *code* lines a user would ever count as "line 1" of
+ * their snippet. Excluding them from both `counter-increment` and this
+ * `::before` keeps the visible numbering starting at 1 on the first real
+ * content line, matching the reference screenshots (which number actual
+ * code, with no fence syntax to account for) — while the gutter's own
+ * reserved padding (previous rule) still applies to every line, first/last
+ * included, so the card's left edge stays flush across the label row, the
+ * numbered body, and the closing row.
+ */
+.cm-editor .cm-code-block-line:not(.cm-code-block-line--first):not(.cm-code-block-line--last) {
+  counter-increment: cm-code-block-line;
+}
+
+.cm-editor
+  .cm-code-block-line:not(.cm-code-block-line--first):not(
+    .cm-code-block-line--last
+  )::before {
+  content: counter(cm-code-block-line);
+  position: absolute;
+  left: var(--space-12);
+  top: 0;
+  width: calc(var(--code-gutter-digits, 2) * 1ch);
+  text-align: right;
+  color: var(--syntax-gutter-number);
+  user-select: none;
+  pointer-events: none;
+}
+
+/*
+ * Current-line highlight (2026-09-11) — the one line containing the caret,
+ * only while the caret is inside *this* fenced block
+ * (`fencedCodeBlockLineDecoration.ts` computes `--active` from
+ * `selection.main.head`'s own nearest `FencedCode` ancestor, head-only —
+ * not every line touched by a multi-line selection, which the selection
+ * layer already highlights on its own). Deliberately no separate gutter
+ * background token: this rule paints the *entire* line box, which already
+ * includes the gutter's reserved `padding-inline-start` region above (the
+ * gutter isn't a separate element), so the highlight extends continuously
+ * from the line number through the code content in one paint, matching
+ * this feature's reference screenshots.
+ *
+ * **Explicit `[data-theme='light']`-scoped copy below, not just this
+ * theme-neutral rule — confirmed necessary via live testing, not assumed:**
+ * this rule and the light-theme background override further down
+ * (`[data-theme='light'] .cm-editor .cm-code-block-line`) both resolve to
+ * the same specificity (three simple selectors each), so which one wins is
+ * decided by source order alone, and the override happens to come later in
+ * this file. Combining two classes here (`.cm-code-block-line.cm-code-block-line--active`)
+ * doesn't change that outcome — both selectors still have three components
+ * either way. Rather than depend on staying below that override forever
+ * (fragile to future edits), the light-theme copy directly below adds the
+ * `[data-theme='light']` attribute selector, unambiguously outranking the
+ * override regardless of where either rule sits in the file.
+ */
+.cm-editor .cm-code-block-line.cm-code-block-line--active {
+  background: var(--syntax-active-line);
+}
+
+[data-theme='light'] .cm-editor .cm-code-block-line.cm-code-block-line--active {
+  background: var(--syntax-active-line);
+}
+
+.cm-editor .cm-code-block-line.cm-code-block-line--active::before {
+  color: var(--syntax-active-line-number);
 }
 
 /*
@@ -682,7 +790,8 @@
   position: absolute;
   top: var(--space-4);
   right: calc(
-    var(--space-4) + var(--height-sm) + var(--space-4) + var(--height-sm) + var(--space-4)
+    var(--space-4) + var(--height-sm) + var(--space-4) + var(--height-sm) +
+      var(--space-4)
   );
   opacity: 0;
   pointer-events: none;

@@ -71,6 +71,27 @@
   --syntax-function: var(--syntax-dark-function);
   --syntax-invalid: var(--syntax-dark-invalid);
   --syntax-color: var(--syntax-dark-color);
+
+  /* Fenced-code gutter (line numbers) and active-line highlighting —
+     editing-surface concepts, not language syntax color, but grouped here
+     rather than theme.css because they're specific to the code-editing
+     surface (see editor-architecture-decisions.md's line-numbers/active-line
+     entry). Every value below aliases an existing theme.css primitive —
+     none is a new arbitrary color. */
+  /* Resting gutter number — same quiet weight as the language label
+     (`.cm-code-block-language`, also --foreground-tertiary). */
+  --syntax-gutter-number: var(--foreground-tertiary);
+  /* Active line's own number — brighter, matching conventional editor
+     behavior (VS Code, this feature's reference screenshots) where the
+     current line's number is emphasized relative to its dimmed neighbors. */
+  --syntax-active-line-number: var(--foreground-primary);
+  /* Active line background — reuses the app's existing "this row is
+     highlighted" overlay convention (menu items, list rows) rather than
+     inventing a new opacity value. Deliberately one token shared by both
+     the code area and the gutter area (no separate gutter background
+     token) so the highlight reads as one continuous strip, matching the
+     reference screenshots. */
+  --syntax-active-line: var(--state-selected);
 }
 
 [data-theme='light'] {
@@ -84,4 +105,9 @@
   --syntax-function: var(--syntax-light-function);
   --syntax-invalid: var(--syntax-light-invalid);
   --syntax-color: var(--syntax-light-color);
+
+  /* See the [data-theme='dark'] block above for what each of these means. */
+  --syntax-gutter-number: var(--foreground-tertiary);
+  --syntax-active-line-number: var(--foreground-primary);
+  --syntax-active-line: var(--state-selected);
 }

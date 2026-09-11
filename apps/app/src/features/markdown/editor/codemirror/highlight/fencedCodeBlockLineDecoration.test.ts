@@ -77,3 +77,59 @@ describe('fencedCodeBlockLineDecoration (composed with fencedCodeBlockWrapper)',
     expect(() => mountView(['before', '```js', 'const x = 1;'].join('\n'))).not.toThrow();
   });
 });
+
+function activeLineTexts(view: EditorView): string[] {
+  return Array.from(view.dom.querySelectorAll('.cm-code-block-line--active')).map(
+    (line) => line.textContent ?? ''
+  );
+}
+
+describe('fencedCodeBlockLineDecoration — active line', () => {
+  const doc = ['before', '```js', 'const a = 1;', 'const b = 2;', '```', 'after'].join('\n');
+
+  it('marks no line active when the caret is outside any fenced block', () => {
+    const view = mountView(doc);
+    view.dispatch({ selection: { anchor: 0 } }); // "before"
+    expect(activeLineTexts(view)).toEqual([]);
+  });
+
+  it('marks exactly the line containing the caret when it is inside a fenced block', () => {
+    const view = mountView(doc);
+    const secondLineFrom = view.state.doc.line(3).from; // "const a = 1;"
+    view.dispatch({ selection: { anchor: secondLineFrom + 2 } });
+    expect(activeLineTexts(view)).toEqual(['const a = 1;']);
+  });
+
+  it('moves the active line as the caret moves between lines within the same block', () => {
+    const view = mountView(doc);
+    view.dispatch({ selection: { anchor: view.state.doc.line(3).from } });
+    expect(activeLineTexts(view)).toEqual(['const a = 1;']);
+
+    view.dispatch({ selection: { anchor: view.state.doc.line(4).from } });
+    expect(activeLineTexts(view)).toEqual(['const b = 2;']);
+  });
+
+  it('clears the active line once the caret leaves the block', () => {
+    const view = mountView(doc);
+    view.dispatch({ selection: { anchor: view.state.doc.line(3).from } });
+    expect(activeLineTexts(view)).toEqual(['const a = 1;']);
+
+    view.dispatch({ selection: { anchor: view.state.doc.line(6).from } }); // "after"
+    expect(activeLineTexts(view)).toEqual([]);
+  });
+
+  it('only marks the block the caret is actually in when multiple blocks are present', () => {
+    const twoBlocks = ['```js', 'one', '```', '```py', 'two', '```'].join('\n');
+    const view = mountView(twoBlocks);
+    view.dispatch({ selection: { anchor: view.state.doc.line(5).from } }); // "two"
+    expect(activeLineTexts(view)).toEqual(['two']);
+  });
+
+  it('does not mark every line of a multi-line selection — head-only, not range-wide', () => {
+    const view = mountView(doc);
+    const from = view.state.doc.line(3).from; // "const a = 1;"
+    const to = view.state.doc.line(4).to; // "const b = 2;"
+    view.dispatch({ selection: { anchor: from, head: to } });
+    expect(activeLineTexts(view)).toEqual(['const b = 2;']);
+  });
+});

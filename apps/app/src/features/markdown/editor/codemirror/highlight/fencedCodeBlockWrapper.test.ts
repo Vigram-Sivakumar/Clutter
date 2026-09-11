@@ -35,12 +35,18 @@ describe('fencedCodeBlockWrapper', () => {
     const wrapper = view.dom.querySelector('.cm-code-block')!;
     expect(wrapper.classList.contains('cm-code-block-line')).toBe(false);
     expect(wrapper.tagName).toBe('DIV');
-    // No inline style of any kind — this extension only ever provides a
-    // class attribute via BlockWrapper, never touches style directly (the
-    // actual background/border/padding all live in MarkdownEditor.css,
-    // never inline, so there's nothing here for jsdom to assert against
-    // beyond "we didn't set one ourselves").
-    expect(wrapper.getAttribute('style')).toBeNull();
+    // The only inline style this extension ever sets is the line-number
+    // gutter's own width custom property (`--code-gutter-digits`) —
+    // background/border/padding all still live in MarkdownEditor.css, never
+    // inline.
+    expect(wrapper.getAttribute('style')).toBe('--code-gutter-digits: 1;');
+  });
+
+  it("sets --code-gutter-digits from the block's own content line count, not its total physical line count (fence lines excluded)", () => {
+    // 2 content lines (excluding the ``` open/close lines) -> 1 digit.
+    const view = mountView(jsFence);
+    const wrapper = view.dom.querySelector('.cm-code-block')!;
+    expect(wrapper.getAttribute('style')).toBe('--code-gutter-digits: 1;');
   });
 
   it('gives two back-to-back blocks (no blank line between them) two independent wrappers, not one merged run', () => {
