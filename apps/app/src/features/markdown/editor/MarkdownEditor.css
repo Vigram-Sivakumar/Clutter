@@ -503,6 +503,20 @@
      number without guessing a fixed width that's wrong for either a
      3-line or a 300-line block. */
   counter-reset: cm-code-block-line;
+  /* No max-height/overflow here — reverted 2026-09-12. A `max-height` +
+     `overflow-y: auto` cap was briefly added and committed, then reverted
+     the same day after live testing surfaced a real cursor-placement bug:
+     clicking a visually-scrolled line resolved to the wrong document
+     position. Root cause is architectural, not a CSS mistake — see
+     `docs/editor-architecture-decisions.md`'s "Fenced code max-height" entry
+     for the full investigation (CM6's `posAtCoords` computes document
+     position from a single linear pixel offset relative to `.cm-content`'s
+     own top, with no concept of a second, independent scroll offset nested
+     inside it). Do not reintroduce `overflow-y`/`overflow-x`/`max-height`
+     on this element, or on any `.cm-code-block-line`, without first reading
+     that entry — an inner scroll container here will reproduce the same
+     bug regardless of which element it's applied to, since the problem is
+     CM6's coordinate model, not this specific rule. */
 }
 
 /*
@@ -638,6 +652,22 @@
 
 .cm-editor .cm-code-block-line.cm-code-block-line--active::before {
   color: var(--syntax-active-line-number);
+}
+
+/*
+ * `--first`/`--last` never carry a gutter number (excluded from
+ * `counter-increment`/the `::before` number above — they're the
+ * fence-marker lines, not code content, see that rule's own comment), so
+ * the base rule's wide `padding-inline-start` gutter reservation is dead
+ * space on exactly these two lines — reverted back to the plain
+ * `--space-12` every other side already uses. Same specificity as the
+ * base rule (one class each) and declared after it, so source order alone
+ * is what makes this win — consistent with how this file already lets
+ * `padding-inline-start` override part of a shorthand elsewhere.
+ */
+.cm-editor .cm-code-block-line--first,
+.cm-editor .cm-code-block-line--last {
+  padding-inline-start: var(--space-12);
 }
 
 .cm-editor .cm-code-block-line--first {
