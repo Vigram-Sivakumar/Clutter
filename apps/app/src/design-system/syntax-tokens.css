@@ -118,8 +118,7 @@
 
   /* Fenced code block's own card — background, and the border shared by
      its left/right edges and its --first/--last top/bottom edges. */
-  --syntax-code-background: var(--surface-secondary);
-  --syntax-code-border: var(--border-default);
+  --syntax-code-background: #1e1e1e;
   /* The friendly language label (`.cm-code-block-language`) — quiet
      metadata text, not code content. Kept as its own token rather than
      reusing --syntax-gutter-number below, even though both currently
@@ -163,21 +162,22 @@
   --syntax-color: var(--syntax-light-color);
 
   /* Code surfaces — see the [data-theme='dark'] block above for what each
-     of these means. `--syntax-code-background` is the one value that
-     genuinely differs from dark here (--surface-tertiary, not
-     --surface-secondary) — preserving the light-theme-only override this
-     token replaced: --surface-secondary resolves to the exact same value
-     as --surface-root in light mode (#f9f8f7), making the card
-     indistinguishable from the page background at any alpha (confirmed
-     via direct computed-style comparison when the fenced-code card was
-     first built), so light mode has always used --surface-tertiary
-     instead. Every other value below currently matches its dark
+     of these means. `--syntax-code-background` is a VS Code Light+-sourced
+     literal (`editor.background`, #ffffff), the same source/convention the
+     dark block's own `--syntax-code-background: #1e1e1e` already follows,
+     rather than a theme.css surface alias — a fenced-code card's
+     background is meant to read as "this is VS Code's own editor surface,"
+     not this app's own chrome, in either theme. (Previously
+     `var(--surface-tertiary)`, standing in for `--surface-secondary`
+     because that resolves to the exact same value as `--surface-root` in
+     light mode — #f9f8f7 — making the card indistinguishable from the page
+     background at any alpha; a real VS Code literal has no such collision
+     to work around.) Every other value below currently matches its dark
      counterpart's *primitive* (not its literal color — theme.css's own
      primitives already resolve differently per theme), each defined here
      independently so any one of them can be tuned for light mode alone
      later without touching the dark block or any consumer CSS. */
-  --syntax-code-background: var(--surface-tertiary);
-  --syntax-code-border: var(--border-default);
+  --syntax-code-background: #ffffff;
   --syntax-code-label: var(--foreground-tertiary);
   --syntax-gutter-number: var(--foreground-tertiary);
   --syntax-active-line: var(--state-selected);
