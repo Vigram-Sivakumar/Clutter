@@ -4,41 +4,50 @@ import { Decoration, type DecorationSet, EditorView, WidgetType } from '@codemir
 import type { SyntaxNode } from '@lezer/common';
 
 import { BLOCK_SPACING_PARTICIPANTS } from './blockSpacingParticipants';
+import { lineProbePos, resolveBoundaryHeight, type SeparatorHeight } from './separatorScope';
 
 /**
- * The one source of truth for the separator's height. Read directly by
- * `BlockSeparatorWidget.toDOM`/`estimatedHeight` below — never a CSS
- * value, so there is exactly one place to change it.
+ * One shared, empty, fixed-height block widget for every separator this
+ * file emits — genuinely CM6-measured geometry (per `@codemirror/view`'s
+ * own `WidgetDecorationSpec.block` doc comment: block-level decorations
+ * participate in the editor's own height/position model), unlike
+ * `margin` or CSS padding, neither of which this file uses. A widget was
+ * specifically chosen over per-line CSS padding (an earlier version of
+ * this system used `Decoration.line` classes for the physical-line case)
+ * because a widget never touches any `.cm-line`'s own CSS properties —
+ * confirmed by direct live-rendering comparison that a padding class
+ * competing with `FencedCode`'s own `--first`/`--last` card-inset
+ * padding on the same longhand property silently loses the cascade,
+ * while a widget's own height is entirely unaffected by whatever
+ * padding a neighboring line carries. That's what let `FencedCode` join
+ * `separatorScope.ts`'s atomic set with no special-casing at all.
  */
-export const BLOCK_SEPARATOR_HEIGHT_PX = 12;
+class SeparatorWidget extends WidgetType {
+  constructor(readonly height: Exclude<SeparatorHeight, 0>) {
+    super();
+  }
 
-/**
- * An empty, fixed-height block widget — genuinely CM6-measured geometry
- * (per `@codemirror/view`'s own `WidgetDecorationSpec.block` doc comment:
- * block-level decorations participate in the editor's own height/position
- * model), unlike `margin` or CSS-only spacing, which CM6 does not
- * measure. Confirmed safe for rendering/navigation/click/selection by
- * direct interactive testing in the running app before this was built
- * (see the architecture investigation this implements).
- */
-class BlockSeparatorWidget extends WidgetType {
-  override eq(): boolean {
-    // Every instance is identical (fixed height, no state) — always equal,
-    // so CM6 reuses the existing DOM node across rebuilds instead of
-    // recreating it.
-    return true;
+  override eq(other: SeparatorWidget): boolean {
+    return other.height === this.height;
   }
 
   override toDOM(): HTMLElement {
     const dom = document.createElement('div');
     dom.className = 'cm-block-separator';
-    dom.style.height = `${BLOCK_SEPARATOR_HEIGHT_PX}px`;
+    dom.style.height = `${this.height}px`;
     return dom;
   }
 
   override get estimatedHeight(): number {
-    return BLOCK_SEPARATOR_HEIGHT_PX;
+    return this.height;
   }
+}
+
+function separatorRange(height: SeparatorHeight, pos: number, side: -1 | 1): Range<Decoration> | null {
+  if (height === 0) {
+    return null;
+  }
+  return Decoration.widget({ widget: new SeparatorWidget(height), block: true, side }).range(pos);
 }
 
 function firstNonWhitespaceOffset(text: string): number {
@@ -56,111 +65,53 @@ function nearestParticipant(state: EditorState, probePos: number): SyntaxNode | 
 }
 
 /**
- * Whether *any* document extent exists before `pos` at all — deliberately
- * a pure position check, not a content check. Earlier iterations of this
- * algorithm asked "is the neighboring line blank or not," which meant a
- * separator could appear or disappear the instant a user typed the first
- * character into an already-existing empty line, visibly shifting the
- * block below/above it. Whether that neighboring line is blank or full of
- * text never changes whether it *exists* as a document position, so a
- * check built only on position is stable under ordinary typing — it only
- * changes on a genuinely structural edit (inserting/removing a line).
+ * Every physical-line boundary in the document — the general case,
+ * covering ordinary paragraphs (including a `Paragraph`'s own multiple
+ * physical lines, which get no special treatment here — see
+ * `resolveBoundaryHeight`'s own doc comment), blank lines, and entry/exit
+ * of every grouping/atomic construct, uniformly, via one comparison per
+ * adjacent line pair. This is also what makes empty-line editing stable:
+ * the boundary is defined by line *position*, which typing into an
+ * existing line never changes, so a separator can never appear,
+ * disappear, or move just because the user filled in a blank line —
+ * only inserting or removing a line does.
+ *
+ * Runs over the whole document on every edit, not just the visible
+ * viewport — a `StateField` has no `view.visibleRanges` to scope
+ * against (only a `ViewPlugin` does, and block decorations can't come
+ * from one), so this is a real, unmeasured cost for very long documents
+ * that a future pass may want to address (e.g. incremental re-resolution
+ * around the changed range instead of a full rebuild) rather than
+ * something already solved here.
  */
-function hasDocumentExtentBefore(pos: number): boolean {
-  return pos > 0;
-}
+function buildLineBoundarySeparators(state: EditorState): Range<Decoration>[] {
+  const ranges: Range<Decoration>[] = [];
 
-/**
- * Symmetric to {@link hasDocumentExtentBefore}. Deliberately *not*
- * adjusted for a document's conventional trailing `\n` — CM6 treats the
- * line after that newline as a real, clickable, typeable line (its own
- * "trailing editable line"), and adjusting for it would reintroduce the
- * exact instability this algorithm exists to avoid: appending text to
- * that trailing line would change whether the adjustment applies,
- * flipping the separator right as the user types into an already-
- * existing line. The raw position check never flips there either way, so
- * it's kept simple. The one visible consequence: a participant that is
- * the last real content in a file saved with a trailing newline (the
- * common convention) still gets a small trailing separator, because that
- * newline's own empty line genuinely exists as a document position.
- */
-function hasDocumentExtentAfter(state: EditorState, pos: number): boolean {
-  return pos < state.doc.length;
-}
-
-/**
- * The physical line to evaluate for a node's *trailing* edge. `node.to`
- * is exclusive and, for a multi-line block node, can itself already
- * equal the very next line's own `.from` (a line-based block parser's
- * span conventionally includes its own trailing newline) — most visibly
- * for a block ending at the document's trailing newline, where `node.to`
- * lands on the synthetic empty final line (the same phantom-line
- * boundary `fencedCodeBlockLineDecoration.ts`'s own `--last` computation
- * already had to account for). Probing `node.to`'s own last real
- * character instead always resolves to the node's own true last line,
- * regardless of which convention applies.
- */
-function trailingLine(state: EditorState, node: { from: number; to: number }) {
-  const lastRealPos = node.to > node.from ? node.to - 1 : node.to;
-  return state.doc.lineAt(lastRealPos);
-}
-
-/**
- * Whether the content immediately following `node`'s own end (same-line
- * first, else the next line, skipping forward past any run of blank
- * lines) is itself the *start* of another participant node — i.e.
- * whether the boundary right after `node` will already get a separator
- * from that node's own leading check. Deferring to it here is what keeps
- * two adjacent participants (same line, consecutive lines, or separated
- * by one or more blank lines) at exactly one separator instead of two;
- * only called when {@link hasDocumentExtentAfter} is already true.
- */
-function followingContentStartsParticipant(state: EditorState, node: { from: number; to: number }): boolean {
-  const line = trailingLine(state, node);
-  const sameLineAfter = node.to <= line.to ? state.sliceDoc(node.to, line.to) : '';
-  if (sameLineAfter.trim().length > 0) {
-    const probePos = node.to + firstNonWhitespaceOffset(sameLineAfter);
-    const found = nearestParticipant(state, probePos);
-    return found !== null && found.from === probePos;
-  }
-  for (let lineNumber = line.number + 1; lineNumber <= state.doc.lines; lineNumber++) {
-    const candidate = state.doc.line(lineNumber);
-    if (candidate.text.trim().length === 0) {
-      continue;
+  for (let n = 2; n <= state.doc.lines; n++) {
+    const prevProbe = lineProbePos(state, n - 1);
+    const probe = lineProbePos(state, n);
+    const height = resolveBoundaryHeight(state, prevProbe, probe);
+    const separator = separatorRange(height, state.doc.line(n).from, -1);
+    if (separator) {
+      ranges.push(separator);
     }
-    const probePos = candidate.from + firstNonWhitespaceOffset(candidate.text);
-    const found = nearestParticipant(state, probePos);
-    return found !== null && found.from === probePos;
   }
-  return false;
+
+  return ranges;
 }
 
 /**
- * Boundary-ownership algorithm (see the architecture investigation this
- * implements for the full case table, and its follow-up correction for
- * this position-based, content-independent version). For every
- * participant node:
- *
- * - **Leading** edge: a separator is needed whenever any document extent
- *   exists before it at all — emitted here, at this node's own `.from`.
- *   Deliberately *not* conditioned on whether that preceding extent is a
- *   blank line or has real text: see {@link hasDocumentExtentBefore}'s own
- *   doc comment for why content-sensitivity was removed. Document start
- *   needs nothing (no artificial spacing before the very first block).
- *   The leading check never defers — it always owns its boundary.
- * - **Trailing** edge: symmetric, at this node's own `.to`, *except*
- *   skipped whenever the next real content (skipping blank lines) is
- *   itself the start of another participant — that boundary is instead
- *   the *next* node's own leading check, so it is never computed twice.
- *
- * Each boundary is therefore decided by exactly one of the two checks
- * above, never both — there is no code path that can emit two widgets for
- * the same boundary. And because neither check inspects the content of
- * any line, no separator can appear, disappear, or move purely because
- * the user typed into (or deleted from) an existing line — only inserting
- * or removing a line changes anything.
+ * Same-physical-line boundaries around an `Image`/`Embed` that shares
+ * its line with real text (`before ![img](url) after`) — invisible to
+ * {@link buildLineBoundarySeparators}, which only ever compares whole
+ * lines to each other, never positions within one line. Uses the same
+ * {@link resolveBoundaryHeight} rule (so an inline embed nested inside a
+ * list/blockquote correctly gets 6px here too, not a hardcoded 12), and
+ * the same widget/emission mechanism — this is the "one shared boundary
+ * resolver, one shared emission mechanism" the physical-line and
+ * same-line cases both go through, not two parallel implementations.
  */
-function buildSeparators(state: EditorState): Range<Decoration>[] {
+function buildInlineParticipantSeparators(state: EditorState): Range<Decoration>[] {
   const ranges: Range<Decoration>[] = [];
 
   syntaxTree(state).iterate({
@@ -169,14 +120,29 @@ function buildSeparators(state: EditorState): Range<Decoration>[] {
         return;
       }
 
-      if (hasDocumentExtentBefore(node.from)) {
-        ranges.push(
-          Decoration.widget({ widget: new BlockSeparatorWidget(), block: true, side: -1 }).range(node.from)
-        );
+      const line = state.doc.lineAt(node.from);
+
+      const before = state.sliceDoc(line.from, node.from);
+      if (before.trim().length > 0) {
+        const height = resolveBoundaryHeight(state, line.from, node.from);
+        const separator = separatorRange(height, node.from, -1);
+        if (separator) {
+          ranges.push(separator);
+        }
       }
 
-      if (hasDocumentExtentAfter(state, node.to) && !followingContentStartsParticipant(state, node)) {
-        ranges.push(Decoration.widget({ widget: new BlockSeparatorWidget(), block: true, side: 1 }).range(node.to));
+      const after = node.to <= line.to ? state.sliceDoc(node.to, line.to) : '';
+      if (after.trim().length > 0) {
+        const probePos = node.to + firstNonWhitespaceOffset(after);
+        const following = nearestParticipant(state, probePos);
+        const deferredToNextParticipant = following !== null && following.from === probePos;
+        if (!deferredToNextParticipant) {
+          const height = resolveBoundaryHeight(state, node.to, probePos);
+          const separator = separatorRange(height, node.to, 1);
+          if (separator) {
+            ranges.push(separator);
+          }
+        }
       }
     },
   });
@@ -184,16 +150,19 @@ function buildSeparators(state: EditorState): Range<Decoration>[] {
   return ranges;
 }
 
+function buildSeparators(state: EditorState): Range<Decoration>[] {
+  return [...buildLineBoundarySeparators(state), ...buildInlineParticipantSeparators(state)];
+}
+
 /**
  * A `StateField`, not a `ViewPlugin` and not a view-dependent decorations
  * function — CM6 throws `RangeError: Block decorations may not be
  * specified via plugins` for either of those (confirmed directly against
- * the installed `@codemirror/view` in this session's architecture
- * investigation). Block-level decorations must be transaction-
- * synchronized, unlike `EditorView.blockWrappers` (which does accept a
- * view function, per `fencedCodeBlockWrapper.ts`'s own doc comment) — the
- * two mechanisms are not interchangeable in what's allowed to produce
- * them.
+ * the installed `@codemirror/view`). Block-level decorations must be
+ * transaction-synchronized, unlike `EditorView.blockWrappers` (which does
+ * accept a view function, per `fencedCodeBlockWrapper.ts`'s own doc
+ * comment) — the two mechanisms are not interchangeable in what's
+ * allowed to produce them.
  */
 const blockSeparatorField = StateField.define<DecorationSet>({
   create(state) {
@@ -209,11 +178,14 @@ const blockSeparatorField = StateField.define<DecorationSet>({
 });
 
 /**
- * Shared block-boundary separator — empty visual spacing above/below any
- * `BLOCK_SPACING_PARTICIPANTS` node, exactly one per boundary, never
- * doubled with an adjacent participant or with a real blank line. See
- * this file's own doc comments and `blockSpacingParticipants.ts` for the
- * opt-in mechanism a future block type (e.g. a URL embed) uses to join.
+ * The single, unified spacing system for the editor: resolves every
+ * boundary — between physical lines, and between a same-line `Image`/
+ * `Embed` and its flanking text — to a height (12/6/0, see
+ * `separatorScope.ts`), and emits exactly one `Decoration.widget` when
+ * that height is non-zero. Replaces the previous global
+ * `.cm-line { padding-block: 3px }` rule entirely (see
+ * `MarkdownEditor.css`'s `.cm-line` rule, now `padding-block: 0`) — there
+ * is no second, padding-based spacing mechanism anywhere in the editor.
  */
 export function blockSeparatorDecoration(): Extension {
   return blockSeparatorField;

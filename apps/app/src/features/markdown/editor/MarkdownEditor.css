@@ -78,10 +78,22 @@
   min-width: 0;
 }
 
+/*
+ * No `padding-block` here (deliberately removed — see the earlier
+ * architecture investigation this replaces). All spacing between lines
+ * is owned entirely by `highlight/blockSeparatorDecoration.ts`'s
+ * `Decoration.widget` separators (`.cm-block-separator`, styled inline
+ * per-instance by that widget, not here) — a widget never touches this
+ * rule or any other `.cm-line` CSS property, which is what lets it
+ * coexist with constructs like `.cm-code-block-line`'s own padding with
+ * no collision, unlike an earlier per-line-padding-class version of this
+ * system.
+ */
 .markdown__editor .cm-line {
-  padding-block: 3px;
+  padding-block: 0;
   padding-inline: 0;
 }
+
 /*
  * IndentTokenWidget.ts / leadingIndentDecoration.ts's `indentCharDecoration()`
  * — the rendered box for one leading-indentation *character* (one space

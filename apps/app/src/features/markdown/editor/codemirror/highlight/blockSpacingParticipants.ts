@@ -1,19 +1,18 @@
 /**
  * The single opt-in registry for `blockSeparatorDecoration.ts`: which
- * syntax node names count as a "block-like" rendered construct for the
- * purpose of visual separator spacing (fenced code, image/PDF/note
- * embeds today; a future URL embed opts in by adding its own node name
- * here — nothing else in the separator implementation should ever branch
- * on which specific kind of block it's looking at).
+ * syntax node names can sit *mid-line*, sharing a physical line with
+ * other inline content, while still rendering as their own visual block
+ * (`.cm-media-block`'s CSS block-in-inline split). `blockSeparatorDecoration.ts`
+ * only ever handles *same-physical-line* spacing around a node in this
+ * set — every *cross-line* boundary (including this node's own, when it
+ * sits alone on its own line) belongs to `lineSeparatorDecoration.ts`'s
+ * physical-line system instead. A future URL embed opts in by adding its
+ * own node name here.
  *
- * `Image` and `Embed` are Markdown-*inline* nodes (an image/embed can
- * syntactically sit mid-paragraph — `markdownGrammarExtensions.ts`'s own
- * grammar composition, `embedLayout.css`'s `.cm-media-block` doc comment)
- * that are visually promoted to block layout by CSS regardless of where
- * they sit in the source. `blockSeparatorDecoration.ts` doesn't care
- * about that distinction — it only asks "does this node's name appear in
- * this set," so both node shapes (`FencedCode`'s genuine block ownership
- * and `Image`/`Embed`'s inline-promoted-to-block ownership) are handled
- * uniformly by the same registry lookup.
+ * `FencedCode` is deliberately absent — it never shares a physical line
+ * with other content (a fence marker line's content is always the whole
+ * line), so it never needed this mechanism; it opts out of the line
+ * system too, on its own terms — see `lineSeparatorDecoration.ts`'s doc
+ * comment.
  */
-export const BLOCK_SPACING_PARTICIPANTS: ReadonlySet<string> = new Set(['FencedCode', 'Image', 'Embed']);
+export const BLOCK_SPACING_PARTICIPANTS: ReadonlySet<string> = new Set(['Image', 'Embed']);
