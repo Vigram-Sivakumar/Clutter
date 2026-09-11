@@ -159,8 +159,9 @@ function delimitedInlineRenderer(
       // wrapper at all. Ordinary (non-widget) content is unaffected: plain
       // text and concealed zero-width marker ranges compose into this mark
       // the same way regardless of inclusivity, so this is purely additive.
+      const classes = [contentClass, ...collectActiveStrikeClass(node)].join(' ');
       decorations.push(
-        Decoration.mark({ class: contentClass, inclusiveStart: true, inclusiveEnd: true }).range(
+        Decoration.mark({ class: classes, inclusiveStart: true, inclusiveEnd: true }).range(
           openMark.to,
           closeMark.from
         )
@@ -251,6 +252,25 @@ export function collectActiveInlineClasses(node: SyntaxNodeRef): readonly string
     ancestor = ancestor.parent;
   }
   return classes;
+}
+
+/**
+ * First slice of extending token-level class composition
+ * (`collectActiveInlineClasses`, above) from the widget-family renderers to
+ * the plain `Decoration.mark` participants (Emphasis, StrongEmphasis,
+ * Strikethrough itself, Highlight, InlineCode, Link, Autolink, URL) —
+ * `tok-strike` only, deliberately, per the scoped request that introduced
+ * this: composing every ancestor class onto every `Decoration.mark` span is
+ * a broader change than what's asked for here, so this stays a filter over
+ * the existing, unmodified `collectActiveInlineClasses` rather than a new
+ * traversal. Widget-family renderers (`widgetReplaceRenderer`,
+ * `wikiLinkLivePreview.ts`) already compose the full `collectActiveInlineClasses`
+ * result and are untouched by this — this helper exists only for the
+ * `Decoration.mark` call sites below, which previously composed no ancestor
+ * classes at all.
+ */
+function collectActiveStrikeClass(node: SyntaxNodeRef): readonly string[] {
+  return collectActiveInlineClasses(node).filter((cls) => cls === 'tok-strike');
 }
 
 /**
@@ -442,6 +462,7 @@ const linkRenderer: ParticipantRenderer = (node) => {
     return { decorations: [] };
   }
 
+  const linkClasses = ['tok-link', ...collectActiveStrikeClass(node)].join(' ');
   const decorations: Range<Decoration>[] = [
     Decoration.replace({}).range(openMark.from, openMark.to),
   ];
@@ -454,7 +475,7 @@ const linkRenderer: ParticipantRenderer = (node) => {
     // portion (`](url "title")`) stays concealed as one combined range,
     // exactly as it always has.
     decorations.push(
-      Decoration.mark({ class: 'tok-link', inclusiveStart: true, inclusiveEnd: true }).range(
+      Decoration.mark({ class: linkClasses, inclusiveStart: true, inclusiveEnd: true }).range(
         openMark.to,
         labelCloseMark.from
       )
@@ -468,7 +489,7 @@ const linkRenderer: ParticipantRenderer = (node) => {
     // the URL, so both replace ranges are always non-empty.
     decorations.push(Decoration.replace({}).range(labelCloseMark.from, urlNode.from));
     decorations.push(
-      Decoration.mark({ class: 'tok-link', inclusiveStart: true, inclusiveEnd: true }).range(
+      Decoration.mark({ class: linkClasses, inclusiveStart: true, inclusiveEnd: true }).range(
         urlNode.from,
         urlNode.to
       )
@@ -529,8 +550,9 @@ const urlRenderer: ParticipantRenderer = (node) => {
   if (parentName === 'Link' || parentName === 'Autolink' || parentName === 'Image') {
     return { decorations: [] };
   }
+  const classes = ['tok-link', ...collectActiveStrikeClass(node)].join(' ');
   return {
-    decorations: [Decoration.mark({ class: 'tok-link' }).range(node.from, node.to)],
+    decorations: [Decoration.mark({ class: classes }).range(node.from, node.to)],
   };
 };
 
