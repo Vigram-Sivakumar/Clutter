@@ -528,18 +528,20 @@
      `.cm-activeLine` pattern (`#cceeff44`/`#99eeff33`, an alpha-channel
      color) for coexisting with the selection layer's intentional
      `z-index: -1` — see docs/editor-architecture-decisions.md's
-     selection-visibility investigation. Opaque `var(--surface-secondary)`
+     selection-visibility investigation. Opaque `var(--syntax-code-background)`
      painted above the negative-z-index selection layer; this uses the
      same color, mixed down to partial opacity via color-mix(), instead of
-     a new rendering mechanism. Dark theme keeps `--surface-secondary`
-     unchanged (confirmed visually successful there); light theme overrides
-     to `--surface-tertiary` below, since `--surface-secondary` resolves to
-     the exact same value as `--surface-root` in light mode (`#f9f8f7`),
-     making the card indistinguishable from the page background at any
-     alpha — confirmed via direct computed-style comparison, not assumed. */
-  background: color-mix(in srgb, var(--surface-secondary) 55%, transparent);
-  border-left: 1px solid var(--border-default);
-  border-right: 1px solid var(--border-default);
+     a new rendering mechanism. `--syntax-code-background` already resolves
+     differently per theme (dark: `--surface-secondary`; light:
+     `--surface-tertiary`, since `--surface-secondary` resolves to the exact
+     same value as `--surface-root` in light mode (`#f9f8f7`), making the
+     card indistinguishable from the page background at any alpha —
+     confirmed via direct computed-style comparison, not assumed), so this
+     one rule now covers both themes with no separate light-mode override
+     needed (see `syntax-tokens.css`'s own token definition for that split). */
+  background: color-mix(in srgb, var(--syntax-code-background) 55%, transparent);
+  border-left: 1px solid var(--syntax-code-border);
+  border-right: 1px solid var(--syntax-code-border);
   padding-inline: var(--space-12);
   /* Line-number gutter (2026-09-11) — reserves a column, sized to this
      block's own largest number (`--code-gutter-digits`, set per-block on
@@ -616,24 +618,21 @@
  * from the line number through the code content in one paint, matching
  * this feature's reference screenshots.
  *
- * **Explicit `[data-theme='light']`-scoped copy below, not just this
- * theme-neutral rule — confirmed necessary via live testing, not assumed:**
- * this rule and the light-theme background override further down
- * (`[data-theme='light'] .cm-editor .cm-code-block-line`) both resolve to
- * the same specificity (three simple selectors each), so which one wins is
- * decided by source order alone, and the override happens to come later in
- * this file. Combining two classes here (`.cm-code-block-line.cm-code-block-line--active`)
- * doesn't change that outcome — both selectors still have three components
- * either way. Rather than depend on staying below that override forever
- * (fragile to future edits), the light-theme copy directly below adds the
- * `[data-theme='light']` attribute selector, unambiguously outranking the
- * override regardless of where either rule sits in the file.
+ * **A real, now-fixed bug, recorded here since it's non-obvious:** this
+ * rule originally tied in specificity with the (since-removed) light-theme
+ * background override that used to sit below it (`[data-theme='light']
+ * .cm-editor .cm-code-block-line`, three simple selectors each), so which
+ * one won was decided by source order alone — the override came later in
+ * the file and silently won, making the active-line highlight invisible in
+ * light mode only (confirmed via `getComputedStyle`, not assumed). Fixing
+ * `--syntax-code-background` to already vary per theme (see that rule
+ * above) removed the override entirely, which also removes the specificity
+ * tie: this rule's two combined classes (`.cm-code-block-line.cm-code-block-line--active`,
+ * three selector components) now unconditionally outrank the plain
+ * `.cm-code-block-line` background rule (two components) in both themes,
+ * with no separate `[data-theme='light']` copy needed.
  */
 .cm-editor .cm-code-block-line.cm-code-block-line--active {
-  background: var(--syntax-active-line);
-}
-
-[data-theme='light'] .cm-editor .cm-code-block-line.cm-code-block-line--active {
   background: var(--syntax-active-line);
 }
 
@@ -641,25 +640,14 @@
   color: var(--syntax-active-line-number);
 }
 
-/*
- * Light-theme-only override: `--surface-tertiary` (`neutral-200`,
- * `#efeeec`) is the existing token one step further from
- * `--surface-root`/`--surface-secondary` (both `neutral-50`, `#f9f8f7`,
- * identical to the page background in light mode) — reused as-is, not a
- * new token, per this experiment's own constraint.
- */
-[data-theme='light'] .cm-editor .cm-code-block-line {
-  background: color-mix(in srgb, var(--surface-tertiary) 55%, transparent);
-}
-
 .cm-editor .cm-code-block-line--first {
-  border-top: 1px solid var(--border-default);
+  border-top: 1px solid var(--syntax-code-border);
   border-top-left-radius: var(--radius-md);
   border-top-right-radius: var(--radius-md);
 }
 
 .cm-editor .cm-code-block-line--last {
-  border-bottom: 1px solid var(--border-default);
+  border-bottom: 1px solid var(--syntax-code-border);
   border-bottom-left-radius: var(--radius-md);
   border-bottom-right-radius: var(--radius-md);
 }
@@ -706,7 +694,7 @@
  * untouched.
  */
 .cm-editor .cm-code-block-language {
-  color: var(--foreground-tertiary);
+  color: var(--syntax-code-label);
   font-size: var(--text-label-small);
   letter-spacing: 0.02em;
 }
@@ -1557,8 +1545,8 @@
 .cm-editor .tok-code {
   font-family: var(--font-mono);
   font-size: 0.85em;
-  color: var(--foreground-secondary);
-  background: var(--surface-subtle);
+  color: var(--syntax-inline-code-foreground);
+  background: var(--syntax-inline-code-background);
   border-radius: var(--radius-sm);
   box-shadow: var(--shadow-inset-default);
   padding: 0.2em 0.4em;
